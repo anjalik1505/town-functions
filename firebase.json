@@ -2,6 +2,7 @@
   "functions": [
     {
       "source": "functions",
+      "entryPoint": "api_handler",
       "codebase": "default",
       "ignore": [
         "venv",
