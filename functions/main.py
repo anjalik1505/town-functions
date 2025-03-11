@@ -14,6 +14,7 @@ from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
+from user_profile.get_user_profile import get_user_profile
 
 initialize_app()
 app = Flask(__name__)
@@ -195,6 +196,15 @@ def add_my_friend():
 def user_feed(user_id):
     # Example endpoint demonstrating URL parameter routing
     return jsonify({"user": user_id, "feed": "Feed not implemented"})
+
+
+@app.route('/users/<user_id>/profile', methods=['GET'])
+def user_profile(user_id):
+    """
+    Fetch basic profile info plus a short summary and suggestions derived from shared data
+    (common groups or a direct friend relationship).
+    """
+    return get_user_profile(request, user_id).to_json()
 
 
 # Firebase Function entry point 
