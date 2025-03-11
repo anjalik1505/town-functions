@@ -31,7 +31,7 @@ class UpdatesResponse:
 
 
 @dataclass
-class SelfSummary:
+class Summary:
     emotional_journey: str
     key_moments: str
     recurring_themes: str
@@ -43,9 +43,8 @@ class ProfileResponse:
     id: str
     name: str
     avatar: str
-    group_ids: list[str]
-    self_summary: SelfSummary
-    suggestions_for_self: list[str]
+    summary: Summary
+    suggestions: list[str]
 
     def to_json(self):
         return asdict(self)

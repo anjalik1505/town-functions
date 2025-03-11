@@ -1,7 +1,7 @@
 from firebase_admin import firestore
 from flask import abort
 
-from functions.data_models import ProfileResponse, SelfSummary
+from functions.data_models import ProfileResponse, Summary
 
 
 def get_my_profile(request) -> ProfileResponse:
@@ -19,19 +19,18 @@ def get_my_profile(request) -> ProfileResponse:
 
     profile_data = profile_ref.get().to_dict() or {}
 
-    summary_doc = next(profile_ref.collection('self_summary').limit(1).stream(), None)
+    summary_doc = next(profile_ref.collection('summary').limit(1).stream(), None)
     summary_data = summary_doc.to_dict() if summary_doc else {}
 
     return ProfileResponse(
         id=request.user_id,
         name=profile_data.get('name', ''),
         avatar=profile_data.get('avatar', ''),
-        group_ids=profile_data.get('group_ids', []),
-        self_summary=SelfSummary(
+        summary=Summary(
             emotional_journey=summary_data.get('emotional_journey', ''),
             key_moments=summary_data.get('key_moments', ''),
             recurring_themes=summary_data.get('recurring_themes', ''),
             progress_and_growth=summary_data.get('progress_and_growth', '')
         ),
-        suggestions_for_self=summary_data.get('suggestions', [])
+        suggestions=summary_data.get('suggestions', [])
     )
