@@ -234,12 +234,6 @@ def add_my_friend():
     return add_friend(request).to_json()
 
 
-@app.route('/users/<user_id>/feed', methods=['GET'])
-@handle_errors()
-def user_feed(user_id):
-    return jsonify({"user": user_id, "feed": "Feed not implemented"})
-
-
 @app.route('/users/<user_id>/profile', methods=['GET'])
 @handle_errors()
 def user_profile(user_id):

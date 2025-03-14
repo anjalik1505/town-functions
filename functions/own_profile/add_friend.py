@@ -80,7 +80,5 @@ def add_friend(request) -> AddFriendResponse:
             status=Status.OK,
             message="Friend added successfully"
         )
-    except Exception as e:
-        # Log the error but don't expose details to the client
-        print(f"Error adding friend: {str(e)}")
+    except Exception:
         abort(500, description="Internal server error")

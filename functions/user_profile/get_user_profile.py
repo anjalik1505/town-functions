@@ -1,8 +1,7 @@
 from firebase_admin import firestore
 from flask import abort
-from functions.data_models import ProfileResponse, Summary
-
-from functions.models.constants import Collections, ProfileFields, SummaryFields
+from models.constants import Collections, ProfileFields, SummaryFields
+from models.data_models import ProfileResponse, Summary
 
 
 def get_user_profile(request, user_id) -> ProfileResponse:

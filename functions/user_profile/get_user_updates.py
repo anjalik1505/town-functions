@@ -1,9 +1,8 @@
 from firebase_admin import firestore
 from flask import abort
-from functions.data_models import UpdatesResponse, Update
-from functions.pydantic_models import GetPaginatedRequest
-
-from functions.models.constants import Collections, ProfileFields, UpdateFields
+from models.constants import Collections, ProfileFields, UpdateFields
+from models.data_models import UpdatesResponse, Update
+from models.pydantic_models import GetPaginatedRequest
 
 
 def get_user_updates(request, user_id: str) -> UpdatesResponse:

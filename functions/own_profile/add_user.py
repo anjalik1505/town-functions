@@ -23,6 +23,7 @@ def add_user(request):
     
     Raises:
         400: If a profile already exists for the authenticated user
+        500: Server error during profile creation
     """
     # Get the authenticated user ID from the request
     user_id = request.user_id
@@ -30,68 +31,73 @@ def add_user(request):
     # Initialize Firestore client
     db = firestore.client()
 
-    # Check if profile already exists
-    profile_ref = db.collection(Collections.PROFILES.value).document(request.user_id)
+    try:
+        # Check if profile already exists
+        profile_ref = db.collection(Collections.PROFILES.value).document(request.user_id)
+        profile_doc = profile_ref.get()
 
-    if profile_ref.get().exists:
-        abort(400, description=f"Profile already exists for user {request.user_id}")
+        if profile_doc.exists:
+            abort(400, description=f"Profile already exists for user {request.user_id}")
+        
+        # Create an empty profile according to the schema
+        profile_data = {
+            ProfileFields.NAME.value: '',
+            ProfileFields.AVATAR.value: '',
+            ProfileFields.EMAIL.value: '',
+            ProfileFields.GROUP_IDS.value: []  # Added based on get_my_feeds.py
+        }
 
-    # Create an empty profile according to the schema
-    profile_data = {
-        ProfileFields.NAME.value: '',
-        ProfileFields.AVATAR.value: '',
-        ProfileFields.EMAIL.value: '',
-        ProfileFields.GROUP_IDS.value: []  # Added based on get_my_feeds.py
-    }
+        # Create the profile document
+        profile_ref.set(profile_data)
 
-    # Create the profile document
-    profile_ref.set(profile_data)
+        # Create an empty summary subcollection document
+        summary_ref = profile_ref.collection(Collections.SUMMARY.value).document(Documents.DEFAULT_SUMMARY.value)
+        summary_data = {
+            SummaryFields.EMOTIONAL_JOURNEY.value: '',
+            SummaryFields.KEY_MOMENTS.value: '',
+            SummaryFields.RECURRING_THEMES.value: '',
+            SummaryFields.PROGRESS_AND_GROWTH.value: '',
+            SummaryFields.SUGGESTIONS.value: []
+        }
+        summary_ref.set(summary_data)
 
-    # Create an empty summary subcollection document
-    summary_ref = profile_ref.collection(Collections.SUMMARY.value).document(Documents.DEFAULT_SUMMARY.value)
-    summary_data = {
-        SummaryFields.EMOTIONAL_JOURNEY.value: '',
-        SummaryFields.KEY_MOMENTS.value: '',
-        SummaryFields.RECURRING_THEMES.value: '',
-        SummaryFields.PROGRESS_AND_GROWTH.value: '',
-        SummaryFields.SUGGESTIONS.value: []
-    }
-    summary_ref.set(summary_data)
+        # We don't need to create any documents in the friends subcollection initially,
+        # but we can create the collection structure by adding and then deleting a placeholder document
+        # This is optional as Firestore creates collections lazily when the first document is added
+        friends_ref = profile_ref.collection(Collections.FRIENDS.value)
+        friend_requests_ref = profile_ref.collection(Collections.FRIEND_REQUESTS.value)
 
-    # We don't need to create any documents in the friends subcollection initially,
-    # but we can create the collection structure by adding and then deleting a placeholder document
-    # This is optional as Firestore creates collections lazily when the first document is added
-    friends_ref = profile_ref.collection(Collections.FRIENDS.value)
-    friend_requests_ref = profile_ref.collection(Collections.FRIEND_REQUESTS.value)
+        # If we want to ensure the collections exist (optional)
+        # Create and immediately delete a placeholder document
+        placeholder_data = {'placeholder': True}
 
-    # If we want to ensure the collections exist (optional)
-    # Create and immediately delete a placeholder document
-    placeholder_data = {'placeholder': True}
+        # For friends collection
+        placeholder_doc = friends_ref.document('placeholder')
+        placeholder_doc.set(placeholder_data)
+        placeholder_doc.delete()
 
-    # For friends collection
-    placeholder_doc = friends_ref.document('placeholder')
-    placeholder_doc.set(placeholder_data)
-    placeholder_doc.delete()
+        # For friend_requests collection
+        placeholder_doc = friend_requests_ref.document('placeholder')
+        placeholder_doc.set(placeholder_data)
+        placeholder_doc.delete()
 
-    # For friend_requests collection
-    placeholder_doc = friend_requests_ref.document('placeholder')
-    placeholder_doc.set(placeholder_data)
-    placeholder_doc.delete()
+        # Return a properly formatted response
+        summary = Summary(
+            emotional_journey='',
+            key_moments='',
+            recurring_themes='',
+            progress_and_growth=''
+        )
 
-    # Return a properly formatted response
-    summary = Summary(
-        emotional_journey='',
-        key_moments='',
-        recurring_themes='',
-        progress_and_growth=''
-    )
+        response = ProfileResponse(
+            id=user_id,
+            name='',
+            avatar='',
+            summary=summary,
+            suggestions=[]
+        )
 
-    response = ProfileResponse(
-        id=user_id,
-        name='',
-        avatar='',
-        summary=summary,
-        suggestions=[]
-    )
-
-    return response
+        return response
+        
+    except Exception:
+        abort(500, description="Internal server error during profile creation")
