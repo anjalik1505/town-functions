@@ -1,6 +1,7 @@
 # Welcome to Cloud Functions for Firebase for Python!
 # To get started, simply uncomment the below code or create your own.
 # Deploy with `firebase deploy`
+import json
 
 from firebase_admin import initialize_app, firestore, auth
 from firebase_functions import https_fn
@@ -9,6 +10,7 @@ from pydantic import ValidationError
 from werkzeug.wrappers import Response
 
 from functions.pydantic_models import GetPaginatedRequest, AddFriendRequest
+from functions.user_profile.get_user_updates import get_user_updates
 from own_profile.add_friend import add_friend
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
@@ -207,7 +209,18 @@ def user_profile(user_id):
     return get_user_profile(request, user_id).to_json()
 
 
-# Firebase Function entry point 
+@app.route('/users/<user_id>/updates', methods=['GET'])
+def user_updates(user_id):
+    try:
+        params = dict(request.args)
+        validated_params = GetPaginatedRequest.model_validate(**params)
+        request.validated_params = validated_params
+        return get_user_updates(request, user_id).to_json()
+    except (ValidationError, ValueError):
+        abort(400, description="Invalid request parameters")
+
+
+# Firebase Function entry point
 def api_handler(incoming_request):
     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
     return Response.from_app(app, incoming_request.environ)
