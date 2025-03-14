@@ -12,7 +12,7 @@ def add_friend(request) -> AddFriendResponse:
     
     This function establishes a bidirectional friendship connection between the authenticated
     user and the specified friend. It creates a friendship document in the friendships collection
-    with "accepted" status. The function performs validation to ensure the friend exists
+    with "pending" status. The function performs validation to ensure the friend exists
     and that users cannot add themselves as friends.
     
     Args:
@@ -36,10 +36,10 @@ def add_friend(request) -> AddFriendResponse:
         500: Server error during operation
     """
     logger = get_logger(__name__)
-    logger.info(f"Adding friend relationship between {request.user_id} and {request.validated_params['friendId']}")
+    logger.info(f"Adding friend relationship between {request.user_id} and {request.validated_params.friend_id}")
 
     # Get the friend ID from the validated request parameters
-    friend_id = request.validated_params['friendId']
+    friend_id = request.validated_params.friend_id
     current_user_id = request.user_id
 
     # Prevent users from adding themselves as friends
@@ -76,9 +76,23 @@ def add_friend(request) -> AddFriendResponse:
     friendship_ref = db.collection(Collections.FRIENDSHIPS).document(friendship_id)
     friendship_doc = friendship_ref.get()
 
-    if friendship_doc.exists and friendship_doc.to_dict().get(FriendshipFields.STATUS) == Status.ACCEPTED:
-        logger.warning(f"Users {current_user_id} and {friend_id} are already friends")
-        abort(409, description="Already friends with this user")
+    # Check if friendship already exists
+    if friendship_doc.exists:
+        friendship_data = friendship_doc.to_dict()
+        status = friendship_data.get(FriendshipFields.STATUS)
+        
+        if status == Status.ACCEPTED:
+            logger.warning(f"Users {current_user_id} and {friend_id} are already friends")
+            abort(409, description="Already friends with this user")
+        elif status == Status.PENDING:
+            # If there's already a pending request, check who sent it
+            sender_id = friendship_data.get(FriendshipFields.SENDER_ID)
+            if sender_id == current_user_id:
+                logger.warning(f"User {current_user_id} already sent a friend request to {friend_id}")
+                abort(409, description="Friend request already sent to this user")
+            else:
+                logger.warning(f"User {current_user_id} has a pending friend request from {friend_id}")
+                abort(409, description="You have a pending friend request from this user")
 
     try:
         # Create or update the friendship document
@@ -89,7 +103,7 @@ def add_friend(request) -> AddFriendResponse:
             FriendshipFields.RECEIVER_ID: friend_id,
             FriendshipFields.RECEIVER_NAME: friend_profile.get(ProfileFields.NAME, ''),
             FriendshipFields.RECEIVER_AVATAR: friend_profile.get(ProfileFields.AVATAR, ''),
-            FriendshipFields.STATUS: Status.ACCEPTED,
+            FriendshipFields.STATUS: Status.PENDING,
             FriendshipFields.CREATED_AT: SERVER_TIMESTAMP,
             FriendshipFields.UPDATED_AT: SERVER_TIMESTAMP,
             FriendshipFields.MEMBERS: [current_user_id, friend_id]
@@ -97,12 +111,12 @@ def add_friend(request) -> AddFriendResponse:
 
         # Set the friendship document
         friendship_ref.set(friendship_data)
-        logger.info(f"Created friendship document with ID {friendship_id} between {current_user_id} and {friend_id}")
+        logger.info(f"Created friendship request document with ID {friendship_id} from {current_user_id} to {friend_id}")
 
-        logger.info(f"Friend relationship between {current_user_id} and {friend_id} successfully established")
+        logger.info(f"Friend request from {current_user_id} to {friend_id} successfully sent")
         return AddFriendResponse(
             status=Status.OK,
-            message="Friend added successfully"
+            message="Friend request sent successfully"
         )
     except Exception as e:
         logger.error(f"Error adding friend relationship: {str(e)}", exc_info=True)

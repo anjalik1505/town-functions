@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response
 
 from friendship.add_friend import add_friend
+from friendship.accept_request import accept_request
 from groups.add_members import add_members_to_group
 from groups.create_group import create_group
 from groups.get_group_feed import get_group_feed
@@ -347,6 +348,15 @@ def add_my_friend():
     validated_params = AddFriendRequest.model_validate(data)
     request.validated_params = validated_params
     return add_friend(request).to_json()
+
+
+@app.route('/friends/<friend_id>/accept', methods=['POST'])
+@handle_errors()
+def accept_friend_request(friend_id):
+    """
+    Accept a friend request from a specific user.
+    """
+    return accept_request(request, friend_id).to_json()
 
 
 @app.route('/users/<user_id>/profile', methods=['GET'])
