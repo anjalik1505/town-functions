@@ -1,17 +1,20 @@
 # Welcome to Cloud Functions for Firebase for Python!
 # To get started, simply uncomment the below code or create your own.
 # Deploy with `firebase deploy`
+import functools
 import json
 
 from firebase_admin import initialize_app, firestore, auth
 from firebase_functions import https_fn
 from flask import Flask, request, jsonify, abort
 from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response
 
-from functions.pydantic_models import GetPaginatedRequest, AddFriendRequest
-from functions.user_profile.get_user_updates import get_user_updates
+from user_profile.get_user_updates import get_user_updates
+from models.pydantic_models import GetPaginatedRequest, AddFriendRequest
 from own_profile.add_friend import add_friend
+from own_profile.add_user import add_user
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_profile import get_my_profile
@@ -145,58 +148,95 @@ def before_request():
     authenticate_request()
 
 
+def handle_errors(validate_request=False):
+    """
+    A decorator for route handlers that provides consistent error handling.
+    
+    Args:
+        validate_request: If True, ValidationError will be caught and return 400.
+                          If False, ValidationError will be propagated.
+    """
+
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except ValidationError as e:
+                if validate_request:
+                    abort(400, description="Invalid request parameters")
+                else:
+                    # If we don't handle validation here, re-raise it
+                    raise
+            except HTTPException as e:
+                # Re-raise HTTP exceptions so they're properly returned to the client
+                app.logger.error(f"Error in {f.__name__}: {str(e)}")
+                raise
+            except Exception as e:
+                # For any other exceptions, return a generic 500 error
+                app.logger.error(f"Error in {f.__name__}: {str(e)}")
+                abort(500, description="Internal server error")
+
+        return wrapper
+
+    return decorator
+
+
 @app.route('/')
+@handle_errors()
 def index():
     # Reject all requests to the root endpoint
     abort(403, description="Forbidden")
 
 
 @app.route('/me/profile', methods=['GET'])
+@handle_errors()
 def my_profile():
     return get_my_profile(request).to_json()
 
 
+@app.route('/me/profile', methods=['POST'])
+@handle_errors()
+def create_user_profile():
+    return add_user(request).to_json()
+
+
 @app.route('/me/updates', methods=['GET'])
+@handle_errors(validate_request=True)
 def my_updates():
-    try:
-        params = dict(request.args)
-        validated_params = GetPaginatedRequest.model_validate(**params)
-        request.validated_params = validated_params
-        return get_my_updates(request).to_json()
-    except (ValidationError, ValueError):
-        abort(400, description="Invalid request parameters")
+    args_dict = request.args.to_dict(flat=True)
+    request.validated_params = GetPaginatedRequest.model_validate(args_dict)
+    return get_my_updates(request).to_json()
 
 
 @app.route('/me/feed', methods=['GET'])
+@handle_errors(validate_request=True)
 def my_feed():
-    try:
-        params = dict(request.args)
-        validated_params = GetPaginatedRequest.model_validate(**params)
-        request.validated_params = validated_params
-        return get_my_feeds(request).to_json()
-    except (ValidationError, ValueError):
-        abort(400, description="Invalid request parameters")
+    args_dict = request.args.to_dict(flat=True)
+    request.validated_params = GetPaginatedRequest.model_validate(args_dict)
+    return get_my_feeds(request).to_json()
 
 
 @app.route('/me/friends', methods=['GET'])
+@handle_errors()
 def my_friends():
     return get_my_friends(request).to_json()
 
 
 @app.route('/me/friends', methods=['POST'])
+@handle_errors(validate_request=True)
 def add_my_friend():
-    try:
-        params = dict(request.args)
-        validated_params = AddFriendRequest.model_validate(**params)
-        request.validated_params = validated_params
-        return add_friend(request).to_json()
-    except ValidationError as e:
-        abort(400, description=str(e))
+    data = request.get_json()
+    if not data:
+        abort(400, description="Request body is required")
+    validated_params = AddFriendRequest.model_validate(data)
+    request.validated_params = validated_params
+    return add_friend(request).to_json()
 
 
 @app.route('/users/<user_id>/feed', methods=['GET'])
+@handle_errors()
 def user_feed(user_id):
-    # Example endpoint demonstrating URL parameter routing
     return jsonify({"user": user_id, "feed": "Feed not implemented"})
 
 
@@ -220,8 +260,9 @@ def user_updates(user_id):
         abort(400, description="Invalid request parameters")
 
 
-# Firebase Function entry point
-def api_handler(incoming_request):
+# Firebase Function entry point 
+@https_fn.on_request()
+def api(incoming_request):
     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
     return Response.from_app(app, incoming_request.environ)
 

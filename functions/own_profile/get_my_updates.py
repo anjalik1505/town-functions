@@ -1,6 +1,6 @@
 from firebase_admin import firestore
-
-from functions.data_models import UpdatesResponse, Update
+from models.constants import Collections, UpdateFields
+from models.data_models import UpdatesResponse, Update
 
 
 def get_my_updates(request) -> UpdatesResponse:
@@ -34,10 +34,9 @@ def get_my_updates(request) -> UpdatesResponse:
     limit = validated_params.limit if validated_params else 20
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
-    # Build the query for the user's updates
-    query = db.collection("updates") \
-        .where("created_by", "==", request.user_id) \
-        .order_by("created_at", "desc") \
+    query = db.collection(Collections.UPDATES) \
+        .where(UpdateFields.CREATED_BY, "==", request.user_id) \
+        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
         .limit(limit)
 
     # Apply pagination if an after_timestamp is provided
@@ -53,7 +52,7 @@ def get_my_updates(request) -> UpdatesResponse:
     # Process the query results
     for doc in docs:
         doc_data = doc.to_dict()
-        created_at = doc_data.get("created_at", "")
+        created_at = doc_data.get(UpdateFields.CREATED_AT, "")
 
         # Track the last timestamp for pagination
         if created_at:
@@ -62,10 +61,10 @@ def get_my_updates(request) -> UpdatesResponse:
         # Convert Firestore document to Update model
         updates.append(Update(
             updateId=doc.id,
-            created_by=doc_data.get("created_by", request.user_id),
-            content=doc_data.get("content", ""),
-            group_ids=doc_data.get("group_ids", []),
-            sentiment=doc_data.get("sentiment", 0),
+            created_by=doc_data.get(UpdateFields.CREATED_BY, request.user_id),
+            content=doc_data.get(UpdateFields.CONTENT, ""),
+            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
             created_at=created_at
         ))
 

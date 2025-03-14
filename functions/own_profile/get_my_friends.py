@@ -1,6 +1,6 @@
 from firebase_admin import firestore
-
-from functions.data_models import FriendsResponse, Friend
+from models.constants import Collections, ProfileFields, FriendFields, Status
+from models.data_models import FriendsResponse, Friend
 
 
 def get_my_friends(request) -> FriendsResponse:
@@ -21,29 +21,24 @@ def get_my_friends(request) -> FriendsResponse:
     """
     db = firestore.client()
 
-    # Query for friends with "accepted" status
-    friends_ref = db.collection(f"profiles/{request.user_id}/friends") \
-        .where("status", "==", "accepted") \
+    friends_ref = db.collection(f"{Collections.PROFILES}/{request.user_id}/{Collections.FRIENDS}") \
+        .where(FriendFields.STATUS, "==", Status.ACCEPTED) \
         .stream()
 
     friends = []
 
-    # Process each friend document
     for doc in friends_ref:
         friend_user_id = doc.id
 
-        # Retrieve the friend's profile information
-        profile_ref = db.collection("profiles").document(friend_user_id).get()
+        profile_ref = db.collection(Collections.PROFILES).document(friend_user_id).get()
 
-        # Only include friends with existing profiles
         if profile_ref.exists:
             profile_data = profile_ref.to_dict() or {}
 
-            # Create Friend object with basic profile data
             friends.append(Friend(
                 id=friend_user_id,
-                name=profile_data.get("name", ""),
-                avatar=profile_data.get("avatar", "")
+                name=profile_data.get(ProfileFields.NAME, ""),
+                avatar=profile_data.get(ProfileFields.AVATAR, "")
             ))
 
     # Return the list of friends

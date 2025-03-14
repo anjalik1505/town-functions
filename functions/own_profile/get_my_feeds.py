@@ -1,6 +1,6 @@
 from firebase_admin import firestore
-
-from functions.data_models import FeedResponse, Update
+from models.constants import Collections, ProfileFields, UpdateFields
+from models.data_models import FeedResponse, Update
 
 
 def get_my_feeds(request) -> FeedResponse:
@@ -35,8 +35,7 @@ def get_my_feeds(request) -> FeedResponse:
     limit = validated_params.limit if validated_params else 20
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
-    # Retrieve the user's profile to get their group memberships
-    user_doc = db.collection("profiles").document(request.user_id).get()
+    user_doc = db.collection(Collections.PROFILES).document(request.user_id).get()
 
     # Return empty response if user profile doesn't exist
     if not user_doc.exists:
@@ -44,22 +43,21 @@ def get_my_feeds(request) -> FeedResponse:
 
     # Extract group IDs from the user's profile
     user_data = user_doc.to_dict() or {}
-    group_ids = user_data.get("group_ids", [])
+    group_ids = user_data.get(ProfileFields.GROUP_IDS, [])
 
     # Return empty response if user is not a member of any groups
     if not group_ids:
         return FeedResponse(updates=[])
 
-    # Build the query for updates from the user's groups
-    query = db.collection("updates") \
-        .where("group_ids", "array-contains-any", group_ids) \
-        .order_by("created_at", "desc") \
+    query = db.collection(Collections.UPDATES) \
+        .where(UpdateFields.GROUP_IDS, "array-contains-any", group_ids) \
+        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
         .limit(limit)
 
     # Apply pagination if an after_timestamp is provided
     if after_timestamp:
         try:
-            query = query.start_after({"created_at": after_timestamp})
+            query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
         except Exception as e:
             print(f"Error applying pagination: {str(e)}")
 
@@ -72,7 +70,7 @@ def get_my_feeds(request) -> FeedResponse:
     # Process the query results
     for doc in docs:
         doc_data = doc.to_dict()
-        created_at = doc_data.get("created_at", "")
+        created_at = doc_data.get(UpdateFields.CREATED_AT, "")
 
         # Track the last timestamp for pagination
         if created_at:
@@ -81,10 +79,10 @@ def get_my_feeds(request) -> FeedResponse:
         # Convert Firestore document to Update model
         updates.append(Update(
             updateId=doc.id,
-            created_by=doc_data.get("created_by", ""),
-            content=doc_data.get("content", ""),
-            group_ids=doc_data.get("group_ids", []),
-            sentiment=doc_data.get("sentiment", 0),
+            created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
+            content=doc_data.get(UpdateFields.CONTENT, ""),
+            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
             created_at=created_at
         ))
 

@@ -1,7 +1,8 @@
 from firebase_admin import firestore
+from flask import abort
 from google.cloud.firestore import SERVER_TIMESTAMP
-
-from functions.data_models import AddFriendResponse
+from models.constants import Collections, FriendFields, Status
+from models.data_models import AddFriendResponse
 
 
 def add_friend(request) -> AddFriendResponse:
@@ -28,7 +29,10 @@ def add_friend(request) -> AddFriendResponse:
         - message: A description of the result or error
     
     Raises:
-        No exceptions are raised; errors are returned in the response object.
+        404: Friend profile not found
+        400: Invalid request (e.g., trying to add yourself as a friend)
+        409: Conflict (e.g., friend relationship already exists)
+        500: Server error during operation
     """
     db = firestore.client()
 
@@ -36,45 +40,47 @@ def add_friend(request) -> AddFriendResponse:
     friend_id = request.validated_params.friendId
     current_user_id = request.user_id
 
-    # Check if the friend profile exists
-    friend_profile_ref = db.collection("profiles").document(friend_id)
+    # Validate input parameters
+    if friend_id == current_user_id:
+        abort(400, description="Cannot add yourself as a friend")
+
+    # Check if friend profile exists
+    friend_profile_ref = db.collection(Collections.PROFILES).document(friend_id)
     friend_profile = friend_profile_ref.get()
 
     if not friend_profile.exists:
+        abort(404, description="Friend profile not found")
+
+    # Check if friendship already exists
+    current_user_friend_ref = db.collection(f"{Collections.PROFILES}/{current_user_id}/{Collections.FRIENDS}").document(
+        friend_id)
+
+    existing_friendship = current_user_friend_ref.get()
+    if existing_friendship.exists:
+        # If already friends, return a conflict status
+        abort(409, description="Friend relationship already exists")
+
+    friend_user_ref = db.collection(f"{Collections.PROFILES}/{friend_id}/{Collections.FRIENDS}").document(
+        current_user_id)
+
+    try:
+        batch = db.batch()
+
+        friend_data = {
+            FriendFields.STATUS: Status.ACCEPTED,
+            FriendFields.CREATED_AT: SERVER_TIMESTAMP
+        }
+
+        batch.set(current_user_friend_ref, friend_data)
+        batch.set(friend_user_ref, friend_data)
+
+        batch.commit()
+
         return AddFriendResponse(
-            status="error",
-            message="Friend profile not found"
+            status=Status.OK,
+            message="Friend added successfully"
         )
-
-    # Prevent users from adding themselves as friends
-    if friend_id == current_user_id:
-        return AddFriendResponse(
-            status="error",
-            message="Cannot add yourself as a friend"
-        )
-
-    # Create references to both sides of the friendship relationship
-    current_user_friend_ref = db.collection(f"profiles/{current_user_id}/friends").document(friend_id)
-    friend_user_ref = db.collection(f"profiles/{friend_id}/friends").document(current_user_id)
-
-    # Use a batch write to ensure atomicity
-    batch = db.batch()
-
-    # Prepare the friendship data
-    friend_data = {
-        "status": "accepted",
-        "created_at": SERVER_TIMESTAMP
-    }
-
-    # Add both friendship documents in a single batch
-    batch.set(current_user_friend_ref, friend_data)
-    batch.set(friend_user_ref, friend_data)
-
-    # Commit the batch
-    batch.commit()
-
-    # Return success response
-    return AddFriendResponse(
-        status="ok",
-        message="Friend added."
-    )
+    except Exception as e:
+        # Log the error but don't expose details to the client
+        print(f"Error adding friend: {str(e)}")
+        abort(500, description="Internal server error")
