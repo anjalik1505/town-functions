@@ -1,6 +1,6 @@
 from firebase_admin import firestore
-
-from functions.data_models import UpdatesResponse, Update
+from models.constants import Collections, UpdateFields
+from models.data_models import UpdatesResponse, Update
 
 
 def get_my_updates(request) -> UpdatesResponse:
@@ -21,14 +21,14 @@ def get_my_updates(request) -> UpdatesResponse:
     limit = validated_params.limit if validated_params else 20
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
-    query = db.collection("updates") \
-        .where("created_by", "==", request.user_id) \
-        .order_by("created_at", "desc") \
+    query = db.collection(Collections.UPDATES) \
+        .where(UpdateFields.CREATED_BY, "==", request.user_id) \
+        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
         .limit(limit)
 
     if after_timestamp:
         try:
-            query = query.start_after({"created_at": after_timestamp})
+            query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
         except Exception as e:
             print(f"Error applying pagination: {str(e)}")
 
@@ -39,17 +39,17 @@ def get_my_updates(request) -> UpdatesResponse:
 
     for doc in docs:
         doc_data = doc.to_dict()
-        created_at = doc_data.get("created_at", "")
+        created_at = doc_data.get(UpdateFields.CREATED_AT, "")
 
         if created_at:
             last_timestamp = created_at
 
         updates.append(Update(
             updateId=doc.id,
-            created_by=doc_data.get("created_by", request.user_id),
-            content=doc_data.get("content", ""),
-            group_ids=doc_data.get("group_ids", []),
-            sentiment=doc_data.get("sentiment", 0),
+            created_by=doc_data.get(UpdateFields.CREATED_BY, request.user_id),
+            content=doc_data.get(UpdateFields.CONTENT, ""),
+            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
             created_at=created_at
         ))
 
