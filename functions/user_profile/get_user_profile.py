@@ -5,7 +5,7 @@ from models.data_models import ProfileResponse, Summary
 from utils.logging_utils import get_logger
 
 
-def get_user_profile(request, user_id) -> ProfileResponse:
+def get_user_profile(request, target_user_id) -> ProfileResponse:
     """
     Retrieves a user's profile with summary and suggestions.
     
@@ -31,39 +31,39 @@ def get_user_profile(request, user_id) -> ProfileResponse:
         403: If the requesting user and target user are not friends.
     """
     logger = get_logger(__name__)
-    logger.info(f"Retrieving profile for user {user_id} requested by {request.user_id}")
+    logger.info(f"Retrieving profile for user {target_user_id} requested by {request.user_id}")
 
     db = firestore.client()
     current_user_id = request.user_id
 
     # Redirect users to the appropriate endpoint for their own profile
-    if current_user_id == user_id:
+    if current_user_id == target_user_id:
         logger.warning(f"User {current_user_id} attempted to view their own profile through /user endpoint")
         abort(400, "Use /me/profile endpoint to view your own profile")
 
     try:
         # Get the target user's profile
-        target_user_profile_ref = db.collection(Collections.PROFILES).document(user_id)
+        target_user_profile_ref = db.collection(Collections.PROFILES).document(target_user_id)
         target_user_profile_doc = target_user_profile_ref.get()
 
         # Check if the target profile exists
         if not target_user_profile_doc.exists:
-            logger.warning(f"Profile not found for user {user_id}")
+            logger.warning(f"Profile not found for user {target_user_id}")
             abort(404, "Profile not found")
 
         target_user_profile_data = target_user_profile_doc.to_dict() or {}
 
         # Check if users are friends
         current_user_profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
-        friend_ref = current_user_profile_ref.collection(Collections.FRIENDS).document(user_id)
+        friend_ref = current_user_profile_ref.collection(Collections.FRIENDS).document(target_user_id)
         is_friend = friend_ref.get().exists
 
         # If they are not friends, return an error
         if not is_friend:
-            logger.warning(f"User {current_user_id} attempted to view profile of non-friend {user_id}")
+            logger.warning(f"User {current_user_id} attempted to view profile of non-friend {target_user_id}")
             abort(403, "You must be friends with this user to view their profile")
 
-        logger.info(f"Friendship verified between {current_user_id} and {user_id}")
+        logger.info(f"Friendship verified between {current_user_id} and {target_user_id}")
 
         # Initialize empty lists to collect all summary data
         emotional_journey_parts = []
@@ -82,14 +82,14 @@ def get_user_profile(request, user_id) -> ProfileResponse:
 
         # Find groups that both users are members of
         shared_groups = list(set(current_user_groups) & set(target_user_groups))
-        logger.info(f"Found {len(shared_groups)} shared groups between users {current_user_id} and {user_id}")
+        logger.info(f"Found {len(shared_groups)} shared groups between users {current_user_id} and {target_user_id}")
 
         # Collect summary data from each shared group
         if shared_groups:
             for group_id in shared_groups:
                 logger.info(f"Processing summary data from group {group_id}")
                 summary_ref = db.collection(Collections.GROUPS).document(group_id).collection(
-                    Collections.USER_SUMMARIES).document(user_id)
+                    Collections.USER_SUMMARIES).document(target_user_id)
                 summary_doc = summary_ref.get()
 
                 if summary_doc.exists:
@@ -118,7 +118,7 @@ def get_user_profile(request, user_id) -> ProfileResponse:
                             suggestions_parts.append(summary_data[SummaryFields.SUGGESTIONS])
 
         # Check for direct chat between the two users
-        user_ids = sorted([current_user_id, user_id])
+        user_ids = sorted([current_user_id, target_user_id])
         chat_id = f"{user_ids[0]}_{user_ids[1]}"
         logger.info(f"Checking direct chat with ID {chat_id}")
 
@@ -128,9 +128,9 @@ def get_user_profile(request, user_id) -> ProfileResponse:
 
         # Collect summary data from direct chat if it exists
         if chat_doc.exists:
-            logger.info(f"Found direct chat between users {current_user_id} and {user_id}")
+            logger.info(f"Found direct chat between users {current_user_id} and {target_user_id}")
             # Fetch the summary for the requested user from the chat's summaries collection
-            summary_ref = chat_ref.collection(Collections.SUMMARIES).document(user_id)
+            summary_ref = chat_ref.collection(Collections.SUMMARIES).document(target_user_id)
             summary_doc = summary_ref.get()
 
             if summary_doc.exists:
@@ -164,11 +164,11 @@ def get_user_profile(request, user_id) -> ProfileResponse:
         progress_and_growth = "\n\n".join(progress_and_growth_parts)
         suggestions = suggestions_parts  # Keep as a list
 
-        logger.info(f"Successfully aggregated profile data for user {user_id}")
+        logger.info(f"Successfully aggregated profile data for user {target_user_id}")
 
         # Construct and return the profile response
         return ProfileResponse(
-            id=user_id,
+            id=target_user_id,
             name=target_user_profile_data.get(ProfileFields.NAME, ''),
             avatar=target_user_profile_data.get(ProfileFields.AVATAR, ''),
             summary=Summary(
@@ -180,5 +180,5 @@ def get_user_profile(request, user_id) -> ProfileResponse:
             suggestions=suggestions
         )
     except Exception as e:
-        logger.error(f"Error retrieving profile for user {user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving profile for user {target_user_id}: {str(e)}", exc_info=True)
         abort(500, "Internal server error while retrieving user profile")

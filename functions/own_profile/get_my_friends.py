@@ -24,18 +24,22 @@ def get_my_friends(request) -> FriendsResponse:
     logger = get_logger(__name__)
     logger.info(f"Retrieving friends for user: {request.user_id}")
 
+    # Get the authenticated user ID from the request
+    current_user_id = request.user_id
+
+    # Initialize Firestore client
     db = firestore.client()
 
     try:
         # Get the user's profile reference
-        user_profile_ref = db.collection(Collections.PROFILES).document(request.user_id)
+        user_profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
 
         # Query for accepted friends
         friends_ref = user_profile_ref.collection(Collections.FRIENDS) \
             .where(FriendFields.STATUS, "==", Status.ACCEPTED) \
             .stream()
 
-        logger.info(f"Querying accepted friends for user: {request.user_id}")
+        logger.info(f"Querying accepted friends for user: {current_user_id}")
 
         friends = []
 
@@ -59,13 +63,13 @@ def get_my_friends(request) -> FriendsResponse:
             else:
                 logger.warning(f"Friend {friend_user_id} profile not found, skipping")
 
-        logger.info(f"Retrieved {len(friends)} friends for user: {request.user_id}")
+        logger.info(f"Retrieved {len(friends)} friends for user: {current_user_id}")
 
         # Return the list of friends
         return FriendsResponse(
             friends=friends
         )
     except Exception as e:
-        logger.error(f"Error retrieving friends for user {request.user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving friends for user {current_user_id}: {str(e)}", exc_info=True)
         # Use abort instead of returning empty response
         abort(500, "Internal server error while retrieving user friends")

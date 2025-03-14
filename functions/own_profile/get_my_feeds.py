@@ -33,6 +33,10 @@ def get_my_feeds(request) -> FeedResponse:
     logger = get_logger(__name__)
     logger.info(f"Retrieving feed for user: {request.user_id}")
 
+    # Get the authenticated user ID from the request
+    current_user_id = request.user_id
+
+    # Initialize Firestore client
     db = firestore.client()
 
     # Get pagination parameters from the validated request
@@ -44,12 +48,12 @@ def get_my_feeds(request) -> FeedResponse:
 
     try:
         # Get the user's profile
-        user_ref = db.collection(Collections.PROFILES).document(request.user_id)
+        user_ref = db.collection(Collections.PROFILES).document(current_user_id)
         user_doc = user_ref.get()
 
         # Return empty response if user profile doesn't exist
         if not user_doc.exists:
-            logger.warning(f"User profile not found for user: {request.user_id}")
+            logger.warning(f"User profile not found for user: {current_user_id}")
             return FeedResponse(updates=[], next_timestamp=None)
 
         # Extract group IDs from the user's profile
@@ -58,10 +62,10 @@ def get_my_feeds(request) -> FeedResponse:
 
         # Return empty response if user is not a member of any groups
         if not group_ids:
-            logger.info(f"User {request.user_id} is not a member of any groups")
+            logger.info(f"User {current_user_id} is not a member of any groups")
             return FeedResponse(updates=[], next_timestamp=None)
 
-        logger.info(f"User {request.user_id} is a member of {len(group_ids)} groups")
+        logger.info(f"User {current_user_id} is a member of {len(group_ids)} groups")
 
         # Build the query for updates from groups the user is in
         query = db.collection(Collections.UPDATES) \
@@ -106,12 +110,12 @@ def get_my_feeds(request) -> FeedResponse:
             next_timestamp = last_timestamp
             logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
-        logger.info(f"Retrieved {len(updates)} updates for user: {request.user_id}")
+        logger.info(f"Retrieved {len(updates)} updates for user: {current_user_id}")
         return FeedResponse(
             updates=updates,
             next_timestamp=next_timestamp
         )
     except Exception as e:
-        logger.error(f"Error retrieving feed for user {request.user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving feed for user {current_user_id}: {str(e)}", exc_info=True)
         # Use abort instead of returning empty response
         abort(500, "Internal server error while retrieving user feed")

@@ -30,21 +30,21 @@ def add_user(request):
     logger.info(f"Starting add_user operation for user ID: {request.user_id}")
 
     # Get the authenticated user ID from the request
-    user_id = request.user_id
+    current_user_id = request.user_id
 
     # Initialize Firestore client
     db = firestore.client()
 
     try:
         # Check if profile already exists
-        profile_ref = db.collection(Collections.PROFILES).document(request.user_id)
+        profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
         profile_doc = profile_ref.get()
 
         if profile_doc.exists:
-            logger.warning(f"Profile already exists for user {request.user_id}")
-            abort(400, description=f"Profile already exists for user {request.user_id}")
+            logger.warning(f"Profile already exists for user {current_user_id}")
+            abort(400, description=f"Profile already exists for user {current_user_id}")
 
-        logger.info(f"Creating new profile for user {request.user_id}")
+        logger.info(f"Creating new profile for user {current_user_id}")
 
         # Create an empty profile according to the schema
         profile_data = {
@@ -56,7 +56,7 @@ def add_user(request):
 
         # Create the profile document
         profile_ref.set(profile_data)
-        logger.info(f"Profile document created for user {request.user_id}")
+        logger.info(f"Profile document created for user {current_user_id}")
 
         # Create an empty summary subcollection document
         summary_ref = profile_ref.collection(Collections.SUMMARY).document(Documents.DEFAULT_SUMMARY)
@@ -68,7 +68,7 @@ def add_user(request):
             SummaryFields.SUGGESTIONS: []
         }
         summary_ref.set(summary_data)
-        logger.info(f"Summary document created for user {request.user_id}")
+        logger.info(f"Summary document created for user {current_user_id}")
 
         # We don't need to create any documents in the friends subcollection initially,
         # but we can create the collection structure by adding and then deleting a placeholder document
@@ -84,13 +84,13 @@ def add_user(request):
         placeholder_doc = friends_ref.document('placeholder')
         placeholder_doc.set(placeholder_data)
         placeholder_doc.delete()
-        logger.info(f"Friends collection initialized for user {request.user_id}")
+        logger.info(f"Friends collection initialized for user {current_user_id}")
 
         # For friend_requests collection
         placeholder_doc = friend_requests_ref.document('placeholder')
         placeholder_doc.set(placeholder_data)
         placeholder_doc.delete()
-        logger.info(f"Friend requests collection initialized for user {request.user_id}")
+        logger.info(f"Friend requests collection initialized for user {current_user_id}")
 
         # Return a properly formatted response
         summary = Summary(
@@ -101,16 +101,16 @@ def add_user(request):
         )
 
         response = ProfileResponse(
-            id=user_id,
+            id=current_user_id,
             name='',
             avatar='',
             summary=summary,
             suggestions=[]
         )
 
-        logger.info(f"User profile creation completed successfully for user {request.user_id}")
+        logger.info(f"User profile creation completed successfully for user {current_user_id}")
         return response
 
     except Exception as e:
-        logger.error(f"Error creating profile for user {request.user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error creating profile for user {current_user_id}: {str(e)}", exc_info=True)
         abort(500, description="Internal server error during profile creation")

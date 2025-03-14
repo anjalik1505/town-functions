@@ -5,7 +5,7 @@ from models.data_models import UpdatesResponse, Update
 from utils.logging_utils import get_logger
 
 
-def get_user_updates(request, user_id) -> UpdatesResponse:
+def get_user_updates(request, target_user_id) -> UpdatesResponse:
     """
     Retrieves paginated updates for a specific user.
     
@@ -36,13 +36,13 @@ def get_user_updates(request, user_id) -> UpdatesResponse:
         403: If the requesting user and target user are not friends.
     """
     logger = get_logger(__name__)
-    logger.info(f"Retrieving updates for user {user_id} requested by {request.user_id}")
+    logger.info(f"Retrieving updates for user {target_user_id} requested by {request.user_id}")
 
     db = firestore.client()
     current_user_id = request.user_id
 
     # Redirect users to the appropriate endpoint for their own updates
-    if current_user_id == user_id:
+    if current_user_id == target_user_id:
         logger.warning(f"User {current_user_id} attempted to view their own updates through /user endpoint")
         abort(400, "Use /me/updates endpoint to view your own updates")
 
@@ -55,29 +55,29 @@ def get_user_updates(request, user_id) -> UpdatesResponse:
         logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
 
         # Get the target user's profile
-        target_user_profile_ref = db.collection(Collections.PROFILES).document(user_id)
+        target_user_profile_ref = db.collection(Collections.PROFILES).document(target_user_id)
         target_user_profile_doc = target_user_profile_ref.get()
 
         # Check if the target profile exists
         if not target_user_profile_doc.exists:
-            logger.warning(f"Profile not found for user {user_id}")
+            logger.warning(f"Profile not found for user {target_user_id}")
             abort(404, "Profile not found")
 
         # Check if users are friends
         current_user_profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
-        friend_ref = current_user_profile_ref.collection(Collections.FRIENDS).document(user_id)
+        friend_ref = current_user_profile_ref.collection(Collections.FRIENDS).document(target_user_id)
         friend_doc = friend_ref.get()
 
         # If they are not friends, return an error
         if not friend_doc.exists or friend_doc.to_dict().get(FriendFields.STATUS) != Status.ACCEPTED:
-            logger.warning(f"User {current_user_id} attempted to view updates of non-friend {user_id}")
+            logger.warning(f"User {current_user_id} attempted to view updates of non-friend {target_user_id}")
             abort(403, "You must be friends with this user to view their updates")
 
-        logger.info(f"Friendship verified between {current_user_id} and {user_id}")
+        logger.info(f"Friendship verified between {current_user_id} and {target_user_id}")
 
         # Build the query for updates created by the target user
         query = db.collection(Collections.UPDATES) \
-            .where(UpdateFields.CREATED_BY, "==", user_id) \
+            .where(UpdateFields.CREATED_BY, "==", target_user_id) \
             .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
             .limit(limit)
 
@@ -118,11 +118,11 @@ def get_user_updates(request, user_id) -> UpdatesResponse:
             next_timestamp = last_timestamp
             logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
-        logger.info(f"Retrieved {len(updates)} updates for user: {user_id}")
+        logger.info(f"Retrieved {len(updates)} updates for user: {target_user_id}")
         return UpdatesResponse(
             updates=updates,
             next_timestamp=next_timestamp
         )
     except Exception as e:
-        logger.error(f"Error retrieving updates for user {user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving updates for user {target_user_id}: {str(e)}", exc_info=True)
         abort(500, "Internal server error while retrieving user updates")

@@ -32,6 +32,10 @@ def get_my_updates(request) -> UpdatesResponse:
     logger = get_logger(__name__)
     logger.info(f"Retrieving updates for user: {request.user_id}")
 
+    # Get the authenticated user ID from the request
+    current_user_id = request.user_id
+
+    # Initialize Firestore client
     db = firestore.client()
 
     # Get pagination parameters from the validated request
@@ -42,7 +46,7 @@ def get_my_updates(request) -> UpdatesResponse:
     logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
 
     query = db.collection(Collections.UPDATES) \
-        .where(UpdateFields.CREATED_BY, "==", request.user_id) \
+        .where(UpdateFields.CREATED_BY, "==", current_user_id) \
         .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
         .limit(limit)
 
@@ -71,7 +75,7 @@ def get_my_updates(request) -> UpdatesResponse:
             # Convert Firestore document to Update model
             updates.append(Update(
                 updateId=doc.id,
-                created_by=doc_data.get(UpdateFields.CREATED_BY, request.user_id),
+                created_by=doc_data.get(UpdateFields.CREATED_BY, current_user_id),
                 content=doc_data.get(UpdateFields.CONTENT, ""),
                 group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
                 sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
@@ -84,12 +88,12 @@ def get_my_updates(request) -> UpdatesResponse:
             next_timestamp = last_timestamp
             logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
-        logger.info(f"Retrieved {len(updates)} updates for user: {request.user_id}")
+        logger.info(f"Retrieved {len(updates)} updates for user: {current_user_id}")
         return UpdatesResponse(
             updates=updates,
             next_timestamp=next_timestamp
         )
     except Exception as e:
-        logger.error(f"Error retrieving updates for user {request.user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving updates for user {current_user_id}: {str(e)}", exc_info=True)
         # Use abort instead of returning empty response
         abort(500, "Internal server error while retrieving user updates")

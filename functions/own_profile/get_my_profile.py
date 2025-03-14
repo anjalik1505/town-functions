@@ -31,31 +31,35 @@ def get_my_profile(request) -> ProfileResponse:
     logger = get_logger(__name__)
     logger.info(f"Retrieving profile for user: {request.user_id}")
 
+    # Get the authenticated user ID from the request
+    current_user_id = request.user_id
+
+    # Initialize Firestore client
     db = firestore.client()
 
     try:
         # Get the user's profile document
-        profile_ref = db.collection(Collections.PROFILES).document(request.user_id)
+        profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
         profile_doc = profile_ref.get()
 
         # Check if the profile exists
         if not profile_doc.exists:
-            logger.warning(f"Profile not found for user: {request.user_id}")
+            logger.warning(f"Profile not found for user: {current_user_id}")
             abort(404, "Profile not found")
 
         # Extract profile data
         profile_data = profile_doc.to_dict() or {}
-        logger.info(f"Retrieved profile data for user: {request.user_id}")
+        logger.info(f"Retrieved profile data for user: {current_user_id}")
 
         # Get summary data - using collection().limit(1) instead of direct document reference
         # as we're not sure which document to use
         summary_doc = next(profile_ref.collection(Collections.SUMMARY).limit(1).stream(), None)
         summary_data = summary_doc.to_dict() if summary_doc else {}
-        logger.info(f"Retrieved summary data for user: {request.user_id}")
+        logger.info(f"Retrieved summary data for user: {current_user_id}")
 
         # Construct and return the profile response
         return ProfileResponse(
-            id=request.user_id,
+            id=current_user_id,
             name=profile_data.get(ProfileFields.NAME, ''),
             avatar=profile_data.get(ProfileFields.AVATAR, ''),
             summary=Summary(
@@ -67,5 +71,5 @@ def get_my_profile(request) -> ProfileResponse:
             suggestions=summary_data.get(SummaryFields.SUGGESTIONS, [])
         )
     except Exception as e:
-        logger.error(f"Error retrieving profile for user {request.user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving profile for user {current_user_id}: {str(e)}", exc_info=True)
         abort(500, "Internal server error while retrieving user profile")
