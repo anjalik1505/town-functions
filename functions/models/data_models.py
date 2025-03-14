@@ -1,5 +1,5 @@
 from dataclasses import dataclass, asdict
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 @dataclass
@@ -39,10 +39,15 @@ class Summary:
 
 
 @dataclass
-class ProfileResponse:
+class BaseUser:
+    """Base class for user-related models with common fields."""
     id: str
     name: str
     avatar: str
+
+
+@dataclass
+class ProfileResponse(BaseUser):
     summary: Summary
     suggestions: list[str]
 
@@ -51,16 +56,33 @@ class ProfileResponse:
 
 
 @dataclass
-class Friend:
-    id: str
-    name: str
-    avatar: str
+class Friend(BaseUser):
     status: str
 
 
 @dataclass
 class FriendsResponse:
     friends: List[Friend]
+
+    def to_json(self):
+        return asdict(self)
+
+
+@dataclass
+class GroupMember(BaseUser):
+    """Group member with basic profile information."""
+    pass
+
+
+@dataclass
+class GroupMemberProfile(BaseUser):
+    """Group member with profile information."""
+    pass
+
+
+@dataclass
+class GroupMembersResponse:
+    members: List[GroupMember]
 
     def to_json(self):
         return asdict(self)
@@ -82,6 +104,7 @@ class Group:
     icon: str
     created_at: str
     members: Optional[List[str]] = None
+    member_profiles: Optional[List[Dict[str, str]]] = None
 
 
 @dataclass

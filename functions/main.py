@@ -15,6 +15,7 @@ from werkzeug.wrappers import Response
 from friendship.add_friend import add_friend
 from groups.add_members import add_members_to_group
 from groups.create_group import create_group
+from groups.get_group_members import get_group_members
 from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
 from models.pydantic_models import GetPaginatedRequest, AddFriendRequest
 from own_profile.add_user import add_user
@@ -258,6 +259,15 @@ def add_group_members(group_id):
     request.validated_params = validated_params
     # Process the request
     return add_members_to_group(request, group_id).to_json()
+
+
+@app.route('/groups/<group_id>/members', methods=['GET'])
+@handle_errors()
+def group_members(group_id):
+    """
+    Get all members of a specific group with their basic profile information.
+    """
+    return get_group_members(request, group_id).to_json()
 
 
 @app.route('/friends', methods=['POST'])

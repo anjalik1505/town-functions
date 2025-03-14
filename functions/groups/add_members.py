@@ -144,13 +144,33 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
 
         # All validations passed, now update the group
 
-        # 5. Create a batch operation for all database writes
+        # Create a batch operation for all database writes
         batch = db.batch()
 
-        # Update the group with new members
+        # Update the group with the new members
         updated_members = current_members + new_members_to_add
+        
+        # Get the existing member profiles
+        existing_member_profiles = group_data.get(GroupFields.MEMBER_PROFILES, [])
+        
+        # Get profile information for new members to add to denormalized data
+        new_member_profile_data = []
+        for profile_snapshot in new_member_profiles:
+            if profile_snapshot.exists:
+                profile_data = profile_snapshot.to_dict()
+                new_member_profile_data.append({
+                    ProfileFields.ID: profile_snapshot.id,
+                    ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                    ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
+                })
+        
+        # Combine existing and new member profiles
+        updated_member_profiles = existing_member_profiles + new_member_profile_data
+        
+        # Update the group document with both members array and denormalized profiles
         batch.update(group_ref, {
-            GroupFields.MEMBERS: updated_members
+            GroupFields.MEMBERS: updated_members,
+            GroupFields.MEMBER_PROFILES: updated_member_profiles
         })
         logger.info(f"Adding {len(new_members_to_add)} new members to group {group_id}")
 
@@ -176,6 +196,7 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
             name=updated_group_data.get(GroupFields.NAME, ""),
             icon=updated_group_data.get(GroupFields.ICON, ""),
             members=updated_group_data.get(GroupFields.MEMBERS, []),
+            member_profiles=updated_group_data.get(GroupFields.MEMBER_PROFILES, []),
             created_at=updated_group_data.get(GroupFields.CREATED_AT, "")
         )
     except Exception as e:

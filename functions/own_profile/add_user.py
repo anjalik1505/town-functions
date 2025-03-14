@@ -51,7 +51,7 @@ def add_user(request):
             ProfileFields.NAME: '',
             ProfileFields.AVATAR: '',
             ProfileFields.EMAIL: '',
-            ProfileFields.GROUP_IDS: []  # Added based on get_my_feeds.py
+            ProfileFields.GROUP_IDS: []
         }
 
         # Create the profile document

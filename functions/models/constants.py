@@ -35,6 +35,7 @@ class Status(StrEnum):
 
 # Field names for Profile documents
 class ProfileFields(StrEnum):
+    ID = "id"
     NAME = "name"
     AVATAR = "avatar"
     EMAIL = "email"
@@ -77,6 +78,7 @@ class GroupFields(StrEnum):
     NAME = "name"
     ICON = "icon"
     MEMBERS = "members"
+    MEMBER_PROFILES = "member_profiles"
     CREATED_AT = "created_at"
 
 

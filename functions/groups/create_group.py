@@ -53,17 +53,38 @@ def create_group(request: Request) -> Group:
         # Skip current user in validation since we know they exist
         members_to_validate = [member_id for member_id in members if member_id != current_user_id]
 
+        # Store profile data for denormalization
+        member_profiles = []
+        
+        # First, add the current user's profile (we know they exist)
+        current_user_profile = db.collection(Collections.PROFILES).document(current_user_id).get()
+        if current_user_profile.exists:
+            profile_data = current_user_profile.to_dict()
+            member_profiles.append({
+                ProfileFields.ID: current_user_id,
+                ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
+            })
+
         if members_to_validate:
             # 1. Verify members exist
             member_profile_refs = [db.collection(Collections.PROFILES).document(member_id) for member_id in
                                    members_to_validate]
-            member_profiles = db.get_all(member_profile_refs)
+            member_profiles_data = db.get_all(member_profile_refs)
 
             # Check if all member profiles exist
             missing_members = []
-            for i, profile_snapshot in enumerate(member_profiles):
+            for i, profile_snapshot in enumerate(member_profiles_data):
                 if not profile_snapshot.exists:
                     missing_members.append(members_to_validate[i])
+                else:
+                    # Store profile data for denormalization
+                    profile_data = profile_snapshot.to_dict()
+                    member_profiles.append({
+                        ProfileFields.ID: profile_snapshot.id,
+                        ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                        ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
+                    })
 
             if missing_members:
                 missing_members_str = ", ".join(missing_members)
@@ -142,6 +163,7 @@ def create_group(request: Request) -> Group:
             GroupFields.NAME: name,
             GroupFields.ICON: icon,
             GroupFields.MEMBERS: members,
+            GroupFields.MEMBER_PROFILES: member_profiles,
             GroupFields.CREATED_AT: SERVER_TIMESTAMP
         }
 
@@ -174,6 +196,7 @@ def create_group(request: Request) -> Group:
             name=name,
             icon=icon,
             members=members,
+            member_profiles=member_profiles,
             created_at=response_created_at
         )
     except Exception as e:
