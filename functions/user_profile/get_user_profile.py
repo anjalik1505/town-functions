@@ -28,16 +28,17 @@ def get_user_profile(request, user_id) -> ProfileResponse:
         abort(400, "Use /me/profile endpoint to view your own profile")
     
     # Get the target user's profile
-    profile_ref = db.collection('profiles').document(user_id)
-    profile_doc = profile_ref.get()
+    target_user_profile_ref = db.collection('profiles').document(user_id)
+    target_user_profile_doc = target_user_profile_ref.get()
     
-    if not profile_doc.exists:
+    if not target_user_profile_doc.exists:
         abort(404, "Profile not found")
     
-    profile_data = profile_doc.to_dict() or {}
+    target_user_profile_data = target_user_profile_doc.to_dict() or {}
     
     # Check if users are friends
-    friend_ref = db.collection('profiles').document(current_user_id).collection('friends').document(user_id)
+    current_user_profile_ref = db.collection('profiles').document(current_user_id)
+    friend_ref = current_user_profile_ref.collection('friends').document(user_id)
     is_friend = friend_ref.get().exists
     
     # If they are not friends, return an error
@@ -52,11 +53,12 @@ def get_user_profile(request, user_id) -> ProfileResponse:
     suggestions_parts = []
     
     # Get current user's groups
-    current_user_profile = db.collection('profiles').document(current_user_id).get().to_dict() or {}
+    current_user_profile_doc = current_user_profile_ref.get()
+    current_user_profile = current_user_profile_doc.to_dict() or {}
     current_user_groups = current_user_profile.get('group_ids', [])
     
     # Get target user's groups
-    target_user_groups = profile_data.get('group_ids', [])
+    target_user_groups = target_user_profile_data.get('group_ids', [])
     
     # Find shared groups
     shared_groups = list(set(current_user_groups) & set(target_user_groups))
@@ -149,8 +151,8 @@ def get_user_profile(request, user_id) -> ProfileResponse:
     # Return the profile with summary and suggestions
     return ProfileResponse(
         id=user_id,
-        name=profile_data.get('name', ''),
-        avatar=profile_data.get('avatar', ''),
+        name=target_user_profile_data.get('name', ''),
+        avatar=target_user_profile_data.get('avatar', ''),
         summary=Summary(
             emotional_journey=emotional_journey,
             key_moments=key_moments,
