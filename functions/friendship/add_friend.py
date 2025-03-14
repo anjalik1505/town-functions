@@ -2,11 +2,11 @@ from firebase_admin import firestore
 from flask import abort
 from google.cloud.firestore import SERVER_TIMESTAMP
 from models.constants import Collections, FriendshipFields, Status, ProfileFields
-from models.data_models import AddFriendResponse
+from models.data_models import Friend
 from utils.logging_utils import get_logger
 
 
-def add_friend(request) -> AddFriendResponse:
+def add_friend(request) -> Friend:
     """
     Creates a mutual friendship relationship between the current user and another user.
     
@@ -25,9 +25,7 @@ def add_friend(request) -> AddFriendResponse:
         - friendId: The ID of the user to add as a friend
     
     Returns:
-        An AddFriendResponse containing:
-        - status: "ok" for success, "error" for failure
-        - message: A description of the result or error
+        A Friend object representing the newly created friend relationship
     
     Raises:
         404: Friend profile not found
@@ -80,7 +78,7 @@ def add_friend(request) -> AddFriendResponse:
     if friendship_doc.exists:
         friendship_data = friendship_doc.to_dict()
         status = friendship_data.get(FriendshipFields.STATUS)
-        
+
         if status == Status.ACCEPTED:
             logger.warning(f"Users {current_user_id} and {friend_id} are already friends")
             abort(409, description="Already friends with this user")
@@ -111,12 +109,17 @@ def add_friend(request) -> AddFriendResponse:
 
         # Set the friendship document
         friendship_ref.set(friendship_data)
-        logger.info(f"Created friendship request document with ID {friendship_id} from {current_user_id} to {friend_id}")
+        logger.info(
+            f"Created friendship request document with ID {friendship_id} from {current_user_id} to {friend_id}")
 
         logger.info(f"Friend request from {current_user_id} to {friend_id} successfully sent")
-        return AddFriendResponse(
-            status=Status.OK,
-            message="Friend request sent successfully"
+
+        # Return a Friend object representing the friend that was added
+        return Friend(
+            id=friend_id,
+            name=friend_profile.get(ProfileFields.NAME, ''),
+            avatar=friend_profile.get(ProfileFields.AVATAR, ''),
+            status=Status.PENDING
         )
     except Exception as e:
         logger.error(f"Error adding friend relationship: {str(e)}", exc_info=True)

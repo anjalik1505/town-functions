@@ -97,3 +97,10 @@ class SummaryFields(StrEnum):
     RECURRING_THEMES = "recurring_themes"
     PROGRESS_AND_GROWTH = "progress_and_growth"
     SUGGESTIONS = "suggestions"
+
+
+class QueryOperators(StrEnum):
+    ARRAY_CONTAINS = "array_contains"
+    ARRAY_CONTAINS_ANY = "array_contains_any"
+    IN = "in"
+    EQUALS = "=="

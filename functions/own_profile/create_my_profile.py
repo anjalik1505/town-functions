@@ -35,60 +35,55 @@ def create_profile(request):
     # Initialize Firestore client
     db = firestore.client()
 
-    try:
-        # Check if profile already exists
-        profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
-        profile_doc = profile_ref.get()
+    # Check if profile already exists
+    profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
+    profile_doc = profile_ref.get()
 
-        if profile_doc.exists:
-            logger.warning(f"Profile already exists for user {current_user_id}")
-            abort(400, description=f"Profile already exists for user {current_user_id}")
+    if profile_doc.exists:
+        logger.warning(f"Profile already exists for user {current_user_id}")
+        abort(400, description=f"Profile already exists for user {current_user_id}")
 
-        logger.info(f"Creating new profile for user {current_user_id}")
+    logger.info(f"Creating new profile for user {current_user_id}")
 
-        # Create an empty profile according to the schema
-        profile_data = {
-            ProfileFields.NAME: '',
-            ProfileFields.AVATAR: '',
-            ProfileFields.EMAIL: '',
-            ProfileFields.GROUP_IDS: []
-        }
+    # Create an empty profile according to the schema
+    profile_data = {
+        ProfileFields.NAME: '',
+        ProfileFields.AVATAR: '',
+        ProfileFields.EMAIL: '',
+        ProfileFields.GROUP_IDS: []
+    }
 
-        # Create the profile document
-        profile_ref.set(profile_data)
-        logger.info(f"Profile document created for user {current_user_id}")
+    # Create the profile document
+    profile_ref.set(profile_data)
+    logger.info(f"Profile document created for user {current_user_id}")
 
-        # Create an empty summary subcollection document
-        summary_ref = profile_ref.collection(Collections.SUMMARY).document(Documents.DEFAULT_SUMMARY)
-        summary_data = {
-            SummaryFields.EMOTIONAL_JOURNEY: '',
-            SummaryFields.KEY_MOMENTS: '',
-            SummaryFields.RECURRING_THEMES: '',
-            SummaryFields.PROGRESS_AND_GROWTH: '',
-            SummaryFields.SUGGESTIONS: []
-        }
-        summary_ref.set(summary_data)
-        logger.info(f"Summary document created for user {current_user_id}")
+    # Create an empty summary subcollection document
+    summary_ref = profile_ref.collection(Collections.SUMMARY).document(Documents.DEFAULT_SUMMARY)
+    summary_data = {
+        SummaryFields.EMOTIONAL_JOURNEY: '',
+        SummaryFields.KEY_MOMENTS: '',
+        SummaryFields.RECURRING_THEMES: '',
+        SummaryFields.PROGRESS_AND_GROWTH: '',
+        SummaryFields.SUGGESTIONS: []
+    }
+    summary_ref.set(summary_data)
+    logger.info(f"Summary document created for user {current_user_id}")
 
-        # Return a properly formatted response
-        summary = Summary(
-            emotional_journey='',
-            key_moments='',
-            recurring_themes='',
-            progress_and_growth=''
-        )
+    # Return a properly formatted response
+    summary = Summary(
+        emotional_journey='',
+        key_moments='',
+        recurring_themes='',
+        progress_and_growth=''
+    )
 
-        response = ProfileResponse(
-            id=current_user_id,
-            name='',
-            avatar='',
-            summary=summary,
-            suggestions=[]
-        )
+    response = ProfileResponse(
+        id=current_user_id,
+        name='',
+        avatar='',
+        summary=summary,
+        suggestions=[]
+    )
 
-        logger.info(f"User profile creation completed successfully for user {current_user_id}")
-        return response
-
-    except Exception as e:
-        logger.error(f"Error creating profile for user {current_user_id}: {str(e)}", exc_info=True)
-        abort(500, description="Internal server error")
+    logger.info(f"User profile creation completed successfully for user {current_user_id}")
+    return response

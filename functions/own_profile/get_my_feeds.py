@@ -1,6 +1,5 @@
 from firebase_admin import firestore
-from flask import abort
-from models.constants import Collections, ProfileFields, UpdateFields
+from models.constants import Collections, ProfileFields, QueryOperators, UpdateFields
 from models.data_models import FeedResponse, Update
 from utils.logging_utils import get_logger
 
@@ -46,78 +45,73 @@ def get_my_feeds(request) -> FeedResponse:
 
     logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
 
-    try:
-        # Get the user's profile
-        user_ref = db.collection(Collections.PROFILES).document(current_user_id)
-        user_doc = user_ref.get()
+    # Get the user's profile
+    user_ref = db.collection(Collections.PROFILES).document(current_user_id)
+    user_doc = user_ref.get()
 
-        # Return empty response if user profile doesn't exist
-        if not user_doc.exists:
-            logger.warning(f"User profile not found for user: {current_user_id}")
-            return FeedResponse(updates=[], next_timestamp=None)
+    # Return empty response if user profile doesn't exist
+    if not user_doc.exists:
+        logger.warning(f"User profile not found for user: {current_user_id}")
+        return FeedResponse(updates=[], next_timestamp=None)
 
-        # Extract group IDs from the user's profile
-        user_data = user_doc.to_dict() or {}
-        group_ids = user_data.get(ProfileFields.GROUP_IDS, [])
+    # Extract group IDs from the user's profile
+    user_data = user_doc.to_dict() or {}
+    group_ids = user_data.get(ProfileFields.GROUP_IDS, [])
 
-        # Return empty response if user is not a member of any groups
-        if not group_ids:
-            logger.info(f"User {current_user_id} is not a member of any groups")
-            return FeedResponse(updates=[], next_timestamp=None)
+    # Return empty response if user is not a member of any groups
+    if not group_ids:
+        logger.info(f"User {current_user_id} is not a member of any groups")
+        return FeedResponse(updates=[], next_timestamp=None)
 
-        logger.info(f"User {current_user_id} is a member of {len(group_ids)} groups")
+    logger.info(f"User {current_user_id} is a member of {len(group_ids)} groups")
 
-        # Build the query for updates from groups the user is in
-        query = db.collection(Collections.UPDATES) \
-            .where(UpdateFields.GROUP_IDS, "array-contains-any", group_ids) \
-            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
+    # Build the query for updates from groups the user is in
+    query = db.collection(Collections.UPDATES) \
+        .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS_ANY, group_ids) \
+        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
 
-        # Apply pagination if an after_timestamp is provided
-        if after_timestamp:
-            query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
-            logger.info(f"Applying pagination with timestamp: {after_timestamp}")
+    # Apply pagination if an after_timestamp is provided
+    if after_timestamp:
+        query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
+        logger.info(f"Applying pagination with timestamp: {after_timestamp}")
 
-        # Apply limit last
-        query = query.limit(limit)
+    # Apply limit last
+    query = query.limit(limit)
 
-        # Execute the query
-        docs = query.stream()
-        logger.info("Query executed successfully")
+    # Execute the query
+    docs = query.stream()
+    logger.info("Query executed successfully")
 
-        updates = []
-        last_timestamp = None
+    updates = []
+    last_timestamp = None
 
-        # Process the query results
-        for doc in docs:
-            doc_data = doc.to_dict()
-            created_at = doc_data.get(UpdateFields.CREATED_AT, "")
+    # Process the query results
+    for doc in docs:
+        doc_data = doc.to_dict()
+        created_at = doc_data.get(UpdateFields.CREATED_AT, "")
 
-            # Track the last timestamp for pagination
-            if created_at:
-                last_timestamp = created_at
+        # Track the last timestamp for pagination
+        if created_at:
+            last_timestamp = created_at
 
-            # Convert Firestore document to Update model
-            updates.append(Update(
-                updateId=doc.id,
-                created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
-                content=doc_data.get(UpdateFields.CONTENT, ""),
-                group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
-                sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
-                created_at=created_at
-            ))
+        # Convert Firestore document to Update model
+        updates.append(Update(
+            updateId=doc.id,
+            created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
+            content=doc_data.get(UpdateFields.CONTENT, ""),
+            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
+            created_at=created_at
+        ))
 
-        # Set up pagination for the next request
-        next_timestamp = None
-        if last_timestamp and len(updates) == limit:
-            next_timestamp = last_timestamp
-            logger.info(f"More results available, next_timestamp: {next_timestamp}")
+    # Set up pagination for the next request
+    next_timestamp = None
+    if last_timestamp and len(updates) == limit:
+        next_timestamp = last_timestamp
+        logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
-        logger.info(f"Retrieved {len(updates)} updates for user: {current_user_id}")
-        return FeedResponse(
-            updates=updates,
-            next_timestamp=next_timestamp
-        )
-    except Exception as e:
-        logger.error(f"Error retrieving feed for user {current_user_id}: {str(e)}", exc_info=True)
-        # Use abort instead of returning empty response
-        abort(500, "Internal server error")
+    logger.info(f"Retrieved {len(updates)} updates for user: {current_user_id}")
+    return FeedResponse(
+        updates=updates,
+        next_timestamp=next_timestamp
+    )

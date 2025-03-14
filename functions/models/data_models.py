@@ -59,6 +59,9 @@ class ProfileResponse(BaseUser):
 class Friend(BaseUser):
     status: str
 
+    def to_json(self):
+        return asdict(self)
+
 
 @dataclass
 class FriendsResponse:
@@ -75,23 +78,8 @@ class GroupMember(BaseUser):
 
 
 @dataclass
-class GroupMemberProfile(BaseUser):
-    """Group member with profile information."""
-    pass
-
-
-@dataclass
 class GroupMembersResponse:
     members: List[GroupMember]
-
-    def to_json(self):
-        return asdict(self)
-
-
-@dataclass
-class AddFriendResponse:
-    status: str
-    message: str
 
     def to_json(self):
         return asdict(self)
@@ -105,6 +93,9 @@ class Group:
     created_at: str
     members: Optional[List[str]] = None
     member_profiles: Optional[List[Dict[str, str]]] = None
+
+    def to_json(self):
+        return asdict(self)
 
 
 @dataclass
@@ -122,11 +113,11 @@ class ChatMessage:
     text: str
     created_at: str
     attachments: Optional[List[str]] = None
-    
+
     def __post_init__(self):
         if self.attachments is None:
             self.attachments = []
-    
+
     def to_dict(self):
         return asdict(self)
 
@@ -135,6 +126,6 @@ class ChatMessage:
 class ChatResponse:
     messages: List[ChatMessage]
     next_timestamp: Optional[str] = None
-    
+
     def to_json(self):
         return asdict(self)

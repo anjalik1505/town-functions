@@ -10,16 +10,15 @@ from firebase_functions import https_fn
 from flask import Flask, request, abort
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
-from werkzeug.wrappers import Response
 
-from friendship.add_friend import add_friend
 from friendship.accept_request import accept_request
+from friendship.add_friend import add_friend
 from groups.add_members import add_members_to_group
+from groups.create_chat_message import create_group_chat_message
 from groups.create_group import create_group
+from groups.get_group_chats import get_group_chats
 from groups.get_group_feed import get_group_feed
 from groups.get_group_members import get_group_members
-from groups.get_group_chats import get_group_chats
-from groups.create_chat_message import create_group_chat_message
 from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
 from models.pydantic_models import GetPaginatedRequest, AddFriendRequest, CreateChatMessageRequest
 from own_profile.create_my_profile import create_profile
@@ -331,9 +330,9 @@ def create_group_chat_message(group_id):
     data = request.get_json()
     if not data:
         abort(400, description="Request body is required")
-    
+
     request.validated_data = CreateChatMessageRequest.model_validate(data)
-    return create_group_chat_message(request, group_id).to_dict()
+    return create_group_chat_message(request, group_id).to_json()
 
 
 @app.route('/friends', methods=['POST'])
@@ -381,10 +380,16 @@ def user_updates(user_id):
 
 
 # Firebase Function entry point 
+# @https_fn.on_request()
+# def api(incoming_request):
+#     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
+#     return Response.from_app(app, incoming_request.environ)
+
 @https_fn.on_request()
-def api(incoming_request):
+def api(incoming_request: https_fn.Request) -> https_fn.Response:
     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
-    return Response.from_app(app, incoming_request.environ)
+    with app.request_context(incoming_request.environ):
+        return app.full_dispatch_request()
 
 
 if __name__ == '__main__':

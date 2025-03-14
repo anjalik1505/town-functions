@@ -4,7 +4,7 @@ import uuid
 from firebase_admin import firestore
 from flask import Request, abort
 from google.cloud.firestore import SERVER_TIMESTAMP
-from models.constants import Collections, GroupFields, ProfileFields, Status, FriendshipFields
+from models.constants import Collections, GroupFields, ProfileFields, QueryOperators, Status, FriendshipFields
 from models.data_models import Group
 from utils.logging_utils import get_logger
 
@@ -47,158 +47,154 @@ def create_group(request: Request) -> Group:
     if current_user_id not in members:
         members.append(current_user_id)
 
-    try:
-        db = firestore.client()
+    db = firestore.client()
 
-        # Skip current user in validation since we know they exist
-        members_to_validate = [member_id for member_id in members if member_id != current_user_id]
+    # Skip current user in validation since we know they exist
+    members_to_validate = [member_id for member_id in members if member_id != current_user_id]
 
-        # Store profile data for denormalization
-        member_profiles = []
-        
-        # First, add the current user's profile (we know they exist)
-        current_user_profile = db.collection(Collections.PROFILES).document(current_user_id).get()
-        if current_user_profile.exists:
-            profile_data = current_user_profile.to_dict()
-            member_profiles.append({
-                ProfileFields.ID: current_user_id,
-                ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
-                ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
-            })
+    # Store profile data for denormalization
+    member_profiles = []
 
-        if members_to_validate:
-            # 1. Verify members exist
-            member_profile_refs = [db.collection(Collections.PROFILES).document(member_id) for member_id in
-                                   members_to_validate]
-            member_profiles_data = db.get_all(member_profile_refs)
+    # First, add the current user's profile (we know they exist)
+    current_user_profile = db.collection(Collections.PROFILES).document(current_user_id).get()
+    if current_user_profile.exists:
+        profile_data = current_user_profile.to_dict()
+        member_profiles.append({
+            ProfileFields.ID: current_user_id,
+            ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+            ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
+        })
 
-            # Check if all member profiles exist
-            missing_members = []
-            for i, profile_snapshot in enumerate(member_profiles_data):
-                if not profile_snapshot.exists:
-                    missing_members.append(members_to_validate[i])
-                else:
-                    # Store profile data for denormalization
-                    profile_data = profile_snapshot.to_dict()
-                    member_profiles.append({
-                        ProfileFields.ID: profile_snapshot.id,
-                        ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
-                        ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
-                    })
+    if members_to_validate:
+        # 1. Verify members exist
+        member_profile_refs = [db.collection(Collections.PROFILES).document(member_id) for member_id in
+                               members_to_validate]
+        member_profiles_data = db.get_all(member_profile_refs)
 
-            if missing_members:
-                missing_members_str = ", ".join(missing_members)
-                logger.warning(f"Member profiles not found: {missing_members_str}")
-                abort(404, description=f"Member profiles not found: {missing_members_str}")
+        # Check if all member profiles exist
+        missing_members = []
+        for i, profile_snapshot in enumerate(member_profiles_data):
+            if not profile_snapshot.exists:
+                missing_members.append(members_to_validate[i])
+            else:
+                # Store profile data for denormalization
+                profile_data = profile_snapshot.to_dict()
+                member_profiles.append({
+                    ProfileFields.ID: profile_snapshot.id,
+                    ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                    ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
+                })
 
-            # 2. Optimized friendship check using batch fetching
-            # We need to verify that all members are friends with each other
+        if missing_members:
+            missing_members_str = ", ".join(missing_members)
+            logger.warning(f"Member profiles not found: {missing_members_str}")
+            abort(404, description=f"Member profiles not found: {missing_members_str}")
 
-            # Create a dictionary to track friendships
-            # Key: tuple of (user1_id, user2_id) where user1_id < user2_id (for consistent ordering)
-            # Value: True if friendship exists, False otherwise
-            friendship_exists = {}
+        # 2. Optimized friendship check using batch fetching
+        # We need to verify that all members are friends with each other
 
-            # Initialize all possible member pairs as not friends
-            for i, member1 in enumerate(members):
-                for j, member2 in enumerate(members):
-                    if i < j:  # Only check each pair once
-                        pair = (member1, member2) if member1 < member2 else (member2, member1)
-                        friendship_exists[pair] = False
+        # Create a dictionary to track friendships
+        # Key: tuple of (user1_id, user2_id) where user1_id < user2_id (for consistent ordering)
+        # Value: True if friendship exists, False otherwise
+        friendship_exists = {}
 
-            # Firestore allows up to 10 values in array-contains-any
-            # We'll process members in batches of 10 if needed
-            batch_size = 10
-            for i in range(0, len(members), batch_size):
-                batch_members = members[i:i + batch_size]
+        # Initialize all possible member pairs as not friends
+        for i, member1 in enumerate(members):
+            for j, member2 in enumerate(members):
+                if i < j:  # Only check each pair once
+                    pair = (member1, member2) if member1 < member2 else (member2, member1)
+                    friendship_exists[pair] = False
 
-                # Fetch all friendships where any of the batch members is in the members array
-                friendships_query = db.collection(Collections.FRIENDSHIPS) \
-                    .where(FriendshipFields.MEMBERS, "array-contains-any", batch_members) \
-                    .where(FriendshipFields.STATUS, "==", Status.ACCEPTED) \
-                    .get()
+        # Firestore allows up to 10 values in array_contains_any
+        # We'll process members in batches of 10 if needed
+        batch_size = 10
+        for i in range(0, len(members), batch_size):
+            batch_members = members[i:i + batch_size]
 
-                logger.info(
-                    f"Fetched {len(list(friendships_query))} friendships for batch of {len(batch_members)} members")
+            # Fetch all friendships where any of the batch members is in the members array
+            friendships_query = db.collection(Collections.FRIENDSHIPS) \
+                .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batch_members) \
+                .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED) \
+                .get()
 
-                # Process each friendship to mark member pairs as friends
-                for doc in friendships_query:
-                    friendship_data = doc.to_dict()
-                    members_in_friendship = friendship_data.get(FriendshipFields.MEMBERS, [])
+            logger.info(
+                f"Fetched {len(list(friendships_query))} friendships for batch of {len(batch_members)} members")
 
-                    # Check which group members are in this friendship
-                    friendship_group_members = [m for m in members if m in members_in_friendship]
+            # Process each friendship to mark member pairs as friends
+            for doc in friendships_query:
+                friendship_data = doc.to_dict()
+                members_in_friendship = friendship_data.get(FriendshipFields.MEMBERS, [])
 
-                    # If we found at least 2 group members in this friendship, mark them as friends
-                    if len(friendship_group_members) >= 2:
-                        for x, member1 in enumerate(friendship_group_members):
-                            for y, member2 in enumerate(friendship_group_members):
-                                if x < y:  # Only process each pair once
-                                    pair = (member1, member2) if member1 < member2 else (member2, member1)
-                                    friendship_exists[pair] = True
+                # Check which group members are in this friendship
+                friendship_group_members = [m for m in members if m in members_in_friendship]
 
-            # Check if any member pairs are not friends
-            not_friends = []
-            for pair, exists in friendship_exists.items():
-                if not exists:
-                    not_friends.append(pair)
+                # If we found at least 2 group members in this friendship, mark them as friends
+                if len(friendship_group_members) >= 2:
+                    for x, member1 in enumerate(friendship_group_members):
+                        for y, member2 in enumerate(friendship_group_members):
+                            if x < y:  # Only process each pair once
+                                pair = (member1, member2) if member1 < member2 else (member2, member1)
+                                friendship_exists[pair] = True
 
-            if not_friends:
-                # Format the error message
-                not_friends_str = ", ".join([f"{pair[0]} and {pair[1]}" for pair in not_friends])
-                logger.warning(f"Members are not friends: {not_friends_str}")
-                abort(400, description="All members must be friends with each other to be in the same group")
+        # Check if any member pairs are not friends
+        not_friends = []
+        for pair, exists in friendship_exists.items():
+            if not exists:
+                not_friends.append(pair)
 
-        # All validations passed, now create the group
+        if not_friends:
+            # Format the error message
+            not_friends_str = ", ".join([f"{pair[0]} and {pair[1]}" for pair in not_friends])
+            logger.warning(f"Members are not friends: {not_friends_str}")
+            abort(400, description="All members must be friends with each other to be in the same group")
 
-        # Generate a unique group ID
-        group_id = str(uuid.uuid4())
-        logger.info(f"Validation passed, creating group with ID: {group_id}")
+    # All validations passed, now create the group
 
-        # Create the group document reference
-        group_ref = db.collection(Collections.GROUPS).document(group_id)
+    # Generate a unique group ID
+    group_id = str(uuid.uuid4())
+    logger.info(f"Validation passed, creating group with ID: {group_id}")
 
-        # Prepare group data
-        group_data = {
-            GroupFields.NAME: name,
-            GroupFields.ICON: icon,
-            GroupFields.MEMBERS: members,
-            GroupFields.MEMBER_PROFILES: member_profiles,
-            GroupFields.CREATED_AT: SERVER_TIMESTAMP
-        }
+    # Create the group document reference
+    group_ref = db.collection(Collections.GROUPS).document(group_id)
 
-        # Create a batch operation for all database writes
-        batch = db.batch()
+    # Prepare group data
+    group_data = {
+        GroupFields.NAME: name,
+        GroupFields.ICON: icon,
+        GroupFields.MEMBERS: members,
+        GroupFields.MEMBER_PROFILES: member_profiles,
+        GroupFields.CREATED_AT: SERVER_TIMESTAMP
+    }
 
-        # Add the group to Firestore
-        batch.set(group_ref, group_data)
-        logger.info(f"Adding group {group_id} with name '{name}' to batch")
+    # Create a batch operation for all database writes
+    batch = db.batch()
 
-        # Add the group ID to each member's profile
-        for member_id in members:
-            profile_ref = db.collection(Collections.PROFILES).document(member_id)
-            batch.update(profile_ref, {
-                ProfileFields.GROUP_IDS: firestore.ArrayUnion([group_id])
-            })
-            logger.info(f"Adding group {group_id} to member {member_id}'s profile in batch")
+    # Add the group to Firestore
+    batch.set(group_ref, group_data)
+    logger.info(f"Adding group {group_id} with name '{name}' to batch")
 
-        # Execute the batch operation
-        batch.commit()
-        logger.info(f"Batch committed successfully: created group {group_id} and updated all member profiles")
+    # Add the group ID to each member's profile
+    for member_id in members:
+        profile_ref = db.collection(Collections.PROFILES).document(member_id)
+        batch.update(profile_ref, {
+            ProfileFields.GROUP_IDS: firestore.ArrayUnion([group_id])
+        })
+        logger.info(f"Adding group {group_id} to member {member_id}'s profile in batch")
 
-        # For the response, we need to convert SERVER_TIMESTAMP to a string
-        # Since SERVER_TIMESTAMP is only resolved when written to Firestore, we'll use current time for the response
-        response_created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    # Execute the batch operation
+    batch.commit()
+    logger.info(f"Batch committed successfully: created group {group_id} and updated all member profiles")
 
-        # Return the created group data
-        return Group(
-            group_id=group_id,
-            name=name,
-            icon=icon,
-            members=members,
-            member_profiles=member_profiles,
-            created_at=response_created_at
-        )
-    except Exception as e:
-        logger.error(f"Error creating group: {str(e)}", exc_info=True)
-        abort(500, description="Internal server error")
+    # For the response, we need to convert SERVER_TIMESTAMP to a string
+    # Since SERVER_TIMESTAMP is only resolved when written to Firestore, we'll use current time for the response
+    response_created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Return the created group data
+    return Group(
+        group_id=group_id,
+        name=name,
+        icon=icon,
+        members=members,
+        member_profiles=member_profiles,
+        created_at=response_created_at
+    )

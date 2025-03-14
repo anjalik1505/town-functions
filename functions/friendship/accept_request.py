@@ -1,12 +1,12 @@
 from firebase_admin import firestore
 from flask import abort
 from google.cloud.firestore import SERVER_TIMESTAMP
-from models.constants import Collections, FriendshipFields, Status
-from models.data_models import AddFriendResponse
+from models.constants import Collections, FriendshipFields, Status, ProfileFields
+from models.data_models import Friend
 from utils.logging_utils import get_logger
 
 
-def accept_request(request, friend_id) -> AddFriendResponse:
+def accept_request(request, friend_id) -> Friend:
     """
     Accepts a pending friend request from the specified user.
     
@@ -19,9 +19,7 @@ def accept_request(request, friend_id) -> AddFriendResponse:
         friend_id: The ID of the user whose friend request is being accepted
     
     Returns:
-        An AddFriendResponse containing:
-        - status: "ok" for success, "error" for failure
-        - message: A description of the result or error
+        A Friend object representing the accepted friend relationship
     
     Raises:
         404: Friend request not found
@@ -70,11 +68,24 @@ def accept_request(request, friend_id) -> AddFriendResponse:
             FriendshipFields.STATUS: Status.ACCEPTED,
             FriendshipFields.UPDATED_AT: SERVER_TIMESTAMP
         })
-        
+
+        # Get the friend's profile information
+        friend_name = friendship_data.get(FriendshipFields.SENDER_NAME, '')
+        friend_avatar = friendship_data.get(FriendshipFields.SENDER_AVATAR, '')
+
+        # If the current user is the sender, get the receiver's info instead
+        if sender_id == current_user_id:
+            friend_name = friendship_data.get(FriendshipFields.RECEIVER_NAME, '')
+            friend_avatar = friendship_data.get(FriendshipFields.RECEIVER_AVATAR, '')
+
         logger.info(f"Friend request from {sender_id} to {current_user_id} accepted successfully")
-        return AddFriendResponse(
-            status=Status.OK,
-            message="Friend request accepted"
+
+        # Return a Friend object representing the accepted friend
+        return Friend(
+            id=friend_id,
+            name=friend_name,
+            avatar=friend_avatar,
+            status=Status.ACCEPTED
         )
     except Exception as e:
         logger.error(f"Error accepting friend request: {str(e)}", exc_info=True)

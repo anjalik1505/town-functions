@@ -50,74 +50,70 @@ def get_group_chats(request: Request, group_id: str) -> ChatResponse:
 
     logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
 
-    try:
-        # First, check if the group exists and if the user is a member
-        group_ref = db.collection(Collections.GROUPS).document(group_id)
-        group_doc = group_ref.get()
+    # First, check if the group exists and if the user is a member
+    group_ref = db.collection(Collections.GROUPS).document(group_id)
+    group_doc = group_ref.get()
 
-        if not group_doc.exists:
-            logger.warning(f"Group {group_id} not found")
-            abort(404, description="Group not found")
+    if not group_doc.exists:
+        logger.warning(f"Group {group_id} not found")
+        abort(404, description="Group not found")
 
-        group_data = group_doc.to_dict()
-        members = group_data.get(GroupFields.MEMBERS, [])
+    group_data = group_doc.to_dict()
+    members = group_data.get(GroupFields.MEMBERS, [])
 
-        # Check if the current user is a member of the group
-        if current_user_id not in members:
-            logger.warning(f"User {current_user_id} is not a member of group {group_id}")
-            abort(403, description="You must be a member of the group to view its chat messages")
+    # Check if the current user is a member of the group
+    if current_user_id not in members:
+        logger.warning(f"User {current_user_id} is not a member of group {group_id}")
+        abort(403, description="You must be a member of the group to view its chat messages")
 
-        # Set up the query for chat messages
-        chats_ref = group_ref.collection(Collections.CHATS)
-        
-        # Build the query: first ordering, then pagination, then limit
-        query = chats_ref.order_by(ChatFields.CREATED_AT, direction=firestore.Query.DESCENDING)
-        
-        # Apply pagination if an after_timestamp is provided
-        if after_timestamp:
-            query = query.start_after({ChatFields.CREATED_AT: after_timestamp})
-            logger.info(f"Applying pagination with timestamp: {after_timestamp}")
-        
-        # Apply limit last
-        query = query.limit(limit)
+    # Set up the query for chat messages
+    chats_ref = group_ref.collection(Collections.CHATS)
 
-        # Execute the query
-        docs = query.stream()
-        logger.info("Query executed successfully")
-        
-        # Process the results
-        messages = []
-        last_timestamp = None
-        
-        # Process the query results
-        for doc in docs:
-            doc_data = doc.to_dict()
-            created_at = doc_data.get(ChatFields.CREATED_AT, "")
+    # Build the query: first ordering, then pagination, then limit
+    query = chats_ref.order_by(ChatFields.CREATED_AT, direction=firestore.Query.DESCENDING)
 
-            # Track the last timestamp for pagination
-            if created_at:
-                last_timestamp = created_at
+    # Apply pagination if an after_timestamp is provided
+    if after_timestamp:
+        query = query.start_after({ChatFields.CREATED_AT: after_timestamp})
+        logger.info(f"Applying pagination with timestamp: {after_timestamp}")
 
-            # Convert Firestore document to ChatMessage model
-            messages.append(ChatMessage(
-                message_id=doc.id,
-                sender_id=doc_data.get(ChatFields.SENDER_ID, ""),
-                text=doc_data.get(ChatFields.TEXT, ""),
-                created_at=created_at,
-                attachments=doc_data.get(ChatFields.ATTACHMENTS, [])
-            ))
+    # Apply limit last
+    query = query.limit(limit)
 
-        # Set up pagination for the next request
-        next_timestamp = None
-        if last_timestamp and len(messages) == limit:
-            next_timestamp = last_timestamp
-            logger.info(f"More results available, next_timestamp: {next_timestamp}")
+    # Execute the query
+    docs = query.stream()
+    logger.info("Query executed successfully")
 
-        logger.info(f"Retrieved {len(messages)} chat messages for group: {group_id}")
-        return ChatResponse(
-            messages=messages,
-            next_timestamp=next_timestamp
-        )
-    except Exception as e:
-        logger.error(f"Error retrieving chat messages for group {group_id}: {str(e)}", exc_info=True)
-        abort(500, description="Internal server error")
+    # Process the results
+    messages = []
+    last_timestamp = None
+
+    # Process the query results
+    for doc in docs:
+        doc_data = doc.to_dict()
+        created_at = doc_data.get(ChatFields.CREATED_AT, "")
+
+        # Track the last timestamp for pagination
+        if created_at:
+            last_timestamp = created_at
+
+        # Convert Firestore document to ChatMessage model
+        messages.append(ChatMessage(
+            message_id=doc.id,
+            sender_id=doc_data.get(ChatFields.SENDER_ID, ""),
+            text=doc_data.get(ChatFields.TEXT, ""),
+            created_at=created_at,
+            attachments=doc_data.get(ChatFields.ATTACHMENTS, [])
+        ))
+
+    # Set up pagination for the next request
+    next_timestamp = None
+    if last_timestamp and len(messages) == limit:
+        next_timestamp = last_timestamp
+        logger.info(f"More results available, next_timestamp: {next_timestamp}")
+
+    logger.info(f"Retrieved {len(messages)} chat messages for group: {group_id}")
+    return ChatResponse(
+        messages=messages,
+        next_timestamp=next_timestamp
+    )

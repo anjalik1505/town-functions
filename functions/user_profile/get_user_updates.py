@@ -1,6 +1,6 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import Collections, ProfileFields, UpdateFields, FriendshipFields, Status
+from models.constants import Collections, ProfileFields, UpdateFields, FriendshipFields, Status, QueryOperators
 from models.data_models import UpdatesResponse, Update
 from utils.logging_utils import get_logger
 
@@ -46,84 +46,80 @@ def get_user_updates(request, target_user_id) -> UpdatesResponse:
         logger.warning(f"User {current_user_id} attempted to view their own updates through /user endpoint")
         abort(400, "Use /me/updates endpoint to view your own updates")
 
-    try:
-        # Get pagination parameters from the validated request
-        validated_params = request.validated_params
-        limit = validated_params.limit
-        after_timestamp = validated_params.after_timestamp
+    # Get pagination parameters from the validated request
+    validated_params = request.validated_params
+    limit = validated_params.limit
+    after_timestamp = validated_params.after_timestamp
 
-        logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
+    logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
 
-        # Get the target user's profile
-        target_user_profile_ref = db.collection(Collections.PROFILES).document(target_user_id)
-        target_user_profile_doc = target_user_profile_ref.get()
+    # Get the target user's profile
+    target_user_profile_ref = db.collection(Collections.PROFILES).document(target_user_id)
+    target_user_profile_doc = target_user_profile_ref.get()
 
-        # Check if the target profile exists
-        if not target_user_profile_doc.exists:
-            logger.warning(f"Profile not found for user {target_user_id}")
-            abort(404, "Profile not found")
+    # Check if the target profile exists
+    if not target_user_profile_doc.exists:
+        logger.warning(f"Profile not found for user {target_user_id}")
+        abort(404, "Profile not found")
 
-        # Check if users are friends using the unified friendships collection
-        # Create a consistent ordering of user IDs for the query
-        user_ids = sorted([current_user_id, target_user_id])
-        friendship_id = f"{user_ids[0]}_{user_ids[1]}"
+    # Check if users are friends using the unified friendships collection
+    # Create a consistent ordering of user IDs for the query
+    user_ids = sorted([current_user_id, target_user_id])
+    friendship_id = f"{user_ids[0]}_{user_ids[1]}"
 
-        friendship_ref = db.collection(Collections.FRIENDSHIPS).document(friendship_id)
-        friendship_doc = friendship_ref.get()
+    friendship_ref = db.collection(Collections.FRIENDSHIPS).document(friendship_id)
+    friendship_doc = friendship_ref.get()
 
-        # If they are not friends, return an error
-        if not friendship_doc.exists or friendship_doc.to_dict().get(FriendshipFields.STATUS) != Status.ACCEPTED:
-            logger.warning(f"User {current_user_id} attempted to view updates of non-friend {target_user_id}")
-            abort(403, "You must be friends with this user to view their updates")
+    # If they are not friends, return an error
+    if not friendship_doc.exists or friendship_doc.to_dict().get(FriendshipFields.STATUS) != Status.ACCEPTED:
+        logger.warning(f"User {current_user_id} attempted to view updates of non-friend {target_user_id}")
+        abort(403, "You must be friends with this user to view their updates")
 
-        logger.info(f"Friendship verified between {current_user_id} and {target_user_id}")
+    logger.info(f"Friendship verified between {current_user_id} and {target_user_id}")
 
-        # Build the query for updates created by the target user
-        query = db.collection(Collections.UPDATES) \
-            .where(UpdateFields.CREATED_BY, "==", target_user_id) \
-            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
+    # Build the query for updates created by the target user
+    query = db.collection(Collections.UPDATES) \
+        .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, target_user_id) \
+        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
 
-        # Apply pagination if an after_timestamp is provided
-        if after_timestamp:
-            query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
-            logger.info(f"Applying pagination with timestamp: {after_timestamp}")
+    # Apply pagination if an after_timestamp is provided
+    if after_timestamp:
+        query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
+        logger.info(f"Applying pagination with timestamp: {after_timestamp}")
 
-        # Apply limit last
-        query = query.limit(limit)
+    # Apply limit last
+    query = query.limit(limit)
 
-        # Execute the query
-        docs = query.stream()
-        logger.info("Query executed successfully")
+    # Execute the query
+    docs = query.stream()
+    logger.info("Query executed successfully")
 
-        updates = []
-        last_timestamp = None
+    updates = []
+    last_timestamp = None
 
-        # Process the query results
-        for doc in docs:
-            doc_data = doc.to_dict()
-            created_at = doc_data.get(UpdateFields.CREATED_AT, "")
+    # Process the query results
+    for doc in docs:
+        doc_data = doc.to_dict()
+        created_at = doc_data.get(UpdateFields.CREATED_AT, "")
 
-            # Track the last timestamp for pagination
-            if created_at:
-                last_timestamp = created_at
+        # Track the last timestamp for pagination
+        if created_at:
+            last_timestamp = created_at
 
-            # Create an Update object
-            update = Update(
-                id=doc.id,
-                content=doc_data.get(UpdateFields.CONTENT, ""),
-                created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
-                created_at=created_at,
-                sentiment=doc_data.get(UpdateFields.SENTIMENT, "")
-            )
-            updates.append(update)
-
-        logger.info(f"Retrieved {len(updates)} updates for user {target_user_id}")
-
-        # Return the updates and next_timestamp for pagination
-        return UpdatesResponse(
-            updates=updates,
-            next_timestamp=last_timestamp
+        # Create an Update object
+        update = Update(
+            id=doc.id,
+            content=doc_data.get(UpdateFields.CONTENT, ""),
+            created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
+            created_at=created_at,
+            sentiment=doc_data.get(UpdateFields.SENTIMENT, "")
         )
-    except Exception as e:
-        logger.error(f"Error retrieving updates for user {target_user_id}: {str(e)}", exc_info=True)
-        abort(500, "Internal server error")
+        updates.append(update)
+
+    logger.info(f"Retrieved {len(updates)} updates for user {target_user_id}")
+
+    # Return the updates and next_timestamp for pagination
+    return UpdatesResponse(
+        updates=updates,
+        next_timestamp=last_timestamp
+    )
