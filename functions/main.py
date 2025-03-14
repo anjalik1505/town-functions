@@ -15,6 +15,7 @@ from werkzeug.wrappers import Response
 from friendship.add_friend import add_friend
 from groups.add_members import add_members_to_group
 from groups.create_group import create_group
+from groups.get_group_feed import get_group_feed
 from groups.get_group_members import get_group_members
 from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
 from models.pydantic_models import GetPaginatedRequest, AddFriendRequest
@@ -191,25 +192,36 @@ def handle_errors(validate_request=False):
 @app.route('/')
 @handle_errors()
 def index():
-    # Reject all requests to the root endpoint
+    """
+    Reject all requests to the root endpoint.
+    """
     abort(403, description="Forbidden")
 
 
 @app.route('/me/profile', methods=['GET'])
 @handle_errors()
 def my_profile():
+    """
+    Get the user's profile.
+    """
     return get_my_profile(request).to_json()
 
 
 @app.route('/me/profile', methods=['POST'])
 @handle_errors()
 def create_user_profile():
+    """
+    Create a new user profile.
+    """
     return add_user(request).to_json()
 
 
 @app.route('/me/updates', methods=['GET'])
 @handle_errors(validate_request=True)
 def my_updates():
+    """
+    Get all updates of the user, paginated.
+    """
     args_dict = request.args.to_dict(flat=True)
     request.validated_params = GetPaginatedRequest.model_validate(args_dict)
     return get_my_updates(request).to_json()
@@ -218,6 +230,9 @@ def my_updates():
 @app.route('/me/feed', methods=['GET'])
 @handle_errors(validate_request=True)
 def my_feed():
+    """
+    Get all feeds of the user, paginated.
+    """
     args_dict = request.args.to_dict(flat=True)
     request.validated_params = GetPaginatedRequest.model_validate(args_dict)
     return get_my_feeds(request).to_json()
@@ -226,18 +241,27 @@ def my_feed():
 @app.route('/me/friends', methods=['GET'])
 @handle_errors()
 def my_friends():
+    """
+    Get all friends of the user.
+    """
     return get_my_friends(request).to_json()
 
 
 @app.route('/me/groups', methods=['GET'])
 @handle_errors()
 def my_groups():
+    """
+    Get all groups the user is a member of.
+    """
     return get_my_groups(request).to_json()
 
 
 @app.route('/groups', methods=['POST'])
 @handle_errors(validate_request=True)
 def create_new_group():
+    """
+    Create a new group.
+    """
     # Validate request data using Pydantic
     data = request.get_json()
     if not data:
@@ -251,6 +275,9 @@ def create_new_group():
 @app.route('/groups/<group_id>/members', methods=['POST'])
 @handle_errors(validate_request=True)
 def add_group_members(group_id):
+    """
+    Add new members to an existing group.
+    """
     # Validate request data using Pydantic
     data = request.get_json()
     if not data:
@@ -270,9 +297,23 @@ def group_members(group_id):
     return get_group_members(request, group_id).to_json()
 
 
+@app.route('/groups/<group_id>/feed', methods=['GET'])
+@handle_errors(validate_request=True)
+def group_feed(group_id):
+    """
+    Get all updates for a specific group, paginated.
+    """
+    params = request.args.to_dict(flat=True)
+    request.validated_params = GetPaginatedRequest.model_validate(params)
+    return get_group_feed(request, group_id).to_json()
+
+
 @app.route('/friends', methods=['POST'])
 @handle_errors(validate_request=True)
 def add_my_friend():
+    """
+    Add a new friend.
+    """
     data = request.get_json()
     if not data:
         abort(400, description="Request body is required")
@@ -294,6 +335,9 @@ def user_profile(user_id):
 @app.route('/users/<user_id>/updates', methods=['GET'])
 @handle_errors(validate_request=True)
 def user_updates(user_id):
+    """
+    Get all updates for a specific user, paginated.
+    """
     params = request.args.to_dict(flat=True)
     request.validated_params = GetPaginatedRequest.model_validate(params)
     return get_user_updates(request, user_id).to_json()
