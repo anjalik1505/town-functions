@@ -1,6 +1,8 @@
 from firebase_admin import firestore
+from flask import abort
 from models.constants import Collections, ProfileFields, UpdateFields
 from models.data_models import FeedResponse, Update
+from utils.logging_utils import get_logger
 
 
 def get_my_feeds(request) -> FeedResponse:
@@ -28,70 +30,88 @@ def get_my_feeds(request) -> FeedResponse:
         - A list of updates from all groups the user is in
         - A next_timestamp for pagination (if more results are available)
     """
+    logger = get_logger(__name__)
+    logger.info(f"Retrieving feed for user: {request.user_id}")
+
     db = firestore.client()
 
     # Get pagination parameters from the validated request
-    validated_params = getattr(request, 'validated_params', None)
+    validated_params = request.validated_params
     limit = validated_params.limit if validated_params else 20
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
-    user_doc = db.collection(Collections.PROFILES).document(request.user_id).get()
+    logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
 
-    # Return empty response if user profile doesn't exist
-    if not user_doc.exists:
-        return FeedResponse(updates=[])
+    try:
+        # Get the user's profile
+        user_ref = db.collection(Collections.PROFILES).document(request.user_id)
+        user_doc = user_ref.get()
 
-    # Extract group IDs from the user's profile
-    user_data = user_doc.to_dict() or {}
-    group_ids = user_data.get(ProfileFields.GROUP_IDS, [])
+        # Return empty response if user profile doesn't exist
+        if not user_doc.exists:
+            logger.warning(f"User profile not found for user: {request.user_id}")
+            return FeedResponse(updates=[], next_timestamp=None)
 
-    # Return empty response if user is not a member of any groups
-    if not group_ids:
-        return FeedResponse(updates=[])
+        # Extract group IDs from the user's profile
+        user_data = user_doc.to_dict() or {}
+        group_ids = user_data.get(ProfileFields.GROUP_IDS, [])
 
-    query = db.collection(Collections.UPDATES) \
-        .where(UpdateFields.GROUP_IDS, "array-contains-any", group_ids) \
-        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-        .limit(limit)
+        # Return empty response if user is not a member of any groups
+        if not group_ids:
+            logger.info(f"User {request.user_id} is not a member of any groups")
+            return FeedResponse(updates=[], next_timestamp=None)
 
-    # Apply pagination if an after_timestamp is provided
-    if after_timestamp:
-        try:
+        logger.info(f"User {request.user_id} is a member of {len(group_ids)} groups")
+
+        # Build the query for updates from groups the user is in
+        query = db.collection(Collections.UPDATES) \
+            .where(UpdateFields.GROUP_IDS, "array-contains-any", group_ids) \
+            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
+            .limit(limit)
+
+        # Apply pagination if an after_timestamp is provided
+        if after_timestamp:
             query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
-        except Exception as e:
-            print(f"Error applying pagination: {str(e)}")
+            logger.info(f"Applying pagination with timestamp: {after_timestamp}")
 
-    # Execute the query
-    docs = query.stream()
+        # Execute the query
+        docs = query.stream()
+        logger.info("Query executed successfully")
 
-    updates = []
-    last_timestamp = None
+        updates = []
+        last_timestamp = None
 
-    # Process the query results
-    for doc in docs:
-        doc_data = doc.to_dict()
-        created_at = doc_data.get(UpdateFields.CREATED_AT, "")
+        # Process the query results
+        for doc in docs:
+            doc_data = doc.to_dict()
+            created_at = doc_data.get(UpdateFields.CREATED_AT, "")
 
-        # Track the last timestamp for pagination
-        if created_at:
-            last_timestamp = created_at
+            # Track the last timestamp for pagination
+            if created_at:
+                last_timestamp = created_at
 
-        # Convert Firestore document to Update model
-        updates.append(Update(
-            updateId=doc.id,
-            created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
-            content=doc_data.get(UpdateFields.CONTENT, ""),
-            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
-            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
-            created_at=created_at
-        ))
+            # Convert Firestore document to Update model
+            updates.append(Update(
+                updateId=doc.id,
+                created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
+                content=doc_data.get(UpdateFields.CONTENT, ""),
+                group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+                sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
+                created_at=created_at
+            ))
 
-    # Set up pagination for the next request
-    next_timestamp = None
-    if last_timestamp and len(updates) == limit:
-        next_timestamp = last_timestamp
+        # Set up pagination for the next request
+        next_timestamp = None
+        if last_timestamp and len(updates) == limit:
+            next_timestamp = last_timestamp
+            logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
-    return FeedResponse(
-        updates=updates,
-        next_timestamp=next_timestamp
-    )
+        logger.info(f"Retrieved {len(updates)} updates for user: {request.user_id}")
+        return FeedResponse(
+            updates=updates,
+            next_timestamp=next_timestamp
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving feed for user {request.user_id}: {str(e)}", exc_info=True)
+        # Use abort instead of returning empty response
+        abort(500, "Internal server error while retrieving user feed")

@@ -6,7 +6,7 @@ import json
 
 from firebase_admin import initialize_app, firestore, auth
 from firebase_functions import https_fn
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request, abort
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response
