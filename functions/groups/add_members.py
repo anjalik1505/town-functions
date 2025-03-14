@@ -192,7 +192,7 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
 
         # Return the updated group data
         return Group(
-            groupId=group_id,
+            group_id=group_id,
             name=updated_group_data.get(GroupFields.NAME, ""),
             icon=updated_group_data.get(GroupFields.ICON, ""),
             members=updated_group_data.get(GroupFields.MEMBERS, []),

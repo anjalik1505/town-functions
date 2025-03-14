@@ -35,28 +35,30 @@ def get_my_updates(request) -> UpdatesResponse:
     # Get the authenticated user ID from the request
     current_user_id = request.user_id
 
-    # Initialize Firestore client
-    db = firestore.client()
-
-    # Get pagination parameters from the validated request
-    validated_params = request.validated_params
-    limit = validated_params.limit if validated_params else 20
-    after_timestamp = validated_params.after_timestamp if validated_params else None
-
-    logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
-
-    query = db.collection(Collections.UPDATES) \
-        .where(UpdateFields.CREATED_BY, "==", current_user_id) \
-        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-        .limit(limit)
-
-    # Apply pagination if an after_timestamp is provided
-    if after_timestamp:
-        query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
-        logger.info(f"Applying pagination with timestamp: {after_timestamp}")
-
-    # Execute the query
     try:
+        # Initialize Firestore client
+        db = firestore.client()
+
+        # Get pagination parameters from the validated request
+        validated_params = request.validated_params
+        limit = validated_params.limit if validated_params else 20
+        after_timestamp = validated_params.after_timestamp if validated_params else None
+
+        logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
+
+        query = db.collection(Collections.UPDATES) \
+            .where(UpdateFields.CREATED_BY, "==", current_user_id) \
+            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
+
+        # Apply pagination if an after_timestamp is provided
+        if after_timestamp:
+            query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
+            logger.info(f"Applying pagination with timestamp: {after_timestamp}")
+
+        # Apply limit last
+        query = query.limit(limit)
+
+        # Execute the query
         docs = query.stream()
         logger.info("Query executed successfully")
 

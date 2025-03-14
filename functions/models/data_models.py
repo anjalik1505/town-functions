@@ -99,7 +99,7 @@ class AddFriendResponse:
 
 @dataclass
 class Group:
-    groupId: str
+    group_id: str
     name: str
     icon: str
     created_at: str
@@ -111,5 +111,30 @@ class Group:
 class GroupsResponse:
     groups: List[Group]
 
+    def to_json(self):
+        return asdict(self)
+
+
+@dataclass
+class ChatMessage:
+    message_id: str
+    sender_id: str
+    text: str
+    created_at: str
+    attachments: Optional[List[str]] = None
+    
+    def __post_init__(self):
+        if self.attachments is None:
+            self.attachments = []
+    
+    def to_dict(self):
+        return asdict(self)
+
+
+@dataclass
+class ChatResponse:
+    messages: List[ChatMessage]
+    next_timestamp: Optional[str] = None
+    
     def to_json(self):
         return asdict(self)

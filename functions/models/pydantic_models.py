@@ -32,6 +32,14 @@ class AddFriendRequest(BaseModel):
         extra = "ignore"
 
 
+class CreateChatMessageRequest(BaseModel):
+    text: str
+    attachments: Optional[List[str]] = None
+
+    class Config:
+        extra = "ignore"
+
+
 class CreateGroupRequest(BaseModel):
     name: str
     icon: Optional[str] = None

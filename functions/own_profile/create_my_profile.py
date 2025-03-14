@@ -5,7 +5,7 @@ from models.data_models import ProfileResponse, Summary
 from utils.logging_utils import get_logger
 
 
-def add_user(request):
+def create_profile(request):
     """
     Creates a new profile for the authenticated user.
     

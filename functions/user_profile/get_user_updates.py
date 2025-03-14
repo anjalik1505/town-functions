@@ -81,13 +81,15 @@ def get_user_updates(request, target_user_id) -> UpdatesResponse:
         # Build the query for updates created by the target user
         query = db.collection(Collections.UPDATES) \
             .where(UpdateFields.CREATED_BY, "==", target_user_id) \
-            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-            .limit(limit)
+            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
 
         # Apply pagination if an after_timestamp is provided
         if after_timestamp:
             query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
             logger.info(f"Applying pagination with timestamp: {after_timestamp}")
+
+        # Apply limit last
+        query = query.limit(limit)
 
         # Execute the query
         docs = query.stream()

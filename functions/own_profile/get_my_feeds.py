@@ -70,13 +70,15 @@ def get_my_feeds(request) -> FeedResponse:
         # Build the query for updates from groups the user is in
         query = db.collection(Collections.UPDATES) \
             .where(UpdateFields.GROUP_IDS, "array-contains-any", group_ids) \
-            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-            .limit(limit)
+            .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
 
         # Apply pagination if an after_timestamp is provided
         if after_timestamp:
             query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
             logger.info(f"Applying pagination with timestamp: {after_timestamp}")
+
+        # Apply limit last
+        query = query.limit(limit)
 
         # Execute the query
         docs = query.stream()

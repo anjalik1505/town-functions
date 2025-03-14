@@ -192,7 +192,7 @@ def create_group(request: Request) -> Group:
 
         # Return the created group data
         return Group(
-            groupId=group_id,
+            group_id=group_id,
             name=name,
             icon=icon,
             members=members,

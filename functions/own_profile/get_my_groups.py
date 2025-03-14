@@ -46,7 +46,7 @@ def get_my_groups(request) -> GroupsResponse:
             logger.info(f"Processing group: {group_id}")
 
             groups.append(Group(
-                groupId=group_id,
+                group_id=group_id,
                 name=group_data.get(GroupFields.NAME, ""),
                 icon=group_data.get(GroupFields.ICON, ""),
                 members=group_data.get(GroupFields.MEMBERS, []),

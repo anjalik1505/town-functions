@@ -82,6 +82,14 @@ class GroupFields(StrEnum):
     CREATED_AT = "created_at"
 
 
+# Field names for Chat documents
+class ChatFields(StrEnum):
+    SENDER_ID = "sender_id"
+    TEXT = "text"
+    CREATED_AT = "created_at"
+    ATTACHMENTS = "attachments"
+
+
 # Field names for Summary documents
 class SummaryFields(StrEnum):
     EMOTIONAL_JOURNEY = "emotional_journey"

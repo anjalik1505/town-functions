@@ -17,9 +17,11 @@ from groups.add_members import add_members_to_group
 from groups.create_group import create_group
 from groups.get_group_feed import get_group_feed
 from groups.get_group_members import get_group_members
+from groups.get_group_chats import get_group_chats
+from groups.create_chat_message import create_group_chat_message
 from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
-from models.pydantic_models import GetPaginatedRequest, AddFriendRequest
-from own_profile.add_user import add_user
+from models.pydantic_models import GetPaginatedRequest, AddFriendRequest, CreateChatMessageRequest
+from own_profile.create_my_profile import create_profile
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_groups import get_my_groups
@@ -209,11 +211,11 @@ def my_profile():
 
 @app.route('/me/profile', methods=['POST'])
 @handle_errors()
-def create_user_profile():
+def create_my_profile():
     """
     Create a new user profile.
     """
-    return add_user(request).to_json()
+    return create_profile(request).to_json()
 
 
 @app.route('/me/updates', methods=['GET'])
@@ -306,6 +308,31 @@ def group_feed(group_id):
     params = request.args.to_dict(flat=True)
     request.validated_params = GetPaginatedRequest.model_validate(params)
     return get_group_feed(request, group_id).to_json()
+
+
+@app.route('/groups/<group_id>/chats', methods=['GET'])
+@handle_errors(validate_request=True)
+def group_chats(group_id):
+    """
+    List group chat messages, paginated.
+    """
+    params = request.args.to_dict(flat=True)
+    request.validated_params = GetPaginatedRequest.model_validate(params)
+    return get_group_chats(request, group_id).to_json()
+
+
+@app.route('/groups/<group_id>/chats', methods=['POST'])
+@handle_errors(validate_request=True)
+def create_group_chat_message(group_id):
+    """
+    Post a new message in group chat.
+    """
+    data = request.get_json()
+    if not data:
+        abort(400, description="Request body is required")
+    
+    request.validated_data = CreateChatMessageRequest.model_validate(data)
+    return create_group_chat_message(request, group_id).to_dict()
 
 
 @app.route('/friends', methods=['POST'])
