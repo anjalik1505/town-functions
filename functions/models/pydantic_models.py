@@ -26,7 +26,7 @@ class GetPaginatedRequest(BaseModel):
 
 
 class AddFriendRequest(BaseModel):
-    friendId: str
+    friend_id: str
 
     class Config:
         extra = "ignore"
