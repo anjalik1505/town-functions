@@ -10,10 +10,19 @@ def add_user(request):
     
     This function checks if a profile already exists for the authenticated user.
     If it does, it aborts with a 400 error. Otherwise, it creates a new empty
-    profile according to the schema.
+    profile according to the schema and initializes related collections.
+    
+    Args:
+        request: The Flask request object containing:
+                - user_id: The authenticated user's ID (attached by authentication middleware)
     
     Returns:
-    - A ProfileResponse object containing the user's profile data
+        A ProfileResponse containing:
+        - Basic profile information (id, name, avatar)
+        - Empty summary information
+    
+    Raises:
+        400: If a profile already exists for the authenticated user
     """
     # Get the authenticated user ID from the request
     user_id = request.user_id

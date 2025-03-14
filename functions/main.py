@@ -11,7 +11,6 @@ from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response
 
-from user_profile.get_user_updates import get_user_updates
 from models.pydantic_models import GetPaginatedRequest, AddFriendRequest
 from own_profile.add_friend import add_friend
 from own_profile.add_user import add_user
@@ -20,6 +19,7 @@ from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
 from user_profile.get_user_profile import get_user_profile
+from user_profile.get_user_updates import get_user_updates
 
 initialize_app()
 app = Flask(__name__)
@@ -241,6 +241,7 @@ def user_feed(user_id):
 
 
 @app.route('/users/<user_id>/profile', methods=['GET'])
+@handle_errors()
 def user_profile(user_id):
     """
     Fetch basic profile info plus a short summary and suggestions derived from shared data
@@ -250,14 +251,11 @@ def user_profile(user_id):
 
 
 @app.route('/users/<user_id>/updates', methods=['GET'])
+@handle_errors(validate_request=True)
 def user_updates(user_id):
-    try:
-        params = dict(request.args)
-        validated_params = GetPaginatedRequest.model_validate(**params)
-        request.validated_params = validated_params
-        return get_user_updates(request, user_id).to_json()
-    except (ValidationError, ValueError):
-        abort(400, description="Invalid request parameters")
+    params = request.args.to_dict(flat=True)
+    request.validated_params = GetPaginatedRequest.model_validate(params)
+    return get_user_updates(request, user_id).to_json()
 
 
 # Firebase Function entry point 

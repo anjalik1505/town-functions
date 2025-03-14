@@ -1,7 +1,10 @@
-from firebase_admin import firestore, auth
-from flask import request, abort
+from firebase_admin import firestore
+from flask import abort
 from functions.data_models import UpdatesResponse, Update
 from functions.pydantic_models import GetPaginatedRequest
+
+from functions.models.constants import Collections, ProfileFields, UpdateFields
+
 
 def get_user_updates(request, user_id: str) -> UpdatesResponse:
     """
@@ -39,36 +42,36 @@ def get_user_updates(request, user_id: str) -> UpdatesResponse:
     """
     db = firestore.client()
     current_user_id = request.user_id
-    
+
     # Redirect users to the appropriate endpoint for their own updates
     if current_user_id == user_id:
         abort(400, "Use /me/updates endpoint to view your own updates")
-    
+
     # Get the target user's profile
-    target_user_profile_ref = db.collection('profiles').document(user_id)
+    target_user_profile_ref = db.collection(Collections.PROFILES).document(user_id)
     target_user_profile_doc = target_user_profile_ref.get()
-    
+
     if not target_user_profile_doc.exists:
         abort(404, "Profile not found")
-    
+
     target_user_profile_data = target_user_profile_doc.to_dict() or {}
-    
+
     # Check if users are friends
-    current_user_profile_ref = db.collection('profiles').document(current_user_id)
-    friend_ref = current_user_profile_ref.collection('friends').document(user_id)
+    current_user_profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
+    friend_ref = current_user_profile_ref.collection(Collections.FRIENDS).document(user_id)
     is_friend = friend_ref.get().exists
-    
+
     # If they are not friends, return an error
     if not is_friend:
         abort(403, "You must be friends with this user to view their updates")
-    
+
     # Get current user's groups
     current_user_profile_doc = current_user_profile_ref.get()
     current_user_profile = current_user_profile_doc.to_dict() or {}
-    current_user_groups = current_user_profile.get('group_ids', [])
-    
+    current_user_groups = current_user_profile.get(ProfileFields.GROUP_IDS, [])
+
     # Get target user's groups
-    target_user_groups = target_user_profile_data.get('group_ids', [])
+    target_user_groups = target_user_profile_data.get(ProfileFields.GROUP_IDS, [])
 
     # Find groups that both users are members of
     shared_groups = list(set(current_user_groups) & set(target_user_groups))
@@ -86,15 +89,15 @@ def get_user_updates(request, user_id: str) -> UpdatesResponse:
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
     # Build the query for updates
-    query = db.collection("updates") \
-        .where("created_by", "==", user_id) \
-        .where("group_ids", "array-contains-any", shared_groups) \
-        .order_by("created_at", "desc") \
+    query = db.collection(Collections.UPDATES) \
+        .where(UpdateFields.CREATED_BY, "==", user_id) \
+        .where(UpdateFields.GROUP_IDS, "array-contains-any", shared_groups) \
+        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
         .limit(limit)
 
     # Apply pagination if an after_timestamp is provided
     if after_timestamp:
-        query = query.start_after({"created_at": after_timestamp})
+        query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
 
     docs = query.stream()
 
@@ -104,17 +107,17 @@ def get_user_updates(request, user_id: str) -> UpdatesResponse:
     # Process the query results
     for doc in docs:
         doc_data = doc.to_dict()
-        created_at = doc_data.get("created_at")
+        created_at = doc_data.get(UpdateFields.CREATED_AT)
 
         if created_at:
             last_timestamp = created_at
 
         updates.append(Update(
             updateId=doc.id,
-            created_by=doc_data.get("created_by", user_id),
-            content=doc_data.get("content", ""),
-            group_ids=doc_data.get("group_ids", []),
-            sentiment=doc_data.get("sentiment", 0),
+            created_by=doc_data.get(UpdateFields.CREATED_BY, user_id),
+            content=doc_data.get(UpdateFields.CONTENT, ""),
+            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
             created_at=created_at
         ))
 

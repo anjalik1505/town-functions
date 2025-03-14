@@ -12,6 +12,10 @@ class Collections(StrEnum):
     SUMMARY = "summary"
     UPDATES = "updates"
     FRIEND_REQUESTS = "friend_requests"
+    GROUPS = "groups"
+    USER_SUMMARIES = "user_summaries"
+    CHATS = "chats"
+    SUMMARIES = "summaries"
 
 
 # Document names
