@@ -1,5 +1,6 @@
 import logging
 
+
 def get_logger(name):
     """
     Creates and returns a logger with the specified name.
@@ -14,7 +15,6 @@ def get_logger(name):
         A configured logger instance
     """
     logger = logging.getLogger(name)
-
     # Only configure handlers if they haven't been added yet
     if not logger.handlers:
         # Set the logging level

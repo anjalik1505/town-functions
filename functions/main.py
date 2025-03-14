@@ -15,7 +15,8 @@ from werkzeug.wrappers import Response
 from friendship.add_friend import add_friend
 from groups.add_members import add_members_to_group
 from groups.create_group import create_group
-from models.pydantic_models import GetPaginatedRequest, AddFriendRequest, CreateGroupRequest, AddGroupMembersRequest
+from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
+from models.pydantic_models import GetPaginatedRequest, AddFriendRequest
 from own_profile.add_user import add_user
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
@@ -259,7 +260,7 @@ def add_group_members(group_id):
     return add_members_to_group(request, group_id).to_json()
 
 
-@app.route('/me/friends', methods=['POST'])
+@app.route('/friends', methods=['POST'])
 @handle_errors(validate_request=True)
 def add_my_friend():
     data = request.get_json()

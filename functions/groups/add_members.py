@@ -98,7 +98,7 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
                     continue
                 # Ensure consistent ordering of the pair
                 pair = (new_member_id, current_member_id) if new_member_id < current_member_id else (
-                current_member_id, new_member_id)
+                    current_member_id, new_member_id)
                 friendship_exists[pair] = False
 
         # Combine all members that need to be checked
