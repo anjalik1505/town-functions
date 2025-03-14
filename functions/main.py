@@ -6,7 +6,7 @@ import json
 
 from firebase_admin import initialize_app, firestore, auth
 from firebase_functions import https_fn
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request, abort
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response
@@ -18,6 +18,8 @@ from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
+from user_profile.get_user_profile import get_user_profile
+from user_profile.get_user_updates import get_user_updates
 
 initialize_app()
 app = Flask(__name__)
@@ -232,10 +234,22 @@ def add_my_friend():
     return add_friend(request).to_json()
 
 
-@app.route('/users/<user_id>/feed', methods=['GET'])
+@app.route('/users/<user_id>/profile', methods=['GET'])
 @handle_errors()
-def user_feed(user_id):
-    return jsonify({"user": user_id, "feed": "Feed not implemented"})
+def user_profile(user_id):
+    """
+    Fetch basic profile info plus a short summary and suggestions derived from shared data
+    (common groups or a direct friend relationship).
+    """
+    return get_user_profile(request, user_id).to_json()
+
+
+@app.route('/users/<user_id>/updates', methods=['GET'])
+@handle_errors(validate_request=True)
+def user_updates(user_id):
+    params = request.args.to_dict(flat=True)
+    request.validated_params = GetPaginatedRequest.model_validate(params)
+    return get_user_updates(request, user_id).to_json()
 
 
 # Firebase Function entry point 
