@@ -14,16 +14,18 @@ def get_my_updates(request) -> UpdatesResponse:
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
-                - validated_params: Pagination parameters (attached by route handler)
+                - validated_params: Pagination parameters containing:
+                    - limit: Maximum number of updates to return
+                    - after_timestamp: Timestamp for pagination
+    
+    Query Parameters:
+        - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
+        - after_timestamp: Timestamp for pagination in ISO format (e.g. "2025-01-01T12:00:00Z")
     
     Returns:
         An UpdatesResponse containing:
         - A list of updates belonging to the current user
         - A next_timestamp for pagination (if more results are available)
-    
-    Query Parameters (validated by Pydantic in main.py):
-        - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
-        - after_timestamp: Timestamp for pagination in ISO format (e.g. "2025-01-01T12:00:00Z")
     """
     db = firestore.client()
 

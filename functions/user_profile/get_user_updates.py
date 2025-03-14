@@ -16,9 +16,16 @@ def get_user_updates(request, user_id: str) -> UpdatesResponse:
     If there are no shared groups, an empty update list is returned.
     
     Args:
-        request: The incoming HTTP request with user_id attached by authentication middleware
-                 and validated_params attached by the route handler.
+        request: The incoming HTTP request with:
+                - user_id: The authenticated user's ID (attached by authentication middleware)
+                - validated_params: Pagination parameters containing:
+                    - limit: Maximum number of updates to return
+                    - after_timestamp: Timestamp for pagination
         user_id: The ID of the user whose updates are being requested.
+    
+    Query Parameters:
+        - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
+        - after_timestamp: Timestamp for pagination in ISO format (e.g. "2025-01-01T12:00:00Z")
     
     Returns:
         An UpdatesResponse containing:

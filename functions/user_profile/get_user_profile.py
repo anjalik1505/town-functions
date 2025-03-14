@@ -8,22 +8,31 @@ def get_user_profile(request, user_id) -> ProfileResponse:
     """
     Retrieves a user's profile with summary and suggestions.
     
-    This function checks if the current user is a friend of the requested user.
-    If they are friends, it fetches and aggregates summary data from shared groups
-    and their direct chat.
+    This function fetches the profile of the specified user, including their basic profile
+    information and aggregated summary data. Summary data is collected from shared groups
+    and direct chats between the current user and the requested user. The function enforces
+    friendship checks to ensure only friends can view each other's profiles.
     
     Args:
-        request: The Flask request object containing the authenticated user_id
+        request: The Flask request object containing:
+                - user_id: The authenticated user's ID (attached by authentication middleware)
         user_id: The ID of the user whose profile is being requested
-        
+    
     Returns:
-        A ProfileResponse object containing the user's profile data with
-        summary and suggestions
+        A ProfileResponse containing:
+        - Basic profile information (id, name, avatar)
+        - Aggregated summary information from shared contexts
+        - Personalized suggestions
+    
+    Raises:
+        400: If the user tries to view their own profile through this endpoint.
+        404: If the target user profile does not exist.
+        403: If the requesting user and target user are not friends.
     """
     db = firestore.client()
     current_user_id = request.user_id
     
-    # Don't allow users to view their own profile through this endpoint
+    # Redirect users to the appropriate endpoint for their own profile
     if current_user_id == user_id:
         abort(400, "Use /me/profile endpoint to view your own profile")
     
@@ -31,6 +40,7 @@ def get_user_profile(request, user_id) -> ProfileResponse:
     target_user_profile_ref = db.collection('profiles').document(user_id)
     target_user_profile_doc = target_user_profile_ref.get()
     
+    # Check if the target profile exists
     if not target_user_profile_doc.exists:
         abort(404, "Profile not found")
     
@@ -60,10 +70,10 @@ def get_user_profile(request, user_id) -> ProfileResponse:
     # Get target user's groups
     target_user_groups = target_user_profile_data.get('group_ids', [])
     
-    # Find shared groups
+    # Find groups that both users are members of
     shared_groups = list(set(current_user_groups) & set(target_user_groups))
     
-    # If they share groups, fetch partial summaries from each shared group
+    # Collect summary data from each shared group
     if shared_groups:
         for group_id in shared_groups:
             summary_ref = db.collection('groups').document(group_id).collection('user_summaries').document(user_id)
@@ -72,7 +82,7 @@ def get_user_profile(request, user_id) -> ProfileResponse:
             if summary_doc.exists:
                 summary_data = summary_doc.to_dict() or {}
                 
-                # Collect summary data
+                # Extract and format summary data from this group
                 if 'emotional_journey' in summary_data and summary_data['emotional_journey']:
                     emotional_journey_parts.append(f"From group {group_id}: {summary_data['emotional_journey']}")
                 
@@ -93,15 +103,14 @@ def get_user_profile(request, user_id) -> ProfileResponse:
                         suggestions_parts.append(f"From group {group_id}: {summary_data['suggestions']}")
     
     # Check for direct chat between the two users
-    # For one-to-one chats, we can use a convention where the document ID
-    # is a combination of the two user IDs (sorted and joined)
     user_ids = sorted([current_user_id, user_id])
     chat_id = f"{user_ids[0]}_{user_ids[1]}"
     
-    # Try to get the chat document directly
+    # Try to get the direct chat document
     chat_ref = db.collection('chats').document(chat_id)
     chat_doc = chat_ref.get()
     
+    # Collect summary data from direct chat if it exists
     if chat_doc.exists:
         # Fetch the summary for the requested user from the chat's summaries collection
         summary_ref = chat_ref.collection('summaries').document(user_id)
@@ -110,7 +119,7 @@ def get_user_profile(request, user_id) -> ProfileResponse:
         if summary_doc.exists:
             summary_data = summary_doc.to_dict() or {}
             
-            # Collect summary data from chat
+            # Extract and format summary data from direct chat
             if 'emotional_journey' in summary_data and summary_data['emotional_journey']:
                 emotional_journey_parts.append(f"From direct chat: {summary_data['emotional_journey']}")
             
@@ -128,7 +137,7 @@ def get_user_profile(request, user_id) -> ProfileResponse:
                     for suggestion in summary_data['suggestions']:
                         suggestions_parts.append(f"From direct chat: {suggestion}")
                 else:
-                    suggestions_parts.append(f"From direct chat: {summary_data['suggestions']}")
+                        suggestions_parts.append(f"From direct chat: {summary_data['suggestions']}")
     
     # Combine all parts with empty lines in between
     emotional_journey = "\n\n".join(emotional_journey_parts)
@@ -148,7 +157,7 @@ def get_user_profile(request, user_id) -> ProfileResponse:
     # aggregated_progress_and_growth = ai_service.aggregate(progress_and_growth)
     # aggregated_suggestions = ai_service.aggregate_suggestions(suggestions)
     
-    # Return the profile with summary and suggestions
+    # Construct and return the profile response
     return ProfileResponse(
         id=user_id,
         name=target_user_profile_data.get('name', ''),
