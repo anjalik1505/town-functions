@@ -91,6 +91,8 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
         username=target_user_profile_data.get(ProfileFields.USERNAME, ""),
         name=target_user_profile_data.get(ProfileFields.NAME, ""),
         avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
+        location=target_user_profile_data.get(ProfileFields.LOCATION, ""),
+        birthday=target_user_profile_data.get(ProfileFields.BIRTHDAY, ""),
         suggestions=suggestions_parts,
         summary=summary_parts,
     )
