@@ -84,6 +84,7 @@ class UpdateFields(StrEnum):
     CREATED_BY = "created_by"
     CONTENT = "content"
     GROUP_IDS = "group_ids"
+    FRIEND_IDS = "friend_ids"
     SENTIMENT = "sentiment"
     CREATED_AT = "created_at"
 
@@ -124,3 +125,9 @@ class QueryOperators(StrEnum):
     ARRAY_CONTAINS_ANY = "array_contains_any"
     IN = "in"
     EQUALS = "=="
+    LESS_THAN = "<"
+    LESS_THAN_OR_EQUAL_TO = "<="
+
+
+# Constants for query operations
+MAX_BATCH_SIZE = 10

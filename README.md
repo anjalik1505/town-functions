@@ -86,7 +86,7 @@ This repository contains the backend functions for the Village application.
 
 **Errors**:
 - 400: Invalid request parameters
-- 404: Profile not found for user {user_id}
+- 404: Profile not found
 - 500: Internal server error
 
 #### GET /me/profile

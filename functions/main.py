@@ -5,7 +5,7 @@ from device.get_device import get_device
 from device.update_device import update_device
 from firebase_admin import auth, initialize_app
 from firebase_functions import https_fn
-from flask import Flask, abort, request
+from flask import Flask, Response, abort, request
 from invitations.accept_invitation import accept_invitation
 from invitations.create_invitation import create_invitation
 from invitations.get_invitations import get_invitations

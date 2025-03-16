@@ -1,6 +1,7 @@
 from firebase_admin import firestore
 from flask import Request, abort
 from models.constants import (
+    MAX_BATCH_SIZE,
     Collections,
     FriendshipFields,
     GroupFields,
@@ -118,9 +119,8 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
     all_members_to_check = list(set(new_members_to_add + current_members))
     # Firestore allows up to 10 values in array_contains_any
     # We'll process members in batches of 10 if needed
-    batch_size = 10
-    for i in range(0, len(all_members_to_check), batch_size):
-        batch_members = all_members_to_check[i : i + batch_size]
+    for i in range(0, len(all_members_to_check), MAX_BATCH_SIZE):
+        batch_members = all_members_to_check[i : i + MAX_BATCH_SIZE]
 
         # Fetch all friendships where any of the batch members is in the members array
         friendships_query = (
