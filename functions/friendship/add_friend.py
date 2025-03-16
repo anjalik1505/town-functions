@@ -134,8 +134,8 @@ def add_friend(request) -> Friend:
 
     # Return the friend object
     return Friend(
-        id=friend_id,
-        name=friend_profile.get(ProfileFields.NAME, ""),
-        avatar=friend_profile.get(ProfileFields.AVATAR, ""),
+        user_id=friend_id,
+        user_name=friend_profile.get(ProfileFields.NAME, ""),
+        user_avatar=friend_profile.get(ProfileFields.AVATAR, ""),
         status=Status.PENDING,
     )

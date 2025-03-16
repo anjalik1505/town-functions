@@ -103,7 +103,7 @@ def get_group_feed(request: Request, group_id: str) -> FeedResponse:
         # Convert Firestore document to Update model
         updates.append(
             Update(
-                updateId=doc.id,
+                update_id=doc.id,
                 created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
                 content=doc_data.get(UpdateFields.CONTENT, ""),
                 group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),

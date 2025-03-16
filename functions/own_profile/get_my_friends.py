@@ -69,9 +69,9 @@ def get_my_friends(request) -> FriendsResponse:
 
         friends.append(
             Friend(
-                id=friend_id,
-                name=friend_name,
-                avatar=friend_avatar,
+                user_id=friend_id,
+                user_name=friend_name,
+                user_avatar=friend_avatar,
                 status=friendship_status,
             )
         )

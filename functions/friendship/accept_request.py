@@ -89,5 +89,8 @@ def accept_request(request, friend_id) -> Friend:
 
     # Return a Friend object representing the accepted friend
     return Friend(
-        id=friend_id, name=friend_name, avatar=friend_avatar, status=Status.ACCEPTED
+        user_id=friend_id,
+        user_name=friend_name,
+        user_avatar=friend_avatar,
+        status=Status.ACCEPTED,
     )

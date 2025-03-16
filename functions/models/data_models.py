@@ -4,7 +4,7 @@ from typing import List, Optional, Dict
 
 @dataclass
 class Update:
-    updateId: str
+    update_id: str
     created_by: str
     content: str
     group_ids: List[str]
@@ -42,9 +42,9 @@ class Summary:
 class BaseUser:
     """Base class for user-related models with common fields."""
 
-    id: str
-    name: str
-    avatar: str
+    user_id: str
+    user_name: str
+    user_avatar: str
 
 
 @dataclass
@@ -78,9 +78,35 @@ class FriendsResponse:
 
 
 @dataclass
+class Invitation:
+    invitation_id: str
+    created_at: str
+    expires_at: str
+    sender_id: str
+    status: str
+    user_name: str
+    user_avatar: str
+
+    def __post_init__(self):
+        # Ensure status is always a string, not an enum
+        if hasattr(self.status, "value"):
+            self.status = self.status.value
+
+    def to_json(self):
+        return asdict(self)
+
+
+@dataclass
+class InvitationsResponse:
+    invitations: List[Invitation]
+
+    def to_json(self):
+        return asdict(self)
+
+
+@dataclass
 class GroupMember(BaseUser):
     """Group member with basic profile information."""
-
 
 
 @dataclass

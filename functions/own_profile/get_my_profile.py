@@ -60,9 +60,9 @@ def get_my_profile(request) -> ProfileResponse:
 
     # Construct and return the profile response
     return ProfileResponse(
-        id=current_user_id,
-        name=profile_data.get(ProfileFields.NAME, ""),
-        avatar=profile_data.get(ProfileFields.AVATAR, ""),
+        user_id=current_user_id,
+        user_name=profile_data.get(ProfileFields.NAME, ""),
+        user_avatar=profile_data.get(ProfileFields.AVATAR, ""),
         summary=Summary(
             emotional_journey=summary_data.get(SummaryFields.EMOTIONAL_JOURNEY, ""),
             key_moments=summary_data.get(SummaryFields.KEY_MOMENTS, ""),

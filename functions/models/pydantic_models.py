@@ -34,6 +34,20 @@ class AddFriendRequest(BaseModel):
         extra = "ignore"
 
 
+class CreateInvitationRequest(BaseModel):
+    # No additional fields needed for now
+
+    class Config:
+        extra = "ignore"
+
+
+class InvitationActionRequest(BaseModel):
+    invitation_id: str
+
+    class Config:
+        extra = "ignore"
+
+
 class CreateChatMessageRequest(BaseModel):
     text: str
     attachments: Optional[List[str]] = None
