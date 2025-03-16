@@ -213,7 +213,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
-- 400: You can only resend your own invitations
+- 403: You can only resend your own invitations
 - 404: Invitation not found
 - 500: Internal server error
 

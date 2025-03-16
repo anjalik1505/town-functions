@@ -220,6 +220,59 @@ class VillageAPI:
 
         return response.json()
 
+    def make_request_expecting_error(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        json_data: Optional[Dict[str, Any]] = None,
+        expected_status_code: int = None,
+        expected_error_message: str = None,
+    ) -> Dict[str, Any]:
+        """Make a request expecting a specific error response"""
+        logger.info(
+            f"Making {method} request to {url} expecting error status {expected_status_code}"
+        )
+
+        try:
+            if method.lower() == "get":
+                response = requests.get(url, headers=headers)
+            elif method.lower() == "post":
+                response = requests.post(url, headers=headers, json=json_data)
+            elif method.lower() == "put":
+                response = requests.put(url, headers=headers, json=json_data)
+            elif method.lower() == "delete":
+                response = requests.delete(url, headers=headers)
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+
+            response_data = response.json() if response.text else {}
+            result = {"status_code": response.status_code, "response": response_data}
+
+            # Verify status code if expected
+            if expected_status_code:
+                assert (
+                    response.status_code == expected_status_code
+                ), f"Expected status code {expected_status_code}, got {response.status_code}"
+                logger.info(f" Status code verification passed: {response.status_code}")
+
+            # Verify error message if expected
+            if expected_error_message and response_data.get("error"):
+                error_message = response_data.get("error", {}).get("message", "")
+                assert (
+                    expected_error_message in error_message
+                ), f"Expected error message containing '{expected_error_message}', got '{error_message}'"
+                logger.info(f" Error message verification passed: '{error_message}'")
+
+            return result
+
+        except AssertionError as e:
+            logger.error(f"Assertion failed: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            raise
+
 
 def run_invitation_demo():
     """Run a demonstration of the Village API invitation functionality"""
@@ -227,10 +280,26 @@ def run_invitation_demo():
 
     # Create four users
     users = [
-        {"email": "user1@example.com", "password": "password123", "name": "User One"},
-        {"email": "user2@example.com", "password": "password123", "name": "User Two"},
-        {"email": "user3@example.com", "password": "password123", "name": "User Three"},
-        {"email": "user4@example.com", "password": "password123", "name": "User Four"},
+        {
+            "email": "invitation_test1@example.com",
+            "password": "password123",
+            "name": "Invitation Test One",
+        },
+        {
+            "email": "invitation_test2@example.com",
+            "password": "password123",
+            "name": "Invitation Test Two",
+        },
+        {
+            "email": "invitation_test3@example.com",
+            "password": "password123",
+            "name": "Invitation Test Three",
+        },
+        {
+            "email": "invitation_test4@example.com",
+            "password": "password123",
+            "name": "Invitation Test Four",
+        },
     ]
 
     # Create and authenticate users
@@ -342,67 +411,91 @@ def run_invitation_demo():
     # ============ NEGATIVE PATH TESTS ============
     logger.info("\n\n========== STARTING NEGATIVE PATH TESTS ==========\n")
 
-    # Create a profile for the fourth user
+    # Create a profile for the fourth user to use in negative tests
     profile_data = {
         "username": users[3]["email"].split("@")[0],
         "name": users[3]["name"],
         "avatar": f"https://example.com/avatar_{users[3]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "Los Angeles",
+        "location": "Berlin",
         "birthday": "1995-04-04",
     }
     api.create_profile(users[3]["email"], profile_data)
 
     # Test 1: Attempt to accept non-existent invitation
     logger.info("Test 1: Attempting to accept non-existent invitation")
-    try:
-        api.accept_invitation(users[3]["email"], "non-existent-invitation-id")
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/non-existent-invitation-id/accept",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=404,
+        expected_error_message="Invitation not found",
+    )
+    logger.info("✓ Accept non-existent invitation test passed")
 
     # Test 2: Attempt to reject non-existent invitation
     logger.info("Test 2: Attempting to reject non-existent invitation")
-    try:
-        api.reject_invitation(users[3]["email"], "non-existent-invitation-id")
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/non-existent-invitation-id/reject",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=404,
+        expected_error_message="Invitation not found",
+    )
+    logger.info("✓ Reject non-existent invitation test passed")
 
     # Test 3: Attempt to resend non-existent invitation
     logger.info("Test 3: Attempting to resend non-existent invitation")
-    try:
-        api.resend_invitation(users[3]["email"], "non-existent-invitation-id")
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/non-existent-invitation-id/resend",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=404,
+        expected_error_message="Invitation not found",
+    )
+    logger.info("✓ Resend non-existent invitation test passed")
 
     # Test 4: User attempts to accept their own invitation
     logger.info("Test 4: User attempting to accept their own invitation")
     # Fourth user creates an invitation
     invitation4 = api.create_invitation(users[3]["email"])
-    try:
-        api.accept_invitation(users[3]["email"], api.invitation_ids[users[3]["email"]])
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/accept",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=400,
+        expected_error_message="Cannot accept your own invitation",
+    )
+    logger.info("✓ Accept own invitation test passed")
 
     # Test 5: User attempts to reject their own invitation
     logger.info("Test 5: User attempting to reject their own invitation")
-    try:
-        api.reject_invitation(users[3]["email"], api.invitation_ids[users[3]["email"]])
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/reject",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=400,
+        expected_error_message="Cannot reject your own invitation",
+    )
+    logger.info("✓ Reject own invitation test passed")
 
     # Test 6: User attempts to resend someone else's invitation
     logger.info("Test 6: User attempting to resend someone else's invitation")
-    try:
-        api.resend_invitation(users[2]["email"], api.invitation_ids[users[3]["email"]])
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/resend",
+        headers={"Authorization": f"Bearer {api.tokens[users[2]['email']]}"},
+        expected_status_code=403,
+        expected_error_message="Not authorized",
+    )
+    logger.info("✓ Resend someone else's invitation test passed")
 
     # Test 7: Attempt to create invitation without a profile
     logger.info("Test 7: Attempting to create invitation without a profile")
     # Create a new user without a profile
     no_profile_user = {
-        "email": "no-profile@example.com",
+        "email": "no_profile_invitation@example.com",
         "password": "password123",
-        "name": "No Profile User",
+        "name": "No Profile Invitation",
     }
     try:
         api.create_user(
@@ -410,36 +503,42 @@ def run_invitation_demo():
             no_profile_user["password"],
             no_profile_user["name"],
         )
-        api.create_invitation(no_profile_user["email"])
     except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+        if "EMAIL_EXISTS" in str(e):
+            logger.warning(
+                f"User {no_profile_user['email']} already exists, authenticating"
+            )
+            api.authenticate_user(no_profile_user["email"], no_profile_user["password"])
+        else:
+            raise
 
-    # Test 8: Attempt to accept an already accepted invitation
-    logger.info("Test 8: Attempting to accept an already accepted invitation")
-    # First create a new invitation from user3 to user4
-    invitation3 = api.create_invitation(users[2]["email"])
-    # User4 accepts it
-    api.accept_invitation(users[3]["email"], api.invitation_ids[users[2]["email"]])
-    # Try to accept it again
-    try:
-        api.accept_invitation(users[3]["email"], api.invitation_ids[users[2]["email"]])
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[no_profile_user['email']]}",
+        },
+        json_data={},
+        expected_status_code=404,
+        expected_error_message="Profile not found",
+    )
+    logger.info("✓ Create invitation without profile test passed")
 
-    # Test 9: Attempt to reject an already accepted invitation
-    logger.info("Test 9: Attempting to reject an already accepted invitation")
-    try:
-        api.reject_invitation(users[3]["email"], api.invitation_ids[users[2]["email"]])
-    except requests.exceptions.HTTPError as e:
-        logger.info(f"Expected error received: {str(e)}")
+    # Test 8: Attempt to access invitations without authentication
+    logger.info("Test 8: Attempting to access invitations without authentication")
+    api.make_request_expecting_error(
+        "get", f"{API_BASE_URL}/invitations", headers={}, expected_status_code=401
+    )
+    logger.info("✓ Unauthenticated access test passed")
+
+    logger.info("========== NEGATIVE PATH TESTS COMPLETED ==========")
 
 
 if __name__ == "__main__":
     try:
         run_invitation_demo()
-        logger.info("Invitation demo completed successfully!")
+        logger.info("Invitation automation completed successfully!")
     except Exception as e:
-        logger.error(f"Invitation demo failed: {str(e)}")
-        import traceback
-
-        logger.error(traceback.format_exc())
+        logger.error(f"Invitation automation failed: {str(e)}")
+        raise
