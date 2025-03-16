@@ -1,8 +1,4 @@
-"""
-Update device ID for the authenticated user.
-"""
-
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from firebase_admin import firestore
 from flask import Request

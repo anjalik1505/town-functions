@@ -12,11 +12,11 @@ It creates users, authenticates them, and performs various profile operations:
 - Test negative cases
 """
 
-import requests
 import json
-import time
-from typing import Dict, List, Optional, Any
 import logging
+from typing import Any, Dict, Optional
+
+import requests
 
 # Configure logging
 logging.basicConfig(

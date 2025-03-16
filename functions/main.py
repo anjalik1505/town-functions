@@ -1,7 +1,3 @@
-# Welcome to Cloud Functions for Firebase for Python!
-# To get started, simply uncomment the below code or create your own.
-# Deploy with `firebase deploy`
-
 import functools
 import json
 
@@ -459,7 +455,7 @@ def update_user_device():
         abort(400, description="Invalid request parameters")
 
     request.validated_params = UpdateDeviceRequest.model_validate(data)
-    return update_device(request)
+    return update_device(request).to_json()
 
 
 @app.route("/device", methods=["GET"])

@@ -1,6 +1,4 @@
-"""
-Get device information for the authenticated user.
-"""
+from datetime import datetime
 
 from firebase_admin import firestore
 from flask import Request, abort
