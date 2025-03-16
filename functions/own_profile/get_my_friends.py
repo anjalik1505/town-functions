@@ -1,28 +1,26 @@
 from firebase_admin import firestore
-from flask import abort
-from models.constants import Collections, ProfileFields, FriendFields, Status
+from models.constants import Collections, FriendshipFields, QueryOperators, Status
 from models.data_models import FriendsResponse, Friend
 from utils.logging_utils import get_logger
 
 
 def get_my_friends(request) -> FriendsResponse:
     """
-    Retrieves the current user's friends with "accepted" status.
-    
-    This function fetches all friendship relationships for the authenticated user
-    that have an "accepted" status. For each friend, it retrieves their basic profile
-    information (id, name, avatar) from the profiles collection.
-    
+    Retrieves the current user's friends and pending friendship requests.
+
+    This function fetches all accepted and pending friendships where the current user
+    is in the members array, and returns the friend's information with status.
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
-    
+
     Returns:
         A FriendsResponse containing:
-        - A list of Friend objects with basic profile information for each friend
+        - A list of Friend objects with the friend's profile information and friendship status
     """
     logger = get_logger(__name__)
-    logger.info(f"Retrieving friends for user: {request.user_id}")
+    logger.info(f"Retrieving friends and pending requests for user: {request.user_id}")
 
     # Get the authenticated user ID from the request
     current_user_id = request.user_id
@@ -30,46 +28,57 @@ def get_my_friends(request) -> FriendsResponse:
     # Initialize Firestore client
     db = firestore.client()
 
-    try:
-        # Get the user's profile reference
-        user_profile_ref = db.collection(Collections.PROFILES).document(current_user_id)
-
-        # Query for accepted friends
-        friends_ref = user_profile_ref.collection(Collections.FRIENDS) \
-            .where(FriendFields.STATUS, "==", Status.ACCEPTED) \
-            .stream()
-
-        logger.info(f"Querying accepted friends for user: {current_user_id}")
-
-        friends = []
-
-        for doc in friends_ref:
-            friend_user_id = doc.id
-            logger.info(f"Processing friend: {friend_user_id}")
-
-            # Get the friend's profile
-            profile_ref = db.collection(Collections.PROFILES).document(friend_user_id)
-            profile_doc = profile_ref.get()
-
-            if profile_doc.exists:
-                profile_data = profile_doc.to_dict() or {}
-
-                friends.append(Friend(
-                    id=friend_user_id,
-                    name=profile_data.get(ProfileFields.NAME, ""),
-                    avatar=profile_data.get(ProfileFields.AVATAR, "")
-                ))
-                logger.info(f"Added friend {friend_user_id} to results")
-            else:
-                logger.warning(f"Friend {friend_user_id} profile not found, skipping")
-
-        logger.info(f"Retrieved {len(friends)} friends for user: {current_user_id}")
-
-        # Return the list of friends
-        return FriendsResponse(
-            friends=friends
+    # Use a single efficient query with array_contains and in operator for multiple statuses
+    friendships_query = (
+        db.collection(Collections.FRIENDSHIPS)
+        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, current_user_id)
+        .where(
+            FriendshipFields.STATUS,
+            QueryOperators.IN,
+            [Status.ACCEPTED, Status.PENDING],
         )
-    except Exception as e:
-        logger.error(f"Error retrieving friends for user {current_user_id}: {str(e)}", exc_info=True)
-        # Use abort instead of returning empty response
-        abort(500, "Internal server error while retrieving user friends")
+    )
+
+    logger.info(f"Querying friendships for user: {current_user_id}")
+
+    # Execute the query
+    friendships = list(friendships_query.stream())
+
+    friends = []
+
+    # Process friendships
+    for doc in friendships:
+        friendship_data = doc.to_dict()
+        friendship_status = friendship_data.get(FriendshipFields.STATUS)
+
+        # Determine if the current user is the sender or receiver
+        if friendship_data.get(FriendshipFields.SENDER_ID) == current_user_id:
+            # Current user is the sender, so friend is the receiver
+            friend_id = friendship_data.get(FriendshipFields.RECEIVER_ID)
+            friend_name = friendship_data.get(FriendshipFields.RECEIVER_NAME, "")
+            friend_avatar = friendship_data.get(FriendshipFields.RECEIVER_AVATAR, "")
+        else:
+            # Current user is the receiver, so friend is the sender
+            friend_id = friendship_data.get(FriendshipFields.SENDER_ID)
+            friend_name = friendship_data.get(FriendshipFields.SENDER_NAME, "")
+            friend_avatar = friendship_data.get(FriendshipFields.SENDER_AVATAR, "")
+
+        logger.info(
+            f"Processing friendship with friend: {friend_id}, status: {friendship_status}"
+        )
+
+        friends.append(
+            Friend(
+                id=friend_id,
+                name=friend_name,
+                avatar=friend_avatar,
+                status=friendship_status,
+            )
+        )
+
+    logger.info(
+        f"Retrieved {len(friends)} friends and pending requests for user: {current_user_id}"
+    )
+
+    # Return the list of friends
+    return FriendsResponse(friends=friends)
