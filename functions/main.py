@@ -32,6 +32,24 @@ initialize_app()
 app = Flask(__name__)
 
 
+# Custom error handler for all HTTP exceptions
+@app.errorhandler(HTTPException)
+def handle_exception(e):
+    """Return JSON instead of HTML for HTTP errors."""
+    # Start with the correct headers and status code from the error
+    response = e.get_response()
+    # Replace the body with JSON
+    response.data = json.dumps(
+        {
+            "code": e.code,
+            "name": e.name,
+            "description": e.description,
+        }
+    )
+    response.content_type = "application/json"
+    return response
+
+
 @https_fn.on_request()
 def on_request_example(req: https_fn.Request) -> https_fn.Response:
     return https_fn.Response("Hello world!")
@@ -222,9 +240,9 @@ def create_my_profile():
     """
     Create a new user profile.
     """
-    data = request.get_json()
+    data = request.get_json(silent=True)
     if not data:
-        abort(400, description="Request body is required")
+        abort(400, description="Invalid request parameters")
 
     request.validated_params = CreateProfileRequest.model_validate(data)
     return create_profile(request).to_json()
@@ -277,9 +295,9 @@ def my_friends():
 #     Create a new group.
 #     """
 #     # Validate request data using Pydantic
-#     data = request.get_json()
+#     data = request.get_json(silent=True)
 #     if not data:
-#         abort(400, description="Request body is required")
+#         abort(400, description="Invalid request parameters")
 #     request.validated_params = CreateGroupRequest.model_validate(data)
 #     # Process the request
 #     return create_group(request).to_json()
@@ -292,9 +310,9 @@ def my_friends():
 #     Add new members to an existing group.
 #     """
 #     # Validate request data using Pydantic
-#     data = request.get_json()
+#     data = request.get_json(silent=True)
 #     if not data:
-#         abort(400, description="Request body is required")
+#         abort(400, description="Invalid request parameters")
 #     request.validated_params = AddGroupMembersRequest.model_validate(data)
 #     # Process the request
 #     return add_members_to_group(request, group_id).to_json()
@@ -337,9 +355,9 @@ def my_friends():
 #     """
 #     Post a new message in group chat.
 #     """
-#     data = request.get_json()
+#     data = request.get_json(silent=True)
 #     if not data:
-#         abort(400, description="Request body is required")
+#         abort(400, description="Invalid request parameters")
 
 #     request.validated_params = CreateChatMessageRequest.model_validate(data)
 #     return create_group_chat_message(request, group_id).to_json()

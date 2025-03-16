@@ -9,10 +9,10 @@ def get_my_profile(request) -> ProfileResponse:
     """
     Retrieves the current user's profile with insights information.
 
-    This function fetches the authenticated user's profile data from Firestore,
-    including their basic profile information and any available insights data.
-    The insights data includes emotional overview, key moments, recurring themes,
-    and progress and growth information.
+    This function:
+    1. Fetches the authenticated user's profile data from Firestore
+    2. Retrieves any available insights data
+    3. Combines the data into a comprehensive profile response
 
     Args:
         request: The Flask request object containing:
@@ -25,7 +25,7 @@ def get_my_profile(request) -> ProfileResponse:
         - Insights information (emotional overview, key moments, themes, growth)
 
     Raises:
-        404: If the user's profile does not exist in the database
+        404: Profile not found
     """
     logger = get_logger(__name__)
     logger.info(f"Retrieving profile for user: {request.user_id}")

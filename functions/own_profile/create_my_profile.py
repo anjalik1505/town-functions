@@ -9,9 +9,10 @@ def create_profile(request):
     """
     Creates a new profile for the authenticated user.
 
-    This function checks if a profile already exists for the authenticated user.
-    If it does, it aborts with a 400 error. Otherwise, it creates a new empty
-    profile according to the schema and initializes related collections.
+    This function:
+    1. Checks if a profile already exists for the authenticated user
+    2. If not, creates a new profile with the provided data
+    3. Initializes related collections like insights
 
     Args:
         request: The Flask request object containing:
@@ -31,7 +32,7 @@ def create_profile(request):
         - Empty insights, summary, suggestions information
 
     Raises:
-        400: If a profile already exists for the authenticated user
+        400: Profile already exists for user {user_id}
     """
     logger = get_logger(__name__)
     logger.info(f"Starting add_user operation for user ID: {request.user_id}")

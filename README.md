@@ -4,6 +4,79 @@ This repository contains the backend functions for the Village application.
 
 ## API Documentation
 
+### User Profiles
+
+#### POST /me/profile
+**Purpose**: Create a new profile for the authenticated user.
+
+**Input**:
+```json
+{
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg",
+  "location": "New York",
+  "birthday": "1990-01-01",
+  "notification_settings": ["messages", "updates"]
+}
+```
+
+**Output**:
+```json
+{
+  "user_id": "user123",
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg",
+  "location": "New York",
+  "birthday": "1990-01-01",
+  "notification_settings": ["messages", "updates"],
+  "summary": "",
+  "suggestions": "",
+  "insights": {
+    "emotional_overview": "",
+    "key_moments": "",
+    "recurring_themes": "",
+    "progress_and_growth": ""
+  }
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
+- 400: Profile already exists for user {user_id}
+- 500: Internal server error
+
+#### GET /me/profile
+**Purpose**: Retrieve the authenticated user's profile with insights information.
+
+**Input**: (None, uses auth token)
+
+**Output**:
+```json
+{
+  "user_id": "user123",
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg",
+  "location": "New York",
+  "birthday": "1990-01-01",
+  "notification_settings": ["messages", "updates"],
+  "summary": "Active user since January 2023",
+  "suggestions": "Consider connecting with more friends in your area",
+  "insights": {
+    "emotional_overview": "Generally positive sentiment in updates",
+    "key_moments": "Family vacation in June 2023",
+    "recurring_themes": "Family, Travel, Work",
+    "progress_and_growth": "Increased social connections by 25%"
+  }
+}
+```
+
+**Errors**:
+- 404: Profile not found
+- 500: Internal server error
+
 ### Invitations
 
 #### POST /invitations
@@ -19,7 +92,8 @@ This repository contains the backend functions for the Village application.
   "expires_at": "2023-01-02T00:00:00Z",
   "sender_id": "user123",
   "status": "pending",
-  "username": "John Doe",
+  "username": "johndoe",
+  "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg"
 }
 ```
@@ -37,9 +111,9 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "user_id": "user123",
-  "username": "John Doe",
-  "avatar": "https://example.com/avatar.jpg",
-  "status": "accepted"
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg"
 }
 ```
 
@@ -65,7 +139,8 @@ This repository contains the backend functions for the Village application.
   "expires_at": "2023-01-02T00:00:00Z",
   "sender_id": "user123",
   "status": "rejected",
-  "username": "John Doe",
+  "username": "johndoe",
+  "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg"
 }
 ```
@@ -89,7 +164,8 @@ This repository contains the backend functions for the Village application.
   "expires_at": "2023-01-02T00:00:00Z",
   "sender_id": "user123",
   "status": "pending",
-  "username": "John Doe",
+  "username": "johndoe",
+  "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg"
 }
 ```
@@ -114,7 +190,8 @@ This repository contains the backend functions for the Village application.
       "expires_at": "2023-01-02T00:00:00Z",
       "sender_id": "user123",
       "status": "pending",
-      "username": "John Doe",
+      "username": "johndoe",
+      "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg"
     }
   ]
