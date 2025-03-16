@@ -2,6 +2,7 @@
 Constants used throughout the application.
 This file centralizes string literals to prevent typos and ensure consistency.
 """
+
 from enum import StrEnum
 
 

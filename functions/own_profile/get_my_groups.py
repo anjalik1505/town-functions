@@ -7,15 +7,15 @@ from utils.logging_utils import get_logger
 def get_my_groups(request) -> GroupsResponse:
     """
     Retrieves all groups where the current user is a member.
-    
-    This function queries the groups collection to find all groups that have the 
-    authenticated user's ID in their members array. For each group, it retrieves 
+
+    This function queries the groups collection to find all groups that have the
+    authenticated user's ID in their members array. For each group, it retrieves
     the basic information (groupId, name, icon, created_at).
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
-    
+
     Returns:
         A GroupsResponse containing:
         - A list of Group objects with basic information for each group
@@ -30,9 +30,11 @@ def get_my_groups(request) -> GroupsResponse:
     db = firestore.client()
 
     # Query for groups where the current user is a member
-    groups_query = db.collection(Collections.GROUPS) \
-        .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, current_user_id) \
+    groups_query = (
+        db.collection(Collections.GROUPS)
+        .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, current_user_id)
         .stream()
+    )
 
     logger.info(f"Querying groups for user: {current_user_id}")
 
@@ -43,18 +45,18 @@ def get_my_groups(request) -> GroupsResponse:
         group_data = doc.to_dict() or {}
         logger.info(f"Processing group: {group_id}")
 
-        groups.append(Group(
-            group_id=group_id,
-            name=group_data.get(GroupFields.NAME, ""),
-            icon=group_data.get(GroupFields.ICON, ""),
-            members=group_data.get(GroupFields.MEMBERS, []),
-            created_at=group_data.get(GroupFields.CREATED_AT, "")
-        ))
+        groups.append(
+            Group(
+                group_id=group_id,
+                name=group_data.get(GroupFields.NAME, ""),
+                icon=group_data.get(GroupFields.ICON, ""),
+                members=group_data.get(GroupFields.MEMBERS, []),
+                created_at=group_data.get(GroupFields.CREATED_AT, ""),
+            )
+        )
         logger.info(f"Added group {group_id} to results")
 
     logger.info(f"Retrieved {len(groups)} groups for user: {current_user_id}")
 
     # Return the list of groups
-    return GroupsResponse(
-        groups=groups
-    )
+    return GroupsResponse(groups=groups)

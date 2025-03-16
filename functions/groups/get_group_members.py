@@ -8,19 +8,19 @@ from utils.logging_utils import get_logger
 def get_group_members(request: Request, group_id: str) -> GroupMembersResponse:
     """
     Retrieves all members of a specific group with their basic profile information.
-    
+
     This function fetches the group document to get the member information. If the group
     has denormalized member_profiles, it uses that data directly.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
         group_id: The ID of the group to retrieve members for
-    
+
     Returns:
         A GroupMembersResponse containing:
         - A list of GroupMember objects with each member's profile information
-        
+
     Raises:
         404: Group not found
         403: User is not a member of the group
@@ -60,15 +60,15 @@ def get_group_members(request: Request, group_id: str) -> GroupMembersResponse:
         # Use the denormalized data
         logger.info(f"Using denormalized member profiles for group: {group_id}")
         for profile in member_profiles:
-            members.append(GroupMember(
-                id=profile.get(ProfileFields.ID, ""),
-                name=profile.get(ProfileFields.NAME, ""),
-                avatar=profile.get(ProfileFields.AVATAR, "")
-            ))
+            members.append(
+                GroupMember(
+                    id=profile.get(ProfileFields.ID, ""),
+                    name=profile.get(ProfileFields.NAME, ""),
+                    avatar=profile.get(ProfileFields.AVATAR, ""),
+                )
+            )
 
     logger.info(f"Retrieved {len(members)} members for group: {group_id}")
 
     # Return the list of members
-    return GroupMembersResponse(
-        members=members
-    )
+    return GroupMembersResponse(members=members)

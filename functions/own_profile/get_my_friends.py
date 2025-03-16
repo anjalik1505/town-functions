@@ -7,14 +7,14 @@ from utils.logging_utils import get_logger
 def get_my_friends(request) -> FriendsResponse:
     """
     Retrieves the current user's friends and pending friendship requests.
-    
+
     This function fetches all accepted and pending friendships where the current user
     is in the members array, and returns the friend's information with status.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
-    
+
     Returns:
         A FriendsResponse containing:
         - A list of Friend objects with the friend's profile information and friendship status
@@ -29,9 +29,15 @@ def get_my_friends(request) -> FriendsResponse:
     db = firestore.client()
 
     # Use a single efficient query with array_contains and in operator for multiple statuses
-    friendships_query = db.collection(Collections.FRIENDSHIPS) \
-        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, current_user_id) \
-        .where(FriendshipFields.STATUS, QueryOperators.IN, [Status.ACCEPTED, Status.PENDING])
+    friendships_query = (
+        db.collection(Collections.FRIENDSHIPS)
+        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, current_user_id)
+        .where(
+            FriendshipFields.STATUS,
+            QueryOperators.IN,
+            [Status.ACCEPTED, Status.PENDING],
+        )
+    )
 
     logger.info(f"Querying friendships for user: {current_user_id}")
 
@@ -57,18 +63,22 @@ def get_my_friends(request) -> FriendsResponse:
             friend_name = friendship_data.get(FriendshipFields.SENDER_NAME, "")
             friend_avatar = friendship_data.get(FriendshipFields.SENDER_AVATAR, "")
 
-        logger.info(f"Processing friendship with friend: {friend_id}, status: {friendship_status}")
+        logger.info(
+            f"Processing friendship with friend: {friend_id}, status: {friendship_status}"
+        )
 
-        friends.append(Friend(
-            id=friend_id,
-            name=friend_name,
-            avatar=friend_avatar,
-            status=friendship_status
-        ))
+        friends.append(
+            Friend(
+                id=friend_id,
+                name=friend_name,
+                avatar=friend_avatar,
+                status=friendship_status,
+            )
+        )
 
-    logger.info(f"Retrieved {len(friends)} friends and pending requests for user: {current_user_id}")
+    logger.info(
+        f"Retrieved {len(friends)} friends and pending requests for user: {current_user_id}"
+    )
 
     # Return the list of friends
-    return FriendsResponse(
-        friends=friends
-    )
+    return FriendsResponse(friends=friends)

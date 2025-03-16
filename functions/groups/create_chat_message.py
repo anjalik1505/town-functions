@@ -9,9 +9,9 @@ from utils.logging_utils import get_logger
 def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
     """
     Creates a new chat message in a specific group.
-    
+
     This function adds a new message to the group's chats subcollection.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
@@ -19,10 +19,10 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
                     - text: The message text
                     - attachments: Optional list of attachment URLs
         group_id: The ID of the group to add the chat message to
-    
+
     Returns:
         A ChatMessage object representing the newly created message
-        
+
     Raises:
         404: Group not found
         403: User is not a member of the group
@@ -66,7 +66,7 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
     message_data = {
         ChatFields.SENDER_ID: current_user_id,
         ChatFields.TEXT: text,
-        ChatFields.CREATED_AT: SERVER_TIMESTAMP
+        ChatFields.CREATED_AT: SERVER_TIMESTAMP,
     }
 
     # Add attachments if provided
@@ -94,5 +94,5 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
         sender_id=current_user_id,
         text=text,
         created_at=created_at,
-        attachments=attachments
+        attachments=attachments,
     )

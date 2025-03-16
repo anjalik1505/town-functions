@@ -41,6 +41,7 @@ class Summary:
 @dataclass
 class BaseUser:
     """Base class for user-related models with common fields."""
+
     id: str
     name: str
     avatar: str
@@ -59,6 +60,11 @@ class ProfileResponse(BaseUser):
 class Friend(BaseUser):
     status: str
 
+    def __post_init__(self):
+        # Ensure status is always a string, not an enum
+        if hasattr(self.status, "value"):
+            self.status = self.status.value
+
     def to_json(self):
         return asdict(self)
 
@@ -74,7 +80,7 @@ class FriendsResponse:
 @dataclass
 class GroupMember(BaseUser):
     """Group member with basic profile information."""
-    pass
+
 
 
 @dataclass
@@ -93,6 +99,19 @@ class Group:
     created_at: str
     members: Optional[List[str]] = None
     member_profiles: Optional[List[Dict[str, str]]] = None
+
+    def __post_init__(self):
+        # Ensure any potential enum values are converted to strings
+        if self.members is None:
+            self.members = []
+        if self.member_profiles is None:
+            self.member_profiles = []
+
+        # Convert any enum values in member_profiles to strings
+        for profile in self.member_profiles:
+            for key, value in profile.items():
+                if hasattr(value, "value"):
+                    profile[key] = value.value
 
     def to_json(self):
         return asdict(self)

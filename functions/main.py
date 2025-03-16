@@ -7,7 +7,7 @@ import json
 
 from firebase_admin import initialize_app, firestore, auth
 from firebase_functions import https_fn
-from flask import Flask, request, abort
+from flask import Flask, request, abort, Response
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
@@ -20,7 +20,11 @@ from groups.get_group_chats import get_group_chats
 from groups.get_group_feed import get_group_feed
 from groups.get_group_members import get_group_members
 from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
-from models.pydantic_models import GetPaginatedRequest, AddFriendRequest, CreateChatMessageRequest
+from models.pydantic_models import (
+    GetPaginatedRequest,
+    AddFriendRequest,
+    CreateChatMessageRequest,
+)
 from own_profile.create_my_profile import create_profile
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
@@ -61,17 +65,18 @@ def on_get_feeds(req: https_fn.Request) -> https_fn.Response:
         update_id = feed_data.get("update_id")
         update_data = {}
         if update_id:
-            update_doc = db.collection(f"profiles/{user_id}/user_posts").document(update_id).get()
+            update_doc = (
+                db.collection(f"profiles/{user_id}/user_posts")
+                .document(update_id)
+                .get()
+            )
             if update_doc.exists:
                 update_data = {"update": update_doc.to_dict()}
 
         # Merge the feed, user, and update data
         full_data.append({**feed_data, **user_data, **update_data})
 
-    return https_fn.Response(
-        json.dumps(full_data),
-        mimetype="application/json"
-    )
+    return https_fn.Response(json.dumps(full_data), mimetype="application/json")
 
 
 @https_fn.on_request()
@@ -102,10 +107,16 @@ def on_get_feeds2(req: https_fn.Request) -> https_fn.Response:
 
     # Batch fetch updates from nested collections
     update_docs = db.get_all(
-        [db.collection(f"profiles/{user_id}/user_posts").document(update_id)
-         for user_id, update_id in update_requests]
+        [
+            db.collection(f"profiles/{user_id}/user_posts").document(update_id)
+            for user_id, update_id in update_requests
+        ]
     )
-    updates = {f"{doc.reference.parent.parent.id}-{doc.id}": doc.to_dict() for doc in update_docs if doc.exists}
+    updates = {
+        f"{doc.reference.parent.parent.id}-{doc.id}": doc.to_dict()
+        for doc in update_docs
+        if doc.exists
+    }
 
     # Merge data
     full_data = []
@@ -115,26 +126,25 @@ def on_get_feeds2(req: https_fn.Request) -> https_fn.Response:
         combined_data = {
             **feed_data,
             "user": users.get(user_id, {}),
-            "update": updates.get(f"{user_id}-{update_id}", {})
+            "update": updates.get(f"{user_id}-{update_id}", {}),
         }
         full_data.append(combined_data)
 
-    return https_fn.Response(
-        json.dumps(full_data),
-        mimetype="application/json"
-    )
+    return https_fn.Response(json.dumps(full_data), mimetype="application/json")
 
 
 def authenticate_request():
     """
     Verifies Firebase ID token from Authorization header and attaches uid to request.
     """
-    auth_header = request.headers.get('Authorization')
+    auth_header = request.headers.get("Authorization")
     if not auth_header:
-        abort(401, description="Authentication required: valid Firebase ID token needed")
+        abort(
+            401, description="Authentication required: valid Firebase ID token needed"
+        )
 
     parts = auth_header.split()
-    if parts[0].lower() == 'bearer' and len(parts) == 2:
+    if parts[0].lower() == "bearer" and len(parts) == 2:
         token = parts[1]
     else:
         token = auth_header
@@ -143,9 +153,12 @@ def authenticate_request():
         # Verify the Firebase ID token
         decoded_token = auth.verify_id_token(token)
         # Extract the Firebase user ID from the token
-        user_id = decoded_token.get('uid')
+        user_id = decoded_token.get("uid")
         if not user_id:
-            abort(401, description="Authentication required: valid Firebase ID token needed")
+            abort(
+                401,
+                description="Authentication required: valid Firebase ID token needed",
+            )
         # Attach user_id to the request for downstream usage
         request.user_id = user_id
     except Exception as e:
@@ -160,7 +173,7 @@ def before_request():
 def handle_errors(validate_request=False):
     """
     A decorator for route handlers that provides consistent error handling.
-    
+
     Args:
         validate_request: If True, ValidationError will be caught and return 400.
                           If False, ValidationError will be propagated.
@@ -191,7 +204,7 @@ def handle_errors(validate_request=False):
     return decorator
 
 
-@app.route('/')
+@app.route("/")
 @handle_errors()
 def index():
     """
@@ -200,7 +213,7 @@ def index():
     abort(403, description="Forbidden")
 
 
-@app.route('/me/profile', methods=['GET'])
+@app.route("/me/profile", methods=["GET"])
 @handle_errors()
 def my_profile():
     """
@@ -209,7 +222,7 @@ def my_profile():
     return get_my_profile(request).to_json()
 
 
-@app.route('/me/profile', methods=['POST'])
+@app.route("/me/profile", methods=["POST"])
 @handle_errors()
 def create_my_profile():
     """
@@ -218,7 +231,7 @@ def create_my_profile():
     return create_profile(request).to_json()
 
 
-@app.route('/me/updates', methods=['GET'])
+@app.route("/me/updates", methods=["GET"])
 @handle_errors(validate_request=True)
 def my_updates():
     """
@@ -229,7 +242,7 @@ def my_updates():
     return get_my_updates(request).to_json()
 
 
-@app.route('/me/feed', methods=['GET'])
+@app.route("/me/feed", methods=["GET"])
 @handle_errors(validate_request=True)
 def my_feed():
     """
@@ -240,7 +253,7 @@ def my_feed():
     return get_my_feeds(request).to_json()
 
 
-@app.route('/me/friends', methods=['GET'])
+@app.route("/me/friends", methods=["GET"])
 @handle_errors()
 def my_friends():
     """
@@ -249,7 +262,7 @@ def my_friends():
     return get_my_friends(request).to_json()
 
 
-@app.route('/me/groups', methods=['GET'])
+@app.route("/me/groups", methods=["GET"])
 @handle_errors()
 def my_groups():
     """
@@ -258,7 +271,7 @@ def my_groups():
     return get_my_groups(request).to_json()
 
 
-@app.route('/groups', methods=['POST'])
+@app.route("/groups", methods=["POST"])
 @handle_errors(validate_request=True)
 def create_new_group():
     """
@@ -274,7 +287,7 @@ def create_new_group():
     return create_group(request).to_json()
 
 
-@app.route('/groups/<group_id>/members', methods=['POST'])
+@app.route("/groups/<group_id>/members", methods=["POST"])
 @handle_errors(validate_request=True)
 def add_group_members(group_id):
     """
@@ -290,7 +303,7 @@ def add_group_members(group_id):
     return add_members_to_group(request, group_id).to_json()
 
 
-@app.route('/groups/<group_id>/members', methods=['GET'])
+@app.route("/groups/<group_id>/members", methods=["GET"])
 @handle_errors()
 def group_members(group_id):
     """
@@ -299,7 +312,7 @@ def group_members(group_id):
     return get_group_members(request, group_id).to_json()
 
 
-@app.route('/groups/<group_id>/feed', methods=['GET'])
+@app.route("/groups/<group_id>/feed", methods=["GET"])
 @handle_errors(validate_request=True)
 def group_feed(group_id):
     """
@@ -310,7 +323,7 @@ def group_feed(group_id):
     return get_group_feed(request, group_id).to_json()
 
 
-@app.route('/groups/<group_id>/chats', methods=['GET'])
+@app.route("/groups/<group_id>/chats", methods=["GET"])
 @handle_errors(validate_request=True)
 def group_chats(group_id):
     """
@@ -321,7 +334,7 @@ def group_chats(group_id):
     return get_group_chats(request, group_id).to_json()
 
 
-@app.route('/groups/<group_id>/chats', methods=['POST'])
+@app.route("/groups/<group_id>/chats", methods=["POST"])
 @handle_errors(validate_request=True)
 def create_group_chat_message(group_id):
     """
@@ -335,7 +348,7 @@ def create_group_chat_message(group_id):
     return create_group_chat_message(request, group_id).to_json()
 
 
-@app.route('/friends', methods=['POST'])
+@app.route("/friends", methods=["POST"])
 @handle_errors(validate_request=True)
 def add_my_friend():
     """
@@ -349,7 +362,7 @@ def add_my_friend():
     return add_friend(request).to_json()
 
 
-@app.route('/friends/<friend_id>/accept', methods=['POST'])
+@app.route("/friends/<friend_id>/accept", methods=["POST"])
 @handle_errors()
 def accept_friend_request(friend_id):
     """
@@ -358,7 +371,7 @@ def accept_friend_request(friend_id):
     return accept_request(request, friend_id).to_json()
 
 
-@app.route('/users/<user_id>/profile', methods=['GET'])
+@app.route("/users/<user_id>/profile", methods=["GET"])
 @handle_errors()
 def user_profile(user_id):
     """
@@ -368,7 +381,7 @@ def user_profile(user_id):
     return get_user_profile(request, user_id).to_json()
 
 
-@app.route('/users/<user_id>/updates', methods=['GET'])
+@app.route("/users/<user_id>/updates", methods=["GET"])
 @handle_errors(validate_request=True)
 def user_updates(user_id):
     """
@@ -379,18 +392,20 @@ def user_updates(user_id):
     return get_user_updates(request, user_id).to_json()
 
 
-# Firebase Function entry point 
-# @https_fn.on_request()
-# def api(incoming_request):
-#     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
-#     return Response.from_app(app, incoming_request.environ)
-
+# Firebase Function entry point
 @https_fn.on_request()
-def api(incoming_request: https_fn.Request) -> https_fn.Response:
+def api(incoming_request):
     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
-    with app.request_context(incoming_request.environ):
-        return app.full_dispatch_request()
+    return Response.from_app(app, incoming_request.environ)
 
 
-if __name__ == '__main__':
+# We should use this but this doesn't always work
+# @https_fn.on_request()
+# def api(incoming_request: https_fn.Request) -> https_fn.Response:
+#     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
+#     with app.request_context(incoming_request.environ):
+#         return app.full_dispatch_request()
+
+
+if __name__ == "__main__":
     app.run(debug=True)

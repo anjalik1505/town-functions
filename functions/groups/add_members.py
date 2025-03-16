@@ -1,6 +1,13 @@
 from firebase_admin import firestore
 from flask import Request, abort
-from models.constants import Collections, GroupFields, ProfileFields, QueryOperators, Status, FriendshipFields
+from models.constants import (
+    Collections,
+    GroupFields,
+    ProfileFields,
+    QueryOperators,
+    Status,
+    FriendshipFields,
+)
 from models.data_models import Group
 from utils.logging_utils import get_logger
 
@@ -8,17 +15,17 @@ from utils.logging_utils import get_logger
 def add_members_to_group(request: Request, group_id: str) -> Group:
     """
     Add new members to an existing group.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
                 - validated_params: The validated request parameters containing:
                     - members: List of user IDs to add to the group
         group_id: The ID of the group to add members to
-        
+
     Returns:
         Group: A response object with the updated group data
-        
+
     Raises:
         400: Members are not all friends with each other
         403: User is not a member of the group
@@ -59,15 +66,19 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
         abort(403, description="You must be a member of the group to add new members")
 
     # 2. Filter out members who are already in the group
-    new_members_to_add = [member_id for member_id in new_members if member_id not in current_members]
+    new_members_to_add = [
+        member_id for member_id in new_members if member_id not in current_members
+    ]
 
     if not new_members_to_add:
         logger.warning("All provided members are already in the group")
         abort(400, description="All provided members are already in the group")
 
     # 3. Verify new members exist
-    new_member_profile_refs = [db.collection(Collections.PROFILES).document(member_id) for member_id in
-                               new_members_to_add]
+    new_member_profile_refs = [
+        db.collection(Collections.PROFILES).document(member_id)
+        for member_id in new_members_to_add
+    ]
     new_member_profiles = db.get_all(new_member_profile_refs)
 
     # Check if all new member profiles exist
@@ -96,8 +107,11 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
             if new_member_id == current_member_id:
                 continue
             # Ensure consistent ordering of the pair
-            pair = (new_member_id, current_member_id) if new_member_id < current_member_id else (
-                current_member_id, new_member_id)
+            pair = (
+                (new_member_id, current_member_id)
+                if new_member_id < current_member_id
+                else (current_member_id, new_member_id)
+            )
             friendship_exists[pair] = False
 
     # Combine all members that need to be checked
@@ -106,15 +120,23 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
     # We'll process members in batches of 10 if needed
     batch_size = 10
     for i in range(0, len(all_members_to_check), batch_size):
-        batch_members = all_members_to_check[i:i + batch_size]
+        batch_members = all_members_to_check[i : i + batch_size]
 
         # Fetch all friendships where any of the batch members is in the members array
-        friendships_query = db.collection(Collections.FRIENDSHIPS) \
-            .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batch_members) \
-            .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED) \
+        friendships_query = (
+            db.collection(Collections.FRIENDSHIPS)
+            .where(
+                FriendshipFields.MEMBERS,
+                QueryOperators.ARRAY_CONTAINS_ANY,
+                batch_members,
+            )
+            .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED)
             .get()
+        )
 
-        logger.info(f"Fetched {len(list(friendships_query))} friendships for batch of {len(batch_members)} members")
+        logger.info(
+            f"Fetched {len(list(friendships_query))} friendships for batch of {len(batch_members)} members"
+        )
 
         # Process each friendship to mark member pairs as friends
         for doc in friendships_query:
@@ -137,9 +159,14 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
 
     if not_friends:
         # Format the error message
-        not_friends_str = ", ".join([f"{pair[0]} and {pair[1]}" for pair in not_friends])
+        not_friends_str = ", ".join(
+            [f"{pair[0]} and {pair[1]}" for pair in not_friends]
+        )
         logger.warning(f"Members are not friends: {not_friends_str}")
-        abort(400, description="All members must be friends with each other to be in the same group")
+        abort(
+            400,
+            description="All members must be friends with each other to be in the same group",
+        )
 
     # All validations passed, now update the group
 
@@ -157,33 +184,40 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
     for profile_snapshot in new_member_profiles:
         if profile_snapshot.exists:
             profile_data = profile_snapshot.to_dict()
-            new_member_profile_data.append({
-                ProfileFields.ID: profile_snapshot.id,
-                ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
-                ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
-            })
+            new_member_profile_data.append(
+                {
+                    ProfileFields.ID: profile_snapshot.id,
+                    ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                    ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, ""),
+                }
+            )
 
     # Combine existing and new member profiles
     updated_member_profiles = existing_member_profiles + new_member_profile_data
 
     # Update the group document with both members array and denormalized profiles
-    batch.update(group_ref, {
-        GroupFields.MEMBERS: updated_members,
-        GroupFields.MEMBER_PROFILES: updated_member_profiles
-    })
+    batch.update(
+        group_ref,
+        {
+            GroupFields.MEMBERS: updated_members,
+            GroupFields.MEMBER_PROFILES: updated_member_profiles,
+        },
+    )
     logger.info(f"Adding {len(new_members_to_add)} new members to group {group_id}")
 
     # Add the group ID to each new member's profile
     for member_id in new_members_to_add:
         profile_ref = db.collection(Collections.PROFILES).document(member_id)
-        batch.update(profile_ref, {
-            ProfileFields.GROUP_IDS: firestore.ArrayUnion([group_id])
-        })
+        batch.update(
+            profile_ref, {ProfileFields.GROUP_IDS: firestore.ArrayUnion([group_id])}
+        )
         logger.info(f"Adding group {group_id} to member {member_id}'s profile")
 
     # Execute the batch operation
     batch.commit()
-    logger.info(f"Batch committed successfully: updated group {group_id} and member profiles")
+    logger.info(
+        f"Batch committed successfully: updated group {group_id} and member profiles"
+    )
 
     # Get the updated group data
     updated_group_doc = group_ref.get()
@@ -196,5 +230,5 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
         icon=updated_group_data.get(GroupFields.ICON, ""),
         members=updated_group_data.get(GroupFields.MEMBERS, []),
         member_profiles=updated_group_data.get(GroupFields.MEMBER_PROFILES, []),
-        created_at=updated_group_data.get(GroupFields.CREATED_AT, "")
+        created_at=updated_group_data.get(GroupFields.CREATED_AT, ""),
     )

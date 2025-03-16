@@ -8,11 +8,11 @@ from utils.logging_utils import get_logger
 def get_group_feed(request: Request, group_id: str) -> FeedResponse:
     """
     Retrieves all updates for a specific group, paginated.
-    
+
     This function fetches updates that include the specified group ID in their group_ids array.
     The updates are returned in descending order by creation time (newest first) and
     support pagination for efficient data loading.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
@@ -20,16 +20,16 @@ def get_group_feed(request: Request, group_id: str) -> FeedResponse:
                     - limit: Maximum number of updates to return
                     - after_timestamp: Timestamp for pagination
         group_id: The ID of the group to retrieve updates for
-    
+
     Query Parameters:
         - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
         - after_timestamp: Timestamp for pagination in ISO format (e.g. "2025-01-01T12:00:00Z")
-    
+
     Returns:
         A FeedResponse containing:
         - A list of updates for the specified group
         - A next_timestamp for pagination (if more results are available)
-        
+
     Raises:
         404: Group not found
         403: User is not a member of the group
@@ -49,7 +49,9 @@ def get_group_feed(request: Request, group_id: str) -> FeedResponse:
     limit = validated_params.limit if validated_params else 20
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
-    logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
+    logger.info(
+        f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}"
+    )
 
     # First, check if the group exists and if the user is a member
     group_ref = db.collection(Collections.GROUPS).document(group_id)
@@ -68,9 +70,11 @@ def get_group_feed(request: Request, group_id: str) -> FeedResponse:
         abort(403, description="You must be a member of the group to view its feed")
 
     # Build the query for updates from this group
-    query = db.collection(Collections.UPDATES) \
-        .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS, group_id) \
+    query = (
+        db.collection(Collections.UPDATES)
+        .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS, group_id)
         .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING)
+    )
 
     # Apply pagination if an after_timestamp is provided
     if after_timestamp:
@@ -97,14 +101,16 @@ def get_group_feed(request: Request, group_id: str) -> FeedResponse:
             last_timestamp = created_at
 
         # Convert Firestore document to Update model
-        updates.append(Update(
-            updateId=doc.id,
-            created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
-            content=doc_data.get(UpdateFields.CONTENT, ""),
-            group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
-            sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
-            created_at=created_at
-        ))
+        updates.append(
+            Update(
+                updateId=doc.id,
+                created_by=doc_data.get(UpdateFields.CREATED_BY, ""),
+                content=doc_data.get(UpdateFields.CONTENT, ""),
+                group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
+                sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
+                created_at=created_at,
+            )
+        )
 
     # Set up pagination for the next request
     next_timestamp = None
@@ -113,7 +119,4 @@ def get_group_feed(request: Request, group_id: str) -> FeedResponse:
         logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
     logger.info(f"Retrieved {len(updates)} updates for group: {group_id}")
-    return FeedResponse(
-        updates=updates,
-        next_timestamp=next_timestamp
-    )
+    return FeedResponse(updates=updates, next_timestamp=next_timestamp)

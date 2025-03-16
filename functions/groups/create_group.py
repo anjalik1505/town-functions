@@ -4,7 +4,14 @@ import uuid
 from firebase_admin import firestore
 from flask import Request, abort
 from google.cloud.firestore import SERVER_TIMESTAMP
-from models.constants import Collections, GroupFields, ProfileFields, QueryOperators, Status, FriendshipFields
+from models.constants import (
+    Collections,
+    GroupFields,
+    ProfileFields,
+    QueryOperators,
+    Status,
+    FriendshipFields,
+)
 from models.data_models import Group
 from utils.logging_utils import get_logger
 
@@ -12,7 +19,7 @@ from utils.logging_utils import get_logger
 def create_group(request: Request) -> Group:
     """
     Create a new group, ensuring the current user is in the members list.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
@@ -20,10 +27,10 @@ def create_group(request: Request) -> Group:
                     - name: The name of the group
                     - icon: (Optional) The icon for the group
                     - members: (Optional) List of user IDs to add to the group
-        
+
     Returns:
         Group: A response object with the created group data
-        
+
     Raises:
         400: Members are not all friends with each other
         404: Member profile not found
@@ -50,25 +57,33 @@ def create_group(request: Request) -> Group:
     db = firestore.client()
 
     # Skip current user in validation since we know they exist
-    members_to_validate = [member_id for member_id in members if member_id != current_user_id]
+    members_to_validate = [
+        member_id for member_id in members if member_id != current_user_id
+    ]
 
     # Store profile data for denormalization
     member_profiles = []
 
     # First, add the current user's profile (we know they exist)
-    current_user_profile = db.collection(Collections.PROFILES).document(current_user_id).get()
+    current_user_profile = (
+        db.collection(Collections.PROFILES).document(current_user_id).get()
+    )
     if current_user_profile.exists:
         profile_data = current_user_profile.to_dict()
-        member_profiles.append({
-            ProfileFields.ID: current_user_id,
-            ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
-            ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
-        })
+        member_profiles.append(
+            {
+                ProfileFields.ID: current_user_id,
+                ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, ""),
+            }
+        )
 
     if members_to_validate:
         # 1. Verify members exist
-        member_profile_refs = [db.collection(Collections.PROFILES).document(member_id) for member_id in
-                               members_to_validate]
+        member_profile_refs = [
+            db.collection(Collections.PROFILES).document(member_id)
+            for member_id in members_to_validate
+        ]
         member_profiles_data = db.get_all(member_profile_refs)
 
         # Check if all member profiles exist
@@ -79,11 +94,15 @@ def create_group(request: Request) -> Group:
             else:
                 # Store profile data for denormalization
                 profile_data = profile_snapshot.to_dict()
-                member_profiles.append({
-                    ProfileFields.ID: profile_snapshot.id,
-                    ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
-                    ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, "")
-                })
+                member_profiles.append(
+                    {
+                        ProfileFields.ID: profile_snapshot.id,
+                        ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
+                        ProfileFields.AVATAR: profile_data.get(
+                            ProfileFields.AVATAR, ""
+                        ),
+                    }
+                )
 
         if missing_members:
             missing_members_str = ", ".join(missing_members)
@@ -102,38 +121,55 @@ def create_group(request: Request) -> Group:
         for i, member1 in enumerate(members):
             for j, member2 in enumerate(members):
                 if i < j:  # Only check each pair once
-                    pair = (member1, member2) if member1 < member2 else (member2, member1)
+                    pair = (
+                        (member1, member2) if member1 < member2 else (member2, member1)
+                    )
                     friendship_exists[pair] = False
 
         # Firestore allows up to 10 values in array_contains_any
         # We'll process members in batches of 10 if needed
         batch_size = 10
         for i in range(0, len(members), batch_size):
-            batch_members = members[i:i + batch_size]
+            batch_members = members[i : i + batch_size]
 
             # Fetch all friendships where any of the batch members is in the members array
-            friendships_query = db.collection(Collections.FRIENDSHIPS) \
-                .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batch_members) \
-                .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED) \
+            friendships_query = (
+                db.collection(Collections.FRIENDSHIPS)
+                .where(
+                    FriendshipFields.MEMBERS,
+                    QueryOperators.ARRAY_CONTAINS_ANY,
+                    batch_members,
+                )
+                .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED)
                 .get()
+            )
 
             logger.info(
-                f"Fetched {len(list(friendships_query))} friendships for batch of {len(batch_members)} members")
+                f"Fetched {len(list(friendships_query))} friendships for batch of {len(batch_members)} members"
+            )
 
             # Process each friendship to mark member pairs as friends
             for doc in friendships_query:
                 friendship_data = doc.to_dict()
-                members_in_friendship = friendship_data.get(FriendshipFields.MEMBERS, [])
+                members_in_friendship = friendship_data.get(
+                    FriendshipFields.MEMBERS, []
+                )
 
                 # Check which group members are in this friendship
-                friendship_group_members = [m for m in members if m in members_in_friendship]
+                friendship_group_members = [
+                    m for m in members if m in members_in_friendship
+                ]
 
                 # If we found at least 2 group members in this friendship, mark them as friends
                 if len(friendship_group_members) >= 2:
                     for x, member1 in enumerate(friendship_group_members):
                         for y, member2 in enumerate(friendship_group_members):
                             if x < y:  # Only process each pair once
-                                pair = (member1, member2) if member1 < member2 else (member2, member1)
+                                pair = (
+                                    (member1, member2)
+                                    if member1 < member2
+                                    else (member2, member1)
+                                )
                                 friendship_exists[pair] = True
 
         # Check if any member pairs are not friends
@@ -144,9 +180,14 @@ def create_group(request: Request) -> Group:
 
         if not_friends:
             # Format the error message
-            not_friends_str = ", ".join([f"{pair[0]} and {pair[1]}" for pair in not_friends])
+            not_friends_str = ", ".join(
+                [f"{pair[0]} and {pair[1]}" for pair in not_friends]
+            )
             logger.warning(f"Members are not friends: {not_friends_str}")
-            abort(400, description="All members must be friends with each other to be in the same group")
+            abort(
+                400,
+                description="All members must be friends with each other to be in the same group",
+            )
 
     # All validations passed, now create the group
 
@@ -163,7 +204,7 @@ def create_group(request: Request) -> Group:
         GroupFields.ICON: icon,
         GroupFields.MEMBERS: members,
         GroupFields.MEMBER_PROFILES: member_profiles,
-        GroupFields.CREATED_AT: SERVER_TIMESTAMP
+        GroupFields.CREATED_AT: SERVER_TIMESTAMP,
     }
 
     # Create a batch operation for all database writes
@@ -176,14 +217,16 @@ def create_group(request: Request) -> Group:
     # Add the group ID to each member's profile
     for member_id in members:
         profile_ref = db.collection(Collections.PROFILES).document(member_id)
-        batch.update(profile_ref, {
-            ProfileFields.GROUP_IDS: firestore.ArrayUnion([group_id])
-        })
+        batch.update(
+            profile_ref, {ProfileFields.GROUP_IDS: firestore.ArrayUnion([group_id])}
+        )
         logger.info(f"Adding group {group_id} to member {member_id}'s profile in batch")
 
     # Execute the batch operation
     batch.commit()
-    logger.info(f"Batch committed successfully: created group {group_id} and updated all member profiles")
+    logger.info(
+        f"Batch committed successfully: created group {group_id} and updated all member profiles"
+    )
 
     # For the response, we need to convert SERVER_TIMESTAMP to a string
     # Since SERVER_TIMESTAMP is only resolved when written to Firestore, we'll use current time for the response
@@ -196,5 +239,5 @@ def create_group(request: Request) -> Group:
         icon=icon,
         members=members,
         member_profiles=member_profiles,
-        created_at=response_created_at
+        created_at=response_created_at,
     )

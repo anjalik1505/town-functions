@@ -4,13 +4,13 @@ import logging
 def get_logger(name):
     """
     Creates and returns a logger with the specified name.
-    
+
     This utility function provides a standardized way to create loggers
     across the application, ensuring consistent formatting and behavior.
-    
+
     Args:
         name: The name for the logger, typically __name__ from the calling module
-        
+
     Returns:
         A configured logger instance
     """
@@ -24,7 +24,9 @@ def get_logger(name):
         handler = logging.StreamHandler()
 
         # Create a formatter and set it for the handler
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         handler.setFormatter(formatter)
 
         # Add the handler to the logger

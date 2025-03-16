@@ -8,10 +8,10 @@ from utils.logging_utils import get_logger
 def get_group_chats(request: Request, group_id: str) -> ChatResponse:
     """
     Retrieves chat messages for a specific group with pagination.
-    
+
     This function fetches messages from the group's chats subcollection,
     ordered by creation time (newest first) and with pagination support.
-    
+
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
@@ -19,16 +19,16 @@ def get_group_chats(request: Request, group_id: str) -> ChatResponse:
                     - limit: Maximum number of messages to return
                     - after_timestamp: Timestamp for pagination
         group_id: The ID of the group to retrieve chat messages for
-    
+
     Query Parameters:
         - limit: Maximum number of messages to return (default: 20, min: 1, max: 100)
         - after_timestamp: Timestamp for pagination in ISO format (e.g. "2025-01-01T12:00:00Z")
-    
+
     Returns:
         A ChatResponse containing:
         - A list of chat messages for the specified group
         - A next_timestamp for pagination (if more results are available)
-        
+
     Raises:
         404: Group not found
         403: User is not a member of the group
@@ -48,7 +48,9 @@ def get_group_chats(request: Request, group_id: str) -> ChatResponse:
     limit = validated_params.limit if validated_params else 20
     after_timestamp = validated_params.after_timestamp if validated_params else None
 
-    logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
+    logger.info(
+        f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}"
+    )
 
     # First, check if the group exists and if the user is a member
     group_ref = db.collection(Collections.GROUPS).document(group_id)
@@ -64,13 +66,18 @@ def get_group_chats(request: Request, group_id: str) -> ChatResponse:
     # Check if the current user is a member of the group
     if current_user_id not in members:
         logger.warning(f"User {current_user_id} is not a member of group {group_id}")
-        abort(403, description="You must be a member of the group to view its chat messages")
+        abort(
+            403,
+            description="You must be a member of the group to view its chat messages",
+        )
 
     # Set up the query for chat messages
     chats_ref = group_ref.collection(Collections.CHATS)
 
     # Build the query: first ordering, then pagination, then limit
-    query = chats_ref.order_by(ChatFields.CREATED_AT, direction=firestore.Query.DESCENDING)
+    query = chats_ref.order_by(
+        ChatFields.CREATED_AT, direction=firestore.Query.DESCENDING
+    )
 
     # Apply pagination if an after_timestamp is provided
     if after_timestamp:
@@ -98,13 +105,15 @@ def get_group_chats(request: Request, group_id: str) -> ChatResponse:
             last_timestamp = created_at
 
         # Convert Firestore document to ChatMessage model
-        messages.append(ChatMessage(
-            message_id=doc.id,
-            sender_id=doc_data.get(ChatFields.SENDER_ID, ""),
-            text=doc_data.get(ChatFields.TEXT, ""),
-            created_at=created_at,
-            attachments=doc_data.get(ChatFields.ATTACHMENTS, [])
-        ))
+        messages.append(
+            ChatMessage(
+                message_id=doc.id,
+                sender_id=doc_data.get(ChatFields.SENDER_ID, ""),
+                text=doc_data.get(ChatFields.TEXT, ""),
+                created_at=created_at,
+                attachments=doc_data.get(ChatFields.ATTACHMENTS, []),
+            )
+        )
 
     # Set up pagination for the next request
     next_timestamp = None
@@ -113,7 +122,4 @@ def get_group_chats(request: Request, group_id: str) -> ChatResponse:
         logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
     logger.info(f"Retrieved {len(messages)} chat messages for group: {group_id}")
-    return ChatResponse(
-        messages=messages,
-        next_timestamp=next_timestamp
-    )
+    return ChatResponse(messages=messages, next_timestamp=next_timestamp)
