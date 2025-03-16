@@ -1,5 +1,5 @@
-import json
 import enum
+import json
 from dataclasses import asdict
 from typing import Any
 

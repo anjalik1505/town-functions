@@ -1,6 +1,6 @@
 from firebase_admin import firestore
 from models.constants import Collections, FriendshipFields, QueryOperators, Status
-from models.data_models import FriendsResponse, Friend
+from models.data_models import Friend, FriendsResponse
 from utils.logging_utils import get_logger
 
 

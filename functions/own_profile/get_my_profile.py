@@ -1,7 +1,7 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import Collections, ProfileFields, InsightsFields
-from models.data_models import ProfileResponse, Insights
+from models.constants import Collections, InsightsFields, ProfileFields
+from models.data_models import Insights, ProfileResponse
 from utils.logging_utils import get_logger
 
 

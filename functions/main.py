@@ -5,15 +5,20 @@
 import functools
 import json
 
-from firebase_admin import initialize_app, firestore, auth
+from device.get_device import get_device
+from device.update_device import update_device
+from firebase_admin import auth, firestore, initialize_app
 from firebase_functions import https_fn
-from flask import Flask, request, abort, Response
-from pydantic import ValidationError
-from werkzeug.exceptions import HTTPException
-
+from flask import Flask, Response, abort, request
+from invitations.accept_invitation import accept_invitation
+from invitations.create_invitation import create_invitation
+from invitations.get_invitations import get_invitations
+from invitations.reject_invitation import reject_invitation
+from invitations.resend_invitation import resend_invitation
 from models.pydantic_models import (
-    GetPaginatedRequest,
     CreateProfileRequest,
+    GetPaginatedRequest,
+    UpdateDeviceRequest,
     UpdateProfileRequest,
 )
 from own_profile.create_my_profile import create_profile
@@ -22,13 +27,10 @@ from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
 from own_profile.update_my_profile import update_profile
+from pydantic import ValidationError
 from user_profile.get_user_profile import get_user_profile
 from user_profile.get_user_updates import get_user_updates
-from invitations.create_invitation import create_invitation
-from invitations.accept_invitation import accept_invitation
-from invitations.reject_invitation import reject_invitation
-from invitations.resend_invitation import resend_invitation
-from invitations.get_invitations import get_invitations
+from werkzeug.exceptions import HTTPException
 
 initialize_app()
 app = Flask(__name__)
@@ -442,6 +444,31 @@ def resend_user_invitation(invitation_id):
     Resend an invitation.
     """
     return resend_invitation(request, invitation_id).to_json()
+
+
+# Device routes
+@app.route("/device", methods=["PUT"])
+@handle_errors(validate_request=True)
+def update_user_device():
+    """
+    Update the device ID for the current user.
+    """
+    # Validate request with Pydantic
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, description="Invalid request parameters")
+
+    request.validated_params = UpdateDeviceRequest.model_validate(data)
+    return update_device(request)
+
+
+@app.route("/device", methods=["GET"])
+@handle_errors()
+def get_user_device():
+    """
+    Get the device information for the current user.
+    """
+    return get_device(request).to_json()
 
 
 # Firebase Function entry point

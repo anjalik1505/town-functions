@@ -1,6 +1,6 @@
 from firebase_admin import firestore
 from models.constants import Collections, GroupFields, QueryOperators
-from models.data_models import GroupsResponse, Group
+from models.data_models import Group, GroupsResponse
 from utils.logging_utils import get_logger
 
 

@@ -16,6 +16,7 @@ class Collections(StrEnum):
     CHATS = "chats"
     INSIGHTS = "insights"
     INVITATIONS = "invitations"
+    DEVICES = "devices"
 
 
 # Document names
@@ -115,6 +116,12 @@ class InsightsFields(StrEnum):
     KEY_MOMENTS = "key_moments"
     RECURRING_THEMES = "recurring_themes"
     PROGRESS_AND_GROWTH = "progress_and_growth"
+
+
+# Field names for Device documents
+class DeviceFields(StrEnum):
+    DEVICE_ID = "device_id"
+    UPDATED_AT = "updated_at"
 
 
 class QueryOperators(StrEnum):

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+
 from firebase_admin import firestore
 from models.constants import Collections, InvitationFields, Status
 from models.data_models import Invitation, InvitationsResponse

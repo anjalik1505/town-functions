@@ -2,12 +2,12 @@ from firebase_admin import firestore
 from flask import abort
 from models.constants import (
     Collections,
-    UpdateFields,
     FriendshipFields,
-    Status,
     QueryOperators,
+    Status,
+    UpdateFields,
 )
-from models.data_models import UpdatesResponse, Update
+from models.data_models import Update, UpdatesResponse
 from utils.logging_utils import get_logger
 
 

@@ -2,11 +2,11 @@ from firebase_admin import firestore
 from flask import Request, abort
 from models.constants import (
     Collections,
+    FriendshipFields,
     GroupFields,
     ProfileFields,
     QueryOperators,
     Status,
-    FriendshipFields,
 )
 from models.data_models import Group
 from utils.logging_utils import get_logger

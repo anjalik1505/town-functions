@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
+
 from firebase_admin import firestore
-from firebase_admin.firestore import SERVER_TIMESTAMP
 from flask import Request, abort
-from models.constants import Collections, GroupFields, ChatFields
+from models.constants import ChatFields, Collections, GroupFields
 from models.data_models import ChatMessage
 from utils.logging_utils import get_logger
 
@@ -62,11 +63,13 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
     # Create the chat message
     chats_ref = group_ref.collection(Collections.CHATS)
 
+    current_time = datetime.now(timezone.utc)
+
     # Prepare the message data
     message_data = {
         ChatFields.SENDER_ID: current_user_id,
         ChatFields.TEXT: text,
-        ChatFields.CREATED_AT: SERVER_TIMESTAMP,
+        ChatFields.CREATED_AT: current_time,
     }
 
     # Add attachments if provided
@@ -77,15 +80,6 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
     new_message_ref = chats_ref.document()  # Auto-generate ID
     new_message_ref.set(message_data)
 
-    # Get the created message
-    new_message_doc = new_message_ref.get()
-    new_message_data = new_message_doc.to_dict()
-
-    # Convert server timestamp to string for the response
-    created_at = ""
-    if new_message_data.get(ChatFields.CREATED_AT):
-        created_at = new_message_data.get(ChatFields.CREATED_AT).isoformat()
-
     logger.info(f"Created new chat message with ID: {new_message_ref.id}")
 
     # Return the created message
@@ -93,6 +87,6 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
         message_id=new_message_ref.id,
         sender_id=current_user_id,
         text=text,
-        created_at=created_at,
+        created_at=current_time.isoformat() + "Z",
         attachments=attachments,
     )

@@ -1,11 +1,6 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import (
-    Collections,
-    ProfileFields,
-    FriendshipFields,
-    Status,
-)
+from models.constants import Collections, FriendshipFields, ProfileFields, Status
 from models.data_models import ProfileResponse
 from utils.logging_utils import get_logger
 
