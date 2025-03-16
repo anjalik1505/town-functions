@@ -102,3 +102,8 @@ Firestore Schema
        ├── status: string            # "pending", "rejected", or "expired"
        ├── username: string         # Name of the user who sent the invitation
        └── avatar: string       # Avatar location of the user who sent the invitation
+
+7) devices (collection)  # For storing user device information
+   └── {userId} (document)
+       ├── device_id: string         # Unique device identifier
+       └── updated_at: string        # ISO timestamp when the device was last updated

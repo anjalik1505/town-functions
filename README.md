@@ -242,3 +242,44 @@ This repository contains the backend functions for the Village application.
 
 **Errors**:
 - 500: Internal server error
+
+### Device Management
+
+#### PUT /device
+**Purpose**: Update the device ID for the authenticated user. This creates or updates a device document in the devices collection with the user ID as the document ID.
+
+**Input**:
+```json
+{
+  "device_id": "unique-device-identifier-string"
+}
+```
+
+**Output**:
+```json
+{
+  "device_id": "unique-device-identifier-string",
+  "updated_at": "2023-01-15T00:00:00Z"
+}
+```
+
+**Errors**:
+- 400: Invalid request body
+- 500: Internal server error
+
+#### GET /device
+**Purpose**: Retrieve the device information for the authenticated user.
+
+**Input**: (None, uses auth token)
+
+**Output**:
+```json
+{
+  "device_id": "unique-device-identifier-string",
+  "updated_at": "2023-01-15T00:00:00Z"
+}
+```
+
+**Errors**:
+- 404: Device not found
+- 500: Internal server error
