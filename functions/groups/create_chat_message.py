@@ -36,9 +36,9 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
     current_user_id = request.user_id
 
     # Get the validated request data
-    validated_data = request.validated_data
-    text = validated_data.text
-    attachments = validated_data.attachments or []
+    validated_params = request.validated_params
+    text = validated_params.text
+    attachments = validated_params.attachments or []
 
     # Initialize Firestore client
     db = firestore.client()

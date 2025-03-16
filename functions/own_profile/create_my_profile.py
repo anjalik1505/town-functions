@@ -16,7 +16,7 @@ def create_profile(request):
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
-                - json: Profile data including:
+                - validated_params: Profile data including:
                     - username: Mandatory username for the user
                     - name: Optional display name
                     - avatar: Optional avatar URL
@@ -39,6 +39,9 @@ def create_profile(request):
     # Get the authenticated user ID from the request
     current_user_id = request.user_id
 
+    # Get the validated profile data
+    profile_data_input = request.validated_params
+
     # Initialize Firestore client
     db = firestore.client()
 
@@ -54,16 +57,15 @@ def create_profile(request):
 
     # Create profile with provided data
     profile_data = {
-        ProfileFields.USERNAME: profile_data_input.get("username"),
-        ProfileFields.NAME: profile_data_input.get("name", ""),
-        ProfileFields.AVATAR: profile_data_input.get("avatar", ""),
-        ProfileFields.LOCATION: profile_data_input.get("location", ""),
-        ProfileFields.BIRTHDAY: profile_data_input.get("birthday", ""),
-        ProfileFields.NOTIFICATION_SETTINGS: profile_data_input.get(
-            "notification_settings", []
-        ),
-        ProfileFields.SUMMARY: profile_data_input.get("summary", ""),
-        ProfileFields.SUGGESTIONS: profile_data_input.get("suggestions", ""),
+        ProfileFields.USERNAME: profile_data_input.username,
+        ProfileFields.NAME: profile_data_input.name or "",
+        ProfileFields.AVATAR: profile_data_input.avatar or "",
+        ProfileFields.LOCATION: profile_data_input.location or "",
+        ProfileFields.BIRTHDAY: profile_data_input.birthday or "",
+        ProfileFields.NOTIFICATION_SETTINGS: profile_data_input.notification_settings
+        or [],
+        ProfileFields.SUMMARY: "",
+        ProfileFields.SUGGESTIONS: "",
         ProfileFields.GROUP_IDS: [],
     }
 
@@ -100,8 +102,8 @@ def create_profile(request):
         location=profile_data[ProfileFields.LOCATION],
         birthday=profile_data[ProfileFields.BIRTHDAY],
         notification_settings=profile_data[ProfileFields.NOTIFICATION_SETTINGS],
-        summary=profile_data[ProfileFields.SUMMARY],
-        suggestions=profile_data[ProfileFields.SUGGESTIONS],
+        summary="",
+        suggestions="",
         insights=insights,
     )
 

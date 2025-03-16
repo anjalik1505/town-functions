@@ -57,9 +57,7 @@ def create_invitation(request) -> Invitation:
         InvitationFields.SENDER_ID: current_user_id,
         InvitationFields.USERNAME: current_user_profile.get(ProfileFields.USERNAME, ""),
         InvitationFields.NAME: current_user_profile.get(ProfileFields.NAME, ""),
-        InvitationFields.AVATAR: current_user_profile.get(
-            ProfileFields.AVATAR, ""
-        ),
+        InvitationFields.AVATAR: current_user_profile.get(ProfileFields.AVATAR, ""),
         InvitationFields.STATUS: Status.PENDING,
         InvitationFields.CREATED_AT: current_time,
         InvitationFields.EXPIRES_AT: expires_at,

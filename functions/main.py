@@ -13,8 +13,7 @@ from werkzeug.exceptions import HTTPException
 
 from models.pydantic_models import (
     GetPaginatedRequest,
-    CreateInvitationRequest,
-    InvitationActionRequest,
+    CreateProfileRequest,
 )
 from own_profile.create_my_profile import create_profile
 from own_profile.get_my_feeds import get_my_feeds
@@ -218,11 +217,16 @@ def my_profile():
 
 
 @app.route("/me/profile", methods=["POST"])
-@handle_errors()
+@handle_errors(validate_request=True)
 def create_my_profile():
     """
     Create a new user profile.
     """
+    data = request.get_json()
+    if not data:
+        abort(400, description="Request body is required")
+
+    request.validated_params = CreateProfileRequest.model_validate(data)
     return create_profile(request).to_json()
 
 
@@ -276,8 +280,7 @@ def my_friends():
 #     data = request.get_json()
 #     if not data:
 #         abort(400, description="Request body is required")
-#     validated_params = CreateGroupRequest.model_validate(data)
-#     request.validated_params = validated_params
+#     request.validated_params = CreateGroupRequest.model_validate(data)
 #     # Process the request
 #     return create_group(request).to_json()
 
@@ -292,8 +295,7 @@ def my_friends():
 #     data = request.get_json()
 #     if not data:
 #         abort(400, description="Request body is required")
-#     validated_params = AddGroupMembersRequest.model_validate(data)
-#     request.validated_params = validated_params
+#     request.validated_params = AddGroupMembersRequest.model_validate(data)
 #     # Process the request
 #     return add_members_to_group(request, group_id).to_json()
 
@@ -339,31 +341,8 @@ def my_friends():
 #     if not data:
 #         abort(400, description="Request body is required")
 
-#     request.validated_data = CreateChatMessageRequest.model_validate(data)
+#     request.validated_params = CreateChatMessageRequest.model_validate(data)
 #     return create_group_chat_message(request, group_id).to_json()
-
-
-# @app.route("/friends", methods=["POST"])
-# @handle_errors(validate_request=True)
-# def add_my_friend():
-#     """
-#     Add a new friend.
-#     """
-#     data = request.get_json()
-#     if not data:
-#         abort(400, description="Request body is required")
-#     validated_params = AddFriendRequest.model_validate(data)
-#     request.validated_params = validated_params
-#     return add_friend(request).to_json()
-
-
-# @app.route("/friends/<friend_id>/accept", methods=["POST"])
-# @handle_errors()
-# def accept_friend_request(friend_id):
-#     """
-#     Accept a friend request from a specific user.
-#     """
-#     return accept_request(request, friend_id).to_json()
 
 
 @app.route("/users/<user_id>/profile", methods=["GET"])

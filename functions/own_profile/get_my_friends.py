@@ -76,7 +76,7 @@ def get_my_friends(request) -> FriendsResponse:
                 user_id=friend_id,
                 username=friend_username,
                 name=friend_name,
-                avatar=friend_avatar
+                avatar=friend_avatar,
             )
         )
 

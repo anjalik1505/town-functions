@@ -146,7 +146,7 @@ def accept_invitation(request, invitation_id) -> Friend:
                 user_id=sender_id,
                 username=friend_username,
                 name=friend_name,
-                avatar=friend_avatar
+                avatar=friend_avatar,
             )
 
     # Create the friendship document using profile data directly
@@ -189,5 +189,5 @@ def accept_invitation(request, invitation_id) -> Friend:
         user_id=sender_id,
         username=sender_profile.get(ProfileFields.USERNAME, ""),
         name=sender_profile.get(ProfileFields.NAME, ""),
-        avatar=sender_profile.get(ProfileFields.AVATAR, "")
+        avatar=sender_profile.get(ProfileFields.AVATAR, ""),
     )

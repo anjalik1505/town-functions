@@ -89,7 +89,7 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
 
     # Combine all summary parts
     # NOTE: Summary and suggestions data removed as requested
-    
+
     # Return a ProfileResponse with the user's profile information (without summary and suggestions)
     return ProfileResponse(
         user_id=target_user_id,
