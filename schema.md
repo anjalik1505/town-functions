@@ -18,7 +18,17 @@ Firestore Schema
                     ├── recurring_themes: string
                     ├── progress_and_growth: string
 
-2) friendships (collection)
+2) invitations (collection)  # For invitations (one-to-one or group)
+   └── {invitationId} (document)
+       ├── created_at: timestamp     # Server-side timestamp when created
+       ├── expires_at: timestamp     # Server-side timestamp + X when created
+       ├── sender_id: string         # User ID who sent the invitation
+       ├── status: string            # "pending", "rejected", or "expired"
+       ├── username: string          # Username of the user who sent the invitation
+       ├── name: string              # Name of the user who sent the invitation
+       └── avatar: string            # Avatar location of the user who sent the invitation
+
+3) friendships (collection)
    └── {friendshipId} (document) # Typically userId1_userId2 where userIds are sorted
        ├── members: array<string>    # list of userIds (always 2)
        ├── sender_id: string (userId of sender)
@@ -33,7 +43,22 @@ Firestore Schema
        ├── created_at: timestamp
        └── updated_at: timestamp
 
-3) groups (collection)
+4) devices (collection)  # For storing user device information
+   └── {userId} (document)
+       ├── device_id: string         # Unique device identifier
+       └── updated_at: string        # ISO timestamp when the device was last updated
+
+5) updates (collection)
+   └── {updateId} (document)
+       ├── created_by: string (userId)
+       ├── group_ids: array<string>  # which groups the update is shared to
+       ├── content: string           # text or processed speech-to-text
+       ├── sentiment: number (1-5 or similar)
+       ├── created_at: timestamp
+       └── ...
+       # Possibly location, attachments, etc.
+
+6) groups (collection)
    └── {groupId} (document)
        ├── name: string
        ├── icon: string
@@ -66,17 +91,7 @@ Firestore Schema
                      ├── created_at: timestamp
                      └── ...
 
-4) updates (collection)
-   └── {updateId} (document)
-       ├── created_by: string (userId)
-       ├── group_ids: array<string>  # which groups the update is shared to
-       ├── content: string           # text or processed speech-to-text
-       ├── sentiment: number (1-5 or similar)
-       ├── created_at: timestamp
-       └── ...
-       # Possibly location, attachments, etc.
-
-5) chats (collection)   # For 1:1 chats only
+7) chats (collection)   # For 1:1 chats only
    └── {chatId} (document)   # Sorted userIds concatenated e.g. userId1_userId_2
        ├── type: "one_to_one"
        ├── member_ids: array<string>  # exactly 2 for 1:1
@@ -97,18 +112,3 @@ Firestore Schema
                       ├── suggestions: array<string> or map
                       ├── updated_at: timestamp
                       └── ...
-
-6) invitations (collection)  # For invitations (one-to-one or group)
-   └── {invitationId} (document)
-       ├── created_at: timestamp     # Server-side timestamp when created
-       ├── expires_at: timestamp     # Server-side timestamp + X when created
-       ├── sender_id: string         # User ID who sent the invitation
-       ├── status: string            # "pending", "rejected", or "expired"
-       ├── username: string          # Username of the user who sent the invitation
-       ├── name: string              # Name of the user who sent the invitation
-       └── avatar: string            # Avatar location of the user who sent the invitation
-
-7) devices (collection)  # For storing user device information
-   └── {userId} (document)
-       ├── device_id: string         # Unique device identifier
-       └── updated_at: string        # ISO timestamp when the device was last updated
