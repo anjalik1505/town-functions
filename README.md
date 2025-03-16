@@ -47,6 +47,48 @@ This repository contains the backend functions for the Village application.
 - 400: Profile already exists for user {user_id}
 - 500: Internal server error
 
+#### PUT /me/profile
+**Purpose**: Update an existing profile for the authenticated user. When username, name, or avatar is updated, the changes are propagated to all related collections (invitations, friendships, and groups).
+
+**Input**:
+```json
+{
+  "username": "johndoe_updated",
+  "name": "John Doe Updated",
+  "avatar": "https://example.com/new_avatar.jpg",
+  "location": "San Francisco",
+  "birthday": "1990-01-01",
+  "notification_settings": ["messages", "updates", "groups"]
+}
+```
+*Note: All fields are optional. Only the fields included in the request will be updated.*
+
+**Output**:
+```json
+{
+  "user_id": "user123",
+  "username": "johndoe_updated",
+  "name": "John Doe Updated",
+  "avatar": "https://example.com/new_avatar.jpg",
+  "location": "San Francisco",
+  "birthday": "1990-01-01",
+  "notification_settings": ["messages", "updates", "groups"],
+  "summary": "Active user since January 2023",
+  "suggestions": "Consider connecting with more friends in your area",
+  "insights": {
+    "emotional_overview": "Generally positive sentiment in updates",
+    "key_moments": "Family vacation in June 2023",
+    "recurring_themes": "Family, Travel, Work",
+    "progress_and_growth": "Increased social connections by 25%"
+  }
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
+- 404: Profile not found for user {user_id}
+- 500: Internal server error
+
 #### GET /me/profile
 **Purpose**: Retrieve the authenticated user's profile with insights information.
 

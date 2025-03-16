@@ -14,12 +14,14 @@ from werkzeug.exceptions import HTTPException
 from models.pydantic_models import (
     GetPaginatedRequest,
     CreateProfileRequest,
+    UpdateProfileRequest,
 )
 from own_profile.create_my_profile import create_profile
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
 from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
+from own_profile.update_my_profile import update_profile
 from user_profile.get_user_profile import get_user_profile
 from user_profile.get_user_updates import get_user_updates
 from invitations.create_invitation import create_invitation
@@ -246,6 +248,18 @@ def create_my_profile():
 
     request.validated_params = CreateProfileRequest.model_validate(data)
     return create_profile(request).to_json()
+
+
+@app.route("/me/profile", methods=["PUT"])
+@handle_errors(validate_request=True)
+def update_my_profile():
+    """
+    Update the user's profile.
+    """
+    request.validated_params = UpdateProfileRequest(
+        **request.get_json(silent=True) or {}
+    )
+    return update_profile(request).to_json()
 
 
 @app.route("/me/updates", methods=["GET"])
