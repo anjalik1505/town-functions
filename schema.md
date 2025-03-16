@@ -93,12 +93,12 @@ Firestore Schema
                       ├── suggestions: array<string> or map
                       ├── updated_at: timestamp
                       └── ...
-    
-6) invitations (collection)  # For generated invite tokens/links
-   └── {inviteId} (document)
-       ├── invited_by: string (userId)
-       ├── email: string (invitee's email)
-       ├── used: boolean
-       ├── created_at: timestamp
-       ├── expires_at: timestamp
-       └── ... (any extra fields)
+
+6) invitations (collection)  # For invitations (one-to-one or group)
+   └── {invitationId} (document)
+       ├── created_at: timestamp     # Server-side timestamp when created
+       ├── expires_at: timestamp     # Server-side timestamp + X when created
+       ├── sender_id: string         # User ID who sent the invitation
+       ├── status: string            # "pending", "rejected", or "expired"
+       ├── user_name: string         # Name of the user who sent the invitation
+       └── user_avatar: string       # Avatar location of the user who sent the invitation
