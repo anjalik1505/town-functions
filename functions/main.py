@@ -11,24 +11,12 @@ from flask import Flask, request, abort, Response
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
-from friendship.accept_request import accept_request
-from friendship.add_friend import add_friend
-from groups.add_members import add_members_to_group
-from groups.create_chat_message import create_group_chat_message
-from groups.create_group import create_group
-from groups.get_group_chats import get_group_chats
-from groups.get_group_feed import get_group_feed
-from groups.get_group_members import get_group_members
-from models.pydantic_models import CreateGroupRequest, AddGroupMembersRequest
 from models.pydantic_models import (
     GetPaginatedRequest,
-    AddFriendRequest,
-    CreateChatMessageRequest,
 )
 from own_profile.create_my_profile import create_profile
 from own_profile.get_my_feeds import get_my_feeds
 from own_profile.get_my_friends import get_my_friends
-from own_profile.get_my_groups import get_my_groups
 from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
 from user_profile.get_user_profile import get_user_profile
@@ -262,113 +250,113 @@ def my_friends():
     return get_my_friends(request).to_json()
 
 
-@app.route("/me/groups", methods=["GET"])
-@handle_errors()
-def my_groups():
-    """
-    Get all groups the user is a member of.
-    """
-    return get_my_groups(request).to_json()
+# @app.route("/me/groups", methods=["GET"])
+# @handle_errors()
+# def my_groups():
+#     """
+#     Get all groups the user is a member of.
+#     """
+#     return get_my_groups(request).to_json()
 
 
-@app.route("/groups", methods=["POST"])
-@handle_errors(validate_request=True)
-def create_new_group():
-    """
-    Create a new group.
-    """
-    # Validate request data using Pydantic
-    data = request.get_json()
-    if not data:
-        abort(400, description="Request body is required")
-    validated_params = CreateGroupRequest.model_validate(data)
-    request.validated_params = validated_params
-    # Process the request
-    return create_group(request).to_json()
+# @app.route("/groups", methods=["POST"])
+# @handle_errors(validate_request=True)
+# def create_new_group():
+#     """
+#     Create a new group.
+#     """
+#     # Validate request data using Pydantic
+#     data = request.get_json()
+#     if not data:
+#         abort(400, description="Request body is required")
+#     validated_params = CreateGroupRequest.model_validate(data)
+#     request.validated_params = validated_params
+#     # Process the request
+#     return create_group(request).to_json()
 
 
-@app.route("/groups/<group_id>/members", methods=["POST"])
-@handle_errors(validate_request=True)
-def add_group_members(group_id):
-    """
-    Add new members to an existing group.
-    """
-    # Validate request data using Pydantic
-    data = request.get_json()
-    if not data:
-        abort(400, description="Request body is required")
-    validated_params = AddGroupMembersRequest.model_validate(data)
-    request.validated_params = validated_params
-    # Process the request
-    return add_members_to_group(request, group_id).to_json()
+# @app.route("/groups/<group_id>/members", methods=["POST"])
+# @handle_errors(validate_request=True)
+# def add_group_members(group_id):
+#     """
+#     Add new members to an existing group.
+#     """
+#     # Validate request data using Pydantic
+#     data = request.get_json()
+#     if not data:
+#         abort(400, description="Request body is required")
+#     validated_params = AddGroupMembersRequest.model_validate(data)
+#     request.validated_params = validated_params
+#     # Process the request
+#     return add_members_to_group(request, group_id).to_json()
 
 
-@app.route("/groups/<group_id>/members", methods=["GET"])
-@handle_errors()
-def group_members(group_id):
-    """
-    Get all members of a specific group with their basic profile information.
-    """
-    return get_group_members(request, group_id).to_json()
+# @app.route("/groups/<group_id>/members", methods=["GET"])
+# @handle_errors()
+# def group_members(group_id):
+#     """
+#     Get all members of a specific group with their basic profile information.
+#     """
+#     return get_group_members(request, group_id).to_json()
 
 
-@app.route("/groups/<group_id>/feed", methods=["GET"])
-@handle_errors(validate_request=True)
-def group_feed(group_id):
-    """
-    Get all updates for a specific group, paginated.
-    """
-    params = request.args.to_dict(flat=True)
-    request.validated_params = GetPaginatedRequest.model_validate(params)
-    return get_group_feed(request, group_id).to_json()
+# @app.route("/groups/<group_id>/feed", methods=["GET"])
+# @handle_errors(validate_request=True)
+# def group_feed(group_id):
+#     """
+#     Get all updates for a specific group, paginated.
+#     """
+#     params = request.args.to_dict(flat=True)
+#     request.validated_params = GetPaginatedRequest.model_validate(params)
+#     return get_group_feed(request, group_id).to_json()
 
 
-@app.route("/groups/<group_id>/chats", methods=["GET"])
-@handle_errors(validate_request=True)
-def group_chats(group_id):
-    """
-    List group chat messages, paginated.
-    """
-    params = request.args.to_dict(flat=True)
-    request.validated_params = GetPaginatedRequest.model_validate(params)
-    return get_group_chats(request, group_id).to_json()
+# @app.route("/groups/<group_id>/chats", methods=["GET"])
+# @handle_errors(validate_request=True)
+# def group_chats(group_id):
+#     """
+#     List group chat messages, paginated.
+#     """
+#     params = request.args.to_dict(flat=True)
+#     request.validated_params = GetPaginatedRequest.model_validate(params)
+#     return get_group_chats(request, group_id).to_json()
 
 
-@app.route("/groups/<group_id>/chats", methods=["POST"])
-@handle_errors(validate_request=True)
-def create_group_chat_message(group_id):
-    """
-    Post a new message in group chat.
-    """
-    data = request.get_json()
-    if not data:
-        abort(400, description="Request body is required")
+# @app.route("/groups/<group_id>/chats", methods=["POST"])
+# @handle_errors(validate_request=True)
+# def create_group_chat_message(group_id):
+#     """
+#     Post a new message in group chat.
+#     """
+#     data = request.get_json()
+#     if not data:
+#         abort(400, description="Request body is required")
 
-    request.validated_data = CreateChatMessageRequest.model_validate(data)
-    return create_group_chat_message(request, group_id).to_json()
-
-
-@app.route("/friends", methods=["POST"])
-@handle_errors(validate_request=True)
-def add_my_friend():
-    """
-    Add a new friend.
-    """
-    data = request.get_json()
-    if not data:
-        abort(400, description="Request body is required")
-    validated_params = AddFriendRequest.model_validate(data)
-    request.validated_params = validated_params
-    return add_friend(request).to_json()
+#     request.validated_data = CreateChatMessageRequest.model_validate(data)
+#     return create_group_chat_message(request, group_id).to_json()
 
 
-@app.route("/friends/<friend_id>/accept", methods=["POST"])
-@handle_errors()
-def accept_friend_request(friend_id):
-    """
-    Accept a friend request from a specific user.
-    """
-    return accept_request(request, friend_id).to_json()
+# @app.route("/friends", methods=["POST"])
+# @handle_errors(validate_request=True)
+# def add_my_friend():
+#     """
+#     Add a new friend.
+#     """
+#     data = request.get_json()
+#     if not data:
+#         abort(400, description="Request body is required")
+#     validated_params = AddFriendRequest.model_validate(data)
+#     request.validated_params = validated_params
+#     return add_friend(request).to_json()
+
+
+# @app.route("/friends/<friend_id>/accept", methods=["POST"])
+# @handle_errors()
+# def accept_friend_request(friend_id):
+#     """
+#     Accept a friend request from a specific user.
+#     """
+#     return accept_request(request, friend_id).to_json()
 
 
 @app.route("/users/<user_id>/profile", methods=["GET"])
