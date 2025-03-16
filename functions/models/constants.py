@@ -65,6 +65,16 @@ class FriendshipFields(StrEnum):
     EXPIRES_AT = "expires_at"
 
 
+# Field names for Invitation documents
+class InvitationFields(StrEnum):
+    CREATED_AT = "created_at"
+    EXPIRES_AT = "expires_at"
+    SENDER_ID = "sender_id"
+    STATUS = "status"
+    USER_NAME = "user_name"
+    USER_AVATAR = "user_avatar"
+
+
 # Field names for Update documents
 class UpdateFields(StrEnum):
     CREATED_BY = "created_by"

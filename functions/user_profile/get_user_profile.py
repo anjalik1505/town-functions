@@ -242,9 +242,9 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
 
     # Return a ProfileResponse with the user's profile and summary information
     return ProfileResponse(
-        id=target_user_id,
-        name=target_user_profile_data.get(ProfileFields.NAME, ""),
-        avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
+        user_id=target_user_id,
+        user_name=target_user_profile_data.get(ProfileFields.NAME, ""),
+        user_avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
         summary=summary,
         suggestions=suggestions_parts,
     )

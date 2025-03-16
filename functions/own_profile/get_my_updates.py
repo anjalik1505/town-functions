@@ -79,7 +79,7 @@ def get_my_updates(request) -> UpdatesResponse:
         # Convert Firestore document to Update model
         updates.append(
             Update(
-                updateId=doc.id,
+                update_id=doc.id,
                 created_by=doc_data.get(UpdateFields.CREATED_BY, current_user_id),
                 content=doc_data.get(UpdateFields.CONTENT, ""),
                 group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),

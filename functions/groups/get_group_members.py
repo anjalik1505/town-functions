@@ -62,9 +62,9 @@ def get_group_members(request: Request, group_id: str) -> GroupMembersResponse:
         for profile in member_profiles:
             members.append(
                 GroupMember(
-                    id=profile.get(ProfileFields.ID, ""),
-                    name=profile.get(ProfileFields.NAME, ""),
-                    avatar=profile.get(ProfileFields.AVATAR, ""),
+                    user_id=profile.get(ProfileFields.ID, ""),
+                    user_name=profile.get(ProfileFields.NAME, ""),
+                    user_avatar=profile.get(ProfileFields.AVATAR, ""),
                 )
             )
 

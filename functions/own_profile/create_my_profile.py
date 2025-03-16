@@ -80,7 +80,11 @@ def create_profile(request):
     )
 
     response = ProfileResponse(
-        id=current_user_id, name="", avatar="", summary=summary, suggestions=[]
+        user_id=current_user_id,
+        user_name="",
+        user_avatar="",
+        summary=summary,
+        suggestions=[],
     )
 
     logger.info(

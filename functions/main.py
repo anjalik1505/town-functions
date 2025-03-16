@@ -13,6 +13,8 @@ from werkzeug.exceptions import HTTPException
 
 from models.pydantic_models import (
     GetPaginatedRequest,
+    CreateInvitationRequest,
+    InvitationActionRequest,
 )
 from own_profile.create_my_profile import create_profile
 from own_profile.get_my_feeds import get_my_feeds
@@ -21,6 +23,11 @@ from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
 from user_profile.get_user_profile import get_user_profile
 from user_profile.get_user_updates import get_user_updates
+from invitations.create_invitation import create_invitation
+from invitations.accept_invitation import accept_invitation
+from invitations.reject_invitation import reject_invitation
+from invitations.resend_invitation import resend_invitation
+from invitations.get_invitations import get_invitations
 
 initialize_app()
 app = Flask(__name__)
@@ -378,6 +385,54 @@ def user_updates(user_id):
     params = request.args.to_dict(flat=True)
     request.validated_params = GetPaginatedRequest.model_validate(params)
     return get_user_updates(request, user_id).to_json()
+
+
+# Invitations routes
+@app.route("/invitations", methods=["POST"])
+@handle_errors()
+def create_new_invitation():
+    """
+    Create a new invitation.
+    """
+    data = request.get_json() or {}
+    request.validated_params = CreateInvitationRequest.model_validate(data)
+    return create_invitation(request).to_json()
+
+
+@app.route("/invitations", methods=["GET"])
+@handle_errors()
+def get_my_invitations():
+    """
+    Get all invitations for the current user.
+    """
+    return get_invitations(request).to_json()
+
+
+@app.route("/invitations/<invitation_id>/accept", methods=["POST"])
+@handle_errors()
+def accept_user_invitation(invitation_id):
+    """
+    Accept an invitation.
+    """
+    return accept_invitation(request, invitation_id).to_json()
+
+
+@app.route("/invitations/<invitation_id>/reject", methods=["POST"])
+@handle_errors()
+def reject_user_invitation(invitation_id):
+    """
+    Reject an invitation.
+    """
+    return reject_invitation(request, invitation_id).to_json()
+
+
+@app.route("/invitations/<invitation_id>/resend", methods=["POST"])
+@handle_errors()
+def resend_user_invitation(invitation_id):
+    """
+    Resend an invitation.
+    """
+    return resend_invitation(request, invitation_id).to_json()
 
 
 # Firebase Function entry point
