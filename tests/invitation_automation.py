@@ -227,11 +227,12 @@ def run_invitation_demo():
     """Run a demonstration of the Village API invitation functionality"""
     api = VillageAPI()
     
-    # Create three users
+    # Create four users
     users = [
         {"email": "user1@example.com", "password": "password123", "name": "User One"},
         {"email": "user2@example.com", "password": "password123", "name": "User Two"},
-        {"email": "user3@example.com", "password": "password123", "name": "User Three"}
+        {"email": "user3@example.com", "password": "password123", "name": "User Three"},
+        {"email": "user4@example.com", "password": "password123", "name": "User Four"}
     ]
     
     # Create and authenticate users
@@ -246,6 +247,8 @@ def run_invitation_demo():
                 api.authenticate_user(user["email"], user["password"])
             else:
                 raise
+    
+    # ============ POSITIVE PATH TESTS ============
     
     # Step 1: Create a profile for the first user
     profile_data = {
@@ -313,6 +316,90 @@ def run_invitation_demo():
     # Step 13: Second user gets their invitations
     invitations2_after = api.get_invitations(users[1]["email"])
     logger.info(f"Second user's invitations after rejection: {json.dumps(invitations2_after, indent=2)}")
+    
+    # ============ NEGATIVE PATH TESTS ============
+    logger.info("\n\n========== STARTING NEGATIVE PATH TESTS ==========\n")
+    
+    # Create a profile for the fourth user
+    profile_data = {
+        "name": users[3]["name"],
+        "bio": f"This is {users[3]['name']}'s bio",
+        "avatar_url": f"https://example.com/avatar_{users[3]['name'].replace(' ', '_').lower()}.jpg"
+    }
+    api.create_profile(users[3]["email"], profile_data)
+    
+    # Test 1: Attempt to accept non-existent invitation
+    logger.info("Test 1: Attempting to accept non-existent invitation")
+    try:
+        api.accept_invitation(users[3]["email"], "non-existent-invitation-id")
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 2: Attempt to reject non-existent invitation
+    logger.info("Test 2: Attempting to reject non-existent invitation")
+    try:
+        api.reject_invitation(users[3]["email"], "non-existent-invitation-id")
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 3: Attempt to resend non-existent invitation
+    logger.info("Test 3: Attempting to resend non-existent invitation")
+    try:
+        api.resend_invitation(users[3]["email"], "non-existent-invitation-id")
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 4: User attempts to accept their own invitation
+    logger.info("Test 4: User attempting to accept their own invitation")
+    # Fourth user creates an invitation
+    invitation4 = api.create_invitation(users[3]["email"])
+    try:
+        api.accept_invitation(users[3]["email"], api.invitation_ids[users[3]["email"]])
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 5: User attempts to reject their own invitation
+    logger.info("Test 5: User attempting to reject their own invitation")
+    try:
+        api.reject_invitation(users[3]["email"], api.invitation_ids[users[3]["email"]])
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 6: User attempts to resend someone else's invitation
+    logger.info("Test 6: User attempting to resend someone else's invitation")
+    try:
+        api.resend_invitation(users[2]["email"], api.invitation_ids[users[3]["email"]])
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 7: Attempt to create invitation without a profile
+    logger.info("Test 7: Attempting to create invitation without a profile")
+    # Create a new user without a profile
+    no_profile_user = {"email": "no-profile@example.com", "password": "password123", "name": "No Profile User"}
+    try:
+        api.create_user(no_profile_user["email"], no_profile_user["password"], no_profile_user["name"])
+        api.create_invitation(no_profile_user["email"])
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 8: Attempt to accept an already accepted invitation
+    logger.info("Test 8: Attempting to accept an already accepted invitation")
+    # First create a new invitation from user3 to user4
+    invitation3 = api.create_invitation(users[2]["email"])
+    # User4 accepts it
+    api.accept_invitation(users[3]["email"], api.invitation_ids[users[2]["email"]])
+    # Try to accept it again
+    try:
+        api.accept_invitation(users[3]["email"], api.invitation_ids[users[2]["email"]])
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
+    
+    # Test 9: Attempt to reject an already accepted invitation
+    logger.info("Test 9: Attempting to reject an already accepted invitation")
+    try:
+        api.reject_invitation(users[3]["email"], api.invitation_ids[users[2]["email"]])
+    except requests.exceptions.HTTPError as e:
+        logger.info(f"Expected error received: {str(e)}")
 
 
 if __name__ == "__main__":
