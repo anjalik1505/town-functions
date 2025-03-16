@@ -1,7 +1,7 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import Collections, ProfileFields, SummaryFields, Documents
-from models.data_models import ProfileResponse, Summary
+from models.constants import Collections, ProfileFields, InsightsFields, Documents
+from models.data_models import ProfileResponse, Insights
 from utils.logging_utils import get_logger
 
 
@@ -16,15 +16,22 @@ def create_profile(request):
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
+                - json: Profile data including:
+                    - username: Mandatory username for the user
+                    - name: Optional display name
+                    - avatar: Optional avatar URL
+                    - location: Optional location information
+                    - birthday: Optional birthday in ISO format
+                    - notification_settings: Optional list of notification preferences
 
     Returns:
         A ProfileResponse containing:
-        - Basic profile information (id, name, avatar)
-        - Empty summary information
+        - Basic profile information (id, username, name, avatar)
+        - Optional profile fields (location, birthday, notification_settings)
+        - Empty insights, summary, suggestions information
 
     Raises:
         400: If a profile already exists for the authenticated user
-        500: Server error during profile creation
     """
     logger = get_logger(__name__)
     logger.info(f"Starting add_user operation for user ID: {request.user_id}")
@@ -45,11 +52,18 @@ def create_profile(request):
 
     logger.info(f"Creating new profile for user {current_user_id}")
 
-    # Create an empty profile according to the schema
+    # Create profile with provided data
     profile_data = {
-        ProfileFields.NAME: "",
-        ProfileFields.AVATAR: "",
-        ProfileFields.EMAIL: "",
+        ProfileFields.USERNAME: profile_data_input.get("username"),
+        ProfileFields.NAME: profile_data_input.get("name", ""),
+        ProfileFields.AVATAR: profile_data_input.get("avatar", ""),
+        ProfileFields.LOCATION: profile_data_input.get("location", ""),
+        ProfileFields.BIRTHDAY: profile_data_input.get("birthday", ""),
+        ProfileFields.NOTIFICATION_SETTINGS: profile_data_input.get(
+            "notification_settings", []
+        ),
+        ProfileFields.SUMMARY: profile_data_input.get("summary", ""),
+        ProfileFields.SUGGESTIONS: profile_data_input.get("suggestions", ""),
         ProfileFields.GROUP_IDS: [],
     }
 
@@ -57,23 +71,22 @@ def create_profile(request):
     profile_ref.set(profile_data)
     logger.info(f"Profile document created for user {current_user_id}")
 
-    # Create an empty summary subcollection document
-    summary_ref = profile_ref.collection(Collections.SUMMARY).document(
-        Documents.DEFAULT_SUMMARY
+    # Create an empty insights subcollection document
+    insights_ref = profile_ref.collection(Collections.INSIGHTS).document(
+        Documents.DEFAULT_INSIGHTS
     )
-    summary_data = {
-        SummaryFields.EMOTIONAL_JOURNEY: "",
-        SummaryFields.KEY_MOMENTS: "",
-        SummaryFields.RECURRING_THEMES: "",
-        SummaryFields.PROGRESS_AND_GROWTH: "",
-        SummaryFields.SUGGESTIONS: [],
+    insights_data = {
+        InsightsFields.EMOTIONAL_OVERVIEW: "",
+        InsightsFields.KEY_MOMENTS: "",
+        InsightsFields.RECURRING_THEMES: "",
+        InsightsFields.PROGRESS_AND_GROWTH: "",
     }
-    summary_ref.set(summary_data)
-    logger.info(f"Summary document created for user {current_user_id}")
+    insights_ref.set(insights_data)
+    logger.info(f"Insights document created for user {current_user_id}")
 
     # Return a properly formatted response
-    summary = Summary(
-        emotional_journey="",
+    insights = Insights(
+        emotional_overview="",
         key_moments="",
         recurring_themes="",
         progress_and_growth="",
@@ -81,10 +94,15 @@ def create_profile(request):
 
     response = ProfileResponse(
         user_id=current_user_id,
-        user_name="",
-        user_avatar="",
-        summary=summary,
-        suggestions=[],
+        username=profile_data[ProfileFields.USERNAME],
+        name=profile_data[ProfileFields.NAME],
+        avatar=profile_data[ProfileFields.AVATAR],
+        location=profile_data[ProfileFields.LOCATION],
+        birthday=profile_data[ProfileFields.BIRTHDAY],
+        notification_settings=profile_data[ProfileFields.NOTIFICATION_SETTINGS],
+        summary=profile_data[ProfileFields.SUMMARY],
+        suggestions=profile_data[ProfileFields.SUGGESTIONS],
+        insights=insights,
     )
 
     logger.info(

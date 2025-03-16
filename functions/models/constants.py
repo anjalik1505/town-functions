@@ -9,19 +9,18 @@ from enum import StrEnum
 # Collection names
 class Collections(StrEnum):
     PROFILES = "profiles"
-    SUMMARY = "summary"
     UPDATES = "updates"
     FRIENDSHIPS = "friendships"
     GROUPS = "groups"
     USER_SUMMARIES = "user_summaries"
     CHATS = "chats"
-    SUMMARIES = "summaries"
+    INSIGHTS = "insights"
     INVITATIONS = "invitations"
 
 
 # Document names
 class Documents(StrEnum):
-    DEFAULT_SUMMARY = "default"
+    DEFAULT_INSIGHTS = "default"
 
 
 # Status values
@@ -36,11 +35,17 @@ class Status(StrEnum):
 
 # Field names for Profile documents
 class ProfileFields(StrEnum):
-    ID = "id"
+    USER_ID = "user_id"
     NAME = "name"
+    USERNAME = "username"
     AVATAR = "avatar"
-    EMAIL = "email"
+    LOCATION = "location"
+    BIRTHDAY = "birthday"
+    NOTIFICATION_SETTINGS = "notification_settings"
     GROUP_IDS = "group_ids"
+    INSIGHTS = "insights"
+    SUMMARY = "summary"
+    SUGGESTIONS = "suggestions"
 
 
 # Field names for Friend documents (Legacy)
@@ -53,9 +58,11 @@ class FriendFields(StrEnum):
 # Field names for Friendship documents
 class FriendshipFields(StrEnum):
     SENDER_ID = "sender_id"
+    SENDER_USERNAME = "sender_username"
     SENDER_NAME = "sender_name"
     SENDER_AVATAR = "sender_avatar"
     RECEIVER_ID = "receiver_id"
+    RECEIVER_USERNAME = "receiver_username"
     RECEIVER_NAME = "receiver_name"
     RECEIVER_AVATAR = "receiver_avatar"
     MEMBERS = "members"  # Array containing both sender_id and receiver_id for efficient queries
@@ -71,8 +78,9 @@ class InvitationFields(StrEnum):
     EXPIRES_AT = "expires_at"
     SENDER_ID = "sender_id"
     STATUS = "status"
-    USER_NAME = "user_name"
-    USER_AVATAR = "user_avatar"
+    USERNAME = "username"
+    NAME = "name"
+    AVATAR = "avatar"
 
 
 # Field names for Update documents
@@ -102,12 +110,11 @@ class ChatFields(StrEnum):
 
 
 # Field names for Summary documents
-class SummaryFields(StrEnum):
-    EMOTIONAL_JOURNEY = "emotional_journey"
+class InsightsFields(StrEnum):
+    EMOTIONAL_OVERVIEW = "emotional_overview"
     KEY_MOMENTS = "key_moments"
     RECURRING_THEMES = "recurring_themes"
     PROGRESS_AND_GROWTH = "progress_and_growth"
-    SUGGESTIONS = "suggestions"
 
 
 class QueryOperators(StrEnum):

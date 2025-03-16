@@ -100,5 +100,5 @@ Firestore Schema
        ├── expires_at: timestamp     # Server-side timestamp + X when created
        ├── sender_id: string         # User ID who sent the invitation
        ├── status: string            # "pending", "rejected", or "expired"
-       ├── user_name: string         # Name of the user who sent the invitation
-       └── user_avatar: string       # Avatar location of the user who sent the invitation
+       ├── username: string         # Name of the user who sent the invitation
+       └── avatar: string       # Avatar location of the user who sent the invitation

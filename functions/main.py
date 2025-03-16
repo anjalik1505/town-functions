@@ -394,8 +394,6 @@ def create_new_invitation():
     """
     Create a new invitation.
     """
-    data = request.get_json() or {}
-    request.validated_params = CreateInvitationRequest.model_validate(data)
     return create_invitation(request).to_json()
 
 

@@ -129,28 +129,40 @@ def accept_invitation(request, invitation_id) -> Friend:
             # Return the existing friend using data from the friendship document
             if friendship_data.get(FriendshipFields.SENDER_ID) == sender_id:
                 friend_name = friendship_data.get(FriendshipFields.SENDER_NAME, "")
+                friend_username = friendship_data.get(
+                    FriendshipFields.SENDER_USERNAME, ""
+                )
                 friend_avatar = friendship_data.get(FriendshipFields.SENDER_AVATAR, "")
             else:
                 friend_name = friendship_data.get(FriendshipFields.RECEIVER_NAME, "")
+                friend_username = friendship_data.get(
+                    FriendshipFields.RECEIVER_USERNAME, ""
+                )
                 friend_avatar = friendship_data.get(
                     FriendshipFields.RECEIVER_AVATAR, ""
                 )
 
             return Friend(
                 user_id=sender_id,
-                user_name=friend_name,
-                user_avatar=friend_avatar,
-                status=Status.ACCEPTED,
+                username=friend_username,
+                name=friend_name,
+                avatar=friend_avatar
             )
 
     # Create the friendship document using profile data directly
     friendship_data = {
         FriendshipFields.SENDER_ID: sender_id,
         FriendshipFields.SENDER_NAME: sender_profile.get(ProfileFields.NAME, ""),
+        FriendshipFields.SENDER_USERNAME: sender_profile.get(
+            ProfileFields.USERNAME, ""
+        ),
         FriendshipFields.SENDER_AVATAR: sender_profile.get(ProfileFields.AVATAR, ""),
         FriendshipFields.RECEIVER_ID: current_user_id,
         FriendshipFields.RECEIVER_NAME: current_user_profile.get(
             ProfileFields.NAME, ""
+        ),
+        FriendshipFields.RECEIVER_USERNAME: current_user_profile.get(
+            ProfileFields.USERNAME, ""
         ),
         FriendshipFields.RECEIVER_AVATAR: current_user_profile.get(
             ProfileFields.AVATAR, ""
@@ -175,7 +187,7 @@ def accept_invitation(request, invitation_id) -> Friend:
     # Return the friend object using sender's profile data
     return Friend(
         user_id=sender_id,
-        user_name=sender_profile.get(ProfileFields.NAME, ""),
-        user_avatar=sender_profile.get(ProfileFields.AVATAR, ""),
-        status=Status.ACCEPTED,
+        username=sender_profile.get(ProfileFields.USERNAME, ""),
+        name=sender_profile.get(ProfileFields.NAME, ""),
+        avatar=sender_profile.get(ProfileFields.AVATAR, "")
     )

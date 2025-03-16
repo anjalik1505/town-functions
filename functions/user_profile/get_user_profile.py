@@ -3,11 +3,10 @@ from flask import abort
 from models.constants import (
     Collections,
     ProfileFields,
-    SummaryFields,
     FriendshipFields,
     Status,
 )
-from models.data_models import ProfileResponse, Summary
+from models.data_models import ProfileResponse
 from utils.logging_utils import get_logger
 
 
@@ -28,8 +27,6 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
     Returns:
         A ProfileResponse containing:
         - Basic profile information (id, name, avatar)
-        - Aggregated summary information from shared contexts
-        - Personalized suggestions
 
     Raises:
         400: If the user tries to view their own profile through this endpoint.
@@ -85,166 +82,20 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
     logger.info(f"Friendship verified between {current_user_id} and {target_user_id}")
 
     # Initialize empty lists to collect all summary data
-    emotional_journey_parts = []
-    key_moments_parts = []
-    recurring_themes_parts = []
-    progress_and_growth_parts = []
     suggestions_parts = []
+    summary_parts = []
 
-    # Get current user's groups
-    current_user_profile_ref = db.collection(Collections.PROFILES).document(
-        current_user_id
-    )
-    current_user_profile_doc = current_user_profile_ref.get()
-    current_user_profile = current_user_profile_doc.to_dict() or {}
-    current_user_groups = current_user_profile.get(ProfileFields.GROUP_IDS, [])
-
-    # Get target user's groups
-    target_user_groups = target_user_profile_data.get(ProfileFields.GROUP_IDS, [])
-
-    # Find groups that both users are members of
-    shared_groups = list(set(current_user_groups) & set(target_user_groups))
-    logger.info(
-        f"Found {len(shared_groups)} shared groups between users {current_user_id} and {target_user_id}"
-    )
-
-    # Collect summary data from each shared group
-    if shared_groups:
-        for group_id in shared_groups:
-            logger.info(f"Processing summary data from group {group_id}")
-            summary_ref = (
-                db.collection(Collections.GROUPS)
-                .document(group_id)
-                .collection(Collections.USER_SUMMARIES)
-                .document(target_user_id)
-            )
-            summary_doc = summary_ref.get()
-
-            if summary_doc.exists:
-                summary_data = summary_doc.to_dict() or {}
-
-                # Extract and format summary data from this group
-                if (
-                    SummaryFields.EMOTIONAL_JOURNEY in summary_data
-                    and summary_data[SummaryFields.EMOTIONAL_JOURNEY]
-                ):
-                    emotional_journey_parts.append(
-                        summary_data[SummaryFields.EMOTIONAL_JOURNEY]
-                    )
-
-                if (
-                    SummaryFields.KEY_MOMENTS in summary_data
-                    and summary_data[SummaryFields.KEY_MOMENTS]
-                ):
-                    key_moments_parts.append(summary_data[SummaryFields.KEY_MOMENTS])
-
-                if (
-                    SummaryFields.RECURRING_THEMES in summary_data
-                    and summary_data[SummaryFields.RECURRING_THEMES]
-                ):
-                    recurring_themes_parts.append(
-                        summary_data[SummaryFields.RECURRING_THEMES]
-                    )
-
-                if (
-                    SummaryFields.PROGRESS_AND_GROWTH in summary_data
-                    and summary_data[SummaryFields.PROGRESS_AND_GROWTH]
-                ):
-                    progress_and_growth_parts.append(
-                        summary_data[SummaryFields.PROGRESS_AND_GROWTH]
-                    )
-
-                if (
-                    SummaryFields.SUGGESTIONS in summary_data
-                    and summary_data[SummaryFields.SUGGESTIONS]
-                ):
-                    suggestions_parts.extend(summary_data[SummaryFields.SUGGESTIONS])
-            else:
-                logger.info(
-                    f"No summary found for user {target_user_id} in group {group_id}"
-                )
-
-    # Also check for direct chat summaries
-    direct_chat_id = f"{current_user_id}_{target_user_id}"
-    direct_chat_ref = db.collection(Collections.CHATS).document(direct_chat_id)
-    direct_chat_doc = direct_chat_ref.get()
-
-    if direct_chat_doc.exists:
-        logger.info(f"Processing summary data from direct chat {direct_chat_id}")
-        direct_summary_ref = direct_chat_ref.collection(Collections.SUMMARIES).document(
-            target_user_id
-        )
-        direct_summary_doc = direct_summary_ref.get()
-
-        if direct_summary_doc.exists:
-            direct_summary_data = direct_summary_doc.to_dict() or {}
-
-            # Extract and format summary data from direct chat
-            if (
-                SummaryFields.EMOTIONAL_JOURNEY in direct_summary_data
-                and direct_summary_data[SummaryFields.EMOTIONAL_JOURNEY]
-            ):
-                emotional_journey_parts.append(
-                    direct_summary_data[SummaryFields.EMOTIONAL_JOURNEY]
-                )
-
-            if (
-                SummaryFields.KEY_MOMENTS in direct_summary_data
-                and direct_summary_data[SummaryFields.KEY_MOMENTS]
-            ):
-                key_moments_parts.append(direct_summary_data[SummaryFields.KEY_MOMENTS])
-
-            if (
-                SummaryFields.RECURRING_THEMES in direct_summary_data
-                and direct_summary_data[SummaryFields.RECURRING_THEMES]
-            ):
-                recurring_themes_parts.append(
-                    direct_summary_data[SummaryFields.RECURRING_THEMES]
-                )
-
-            if (
-                SummaryFields.PROGRESS_AND_GROWTH in direct_summary_data
-                and direct_summary_data[SummaryFields.PROGRESS_AND_GROWTH]
-            ):
-                progress_and_growth_parts.append(
-                    direct_summary_data[SummaryFields.PROGRESS_AND_GROWTH]
-                )
-
-            if (
-                SummaryFields.SUGGESTIONS in direct_summary_data
-                and direct_summary_data[SummaryFields.SUGGESTIONS]
-            ):
-                suggestions_parts.extend(direct_summary_data[SummaryFields.SUGGESTIONS])
-        else:
-            logger.info(f"No direct chat summary found for user {target_user_id}")
+    logger.info(f"Successfully retrieved profile for user {target_user_id}")
 
     # Combine all summary parts
-    emotional_journey = (
-        "\n\n".join(emotional_journey_parts) if emotional_journey_parts else ""
-    )
-    key_moments = "\n\n".join(key_moments_parts) if key_moments_parts else ""
-    recurring_themes = (
-        "\n\n".join(recurring_themes_parts) if recurring_themes_parts else ""
-    )
-    progress_and_growth = (
-        "\n\n".join(progress_and_growth_parts) if progress_and_growth_parts else ""
-    )
-
-    # Create a Summary object
-    summary = Summary(
-        emotional_journey=emotional_journey,
-        key_moments=key_moments,
-        recurring_themes=recurring_themes,
-        progress_and_growth=progress_and_growth,
-    )
-
-    logger.info(f"Successfully retrieved profile and summary for user {target_user_id}")
-
-    # Return a ProfileResponse with the user's profile and summary information
+    # NOTE: Summary and suggestions data removed as requested
+    
+    # Return a ProfileResponse with the user's profile information (without summary and suggestions)
     return ProfileResponse(
         user_id=target_user_id,
-        user_name=target_user_profile_data.get(ProfileFields.NAME, ""),
-        user_avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
-        summary=summary,
+        username=target_user_profile_data.get(ProfileFields.USERNAME, ""),
+        name=target_user_profile_data.get(ProfileFields.NAME, ""),
+        avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
         suggestions=suggestions_parts,
+        summary=summary_parts,
     )

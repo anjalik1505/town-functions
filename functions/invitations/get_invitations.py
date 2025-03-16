@@ -80,8 +80,9 @@ def get_invitations(request) -> InvitationsResponse:
             expires_at=expires_at_formatted,
             sender_id=invitation_data.get(InvitationFields.SENDER_ID, ""),
             status=invitation_data.get(InvitationFields.STATUS, ""),
-            user_name=invitation_data.get(InvitationFields.USER_NAME, ""),
-            user_avatar=invitation_data.get(InvitationFields.USER_AVATAR, ""),
+            username=invitation_data.get(InvitationFields.USERNAME, ""),
+            name=invitation_data.get(InvitationFields.NAME, ""),
+            avatar=invitation_data.get(InvitationFields.AVATAR, ""),
         )
 
         invitations.append(invitation)

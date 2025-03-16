@@ -71,6 +71,7 @@ def resend_invitation(request, invitation_id) -> Invitation:
         expires_at=expires_at.isoformat() + "Z",
         sender_id=current_user_id,
         status=Status.PENDING,
-        user_name=invitation_data.get(InvitationFields.USER_NAME, ""),
-        user_avatar=invitation_data.get(InvitationFields.USER_AVATAR, ""),
+        username=invitation_data.get(InvitationFields.USERNAME, ""),
+        name=invitation_data.get(InvitationFields.NAME, ""),
+        avatar=invitation_data.get(InvitationFields.AVATAR, ""),
     )

@@ -72,7 +72,8 @@ def create_group(request: Request) -> Group:
         profile_data = current_user_profile.to_dict()
         member_profiles.append(
             {
-                ProfileFields.ID: current_user_id,
+                ProfileFields.USER_ID: current_user_id,
+                ProfileFields.USERNAME: profile_data.get(ProfileFields.USERNAME, ""),
                 ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
                 ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, ""),
             }
@@ -96,7 +97,10 @@ def create_group(request: Request) -> Group:
                 profile_data = profile_snapshot.to_dict()
                 member_profiles.append(
                     {
-                        ProfileFields.ID: profile_snapshot.id,
+                        ProfileFields.USER_ID: profile_snapshot.id,
+                        ProfileFields.USERNAME: profile_data.get(
+                            ProfileFields.USERNAME, ""
+                        ),
                         ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
                         ProfileFields.AVATAR: profile_data.get(
                             ProfileFields.AVATAR, ""
