@@ -55,7 +55,7 @@ Firestore Schema
        ├── friend_ids: array<string> # which friends the update is shared to
        ├── visible_to: array<string> # INTERNAL: combined array of friend and group identifiers with prefixes
        ├── content: string           # text or processed speech-to-text
-       ├── sentiment: number (1-5 or similar)
+       ├── sentiment: string         # "happy", "sad", "neutral", "angry", "surprised"
        ├── created_at: timestamp
        └── ...
        # Possibly location, attachments, etc.

@@ -11,6 +11,9 @@ class Update:
     created_at: str
     group_ids: Optional[List[str]] = None
     friend_ids: Optional[List[str]] = None
+    
+    def to_json(self):
+        return asdict(self)
 
 
 @dataclass

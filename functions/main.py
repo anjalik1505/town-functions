@@ -13,6 +13,7 @@ from invitations.reject_invitation import reject_invitation
 from invitations.resend_invitation import resend_invitation
 from models.pydantic_models import (
     CreateProfileRequest,
+    CreateUpdateRequest,
     GetPaginatedRequest,
     UpdateDeviceRequest,
     UpdateProfileRequest,
@@ -24,6 +25,7 @@ from own_profile.get_my_profile import get_my_profile
 from own_profile.get_my_updates import get_my_updates
 from own_profile.update_my_profile import update_profile
 from pydantic import ValidationError
+from updates.create_update import create_update
 from user_profile.get_user_profile import get_user_profile
 from user_profile.get_user_updates import get_user_updates
 from werkzeug.exceptions import HTTPException
@@ -370,6 +372,21 @@ def get_user_device():
     Get the device information for the current user.
     """
     return get_device(request).to_json()
+
+
+@app.route("/updates", methods=["POST"])
+@handle_errors(validate_request=True)
+def create_new_update():
+    """
+    Create a new update.
+    """
+    # Validate request with Pydantic
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, description="Invalid request parameters")
+
+    request.validated_params = CreateUpdateRequest.model_validate(data)
+    return create_update(request).to_json()
 
 
 # Firebase Function entry point
