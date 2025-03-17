@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from firebase_admin import firestore
 from flask import Request, abort
 from models.constants import (
+    MAX_BATCH_SIZE,
     Collections,
     FriendshipFields,
     GroupFields,
@@ -131,9 +132,8 @@ def create_group(request: Request) -> Group:
 
         # Firestore allows up to 10 values in array_contains_any
         # We'll process members in batches of 10 if needed
-        batch_size = 10
-        for i in range(0, len(members), batch_size):
-            batch_members = members[i : i + batch_size]
+        for i in range(0, len(members), MAX_BATCH_SIZE):
+            batch_members = members[i : i + MAX_BATCH_SIZE]
 
             # Fetch all friendships where any of the batch members is in the members array
             friendships_query = (

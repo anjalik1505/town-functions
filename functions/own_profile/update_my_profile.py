@@ -38,7 +38,7 @@ def update_profile(request):
         A ProfileResponse containing the updated profile information
 
     Raises:
-        404: Profile not found for user {user_id}
+        404: Profile not found
     """
     logger = get_logger(__name__)
     logger.info(f"Starting update_profile operation for user ID: {request.user_id}")
@@ -58,7 +58,7 @@ def update_profile(request):
 
     if not profile_doc.exists:
         logger.warning(f"Profile not found for user {current_user_id}")
-        abort(404, description=f"Profile not found for user {current_user_id}")
+        abort(404, description=f"Profile not found")
 
     # Get current profile data
     current_profile_data = profile_doc.to_dict()

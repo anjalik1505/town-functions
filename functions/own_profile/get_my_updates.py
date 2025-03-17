@@ -83,7 +83,8 @@ def get_my_updates(request) -> UpdatesResponse:
                 created_by=doc_data.get(UpdateFields.CREATED_BY, current_user_id),
                 content=doc_data.get(UpdateFields.CONTENT, ""),
                 group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
-                sentiment=doc_data.get(UpdateFields.SENTIMENT, 0),
+                friend_ids=doc_data.get(UpdateFields.FRIEND_IDS, []),
+                sentiment=doc_data.get(UpdateFields.SENTIMENT, ""),
                 created_at=created_at,
             )
         )

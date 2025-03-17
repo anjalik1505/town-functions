@@ -14,165 +14,14 @@ It creates users, authenticates them, and performs various device operations:
 
 import json
 import logging
-from typing import Any, Dict, Optional
 
-import requests
+from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# Constants
-FIREBASE_AUTH_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key"
-API_BASE_URL = "http://localhost:5001/village-staging-9178d/us-central1/api"
-FIREBASE_CREATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key"
-
-
-class VillageAPI:
-    """Class to interact with the Village API"""
-
-    def __init__(self):
-        self.tokens = {}  # Store tokens for each user
-        self.user_ids = {}  # Store user IDs for each user
-
-    def create_user(
-        self, email: str, password: str, display_name: str
-    ) -> Dict[str, Any]:
-        """Create a new user in Firebase Auth"""
-        logger.info(f"Creating user with email: {email}")
-
-        # Step 1: Create the user
-        payload = {
-            "email": email,
-            "password": password,
-            "displayName": display_name,
-            "returnSecureToken": True,
-        }
-
-        response = requests.post(FIREBASE_CREATE_USER_URL, json=payload)
-        if response.status_code != 200:
-            logger.error(f"Failed to create user: {response.text}")
-            response.raise_for_status()
-
-        data = response.json()
-        logger.debug(f"User creation response: {json.dumps(data, indent=2)}")
-
-        # Store user ID if available
-        if "localId" in data:
-            user_id = data["localId"]
-            self.user_ids[email] = user_id
-
-        # Now authenticate to get a token for subsequent API calls
-        self.authenticate_user(email, password)
-
-        logger.info(f"User created with ID: {self.user_ids.get(email, 'unknown')}")
-        return data
-
-    def authenticate_user(self, email: str, password: str) -> Dict[str, Any]:
-        """Authenticate a user and get a JWT token"""
-        logger.info(f"Authenticating user: {email}")
-
-        payload = {"email": email, "password": password, "returnSecureToken": True}
-
-        response = requests.post(FIREBASE_AUTH_URL, json=payload)
-        if response.status_code != 200:
-            logger.error(f"Authentication failed: {response.text}")
-            response.raise_for_status()
-
-        data = response.json()
-        self.tokens[email] = data["idToken"]
-        self.user_ids[email] = data["localId"]
-
-        logger.info(f"User authenticated with ID: {self.user_ids[email]}")
-        return data
-
-    def update_device(self, email: str, device_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a device for a user"""
-        logger.info(f"Updating device for user: {email}")
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.tokens[email]}",
-        }
-
-        response = requests.put(
-            f"{API_BASE_URL}/device", headers=headers, json=device_data
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to update device: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Device updated for user: {email}")
-        return response.json()
-
-    def get_device(self, email: str) -> Dict[str, Any]:
-        """Get the user's device"""
-        logger.info(f"Getting device for user: {email}")
-
-        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
-
-        response = requests.get(f"{API_BASE_URL}/device", headers=headers)
-        if response.status_code != 200:
-            logger.error(f"Failed to get device: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Successfully retrieved device for user: {email}")
-        return response.json()
-
-    def make_request_expecting_error(
-        self,
-        method: str,
-        url: str,
-        headers: Dict[str, str],
-        json_data: Optional[Dict[str, Any]] = None,
-        expected_status_code: int = None,
-        expected_error_message: str = None,
-    ) -> Dict[str, Any]:
-        """Make a request expecting a specific error response"""
-        logger.info(
-            f"Making {method} request to {url} expecting error status {expected_status_code}"
-        )
-
-        try:
-            if method.lower() == "get":
-                response = requests.get(url, headers=headers)
-            elif method.lower() == "post":
-                response = requests.post(url, headers=headers, json=json_data)
-            elif method.lower() == "put":
-                response = requests.put(url, headers=headers, json=json_data)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-
-            response_data = response.json() if response.text else {}
-            result = {"status_code": response.status_code, "response": response_data}
-
-            # Verify status code if expected
-            if expected_status_code:
-                assert (
-                    response.status_code == expected_status_code
-                ), f"Expected status code {expected_status_code}, got {response.status_code}"
-                logger.info(
-                    f"✓ Status code verification passed: {response.status_code}"
-                )
-
-            # Verify error message if expected
-            if expected_error_message and response_data.get("error"):
-                error_message = response_data.get("error", {}).get("message", "")
-                assert (
-                    expected_error_message in error_message
-                ), f"Expected error message containing '{expected_error_message}', got '{error_message}'"
-                logger.info(f"✓ Error message verification passed: '{error_message}'")
-
-            return result
-
-        except AssertionError as e:
-            logger.error(f"Assertion failed: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            raise
 
 
 def run_device_tests():
@@ -187,18 +36,7 @@ def run_device_tests():
     }
 
     # Create and authenticate user
-    try:
-        # Try to create the user
-        api.create_user(user["email"], user["password"], user["name"])
-    except requests.exceptions.HTTPError as e:
-        # If user already exists, just authenticate
-        if "EMAIL_EXISTS" in str(e):
-            logger.warning(
-                f"User {user['email']} already exists, authenticating instead"
-            )
-            api.authenticate_user(user["email"], user["password"])
-        else:
-            raise
+    api.create_user(user["email"], user["password"], user["name"])
 
     # ============ POSITIVE PATH TESTS ============
     logger.info("========== STARTING POSITIVE PATH TESTS ==========")
@@ -265,18 +103,7 @@ def run_device_tests():
         "name": "New Device Test User",
     }
 
-    try:
-        # Try to create the user
-        api.create_user(new_user["email"], new_user["password"], new_user["name"])
-    except requests.exceptions.HTTPError as e:
-        # If user already exists, just authenticate
-        if "EMAIL_EXISTS" in str(e):
-            logger.warning(
-                f"User {new_user['email']} already exists, authenticating instead"
-            )
-            api.authenticate_user(new_user["email"], new_user["password"])
-        else:
-            raise
+    api.create_user(new_user["email"], new_user["password"], new_user["name"])
 
     # Try to get a device that doesn't exist
     try:
@@ -324,7 +151,7 @@ def run_device_tests():
 if __name__ == "__main__":
     try:
         run_device_tests()
+        logger.info("Device automation completed successfully")
     except Exception as e:
-        logger.error(f"Test failed with error: {str(e)}")
-        exit(1)
-    logger.info("All tests completed successfully!")
+        logger.error(f"Device automation failed: {str(e)}")
+        raise

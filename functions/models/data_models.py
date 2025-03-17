@@ -7,7 +7,7 @@ class Update:
     update_id: str
     created_by: str
     content: str
-    sentiment: int
+    sentiment: str
     created_at: str
     group_ids: Optional[List[str]] = None
     friend_ids: Optional[List[str]] = None

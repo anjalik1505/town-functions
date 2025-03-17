@@ -9,194 +9,20 @@ It creates users, authenticates them, and performs various profile operations:
 - Get the profile
 - Update the profile
 - Get the updated profile
-- Test negative cases
+- Test negative cases (duplicate profile, missing fields, etc.)
 """
 
 import json
 import logging
-from typing import Any, Dict, Optional
 
 import requests
+from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# Constants
-FIREBASE_AUTH_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key"
-API_BASE_URL = "http://localhost:5001/village-staging-9178d/us-central1/api"
-FIREBASE_CREATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key"
-FIREBASE_UPDATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=fake-api-key"
-
-
-class VillageAPI:
-    """Class to interact with the Village API"""
-
-    def __init__(self):
-        self.tokens = {}  # Store tokens for each user
-        self.user_ids = {}  # Store user IDs for each user
-
-    def create_user(
-        self, email: str, password: str, display_name: str
-    ) -> Dict[str, Any]:
-        """Create a new user in Firebase Auth"""
-        logger.info(f"Creating user with email: {email}")
-
-        # Step 1: Create the user
-        payload = {
-            "email": email,
-            "password": password,
-            "displayName": display_name,
-            "returnSecureToken": True,
-        }
-
-        response = requests.post(FIREBASE_CREATE_USER_URL, json=payload)
-        if response.status_code != 200:
-            logger.error(f"Failed to create user: {response.text}")
-            response.raise_for_status()
-
-        data = response.json()
-        logger.debug(f"User creation response: {json.dumps(data, indent=2)}")
-
-        # Store user ID if available
-        if "localId" in data:
-            user_id = data["localId"]
-            self.user_ids[email] = user_id
-
-        # Now authenticate to get a token for subsequent API calls
-        self.authenticate_user(email, password)
-
-        logger.info(f"User created with ID: {self.user_ids.get(email, 'unknown')}")
-        return data
-
-    def authenticate_user(self, email: str, password: str) -> Dict[str, Any]:
-        """Authenticate a user and get a JWT token"""
-        logger.info(f"Authenticating user: {email}")
-
-        payload = {"email": email, "password": password, "returnSecureToken": True}
-
-        response = requests.post(FIREBASE_AUTH_URL, json=payload)
-        if response.status_code != 200:
-            logger.error(f"Authentication failed: {response.text}")
-            response.raise_for_status()
-
-        data = response.json()
-        self.tokens[email] = data["idToken"]
-        self.user_ids[email] = data["localId"]
-
-        logger.info(f"User authenticated with ID: {self.user_ids[email]}")
-        return data
-
-    def create_profile(
-        self, email: str, profile_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Create a user profile"""
-        logger.info(f"Creating profile for user: {email}")
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.tokens[email]}",
-        }
-
-        response = requests.post(
-            f"{API_BASE_URL}/me/profile", headers=headers, json=profile_data
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to create profile: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Profile created for user: {email}")
-        return response.json()
-
-    def get_profile(self, email: str) -> Dict[str, Any]:
-        """Get the user's profile"""
-        logger.info(f"Getting profile for user: {email}")
-
-        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
-
-        response = requests.get(f"{API_BASE_URL}/me/profile", headers=headers)
-        if response.status_code != 200:
-            logger.error(f"Failed to get profile: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Successfully retrieved profile for user: {email}")
-        return response.json()
-
-    def update_profile(
-        self, email: str, profile_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Update a user profile"""
-        logger.info(f"Updating profile for user: {email}")
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.tokens[email]}",
-        }
-
-        response = requests.put(
-            f"{API_BASE_URL}/me/profile", headers=headers, json=profile_data
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to update profile: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Profile updated for user: {email}")
-        return response.json()
-
-    def make_request_expecting_error(
-        self,
-        method: str,
-        url: str,
-        headers: Dict[str, str],
-        json_data: Optional[Dict[str, Any]] = None,
-        expected_status_code: int = None,
-        expected_error_message: str = None,
-    ) -> Dict[str, Any]:
-        """Make a request expecting a specific error response"""
-        logger.info(
-            f"Making {method} request to {url} expecting error status {expected_status_code}"
-        )
-
-        try:
-            if method.lower() == "get":
-                response = requests.get(url, headers=headers)
-            elif method.lower() == "post":
-                response = requests.post(url, headers=headers, json=json_data)
-            elif method.lower() == "put":
-                response = requests.put(url, headers=headers, json=json_data)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-
-            response_data = response.json() if response.text else {}
-            result = {"status_code": response.status_code, "response": response_data}
-
-            # Verify status code if expected
-            if expected_status_code:
-                assert (
-                    response.status_code == expected_status_code
-                ), f"Expected status code {expected_status_code}, got {response.status_code}"
-                logger.info(
-                    f"✓ Status code verification passed: {response.status_code}"
-                )
-
-            # Verify error message if expected
-            if expected_error_message and response_data.get("error"):
-                error_message = response_data.get("error", {}).get("message", "")
-                assert (
-                    expected_error_message in error_message
-                ), f"Expected error message containing '{expected_error_message}', got '{error_message}'"
-                logger.info(f"✓ Error message verification passed: '{error_message}'")
-
-            return result
-
-        except AssertionError as e:
-            logger.error(f"Assertion failed: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            raise
 
 
 def run_profile_tests():
@@ -219,18 +45,7 @@ def run_profile_tests():
 
     # Create and authenticate users
     for user in users:
-        try:
-            # Try to create the user
-            api.create_user(user["email"], user["password"], user["name"])
-        except requests.exceptions.HTTPError as e:
-            # If user already exists, just authenticate
-            if "EMAIL_EXISTS" in str(e):
-                logger.warning(
-                    f"User {user['email']} already exists, authenticating instead"
-                )
-                api.authenticate_user(user["email"], user["password"])
-            else:
-                raise
+        api.create_user(user["email"], user["password"], user["name"])
 
     # ============ POSITIVE PATH TESTS ============
     logger.info("========== STARTING POSITIVE PATH TESTS ==========")
@@ -373,17 +188,12 @@ def run_profile_tests():
         "password": "password123",
         "name": "No Profile",
     }
-    try:
-        api.create_user(
-            no_profile_user["email"],
-            no_profile_user["password"],
-            no_profile_user["name"],
-        )
-    except requests.exceptions.HTTPError as e:
-        if "EMAIL_EXISTS" in str(e):
-            api.authenticate_user(no_profile_user["email"], no_profile_user["password"])
-        else:
-            raise
+
+    api.create_user(
+        no_profile_user["email"],
+        no_profile_user["password"],
+        no_profile_user["name"],
+    )
 
     # Try to get the profile
     api.make_request_expecting_error(
@@ -458,6 +268,128 @@ def run_profile_tests():
         "get", f"{API_BASE_URL}/me/profile", headers={}, expected_status_code=401
     )
     logger.info("✓ Unauthenticated access test passed")
+
+    # ============ FRIENDSHIP AND FEED/UPDATE TESTS ============
+    logger.info("========== STARTING FRIENDSHIP AND FEED/UPDATE TESTS ==========")
+
+    # Create profile for the second user
+    second_user_profile_data = {
+        "username": users[1]["email"].split("@")[0],
+        "name": users[1]["name"],
+        "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
+        "location": "Los Angeles",
+        "birthday": "1992-05-15",
+    }
+    api.create_profile(users[1]["email"], second_user_profile_data)
+    logger.info(f"Created profile for second user: {users[1]['email']}")
+
+    # Test 8: Try to view another user's profile before becoming friends
+    logger.info(
+        "Test 8: Attempting to view another user's profile before becoming friends"
+    )
+    api.make_request_expecting_error(
+        "get",
+        f"{API_BASE_URL}/users/{api.user_ids[users[1]['email']]}/profile",
+        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
+        expected_status_code=403,
+        expected_error_message="You must be friends with this user",
+    )
+    logger.info("✓ Non-friend profile access test passed")
+
+    # Test 9: Attempt to view another user's updates before becoming friends
+    logger.info(
+        "Test 9: Attempting to view another user's updates before becoming friends"
+    )
+    api.make_request_expecting_error(
+        "get",
+        f"{API_BASE_URL}/users/{api.user_ids[users[1]['email']]}/updates",
+        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
+        expected_status_code=403,
+        expected_error_message="You must be friends with this user",
+    )
+    logger.info("✓ Non-friend updates access test passed")
+
+    # Connect users as friends using the invitation approach
+    logger.info("Connecting users as friends using invitations")
+    # User 1 creates an invitation
+    invitation = api.create_invitation(users[0]["email"])
+    logger.info(f"First user created invitation: {json.dumps(invitation, indent=2)}")
+
+    # User 2 accepts the invitation
+    accepted_invitation = api.accept_invitation(
+        users[1]["email"], api.invitation_ids[users[0]["email"]]
+    )
+    logger.info(
+        f"Second user accepted invitation: {json.dumps(accepted_invitation, indent=2)}"
+    )
+
+    # Verify friendship was created
+    friends_user1 = api.get_friends(users[0]["email"])
+    logger.info(f"First user's friends: {json.dumps(friends_user1, indent=2)}")
+
+    friends_user2 = api.get_friends(users[1]["email"])
+    logger.info(f"Second user's friends: {json.dumps(friends_user2, indent=2)}")
+
+    logger.info("Users are now friends")
+
+    # Test 10: Get user profile after becoming friends
+    logger.info("Test 10: Getting user profile after becoming friends")
+    user2_profile = api.get_user_profile(
+        users[0]["email"], api.user_ids[users[1]["email"]]
+    )
+    logger.info(f"Retrieved user 2 profile: {json.dumps(user2_profile, indent=2)}")
+    assert (
+        user2_profile["username"] == second_user_profile_data["username"]
+    ), "Username mismatch"
+    assert user2_profile["name"] == second_user_profile_data["name"], "Name mismatch"
+    logger.info("✓ Friend profile access test passed")
+
+    # Test 11: Get user updates after becoming friends
+    logger.info("Test 11: Getting user updates after becoming friends")
+    user2_updates = api.get_user_updates(
+        users[0]["email"], api.user_ids[users[1]["email"]]
+    )
+    logger.info(f"Retrieved user 2 updates: {json.dumps(user2_updates, indent=2)}")
+    # We're not creating updates, so we just check if the response structure is correct
+    assert "updates" in user2_updates, "Response does not contain updates field"
+    logger.info("✓ Friend updates access test passed")
+
+    # Test 12: Get my feeds
+    logger.info("Test 12: Getting my feeds")
+    user1_feeds = api.get_my_feed(users[0]["email"])
+    logger.info(f"Retrieved feeds for user 1: {json.dumps(user1_feeds, indent=2)}")
+    # We're not creating updates, so we just check if the response structure is correct
+    assert "updates" in user1_feeds, "Response does not contain updates field"
+    logger.info("✓ My feeds test passed")
+
+    # Test 13: Get my updates
+    logger.info("Test 13: Getting my updates")
+    my_updates = api.get_my_updates(users[0]["email"])
+    logger.info(f"Retrieved my updates for user 1: {json.dumps(my_updates, indent=2)}")
+    # We're not creating updates, so we just check if the response structure is correct
+    assert "updates" in my_updates, "Response does not contain updates field"
+    logger.info("✓ My updates test passed")
+
+    # Test 14: Test pagination for feeds
+    logger.info("Test 14: Testing pagination for feeds")
+    # Get feeds with small limit to test pagination
+    first_page = api.get_my_feed(users[0]["email"], limit=3)
+    logger.info(f"Retrieved first page of feeds: {json.dumps(first_page, indent=2)}")
+    # Check if the response contains the next_timestamp field for pagination
+    assert (
+        "next_timestamp" in first_page
+    ), "Response does not contain next_timestamp field for pagination"
+
+    # If there's a next_timestamp, try to get the second page
+    if first_page["next_timestamp"]:
+        second_page = api.get_my_feed(
+            users[0]["email"], limit=3, after_timestamp=first_page["next_timestamp"]
+        )
+        logger.info(
+            f"Retrieved second page of feeds: {json.dumps(second_page, indent=2)}"
+        )
+
+    logger.info("✓ Feed pagination test passed")
 
     logger.info("========== ALL TESTS COMPLETED ==========")
 
