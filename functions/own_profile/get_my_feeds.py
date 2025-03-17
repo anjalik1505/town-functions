@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from models.constants import (
     MAX_BATCH_SIZE,
@@ -141,6 +143,13 @@ def get_my_feeds(request) -> FeedResponse:
             created_at = doc_data.get(UpdateFields.CREATED_AT, "")
             created_by = doc_data.get(UpdateFields.CREATED_BY, "")
 
+            # Convert Firestore datetime to ISO format string for the Update model
+            created_at_iso = (
+                created_at.isoformat()
+                if isinstance(created_at, datetime)
+                else created_at
+            )
+
             # Convert Firestore document to Update model
             update = Update(
                 update_id=doc.id,
@@ -149,7 +158,7 @@ def get_my_feeds(request) -> FeedResponse:
                 group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
                 friend_ids=doc_data.get(UpdateFields.FRIEND_IDS, []),
                 sentiment=doc_data.get(UpdateFields.SENTIMENT, ""),
-                created_at=created_at,
+                created_at=created_at_iso,
             )
 
             all_batch_updates.append(update)
@@ -165,7 +174,13 @@ def get_my_feeds(request) -> FeedResponse:
         # Set up pagination for the next request
         next_timestamp = None
         if len(all_batch_updates) > limit:
-            next_timestamp = sorted_updates[-1].created_at
+            last_timestamp = sorted_updates[-1].created_at
+            # If the timestamp is already in ISO format (string), use it directly
+            # Otherwise, convert it to ISO format
+            if isinstance(last_timestamp, datetime):
+                next_timestamp = last_timestamp.isoformat()
+            else:
+                next_timestamp = last_timestamp
             logger.info(f"More results available, next_timestamp: {next_timestamp}")
     else:
         # No updates found

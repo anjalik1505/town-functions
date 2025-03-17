@@ -9,6 +9,7 @@ profile operations, friend connections, and various API endpoints.
 
 import json
 import logging
+import urllib.parse
 from typing import Any, Dict, Optional
 
 import requests
@@ -227,7 +228,9 @@ class VillageAPI:
 
         url = f"{API_BASE_URL}/me/feed?limit={limit}"
         if after_timestamp:
-            url += f"&after_timestamp={after_timestamp}"
+            # Ensure timestamp is properly URL encoded
+            encoded_timestamp = urllib.parse.quote(after_timestamp)
+            url += f"&after_timestamp={encoded_timestamp}"
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
@@ -247,7 +250,9 @@ class VillageAPI:
 
         url = f"{API_BASE_URL}/me/updates?limit={limit}"
         if after_timestamp:
-            url += f"&after_timestamp={after_timestamp}"
+            # Ensure timestamp is properly URL encoded
+            encoded_timestamp = urllib.parse.quote(after_timestamp)
+            url += f"&after_timestamp={encoded_timestamp}"
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
@@ -255,6 +260,25 @@ class VillageAPI:
             response.raise_for_status()
 
         logger.info(f"Successfully retrieved updates for user: {email}")
+        return response.json()
+
+    def create_update(self, email: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new update"""
+        logger.info(f"Creating update for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.post(
+            f"{API_BASE_URL}/updates", headers=headers, json=update_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to create update: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully created update for user: {email}")
         return response.json()
 
     def get_user_profile(self, email: str, target_user_id: str) -> Dict[str, Any]:
@@ -287,7 +311,9 @@ class VillageAPI:
 
         url = f"{API_BASE_URL}/users/{target_user_id}/updates?limit={limit}"
         if after_timestamp:
-            url += f"&after_timestamp={after_timestamp}"
+            # Ensure timestamp is properly URL encoded
+            encoded_timestamp = urllib.parse.quote(after_timestamp)
+            url += f"&after_timestamp={encoded_timestamp}"
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:

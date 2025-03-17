@@ -72,8 +72,8 @@ def create_invitation(request) -> Invitation:
     # Return the invitation object
     return Invitation(
         invitation_id=invitation_ref.id,
-        created_at=current_time.isoformat() + "Z",
-        expires_at=expires_at.isoformat() + "Z",
+        created_at=current_time.isoformat(),
+        expires_at=expires_at.isoformat(),
         sender_id=current_user_id,
         status=Status.PENDING,
         username=current_user_profile.get(ProfileFields.USERNAME, ""),

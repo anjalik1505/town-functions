@@ -88,7 +88,7 @@ def create_update(request) -> Update:
         created_by=current_user_id,
         content=content,
         sentiment=sentiment,
-        created_at=created_at.isoformat() + "Z",
+        created_at=created_at.isoformat(),
         group_ids=group_ids,
         friend_ids=friend_ids,
     )

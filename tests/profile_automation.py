@@ -269,8 +269,8 @@ def run_profile_tests():
     )
     logger.info("✓ Unauthenticated access test passed")
 
-    # ============ FRIENDSHIP AND FEED/UPDATE TESTS ============
-    logger.info("========== STARTING FRIENDSHIP AND FEED/UPDATE TESTS ==========")
+    # ============ FRIENDSHIP TESTS ============
+    logger.info("========== STARTING FRIENDSHIP TESTS ==========")
 
     # Create profile for the second user
     second_user_profile_data = {
@@ -296,19 +296,6 @@ def run_profile_tests():
     )
     logger.info("✓ Non-friend profile access test passed")
 
-    # Test 9: Attempt to view another user's updates before becoming friends
-    logger.info(
-        "Test 9: Attempting to view another user's updates before becoming friends"
-    )
-    api.make_request_expecting_error(
-        "get",
-        f"{API_BASE_URL}/users/{api.user_ids[users[1]['email']]}/updates",
-        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
-        expected_status_code=403,
-        expected_error_message="You must be friends with this user",
-    )
-    logger.info("✓ Non-friend updates access test passed")
-
     # Connect users as friends using the invitation approach
     logger.info("Connecting users as friends using invitations")
     # User 1 creates an invitation
@@ -332,8 +319,8 @@ def run_profile_tests():
 
     logger.info("Users are now friends")
 
-    # Test 10: Get user profile after becoming friends
-    logger.info("Test 10: Getting user profile after becoming friends")
+    # Test 9: Get user profile after becoming friends
+    logger.info("Test 9: Getting user profile after becoming friends")
     user2_profile = api.get_user_profile(
         users[0]["email"], api.user_ids[users[1]["email"]]
     )
@@ -343,53 +330,6 @@ def run_profile_tests():
     ), "Username mismatch"
     assert user2_profile["name"] == second_user_profile_data["name"], "Name mismatch"
     logger.info("✓ Friend profile access test passed")
-
-    # Test 11: Get user updates after becoming friends
-    logger.info("Test 11: Getting user updates after becoming friends")
-    user2_updates = api.get_user_updates(
-        users[0]["email"], api.user_ids[users[1]["email"]]
-    )
-    logger.info(f"Retrieved user 2 updates: {json.dumps(user2_updates, indent=2)}")
-    # We're not creating updates, so we just check if the response structure is correct
-    assert "updates" in user2_updates, "Response does not contain updates field"
-    logger.info("✓ Friend updates access test passed")
-
-    # Test 12: Get my feeds
-    logger.info("Test 12: Getting my feeds")
-    user1_feeds = api.get_my_feed(users[0]["email"])
-    logger.info(f"Retrieved feeds for user 1: {json.dumps(user1_feeds, indent=2)}")
-    # We're not creating updates, so we just check if the response structure is correct
-    assert "updates" in user1_feeds, "Response does not contain updates field"
-    logger.info("✓ My feeds test passed")
-
-    # Test 13: Get my updates
-    logger.info("Test 13: Getting my updates")
-    my_updates = api.get_my_updates(users[0]["email"])
-    logger.info(f"Retrieved my updates for user 1: {json.dumps(my_updates, indent=2)}")
-    # We're not creating updates, so we just check if the response structure is correct
-    assert "updates" in my_updates, "Response does not contain updates field"
-    logger.info("✓ My updates test passed")
-
-    # Test 14: Test pagination for feeds
-    logger.info("Test 14: Testing pagination for feeds")
-    # Get feeds with small limit to test pagination
-    first_page = api.get_my_feed(users[0]["email"], limit=3)
-    logger.info(f"Retrieved first page of feeds: {json.dumps(first_page, indent=2)}")
-    # Check if the response contains the next_timestamp field for pagination
-    assert (
-        "next_timestamp" in first_page
-    ), "Response does not contain next_timestamp field for pagination"
-
-    # If there's a next_timestamp, try to get the second page
-    if first_page["next_timestamp"]:
-        second_page = api.get_my_feed(
-            users[0]["email"], limit=3, after_timestamp=first_page["next_timestamp"]
-        )
-        logger.info(
-            f"Retrieved second page of feeds: {json.dumps(second_page, indent=2)}"
-        )
-
-    logger.info("✓ Feed pagination test passed")
 
     logger.info("========== ALL TESTS COMPLETED ==========")
 

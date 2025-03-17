@@ -41,5 +41,5 @@ def update_device(request: Request):
 
     # Create and return a Device object
     return Device(
-        device_id=device_data_input.device_id, updated_at=current_time.isoformat() + "Z"
+        device_id=device_data_input.device_id, updated_at=current_time.isoformat()
     )

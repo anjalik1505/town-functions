@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from flask import abort
 from models.constants import (
@@ -160,6 +162,13 @@ def get_user_updates(request, target_user_id) -> UpdatesResponse:
             created_at = doc_data.get(UpdateFields.CREATED_AT, "")
             update_group_ids = doc_data.get(UpdateFields.GROUP_IDS, [])
 
+            # Convert Firestore datetime to ISO format string for the Update model
+            created_at_iso = (
+                created_at.isoformat()
+                if isinstance(created_at, datetime)
+                else created_at
+            )
+
             # Check if the update is in a shared group or if the current user is a friend
             is_in_shared_group = False
             for group_id in update_group_ids:
@@ -181,7 +190,7 @@ def get_user_updates(request, target_user_id) -> UpdatesResponse:
                         group_ids=update_group_ids,
                         friend_ids=friend_ids,
                         sentiment=doc_data.get(UpdateFields.SENTIMENT, ""),
-                        created_at=created_at,
+                        created_at=created_at_iso,
                     )
                 )
 
@@ -195,7 +204,12 @@ def get_user_updates(request, target_user_id) -> UpdatesResponse:
     # Set up pagination for the next request
     next_timestamp = None
     if len(user_updates) == limit:
-        next_timestamp = user_updates[-1].created_at
+        last_timestamp = user_updates[-1].created_at
+        # Convert the timestamp to ISO format for pagination if it's a datetime object
+        if isinstance(last_timestamp, datetime):
+            next_timestamp = last_timestamp.isoformat()
+        else:
+            next_timestamp = last_timestamp
         logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
     logger.info(f"Retrieved {len(user_updates)} updates for user {target_user_id}")

@@ -68,11 +68,11 @@ def get_invitations(request) -> InvitationsResponse:
         # Format datetime objects for consistent API response
         created_at = invitation_data.get(InvitationFields.CREATED_AT, "")
         if isinstance(created_at, datetime):
-            created_at = created_at.isoformat() + "Z"
+            created_at = created_at.isoformat()
 
         expires_at_formatted = invitation_data.get(InvitationFields.EXPIRES_AT, "")
         if isinstance(expires_at_formatted, datetime):
-            expires_at_formatted = expires_at_formatted.isoformat() + "Z"
+            expires_at_formatted = expires_at_formatted.isoformat()
 
         # Create Invitation object
         invitation = Invitation(

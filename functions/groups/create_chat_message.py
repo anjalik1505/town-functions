@@ -87,6 +87,6 @@ def create_group_chat_message(request: Request, group_id: str) -> ChatMessage:
         message_id=new_message_ref.id,
         sender_id=current_user_id,
         text=text,
-        created_at=current_time.isoformat() + "Z",
+        created_at=current_time.isoformat(),
         attachments=attachments,
     )

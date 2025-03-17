@@ -127,7 +127,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00Z"
+  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
 }
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
@@ -143,12 +143,12 @@ This repository contains the backend functions for the Village application.
       "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg",
       "content": "Hello world!",
-      "created_at": "2025-01-01T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
       "likes_count": 5,
       "comments_count": 2
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00Z"
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
@@ -164,7 +164,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00Z"
+  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
 }
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
@@ -178,10 +178,10 @@ This repository contains the backend functions for the Village application.
       "created_by": "johndoe",
       "content": "Hello world!",
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00Z"
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
@@ -224,8 +224,8 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00Z",
-  "expires_at": "2025-01-02T00:00:00Z",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
   "sender_id": "user123",
   "status": "pending",
   "username": "johndoe",
@@ -271,8 +271,8 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00Z",
-  "expires_at": "2025-01-02T00:00:00Z",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
   "sender_id": "user123",
   "status": "rejected",
   "username": "johndoe",
@@ -296,8 +296,8 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00Z",
-  "expires_at": "2025-01-02T00:00:00Z",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
   "sender_id": "user123",
   "status": "pending",
   "username": "johndoe",
@@ -322,8 +322,8 @@ This repository contains the backend functions for the Village application.
   "invitations": [
     {
       "invitation_id": "abc123",
-      "created_at": "2025-01-01T00:00:00Z",
-      "expires_at": "2025-01-02T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "expires_at": "2025-01-02T00:00:00.000+00:00",
       "sender_id": "user123",
       "status": "pending",
       "username": "johndoe",
@@ -353,7 +353,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "device_id": "unique-device-identifier-string",
-  "updated_at": "2025-01-15T00:00:00Z"
+  "updated_at": "2025-01-15T00:00:00.000+00:00"
 }
 ```
 
@@ -370,7 +370,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "device_id": "unique-device-identifier-string",
-  "updated_at": "2025-01-15T00:00:00Z"
+  "updated_at": "2025-01-15T00:00:00.000+00:00"
 }
 ```
 
@@ -411,7 +411,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00Z"
+  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
 }
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
@@ -425,10 +425,10 @@ This repository contains the backend functions for the Village application.
       "created_by": "johndoe",
       "content": "Hello world!",
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00Z"
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
