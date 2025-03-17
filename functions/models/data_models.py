@@ -1,5 +1,5 @@
-from dataclasses import dataclass, asdict
-from typing import List, Optional, Dict
+from dataclasses import asdict, dataclass
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -7,7 +7,7 @@ class Update:
     update_id: str
     created_by: str
     content: str
-    sentiment: int
+    sentiment: str
     created_at: str
     group_ids: Optional[List[str]] = None
     friend_ids: Optional[List[str]] = None
@@ -172,6 +172,15 @@ class ChatMessage:
 class ChatResponse:
     messages: List[ChatMessage]
     next_timestamp: Optional[str] = None
+
+    def to_json(self):
+        return asdict(self)
+
+
+@dataclass
+class Device:
+    device_id: str
+    updated_at: str
 
     def to_json(self):
         return asdict(self)

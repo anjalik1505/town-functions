@@ -1,6 +1,6 @@
 from firebase_admin import firestore
 from flask import Request, abort
-from models.constants import Collections, GroupFields, ChatFields
+from models.constants import ChatFields, Collections, GroupFields
 from models.data_models import ChatMessage, ChatResponse
 from utils.logging_utils import get_logger
 

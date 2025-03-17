@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -98,6 +98,13 @@ class UpdateProfileRequest(BaseModel):
     location: Optional[str] = None
     birthday: Optional[str] = None
     notification_settings: Optional[List[str]] = None
+
+    class Config:
+        extra = "ignore"
+
+
+class UpdateDeviceRequest(BaseModel):
+    device_id: str = Field(..., min_length=1)
 
     class Config:
         extra = "ignore"

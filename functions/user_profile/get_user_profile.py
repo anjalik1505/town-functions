@@ -1,11 +1,6 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import (
-    Collections,
-    ProfileFields,
-    FriendshipFields,
-    Status,
-)
+from models.constants import Collections, FriendshipFields, ProfileFields, Status
 from models.data_models import ProfileResponse
 from utils.logging_utils import get_logger
 
@@ -22,16 +17,16 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
-        user_id: The ID of the user whose profile is being requested
+        target_user_id: The ID of the user whose profile is being requested
 
     Returns:
         A ProfileResponse containing:
         - Basic profile information (id, name, avatar)
 
     Raises:
-        400: If the user tries to view their own profile through this endpoint.
-        404: If the target user profile does not exist.
-        403: If the requesting user and target user are not friends.
+        400: Use /me/profile endpoint to view your own profile
+        404: Profile not found
+        403: You must be friends with this user to view their profile
     """
     logger = get_logger(__name__)
     logger.info(
@@ -56,7 +51,7 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
 
     # Check if the target profile exists
     if not target_user_profile_doc.exists:
-        logger.warning(f"Profile not found for user {target_user_id}")
+        logger.warning(f"Profile not found")
         abort(404, "Profile not found")
 
     target_user_profile_data = target_user_profile_doc.to_dict() or {}
@@ -96,6 +91,8 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
         username=target_user_profile_data.get(ProfileFields.USERNAME, ""),
         name=target_user_profile_data.get(ProfileFields.NAME, ""),
         avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
+        location=target_user_profile_data.get(ProfileFields.LOCATION, ""),
+        birthday=target_user_profile_data.get(ProfileFields.BIRTHDAY, ""),
         suggestions=suggestions_parts,
         summary=summary_parts,
     )

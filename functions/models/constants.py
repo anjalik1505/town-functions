@@ -1,8 +1,3 @@
-"""
-Constants used throughout the application.
-This file centralizes string literals to prevent typos and ensure consistency.
-"""
-
 from enum import StrEnum
 
 
@@ -16,6 +11,7 @@ class Collections(StrEnum):
     CHATS = "chats"
     INSIGHTS = "insights"
     INVITATIONS = "invitations"
+    DEVICES = "devices"
 
 
 # Document names
@@ -88,6 +84,7 @@ class UpdateFields(StrEnum):
     CREATED_BY = "created_by"
     CONTENT = "content"
     GROUP_IDS = "group_ids"
+    FRIEND_IDS = "friend_ids"
     SENTIMENT = "sentiment"
     CREATED_AT = "created_at"
 
@@ -117,8 +114,20 @@ class InsightsFields(StrEnum):
     PROGRESS_AND_GROWTH = "progress_and_growth"
 
 
+# Field names for Device documents
+class DeviceFields(StrEnum):
+    DEVICE_ID = "device_id"
+    UPDATED_AT = "updated_at"
+
+
 class QueryOperators(StrEnum):
     ARRAY_CONTAINS = "array_contains"
     ARRAY_CONTAINS_ANY = "array_contains_any"
     IN = "in"
     EQUALS = "=="
+    LESS_THAN = "<"
+    LESS_THAN_OR_EQUAL_TO = "<="
+
+
+# Constants for query operations
+MAX_BATCH_SIZE = 10

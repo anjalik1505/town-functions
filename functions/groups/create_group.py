@@ -1,16 +1,16 @@
-import datetime
 import uuid
+from datetime import datetime, timezone
 
 from firebase_admin import firestore
 from flask import Request, abort
-from google.cloud.firestore import SERVER_TIMESTAMP
 from models.constants import (
+    MAX_BATCH_SIZE,
     Collections,
+    FriendshipFields,
     GroupFields,
     ProfileFields,
     QueryOperators,
     Status,
-    FriendshipFields,
 )
 from models.data_models import Group
 from utils.logging_utils import get_logger
@@ -132,9 +132,8 @@ def create_group(request: Request) -> Group:
 
         # Firestore allows up to 10 values in array_contains_any
         # We'll process members in batches of 10 if needed
-        batch_size = 10
-        for i in range(0, len(members), batch_size):
-            batch_members = members[i : i + batch_size]
+        for i in range(0, len(members), MAX_BATCH_SIZE):
+            batch_members = members[i : i + MAX_BATCH_SIZE]
 
             # Fetch all friendships where any of the batch members is in the members array
             friendships_query = (
@@ -202,13 +201,15 @@ def create_group(request: Request) -> Group:
     # Create the group document reference
     group_ref = db.collection(Collections.GROUPS).document(group_id)
 
+    current_time = datetime.now(timezone.utc)
+
     # Prepare group data
     group_data = {
         GroupFields.NAME: name,
         GroupFields.ICON: icon,
         GroupFields.MEMBERS: members,
         GroupFields.MEMBER_PROFILES: member_profiles,
-        GroupFields.CREATED_AT: SERVER_TIMESTAMP,
+        GroupFields.CREATED_AT: current_time,
     }
 
     # Create a batch operation for all database writes
@@ -232,10 +233,6 @@ def create_group(request: Request) -> Group:
         f"Batch committed successfully: created group {group_id} and updated all member profiles"
     )
 
-    # For the response, we need to convert SERVER_TIMESTAMP to a string
-    # Since SERVER_TIMESTAMP is only resolved when written to Firestore, we'll use current time for the response
-    response_created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
     # Return the created group data
     return Group(
         group_id=group_id,
@@ -243,5 +240,5 @@ def create_group(request: Request) -> Group:
         icon=icon,
         members=members,
         member_profiles=member_profiles,
-        created_at=response_created_at,
+        created_at=current_time.isoformat() + "Z",
     )
