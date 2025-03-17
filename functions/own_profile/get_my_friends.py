@@ -55,11 +55,15 @@ def get_my_friends(request) -> FriendsResponse:
         if friendship_data.get(FriendshipFields.SENDER_ID) == current_user_id:
             # Current user is the sender, so friend is the receiver
             friend_id = friendship_data.get(FriendshipFields.RECEIVER_ID)
+            friend_username = friendship_data.get(
+                FriendshipFields.RECEIVER_USERNAME, ""
+            )
             friend_name = friendship_data.get(FriendshipFields.RECEIVER_NAME, "")
             friend_avatar = friendship_data.get(FriendshipFields.RECEIVER_AVATAR, "")
         else:
             # Current user is the receiver, so friend is the sender
             friend_id = friendship_data.get(FriendshipFields.SENDER_ID)
+            friend_username = friendship_data.get(FriendshipFields.SENDER_USERNAME, "")
             friend_name = friendship_data.get(FriendshipFields.SENDER_NAME, "")
             friend_avatar = friendship_data.get(FriendshipFields.SENDER_AVATAR, "")
 
@@ -70,9 +74,9 @@ def get_my_friends(request) -> FriendsResponse:
         friends.append(
             Friend(
                 user_id=friend_id,
-                user_name=friend_name,
-                user_avatar=friend_avatar,
-                status=friendship_status,
+                username=friend_username,
+                name=friend_name,
+                avatar=friend_avatar,
             )
         )
 

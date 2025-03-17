@@ -1,31 +1,34 @@
 Firestore Schema
 1) profiles (collection)
    └── {userId} (document)
+       ├── username: string
        ├── name: string
        ├── avatar: string
-       ├── email: string
+       ├── location: string
+       ├── birthday: string
+       ├── notification_settings: array<string>
+       ├── summary: string
+       ├── suggestions: string
        ├── group_ids: array<string>  # list of groupIds the user belongs to
-       ├── ... (other user properties, e.g., preferences)
        └── subcollections:
-           └── summary (collection or single doc)
-                └── {docId}
-                    ├── emotional_journey: string or map
-                    ├── key_moments: array or string
-                    ├── recurring_themes: array or string
+           └── insights (collection)
+                └── {docId} (document, typically "default_insights")
+                    ├── emotional_overview: string
+                    ├── key_moments: string
+                    ├── recurring_themes: string
                     ├── progress_and_growth: string
-                    ├── suggestions: array<string> or map
-                    ├── updated_at: timestamp
-                    └── ...
 
 2) friendships (collection)
-   └── {friendshipId} (document)
-       ├── members: array<string>    # list of userIds
+   └── {friendshipId} (document) # Typically userId1_userId2 where userIds are sorted
+       ├── members: array<string>    # list of userIds (always 2)
        ├── sender_id: string (userId of sender)
        ├── sender_name: string
+       ├── sender_username: string
        ├── sender_avatar: string
-       ├── receiver_id: string (userId of receiver, empty for invitations)
-       ├── receiver_name: string (empty for invitations)
-       ├── receiver_avatar: string (empty for invitations)
+       ├── receiver_id: string (userId of receiver)
+       ├── receiver_name: string
+       ├── receiver_username: string
+       ├── receiver_avatar: string
        ├── status: string ("pending", "accepted", "rejected", "expired")
        ├── created_at: timestamp
        └── updated_at: timestamp
@@ -38,7 +41,8 @@ Firestore Schema
        ├── member_profiles: array<object>  # Denormalized member data for efficient retrieval
        │    └── [
        │         {
-       │           id: string,
+       │           user_id: string,
+       │           username: string,
        │           name: string,
        │           avatar: string
        │         },
@@ -86,7 +90,7 @@ Firestore Schema
             │        └── ...
             └── summaries (collection)
                  └── {userId} (document)
-                      ├── emotational_journey: string/map
+                      ├── emotional_journey: string/map
                       ├── key_moments: array or string
                       ├── recurring_themes: array or string
                       ├── progress_and_growth: string
@@ -100,5 +104,6 @@ Firestore Schema
        ├── expires_at: timestamp     # Server-side timestamp + X when created
        ├── sender_id: string         # User ID who sent the invitation
        ├── status: string            # "pending", "rejected", or "expired"
-       ├── user_name: string         # Name of the user who sent the invitation
-       └── user_avatar: string       # Avatar location of the user who sent the invitation
+       ├── username: string          # Username of the user who sent the invitation
+       ├── name: string              # Name of the user who sent the invitation
+       └── avatar: string            # Avatar location of the user who sent the invitation

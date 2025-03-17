@@ -55,10 +55,9 @@ def create_invitation(request) -> Invitation:
     # Create invitation data
     invitation_data = {
         InvitationFields.SENDER_ID: current_user_id,
-        InvitationFields.USER_NAME: current_user_profile.get(ProfileFields.NAME, ""),
-        InvitationFields.USER_AVATAR: current_user_profile.get(
-            ProfileFields.AVATAR, ""
-        ),
+        InvitationFields.USERNAME: current_user_profile.get(ProfileFields.USERNAME, ""),
+        InvitationFields.NAME: current_user_profile.get(ProfileFields.NAME, ""),
+        InvitationFields.AVATAR: current_user_profile.get(ProfileFields.AVATAR, ""),
         InvitationFields.STATUS: Status.PENDING,
         InvitationFields.CREATED_AT: current_time,
         InvitationFields.EXPIRES_AT: expires_at,
@@ -76,6 +75,7 @@ def create_invitation(request) -> Invitation:
         expires_at=expires_at.isoformat() + "Z",
         sender_id=current_user_id,
         status=Status.PENDING,
-        user_name=current_user_profile.get(ProfileFields.NAME, ""),
-        user_avatar=current_user_profile.get(ProfileFields.AVATAR, ""),
+        username=current_user_profile.get(ProfileFields.USERNAME, ""),
+        name=current_user_profile.get(ProfileFields.NAME, ""),
+        avatar=current_user_profile.get(ProfileFields.AVATAR, ""),
     )

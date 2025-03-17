@@ -7,9 +7,10 @@ class Update:
     update_id: str
     created_by: str
     content: str
-    group_ids: List[str]
     sentiment: int
     created_at: str
+    group_ids: Optional[List[str]] = None
+    friend_ids: Optional[List[str]] = None
 
 
 @dataclass
@@ -31,8 +32,8 @@ class UpdatesResponse:
 
 
 @dataclass
-class Summary:
-    emotional_journey: str
+class Insights:
+    emotional_overview: str
     key_moments: str
     recurring_themes: str
     progress_and_growth: str
@@ -43,14 +44,19 @@ class BaseUser:
     """Base class for user-related models with common fields."""
 
     user_id: str
-    user_name: str
-    user_avatar: str
+    username: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
 
 
 @dataclass
 class ProfileResponse(BaseUser):
-    summary: Summary
-    suggestions: list[str]
+    location: Optional[str] = None
+    birthday: Optional[str] = None
+    notification_settings: Optional[List[str]] = None
+    summary: Optional[str] = None
+    insights: Optional[Insights] = None
+    suggestions: Optional[str] = None
 
     def to_json(self):
         return asdict(self)
@@ -58,12 +64,6 @@ class ProfileResponse(BaseUser):
 
 @dataclass
 class Friend(BaseUser):
-    status: str
-
-    def __post_init__(self):
-        # Ensure status is always a string, not an enum
-        if hasattr(self.status, "value"):
-            self.status = self.status.value
 
     def to_json(self):
         return asdict(self)
@@ -84,8 +84,9 @@ class Invitation:
     expires_at: str
     sender_id: str
     status: str
-    user_name: str
-    user_avatar: str
+    username: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
 
     def __post_init__(self):
         # Ensure status is always a string, not an enum

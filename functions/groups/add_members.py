@@ -186,7 +186,10 @@ def add_members_to_group(request: Request, group_id: str) -> Group:
             profile_data = profile_snapshot.to_dict()
             new_member_profile_data.append(
                 {
-                    ProfileFields.ID: profile_snapshot.id,
+                    ProfileFields.USER_ID: profile_snapshot.id,
+                    ProfileFields.USERNAME: profile_data.get(
+                        ProfileFields.USERNAME, ""
+                    ),
                     ProfileFields.NAME: profile_data.get(ProfileFields.NAME, ""),
                     ProfileFields.AVATAR: profile_data.get(ProfileFields.AVATAR, ""),
                 }

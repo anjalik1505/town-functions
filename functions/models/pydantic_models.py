@@ -77,3 +77,27 @@ class CreateUpdateRequest(BaseModel):
 
     class Config:
         extra = "ignore"
+
+
+class CreateProfileRequest(BaseModel):
+    username: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    location: Optional[str] = None
+    birthday: Optional[str] = None
+    notification_settings: Optional[List[str]] = None
+
+    class Config:
+        extra = "ignore"
+
+
+class UpdateProfileRequest(BaseModel):
+    username: Optional[str] = None
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    location: Optional[str] = None
+    birthday: Optional[str] = None
+    notification_settings: Optional[List[str]] = None
+
+    class Config:
+        extra = "ignore"

@@ -1,6 +1,5 @@
 from firebase_admin import firestore
 from flask import abort
-from google.cloud.firestore import SERVER_TIMESTAMP
 from models.constants import Collections, InvitationFields, Status
 from models.data_models import Invitation
 from utils.logging_utils import get_logger
@@ -70,6 +69,7 @@ def reject_invitation(request, invitation_id) -> Invitation:
         expires_at=invitation_data.get(InvitationFields.EXPIRES_AT, ""),
         sender_id=invitation_data.get(InvitationFields.SENDER_ID, ""),
         status=Status.REJECTED,
-        user_name=invitation_data.get(InvitationFields.USER_NAME, ""),
-        user_avatar=invitation_data.get(InvitationFields.USER_AVATAR, ""),
+        username=invitation_data.get(InvitationFields.USERNAME, ""),
+        name=invitation_data.get(InvitationFields.NAME, ""),
+        avatar=invitation_data.get(InvitationFields.AVATAR, ""),
     )

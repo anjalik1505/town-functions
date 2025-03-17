@@ -1,7 +1,7 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import Collections, ProfileFields, SummaryFields, Documents
-from models.data_models import ProfileResponse, Summary
+from models.constants import Collections, ProfileFields, InsightsFields, Documents
+from models.data_models import ProfileResponse, Insights
 from utils.logging_utils import get_logger
 
 
@@ -9,28 +9,39 @@ def create_profile(request):
     """
     Creates a new profile for the authenticated user.
 
-    This function checks if a profile already exists for the authenticated user.
-    If it does, it aborts with a 400 error. Otherwise, it creates a new empty
-    profile according to the schema and initializes related collections.
+    This function:
+    1. Checks if a profile already exists for the authenticated user
+    2. If not, creates a new profile with the provided data
+    3. Initializes related collections like insights
 
     Args:
         request: The Flask request object containing:
                 - user_id: The authenticated user's ID (attached by authentication middleware)
+                - validated_params: Profile data including:
+                    - username: Mandatory username for the user
+                    - name: Optional display name
+                    - avatar: Optional avatar URL
+                    - location: Optional location information
+                    - birthday: Optional birthday in ISO format
+                    - notification_settings: Optional list of notification preferences
 
     Returns:
         A ProfileResponse containing:
-        - Basic profile information (id, name, avatar)
-        - Empty summary information
+        - Basic profile information (id, username, name, avatar)
+        - Optional profile fields (location, birthday, notification_settings)
+        - Empty insights, summary, suggestions information
 
     Raises:
-        400: If a profile already exists for the authenticated user
-        500: Server error during profile creation
+        400: Profile already exists for user {user_id}
     """
     logger = get_logger(__name__)
     logger.info(f"Starting add_user operation for user ID: {request.user_id}")
 
     # Get the authenticated user ID from the request
     current_user_id = request.user_id
+
+    # Get the validated profile data
+    profile_data_input = request.validated_params
 
     # Initialize Firestore client
     db = firestore.client()
@@ -45,11 +56,17 @@ def create_profile(request):
 
     logger.info(f"Creating new profile for user {current_user_id}")
 
-    # Create an empty profile according to the schema
+    # Create profile with provided data
     profile_data = {
-        ProfileFields.NAME: "",
-        ProfileFields.AVATAR: "",
-        ProfileFields.EMAIL: "",
+        ProfileFields.USERNAME: profile_data_input.username,
+        ProfileFields.NAME: profile_data_input.name or "",
+        ProfileFields.AVATAR: profile_data_input.avatar or "",
+        ProfileFields.LOCATION: profile_data_input.location or "",
+        ProfileFields.BIRTHDAY: profile_data_input.birthday or "",
+        ProfileFields.NOTIFICATION_SETTINGS: profile_data_input.notification_settings
+        or [],
+        ProfileFields.SUMMARY: "",
+        ProfileFields.SUGGESTIONS: "",
         ProfileFields.GROUP_IDS: [],
     }
 
@@ -57,23 +74,22 @@ def create_profile(request):
     profile_ref.set(profile_data)
     logger.info(f"Profile document created for user {current_user_id}")
 
-    # Create an empty summary subcollection document
-    summary_ref = profile_ref.collection(Collections.SUMMARY).document(
-        Documents.DEFAULT_SUMMARY
+    # Create an empty insights subcollection document
+    insights_ref = profile_ref.collection(Collections.INSIGHTS).document(
+        Documents.DEFAULT_INSIGHTS
     )
-    summary_data = {
-        SummaryFields.EMOTIONAL_JOURNEY: "",
-        SummaryFields.KEY_MOMENTS: "",
-        SummaryFields.RECURRING_THEMES: "",
-        SummaryFields.PROGRESS_AND_GROWTH: "",
-        SummaryFields.SUGGESTIONS: [],
+    insights_data = {
+        InsightsFields.EMOTIONAL_OVERVIEW: "",
+        InsightsFields.KEY_MOMENTS: "",
+        InsightsFields.RECURRING_THEMES: "",
+        InsightsFields.PROGRESS_AND_GROWTH: "",
     }
-    summary_ref.set(summary_data)
-    logger.info(f"Summary document created for user {current_user_id}")
+    insights_ref.set(insights_data)
+    logger.info(f"Insights document created for user {current_user_id}")
 
     # Return a properly formatted response
-    summary = Summary(
-        emotional_journey="",
+    insights = Insights(
+        emotional_overview="",
         key_moments="",
         recurring_themes="",
         progress_and_growth="",
@@ -81,10 +97,15 @@ def create_profile(request):
 
     response = ProfileResponse(
         user_id=current_user_id,
-        user_name="",
-        user_avatar="",
-        summary=summary,
-        suggestions=[],
+        username=profile_data[ProfileFields.USERNAME],
+        name=profile_data[ProfileFields.NAME],
+        avatar=profile_data[ProfileFields.AVATAR],
+        location=profile_data[ProfileFields.LOCATION],
+        birthday=profile_data[ProfileFields.BIRTHDAY],
+        notification_settings=profile_data[ProfileFields.NOTIFICATION_SETTINGS],
+        summary="",
+        suggestions="",
+        insights=insights,
     )
 
     logger.info(

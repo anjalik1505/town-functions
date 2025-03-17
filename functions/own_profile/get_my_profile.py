@@ -1,18 +1,18 @@
 from firebase_admin import firestore
 from flask import abort
-from models.constants import Collections, ProfileFields, SummaryFields
-from models.data_models import ProfileResponse, Summary
+from models.constants import Collections, ProfileFields, InsightsFields
+from models.data_models import ProfileResponse, Insights
 from utils.logging_utils import get_logger
 
 
 def get_my_profile(request) -> ProfileResponse:
     """
-    Retrieves the current user's profile with summary information.
+    Retrieves the current user's profile with insights information.
 
-    This function fetches the authenticated user's profile data from Firestore,
-    including their basic profile information and any available summary data.
-    The summary data includes emotional journey, key moments, recurring themes,
-    progress and growth information, and personalized suggestions.
+    This function:
+    1. Fetches the authenticated user's profile data from Firestore
+    2. Retrieves any available insights data
+    3. Combines the data into a comprehensive profile response
 
     Args:
         request: The Flask request object containing:
@@ -20,13 +20,12 @@ def get_my_profile(request) -> ProfileResponse:
 
     Returns:
         A ProfileResponse containing:
-        - Basic profile information (id, name, avatar)
-        - Summary information (emotional journey, key moments, themes, growth)
-        - Personalized suggestions
+        - Basic profile information (id, username, name, avatar)
+        - Optional profile fields (location, birthday, notification_settings, summary, suggestions)
+        - Insights information (emotional overview, key moments, themes, growth)
 
     Raises:
-        404: If the user's profile does not exist in the database
-        500: If an unexpected error occurs during profile retrieval.
+        404: Profile not found
     """
     logger = get_logger(__name__)
     logger.info(f"Retrieving profile for user: {request.user_id}")
@@ -50,24 +49,33 @@ def get_my_profile(request) -> ProfileResponse:
     profile_data = profile_doc.to_dict() or {}
     logger.info(f"Retrieved profile data for user: {current_user_id}")
 
-    # Get summary data - using collection().limit(1) instead of direct document reference
+    # Get insights data - using collection().limit(1) instead of direct document reference
     # as we're not sure which document to use
-    summary_doc = next(
-        profile_ref.collection(Collections.SUMMARY).limit(1).stream(), None
+    insights_doc = next(
+        profile_ref.collection(Collections.INSIGHTS).limit(1).stream(), None
     )
-    summary_data = summary_doc.to_dict() if summary_doc else {}
-    logger.info(f"Retrieved summary data for user: {current_user_id}")
+    insights_data = insights_doc.to_dict() if insights_doc else {}
+    logger.info(f"Retrieved insights data for user: {current_user_id}")
 
     # Construct and return the profile response
     return ProfileResponse(
         user_id=current_user_id,
-        user_name=profile_data.get(ProfileFields.NAME, ""),
-        user_avatar=profile_data.get(ProfileFields.AVATAR, ""),
-        summary=Summary(
-            emotional_journey=summary_data.get(SummaryFields.EMOTIONAL_JOURNEY, ""),
-            key_moments=summary_data.get(SummaryFields.KEY_MOMENTS, ""),
-            recurring_themes=summary_data.get(SummaryFields.RECURRING_THEMES, ""),
-            progress_and_growth=summary_data.get(SummaryFields.PROGRESS_AND_GROWTH, ""),
+        username=profile_data.get(ProfileFields.USERNAME, ""),
+        name=profile_data.get(ProfileFields.NAME, None),
+        avatar=profile_data.get(ProfileFields.AVATAR, None),
+        location=profile_data.get(ProfileFields.LOCATION, None),
+        birthday=profile_data.get(ProfileFields.BIRTHDAY, None),
+        notification_settings=profile_data.get(
+            ProfileFields.NOTIFICATION_SETTINGS, None
         ),
-        suggestions=summary_data.get(SummaryFields.SUGGESTIONS, []),
+        summary=profile_data.get(ProfileFields.SUMMARY, None),
+        suggestions=profile_data.get(ProfileFields.SUGGESTIONS, None),
+        insights=Insights(
+            emotional_overview=insights_data.get(InsightsFields.EMOTIONAL_OVERVIEW, ""),
+            key_moments=insights_data.get(InsightsFields.KEY_MOMENTS, ""),
+            recurring_themes=insights_data.get(InsightsFields.RECURRING_THEMES, ""),
+            progress_and_growth=insights_data.get(
+                InsightsFields.PROGRESS_AND_GROWTH, ""
+            ),
+        ),
     )

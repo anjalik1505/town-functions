@@ -19,8 +19,8 @@ def resend_invitation(request, invitation_id) -> Invitation:
         The updated Invitation object with refreshed timestamps
 
     Raises:
+        403: You can only resend your own invitations
         404: Invitation not found
-        400: You can only resend your own invitations
     """
     logger = get_logger(__name__)
     logger.info(f"User {request.user_id} resending invitation {invitation_id}")
@@ -47,7 +47,7 @@ def resend_invitation(request, invitation_id) -> Invitation:
         logger.warning(
             f"User {current_user_id} is not the sender of invitation {invitation_id}"
         )
-        abort(400, description="You can only resend your own invitations")
+        abort(403, description="You can only resend your own invitations")
 
     # Set new timestamps
     current_time = datetime.now(timezone.utc)
@@ -71,6 +71,7 @@ def resend_invitation(request, invitation_id) -> Invitation:
         expires_at=expires_at.isoformat() + "Z",
         sender_id=current_user_id,
         status=Status.PENDING,
-        user_name=invitation_data.get(InvitationFields.USER_NAME, ""),
-        user_avatar=invitation_data.get(InvitationFields.USER_AVATAR, ""),
+        username=invitation_data.get(InvitationFields.USERNAME, ""),
+        name=invitation_data.get(InvitationFields.NAME, ""),
+        avatar=invitation_data.get(InvitationFields.AVATAR, ""),
     )
