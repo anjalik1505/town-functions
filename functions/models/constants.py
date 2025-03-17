@@ -87,6 +87,7 @@ class UpdateFields(StrEnum):
     FRIEND_IDS = "friend_ids"
     SENTIMENT = "sentiment"
     CREATED_AT = "created_at"
+    VISIBLE_TO = "visible_to"
 
 
 # Field names for Group documents

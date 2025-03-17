@@ -52,6 +52,8 @@ Firestore Schema
    └── {updateId} (document)
        ├── created_by: string (userId)
        ├── group_ids: array<string>  # which groups the update is shared to
+       ├── friend_ids: array<string> # which friends the update is shared to
+       ├── visible_to: array<string> # INTERNAL: combined array of friend and group identifiers with prefixes
        ├── content: string           # text or processed speech-to-text
        ├── sentiment: number (1-5 or similar)
        ├── created_at: timestamp
