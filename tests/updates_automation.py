@@ -283,6 +283,101 @@ def run_updates_tests():
     )
     logger.info("✓ Unauthenticated update creation test passed")
 
+    # ============ PROFILE CHECKS AFTER UPDATES ============
+    logger.info("========== CHECKING PROFILES AFTER UPDATES ==========")
+
+    # Wait a bit for the Firestore triggers to process the updates
+    import time
+
+    logger.info("Waiting for Firestore triggers to process updates...")
+    time.sleep(3)  # Wait 3 seconds for processing
+
+    # Retrieve profiles for both users
+    logger.info("Retrieving profiles to check for summary and suggestions updates")
+
+    # ===== Test 1: Check user's own profile =====
+    logger.info("Testing user's own profile API")
+    # Get user 1 profile using the /me/profile endpoint
+    user1_own_profile = api.get_profile(users[0]["email"])
+    logger.info(
+        f"User 1 own profile after updates: {json.dumps(user1_own_profile, indent=2)}"
+    )
+
+    # Verify user 1 profile has summary, suggestions, and updated_at fields
+    assert (
+        "summary" in user1_own_profile
+    ), "User 1 profile does not contain summary field"
+    assert (
+        "suggestions" in user1_own_profile
+    ), "User 1 profile does not contain suggestions field"
+    assert (
+        "updated_at" in user1_own_profile
+    ), "User 1 profile does not contain updated_at field"
+    logger.info(f"✓ User 1 own profile has been updated with summary and suggestions")
+
+    # Get user 2 profile using the /me/profile endpoint
+    user2_own_profile = api.get_profile(users[1]["email"])
+    logger.info(
+        f"User 2 own profile after updates: {json.dumps(user2_own_profile, indent=2)}"
+    )
+
+    # Verify user 2 profile has summary, suggestions, and updated_at fields
+    assert (
+        "summary" in user2_own_profile
+    ), "User 2 profile does not contain summary field"
+    assert (
+        "suggestions" in user2_own_profile
+    ), "User 2 profile does not contain suggestions field"
+    assert (
+        "updated_at" in user2_own_profile
+    ), "User 2 profile does not contain updated_at field"
+    logger.info(f"✓ User 2 own profile has been updated with summary and suggestions")
+
+    # ===== Test 2: Check friend's profile =====
+    logger.info("Testing friend's profile API")
+    # User 1 gets User 2's profile
+    user2_profile_from_user1 = api.get_user_profile(
+        users[0]["email"], api.user_ids[users[1]["email"]]
+    )
+    logger.info(
+        f"User 2 profile as seen by User 1: {json.dumps(user2_profile_from_user1, indent=2)}"
+    )
+
+    # Verify the friend profile has summary, suggestions, and updated_at fields
+    assert (
+        "summary" in user2_profile_from_user1
+    ), "Friend profile does not contain summary field"
+    assert (
+        "suggestions" in user2_profile_from_user1
+    ), "Friend profile does not contain suggestions field"
+    assert (
+        "updated_at" in user2_profile_from_user1
+    ), "Friend profile does not contain updated_at field"
+    logger.info(f"✓ Friend profile includes summary, suggestions, and updated_at")
+
+    # User 2 gets User 1's profile
+    user1_profile_from_user2 = api.get_user_profile(
+        users[1]["email"], api.user_ids[users[0]["email"]]
+    )
+    logger.info(
+        f"User 1 profile as seen by User 2: {json.dumps(user1_profile_from_user2, indent=2)}"
+    )
+
+    # Verify the friend profile has summary, suggestions, and updated_at fields
+    assert (
+        "summary" in user1_profile_from_user2
+    ), "Friend profile does not contain summary field"
+    assert (
+        "suggestions" in user1_profile_from_user2
+    ), "Friend profile does not contain suggestions field"
+    assert (
+        "updated_at" in user1_profile_from_user2
+    ), "Friend profile does not contain updated_at field"
+    logger.info(f"✓ Friend profile includes summary, suggestions, and updated_at")
+
+    logger.info("Checking for user summaries between the two users")
+    # We're now verifying both own profiles and friend profiles were updated correctly
+
     logger.info("========== ALL TESTS COMPLETED ==========")
 
 

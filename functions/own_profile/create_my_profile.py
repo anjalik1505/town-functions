@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from flask import abort
 from models.constants import Collections, Documents, InsightsFields, ProfileFields
@@ -95,6 +97,10 @@ def create_profile(request):
         progress_and_growth="",
     )
 
+    updated_at = profile_data.get(ProfileFields.UPDATED_AT, "")
+    if isinstance(updated_at, datetime):
+        updated_at = updated_at.isoformat()
+
     response = ProfileResponse(
         user_id=current_user_id,
         username=profile_data[ProfileFields.USERNAME],
@@ -105,6 +111,7 @@ def create_profile(request):
         notification_settings=profile_data[ProfileFields.NOTIFICATION_SETTINGS],
         summary="",
         suggestions="",
+        updated_at=updated_at,
         insights=insights,
     )
 

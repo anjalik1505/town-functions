@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from flask import abort
 from models.constants import Collections, InsightsFields, ProfileFields
@@ -57,6 +59,10 @@ def get_my_profile(request) -> ProfileResponse:
     insights_data = insights_doc.to_dict() if insights_doc else {}
     logger.info(f"Retrieved insights data for user: {current_user_id}")
 
+    updated_at = profile_data.get(ProfileFields.UPDATED_AT, "")
+    if isinstance(updated_at, datetime):
+        updated_at = updated_at.isoformat()
+
     # Construct and return the profile response
     return ProfileResponse(
         user_id=current_user_id,
@@ -70,6 +76,7 @@ def get_my_profile(request) -> ProfileResponse:
         ),
         summary=profile_data.get(ProfileFields.SUMMARY, None),
         suggestions=profile_data.get(ProfileFields.SUGGESTIONS, None),
+        updated_at=updated_at,
         insights=Insights(
             emotional_overview=insights_data.get(InsightsFields.EMOTIONAL_OVERVIEW, ""),
             key_moments=insights_data.get(InsightsFields.KEY_MOMENTS, ""),

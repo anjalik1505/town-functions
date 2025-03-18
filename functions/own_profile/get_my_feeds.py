@@ -2,12 +2,9 @@ from datetime import datetime
 
 from firebase_admin import firestore
 from models.constants import (
-    MAX_BATCH_SIZE,
     Collections,
-    FriendshipFields,
     ProfileFields,
     QueryOperators,
-    Status,
     UpdateFields,
 )
 from models.data_models import FeedResponse, Update

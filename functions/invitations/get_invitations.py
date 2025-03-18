@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from firebase_admin import firestore
-from models.constants import Collections, InvitationFields, Status
+from models.constants import Collections, InvitationFields, QueryOperators, Status
 from models.data_models import Invitation, InvitationsResponse
 from utils.logging_utils import get_logger
 
@@ -33,7 +33,7 @@ def get_invitations(request) -> InvitationsResponse:
     # Get all invitations where the current user is the sender
     invitations_query = (
         db.collection(Collections.INVITATIONS)
-        .where(InvitationFields.SENDER_ID, "==", current_user_id)
+        .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, current_user_id)
         .get()
     )
 

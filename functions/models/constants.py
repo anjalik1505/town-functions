@@ -1,5 +1,8 @@
 from enum import StrEnum
 
+# Constants for query operations
+MAX_BATCH_SIZE = 10
+
 
 # Collection names
 class Collections(StrEnum):
@@ -42,13 +45,8 @@ class ProfileFields(StrEnum):
     INSIGHTS = "insights"
     SUMMARY = "summary"
     SUGGESTIONS = "suggestions"
-
-
-# Field names for Friend documents (Legacy)
-class FriendFields(StrEnum):
-    STATUS = "status"
-    CREATED_AT = "created_at"
-    FROM_USER = "from_user"
+    LAST_UPDATE_ID = "last_update_id"
+    UPDATED_AT = "updated_at"
 
 
 # Field names for Friendship documents
@@ -88,6 +86,7 @@ class UpdateFields(StrEnum):
     SENTIMENT = "sentiment"
     CREATED_AT = "created_at"
     VISIBLE_TO = "visible_to"
+    ID = "id"
 
 
 # Field names for Group documents
@@ -126,9 +125,15 @@ class QueryOperators(StrEnum):
     ARRAY_CONTAINS_ANY = "array_contains_any"
     IN = "in"
     EQUALS = "=="
-    LESS_THAN = "<"
-    LESS_THAN_OR_EQUAL_TO = "<="
 
 
-# Constants for query operations
-MAX_BATCH_SIZE = 10
+# Field names for UserSummary documents
+class UserSummaryFields(StrEnum):
+    CREATOR_ID = "creator_id"
+    TARGET_ID = "target_id"
+    SUMMARY = "summary"
+    SUGGESTIONS = "suggestions"
+    LAST_UPDATE_ID = "last_update_id"
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    UPDATE_COUNT = "update_count"

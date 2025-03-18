@@ -30,6 +30,7 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "New York",
   "birthday": "1990-01-01",
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["messages", "updates"],
   "summary": "",
   "suggestions": "",
@@ -72,6 +73,7 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/new_avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["messages", "updates", "groups"],
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
@@ -104,6 +106,7 @@ This repository contains the backend functions for the Village application.
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["messages", "updates"],
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
   "insights": {
@@ -394,8 +397,9 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
-  "suggestions": "Connect with this person to get insights into their life.",
-  "summary": "John Doe is a 35-year-old software engineer from San Francisco."
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
+  "summary": "John Doe is a 35-year-old software engineer from San Francisco.",
+  "suggestions": "Connect with this person to get insights into their life."
 }
 ```
 

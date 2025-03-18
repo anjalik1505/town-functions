@@ -4,13 +4,14 @@ import json
 from device.get_device import get_device
 from device.update_device import update_device
 from firebase_admin import auth, initialize_app
-from firebase_functions import https_fn
+from firebase_functions import firestore_fn, https_fn
 from flask import Flask, Response, abort, request
 from invitations.accept_invitation import accept_invitation
 from invitations.create_invitation import create_invitation
 from invitations.get_invitations import get_invitations
 from invitations.reject_invitation import reject_invitation
 from invitations.resend_invitation import resend_invitation
+from models.constants import Collections
 from models.pydantic_models import (
     CreateProfileRequest,
     CreateUpdateRequest,
@@ -26,6 +27,7 @@ from own_profile.get_my_updates import get_my_updates
 from own_profile.update_my_profile import update_profile
 from pydantic import ValidationError
 from updates.create_update import create_update
+from updates.on_creation import on_update_created
 from user_profile.get_user_profile import get_user_profile
 from user_profile.get_user_updates import get_user_updates
 from werkzeug.exceptions import HTTPException
@@ -402,6 +404,23 @@ def api(incoming_request):
 #     """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
 #     with app.request_context(incoming_request.environ):
 #         return app.full_dispatch_request()
+
+
+# Firestore trigger for new updates
+@firestore_fn.on_document_created(document=f"{Collections.UPDATES}/{{id}}")
+def process_update_creation(
+    event: firestore_fn.Event[firestore_fn.DocumentSnapshot | None],
+) -> None:
+    """
+    Firestore trigger function that runs when a new update is created in the updates collection.
+
+    Args:
+        event: The Firestore event containing the document data
+
+    Returns:
+        None
+    """
+    return on_update_created(event)
 
 
 if __name__ == "__main__":
