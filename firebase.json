@@ -3,7 +3,6 @@
     {
       "source": "functions",
       "runtime": "python312",
-      "entryPoint": "api",
       "codebase": "default",
       "ignore": [
         "venv",
