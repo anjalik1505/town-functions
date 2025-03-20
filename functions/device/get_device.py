@@ -39,7 +39,7 @@ def get_device(request: Request):
 
     updated_at = device_data.get(DeviceFields.UPDATED_AT, "")
     if isinstance(updated_at, datetime):
-        updated_at = updated_at.isoformat() + "Z"
+        updated_at = updated_at.isoformat()
 
     return Device(
         device_id=device_data.get(DeviceFields.DEVICE_ID, ""), updated_at=updated_at

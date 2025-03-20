@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from models.constants import Collections, QueryOperators, UpdateFields
 from models.data_models import Update, UpdatesResponse
@@ -76,6 +78,11 @@ def get_my_updates(request) -> UpdatesResponse:
         if created_at:
             last_timestamp = created_at
 
+        # Convert Firestore datetime to ISO format string for the Update model
+        created_at_iso = (
+            created_at.isoformat() if isinstance(created_at, datetime) else created_at
+        )
+
         # Convert Firestore document to Update model
         updates.append(
             Update(
@@ -85,14 +92,18 @@ def get_my_updates(request) -> UpdatesResponse:
                 group_ids=doc_data.get(UpdateFields.GROUP_IDS, []),
                 friend_ids=doc_data.get(UpdateFields.FRIEND_IDS, []),
                 sentiment=doc_data.get(UpdateFields.SENTIMENT, ""),
-                created_at=created_at,
+                created_at=created_at_iso,
             )
         )
 
     # Set up pagination for the next request
     next_timestamp = None
     if last_timestamp and len(updates) == limit:
-        next_timestamp = last_timestamp
+        # Convert the timestamp to ISO format for pagination
+        if isinstance(last_timestamp, datetime):
+            next_timestamp = last_timestamp.isoformat()
+        else:
+            next_timestamp = last_timestamp
         logger.info(f"More results available, next_timestamp: {next_timestamp}")
 
     logger.info(f"Retrieved {len(updates)} updates for user: {current_user_id}")

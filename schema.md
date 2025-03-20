@@ -9,6 +9,8 @@ Firestore Schema
        ├── notification_settings: array<string>
        ├── summary: string
        ├── suggestions: string
+       ├── last_update_id: string   # ID of the last update processed
+       ├── updated_at: timestamp    # When the profile was last updated
        ├── group_ids: array<string>  # list of groupIds the user belongs to
        └── subcollections:
            └── insights (collection)
@@ -52,13 +54,26 @@ Firestore Schema
    └── {updateId} (document)
        ├── created_by: string (userId)
        ├── group_ids: array<string>  # which groups the update is shared to
+       ├── friend_ids: array<string> # which friends the update is shared to
+       ├── visible_to: array<string> # INTERNAL: combined array of friend and group identifiers with prefixes
        ├── content: string           # text or processed speech-to-text
-       ├── sentiment: number (1-5 or similar)
+       ├── sentiment: string         # "happy", "sad", "neutral", "angry", "surprised"
        ├── created_at: timestamp
        └── ...
        # Possibly location, attachments, etc.
 
-6) groups (collection)
+6) user_summaries (collection)
+   └── {relationshipId} (document)  # Sorted userIds concatenated e.g. userId1_userId2
+       ├── creator_id: string       # User who created the update
+       ├── target_id: string        # User who will see the summary
+       ├── summary: string          # AI-generated summary of the relationship
+       ├── suggestions: string      # AI-generated suggestions for interactions
+       ├── last_update_id: string   # ID of the last update processed
+       ├── created_at: timestamp    # When this summary was first created
+       ├── updated_at: timestamp    # When this summary was last updated
+       └── update_count: number     # Number of updates processed for this summary
+
+7) groups (collection)
    └── {groupId} (document)
        ├── name: string
        ├── icon: string
@@ -91,7 +106,7 @@ Firestore Schema
                      ├── created_at: timestamp
                      └── ...
 
-7) chats (collection)   # For 1:1 chats only
+8) chats (collection)   # For 1:1 chats only
    └── {chatId} (document)   # Sorted userIds concatenated e.g. userId1_userId_2
        ├── type: "one_to_one"
        ├── member_ids: array<string>  # exactly 2 for 1:1

@@ -68,8 +68,8 @@ def resend_invitation(request, invitation_id) -> Invitation:
     # Return the updated invitation
     return Invitation(
         invitation_id=invitation_id,
-        created_at=current_time.isoformat() + "Z",
-        expires_at=expires_at.isoformat() + "Z",
+        created_at=current_time.isoformat(),
+        expires_at=expires_at.isoformat(),
         sender_id=current_user_id,
         status=Status.PENDING,
         username=invitation_data.get(InvitationFields.USERNAME, ""),

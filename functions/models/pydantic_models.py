@@ -73,7 +73,17 @@ class AddGroupMembersRequest(BaseModel):
 
 
 class CreateUpdateRequest(BaseModel):
-    pass
+    content: str = Field(..., min_length=1)
+    sentiment: str = Field(..., min_length=1)
+    group_ids: Optional[List[str]] = Field(default_factory=list)
+    friend_ids: Optional[List[str]] = Field(default_factory=list)
+
+    @field_validator("group_ids", "friend_ids")
+    @classmethod
+    def validate_ids(cls, v):
+        if v is None:
+            return []
+        return v
 
     class Config:
         extra = "ignore"

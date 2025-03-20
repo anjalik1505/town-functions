@@ -1,11 +1,19 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from flask import abort
-from models.constants import Collections, FriendshipFields, ProfileFields, Status
-from models.data_models import ProfileResponse
+from models.constants import (
+    Collections,
+    FriendshipFields,
+    ProfileFields,
+    Status,
+    UserSummaryFields,
+)
+from models.data_models import FriendProfileResponse
 from utils.logging_utils import get_logger
 
 
-def get_user_profile(request, target_user_id) -> ProfileResponse:
+def get_user_profile(request, target_user_id) -> FriendProfileResponse:
     """
     Retrieves a user's profile with summary and suggestions.
 
@@ -20,8 +28,11 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
         target_user_id: The ID of the user whose profile is being requested
 
     Returns:
-        A ProfileResponse containing:
+        A FriendProfileResponse containing:
         - Basic profile information (id, name, avatar)
+        - Location and birthday if available
+        - Summary and suggestions if available
+        - Updated timestamp
 
     Raises:
         400: Use /me/profile endpoint to view your own profile
@@ -76,23 +87,45 @@ def get_user_profile(request, target_user_id) -> ProfileResponse:
 
     logger.info(f"Friendship verified between {current_user_id} and {target_user_id}")
 
-    # Initialize empty lists to collect all summary data
-    suggestions_parts = []
-    summary_parts = []
+    # Sort user IDs to create a consistent relationship ID (same logic as in process_friend_summary)
+    user_ids = sorted([current_user_id, target_user_id])
+    relationship_id = f"{user_ids[0]}_{user_ids[1]}"
 
-    logger.info(f"Successfully retrieved profile for user {target_user_id}")
+    # Get the user summary document for this friendship
+    user_summary_ref = db.collection(Collections.USER_SUMMARIES).document(
+        relationship_id
+    )
+    user_summary_doc = user_summary_ref.get()
 
-    # Combine all summary parts
-    # NOTE: Summary and suggestions data removed as requested
+    # Initialize summary and suggestions
+    summary = None
+    suggestions = None
 
-    # Return a ProfileResponse with the user's profile information (without summary and suggestions)
-    return ProfileResponse(
+    if user_summary_doc.exists:
+        user_summary_data = user_summary_doc.to_dict()
+        # Only return the summary if the current user is the target (the one who should see it)
+        if user_summary_data.get(UserSummaryFields.TARGET_ID) == current_user_id:
+            summary = user_summary_data.get(UserSummaryFields.SUMMARY)
+            suggestions = user_summary_data.get(UserSummaryFields.SUGGESTIONS)
+            logger.info(f"Retrieved user summary for relationship {relationship_id}")
+        else:
+            logger.info(f"User {current_user_id} is not the target for this summary")
+    else:
+        logger.info(f"No user summary found for relationship {relationship_id}")
+
+    updated_at = target_user_profile_data.get(ProfileFields.UPDATED_AT, "")
+    if isinstance(updated_at, datetime):
+        updated_at = updated_at.isoformat()
+
+    # Return a FriendProfileResponse with the user's profile information and summary/suggestions if available
+    return FriendProfileResponse(
         user_id=target_user_id,
         username=target_user_profile_data.get(ProfileFields.USERNAME, ""),
-        name=target_user_profile_data.get(ProfileFields.NAME, ""),
-        avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
-        location=target_user_profile_data.get(ProfileFields.LOCATION, ""),
-        birthday=target_user_profile_data.get(ProfileFields.BIRTHDAY, ""),
-        suggestions=suggestions_parts,
-        summary=summary_parts,
+        name=target_user_profile_data.get(ProfileFields.NAME, None),
+        avatar=target_user_profile_data.get(ProfileFields.AVATAR, None),
+        location=target_user_profile_data.get(ProfileFields.LOCATION, None),
+        birthday=target_user_profile_data.get(ProfileFields.BIRTHDAY, None),
+        summary=summary,
+        suggestions=suggestions,
+        updated_at=updated_at,
     )

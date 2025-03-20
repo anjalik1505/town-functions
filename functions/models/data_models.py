@@ -12,6 +12,9 @@ class Update:
     group_ids: Optional[List[str]] = None
     friend_ids: Optional[List[str]] = None
 
+    def to_json(self):
+        return asdict(self)
+
 
 @dataclass
 class FeedResponse:
@@ -57,6 +60,7 @@ class ProfileResponse(BaseUser):
     summary: Optional[str] = None
     insights: Optional[Insights] = None
     suggestions: Optional[str] = None
+    updated_at: Optional[str] = None
 
     def to_json(self):
         return asdict(self)
@@ -72,6 +76,20 @@ class Friend(BaseUser):
 @dataclass
 class FriendsResponse:
     friends: List[Friend]
+
+    def to_json(self):
+        return asdict(self)
+
+
+@dataclass
+class FriendProfileResponse(BaseUser):
+    """A limited profile response for friend profiles that excludes notification settings and insights."""
+
+    location: Optional[str] = None
+    birthday: Optional[str] = None
+    summary: Optional[str] = None
+    suggestions: Optional[str] = None
+    updated_at: Optional[str] = None
 
     def to_json(self):
         return asdict(self)

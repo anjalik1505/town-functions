@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from firebase_admin import firestore
 from flask import abort
 from models.constants import (
@@ -6,6 +8,7 @@ from models.constants import (
     GroupFields,
     InvitationFields,
     ProfileFields,
+    QueryOperators,
 )
 from models.data_models import Insights, ProfileResponse
 from utils.logging_utils import get_logger
@@ -66,20 +69,20 @@ def update_profile(request):
 
     # Check if username, name, or avatar has changed
     username_changed = (
-        hasattr(profile_data_input, "username")
+        hasattr(profile_data_input, ProfileFields.USERNAME)
         and profile_data_input.username is not None
         and profile_data_input.username
         != current_profile_data.get(ProfileFields.USERNAME)
     )
 
     name_changed = (
-        hasattr(profile_data_input, "name")
+        hasattr(profile_data_input, ProfileFields.NAME)
         and profile_data_input.name is not None
         and profile_data_input.name != current_profile_data.get(ProfileFields.NAME)
     )
 
     avatar_changed = (
-        hasattr(profile_data_input, "avatar")
+        hasattr(profile_data_input, ProfileFields.AVATAR)
         and profile_data_input.avatar is not None
         and profile_data_input.avatar != current_profile_data.get(ProfileFields.AVATAR)
     )
@@ -89,31 +92,37 @@ def update_profile(request):
 
     # Only update fields that are provided in the request
     if (
-        hasattr(profile_data_input, "username")
+        hasattr(profile_data_input, ProfileFields.USERNAME)
         and profile_data_input.username is not None
     ):
         profile_updates[ProfileFields.USERNAME] = profile_data_input.username
 
-    if hasattr(profile_data_input, "name") and profile_data_input.name is not None:
+    if (
+        hasattr(profile_data_input, ProfileFields.NAME)
+        and profile_data_input.name is not None
+    ):
         profile_updates[ProfileFields.NAME] = profile_data_input.name
 
-    if hasattr(profile_data_input, "avatar") and profile_data_input.avatar is not None:
+    if (
+        hasattr(profile_data_input, ProfileFields.AVATAR)
+        and profile_data_input.avatar is not None
+    ):
         profile_updates[ProfileFields.AVATAR] = profile_data_input.avatar
 
     if (
-        hasattr(profile_data_input, "location")
+        hasattr(profile_data_input, ProfileFields.LOCATION)
         and profile_data_input.location is not None
     ):
         profile_updates[ProfileFields.LOCATION] = profile_data_input.location
 
     if (
-        hasattr(profile_data_input, "birthday")
+        hasattr(profile_data_input, ProfileFields.BIRTHDAY)
         and profile_data_input.birthday is not None
     ):
         profile_updates[ProfileFields.BIRTHDAY] = profile_data_input.birthday
 
     if (
-        hasattr(profile_data_input, "notification_settings")
+        hasattr(profile_data_input, ProfileFields.NOTIFICATION_SETTINGS)
         and profile_data_input.notification_settings is not None
     ):
         profile_updates[ProfileFields.NOTIFICATION_SETTINGS] = (
@@ -136,7 +145,7 @@ def update_profile(request):
 
         # 1. Update all invitations created by this user
         invitations_query = db.collection(Collections.INVITATIONS).where(
-            InvitationFields.SENDER_ID, "==", current_user_id
+            InvitationFields.SENDER_ID, QueryOperators.EQUALS, current_user_id
         )
 
         invitation_docs = invitations_query.stream()
@@ -164,7 +173,7 @@ def update_profile(request):
 
         # 2. Update friendships where user is sender
         friendships_as_sender_query = db.collection(Collections.FRIENDSHIPS).where(
-            FriendshipFields.SENDER_ID, "==", current_user_id
+            FriendshipFields.SENDER_ID, QueryOperators.EQUALS, current_user_id
         )
 
         friendship_sender_docs = friendships_as_sender_query.stream()
@@ -192,7 +201,7 @@ def update_profile(request):
 
         # 3. Update friendships where user is receiver
         friendships_as_receiver_query = db.collection(Collections.FRIENDSHIPS).where(
-            FriendshipFields.RECEIVER_ID, "==", current_user_id
+            FriendshipFields.RECEIVER_ID, QueryOperators.EQUALS, current_user_id
         )
 
         friendship_receiver_docs = friendships_as_receiver_query.stream()
@@ -221,7 +230,7 @@ def update_profile(request):
         # 4. Update groups where user is a member
         # First, get all groups the user is a member of
         groups_query = db.collection(Collections.GROUPS).where(
-            GroupFields.MEMBERS, "array_contains", current_user_id
+            GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, current_user_id
         )
 
         group_docs = groups_query.stream()
@@ -281,6 +290,10 @@ def update_profile(request):
     )
     insights_data = insights_doc.to_dict() if insights_doc else {}
 
+    updated_at = profile_data.get(ProfileFields.UPDATED_AT, "")
+    if isinstance(updated_at, datetime):
+        updated_at = updated_at.isoformat()
+
     # Construct and return the profile response
     return ProfileResponse(
         user_id=current_user_id,
@@ -294,10 +307,13 @@ def update_profile(request):
         ),
         summary=updated_profile_data.get(ProfileFields.SUMMARY, None),
         suggestions=updated_profile_data.get(ProfileFields.SUGGESTIONS, None),
+        updated_at=updated_at,
         insights=Insights(
-            emotional_overview=insights_data.get("emotional_overview", ""),
-            key_moments=insights_data.get("key_moments", ""),
-            recurring_themes=insights_data.get("recurring_themes", ""),
-            progress_and_growth=insights_data.get("progress_and_growth", ""),
+            emotional_overview=insights_data.get(InsightsFields.EMOTIONAL_OVERVIEW, ""),
+            key_moments=insights_data.get(InsightsFields.KEY_MOMENTS, ""),
+            recurring_themes=insights_data.get(InsightsFields.RECURRING_THEMES, ""),
+            progress_and_growth=insights_data.get(
+                InsightsFields.PROGRESS_AND_GROWTH, ""
+            ),
         ),
     )

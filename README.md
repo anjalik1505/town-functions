@@ -30,6 +30,7 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "New York",
   "birthday": "1990-01-01",
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["messages", "updates"],
   "summary": "",
   "suggestions": "",
@@ -72,6 +73,7 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/new_avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["messages", "updates", "groups"],
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
@@ -104,6 +106,7 @@ This repository contains the backend functions for the Village application.
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["messages", "updates"],
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
   "insights": {
@@ -127,7 +130,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00Z"
+  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
 }
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
@@ -143,12 +146,12 @@ This repository contains the backend functions for the Village application.
       "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg",
       "content": "Hello world!",
-      "created_at": "2025-01-01T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
       "likes_count": 5,
       "comments_count": 2
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00Z"
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
@@ -164,7 +167,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00Z"
+  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
 }
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
@@ -178,10 +181,10 @@ This repository contains the backend functions for the Village application.
       "created_by": "johndoe",
       "content": "Hello world!",
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00Z"
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
@@ -224,8 +227,8 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00Z",
-  "expires_at": "2025-01-02T00:00:00Z",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
   "sender_id": "user123",
   "status": "pending",
   "username": "johndoe",
@@ -271,8 +274,8 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00Z",
-  "expires_at": "2025-01-02T00:00:00Z",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
   "sender_id": "user123",
   "status": "rejected",
   "username": "johndoe",
@@ -296,8 +299,8 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00Z",
-  "expires_at": "2025-01-02T00:00:00Z",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
   "sender_id": "user123",
   "status": "pending",
   "username": "johndoe",
@@ -322,8 +325,8 @@ This repository contains the backend functions for the Village application.
   "invitations": [
     {
       "invitation_id": "abc123",
-      "created_at": "2025-01-01T00:00:00Z",
-      "expires_at": "2025-01-02T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "expires_at": "2025-01-02T00:00:00.000+00:00",
       "sender_id": "user123",
       "status": "pending",
       "username": "johndoe",
@@ -353,7 +356,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "device_id": "unique-device-identifier-string",
-  "updated_at": "2025-01-15T00:00:00Z"
+  "updated_at": "2025-01-15T00:00:00.000+00:00"
 }
 ```
 
@@ -370,7 +373,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "device_id": "unique-device-identifier-string",
-  "updated_at": "2025-01-15T00:00:00Z"
+  "updated_at": "2025-01-15T00:00:00.000+00:00"
 }
 ```
 
@@ -394,8 +397,9 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
-  "suggestions": "Connect with this person to get insights into their life.",
-  "summary": "John Doe is a 35-year-old software engineer from San Francisco."
+  "updated_at": "2025-03-18T18:51:39.000+00:00",
+  "summary": "John Doe is a 35-year-old software engineer from San Francisco.",
+  "suggestions": "Connect with this person to get insights into their life."
 }
 ```
 
@@ -411,7 +415,7 @@ This repository contains the backend functions for the Village application.
 ```json
 {
   "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00Z"
+  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
 }
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
@@ -425,10 +429,10 @@ This repository contains the backend functions for the Village application.
       "created_by": "johndoe",
       "content": "Hello world!",
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00Z",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00Z"
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 

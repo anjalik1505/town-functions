@@ -240,5 +240,5 @@ def create_group(request: Request) -> Group:
         icon=icon,
         members=members,
         member_profiles=member_profiles,
-        created_at=current_time.isoformat() + "Z",
+        created_at=current_time.isoformat(),
     )
