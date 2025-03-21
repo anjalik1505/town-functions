@@ -98,15 +98,15 @@ def get_user_profile(request, target_user_id) -> FriendProfileResponse:
     user_summary_doc = user_summary_ref.get()
 
     # Initialize summary and suggestions
-    summary = None
-    suggestions = None
+    summary = ""
+    suggestions = ""
 
     if user_summary_doc.exists:
         user_summary_data = user_summary_doc.to_dict()
         # Only return the summary if the current user is the target (the one who should see it)
         if user_summary_data.get(UserSummaryFields.TARGET_ID) == current_user_id:
-            summary = user_summary_data.get(UserSummaryFields.SUMMARY)
-            suggestions = user_summary_data.get(UserSummaryFields.SUGGESTIONS)
+            summary = user_summary_data.get(UserSummaryFields.SUMMARY, "")
+            suggestions = user_summary_data.get(UserSummaryFields.SUGGESTIONS, "")
             logger.info(f"Retrieved user summary for relationship {relationship_id}")
         else:
             logger.info(f"User {current_user_id} is not the target for this summary")
@@ -121,10 +121,10 @@ def get_user_profile(request, target_user_id) -> FriendProfileResponse:
     return FriendProfileResponse(
         user_id=target_user_id,
         username=target_user_profile_data.get(ProfileFields.USERNAME, ""),
-        name=target_user_profile_data.get(ProfileFields.NAME, None),
-        avatar=target_user_profile_data.get(ProfileFields.AVATAR, None),
-        location=target_user_profile_data.get(ProfileFields.LOCATION, None),
-        birthday=target_user_profile_data.get(ProfileFields.BIRTHDAY, None),
+        name=target_user_profile_data.get(ProfileFields.NAME, ""),
+        avatar=target_user_profile_data.get(ProfileFields.AVATAR, ""),
+        location=target_user_profile_data.get(ProfileFields.LOCATION, ""),
+        birthday=target_user_profile_data.get(ProfileFields.BIRTHDAY, ""),
         summary=summary,
         suggestions=suggestions,
         updated_at=updated_at,

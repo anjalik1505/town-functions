@@ -35,8 +35,8 @@ def create_update(request) -> Update:
 
     # Get validated data from the request
     validated_params = request.validated_params
-    content = validated_params.content
-    sentiment = validated_params.sentiment
+    content = validated_params.content or ""
+    sentiment = validated_params.sentiment or ""
     group_ids = validated_params.group_ids or []
     friend_ids = validated_params.friend_ids or []
 
