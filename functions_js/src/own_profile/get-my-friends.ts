@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
-import { getLogger } from "../utils/logging_utils";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 

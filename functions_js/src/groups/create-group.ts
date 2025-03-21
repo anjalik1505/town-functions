@@ -3,8 +3,8 @@ import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { Collections, FriendshipFields, GroupFields, MAX_BATCH_SIZE, ProfileFields, QueryOperators, Status } from "../models/constants";
 import { Group } from "../models/data-models";
-import { getLogger } from "../utils/logging_utils";
-import { formatTimestamp } from "../utils/timestamp_utils";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

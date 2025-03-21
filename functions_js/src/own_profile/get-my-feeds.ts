@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
-import { getLogger } from "../utils/logging_utils";
-import { formatTimestamp } from "../utils/timestamp_utils";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

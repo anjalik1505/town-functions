@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
-import { getLogger } from "../utils/logging_utils";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 

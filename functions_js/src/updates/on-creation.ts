@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { FirestoreEvent } from "firebase-functions/v2/firestore";
 import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, UserSummaryFields } from "../models/constants";
-import { getLogger } from "../utils/logging_utils";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 

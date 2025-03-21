@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, GroupFields, MAX_BATCH_SIZE, ProfileFields, QueryOperators, Status } from "../models/constants";
 import { Group } from "../models/data-models";
-import { getLogger } from "../utils/logging_utils";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 
