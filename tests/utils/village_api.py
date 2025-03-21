@@ -169,54 +169,6 @@ class VillageAPI:
 
         return response.json()
 
-    def send_friend_request(
-        self, sender_email: str, receiver_id: str
-    ) -> Dict[str, Any]:
-        """Send a friend request from one user to another"""
-        logger.info(
-            f"User {sender_email} sending friend request to user ID {receiver_id}"
-        )
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.tokens[sender_email]}",
-        }
-
-        payload = {"receiver_id": receiver_id}
-
-        response = requests.post(
-            f"{API_BASE_URL}/me/friends/requests", headers=headers, json=payload
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to send friend request: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Friend request sent from {sender_email} to {receiver_id}")
-        return response.json()
-
-    def accept_friend_request(
-        self, receiver_email: str, sender_id: str
-    ) -> Dict[str, Any]:
-        """Accept a friend request"""
-        logger.info(
-            f"User {receiver_email} accepting friend request from user ID {sender_id}"
-        )
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.tokens[receiver_email]}",
-        }
-
-        response = requests.post(
-            f"{API_BASE_URL}/me/friends/requests/{sender_id}/accept", headers=headers
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to accept friend request: {response.text}")
-            response.raise_for_status()
-
-        logger.info(f"Friend request from {sender_id} accepted by {receiver_email}")
-        return response.json()
-
     # Feed and Update Methods
     def get_my_feed(
         self, email: str, limit: int = 10, after_timestamp: Optional[str] = None

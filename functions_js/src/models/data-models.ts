@@ -1,0 +1,116 @@
+export interface Insights {
+  emotional_overview: string;
+  key_moments: string;
+  recurring_themes: string;
+  progress_and_growth: string;
+}
+
+export interface BaseUser {
+  user_id: string;
+  username: string;
+  name: string;
+  avatar: string;
+}
+
+export interface ProfileResponse extends BaseUser {
+  location: string;
+  birthday: string;
+  notification_settings: string[];
+  summary: string;
+  insights: Insights;
+  suggestions: string;
+  updated_at: string;
+}
+
+export interface FriendProfileResponse {
+  user_id: string;
+  username: string;
+  name: string;
+  avatar: string;
+  location: string;
+  birthday: string;
+  summary: string;
+  suggestions: string;
+  updated_at: string;
+}
+
+export interface Update {
+  update_id: string;
+  created_by: string;
+  content: string;
+  group_ids: string[];
+  friend_ids: string[];
+  sentiment: string;
+  created_at: string;
+}
+
+export interface UpdatesResponse {
+  updates: Update[];
+  next_timestamp: string | null;
+}
+
+export interface FeedResponse {
+  updates: Update[];
+  next_timestamp: string | null;
+}
+
+export interface Invitation {
+  invitation_id: string;
+  created_at: string;
+  expires_at: string;
+  sender_id: string;
+  status: string;
+  username: string;
+  name: string;
+  avatar: string;
+}
+
+export interface Friend {
+  user_id: string;
+  username: string;
+  name: string;
+  avatar: string;
+}
+
+export interface InvitationsResponse {
+  invitations: Invitation[];
+}
+
+export interface Device {
+  device_id: string;
+  updated_at: string;
+}
+
+export interface Group {
+  group_id: string;
+  name: string;
+  icon: string;
+  created_at: string;
+  members: string[];
+  member_profiles: Record<string, string>[];
+}
+
+export interface GroupsResponse {
+  groups: Group[];
+}
+
+export interface GroupMember extends BaseUser {
+  // Group member with basic profile information
+}
+
+export interface GroupMembersResponse {
+  members: GroupMember[];
+}
+
+export interface ChatMessage {
+  message_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+  attachments?: string[];
+}
+
+export interface ChatResponse {
+  messages: ChatMessage[];
+  next_timestamp?: string | null;
+}

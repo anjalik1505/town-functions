@@ -1,4 +1,4 @@
-# Refined Instructions: Firebase Functions in Python (Flask)
+# TypeScript Implementation Guidelines for Firebase Functions
 
 > **Note:**  
 > These instructions are **strict** requirements.  
@@ -11,79 +11,73 @@
 - **Standardized Organization**  
   - Follow this project structure:
     ```
-    .
-    ├── main.py                # Flask app, authentication, Pydantic validation
-    ├── functions/             # Directory for all function implementations
-    │   ├── own_profile/       # Functions related to current user's profile
-    │   │   ├── get_my_profile.py
-    │   │   ├── get_my_updates.py
-    │   │   ├── get_my_friends.py
-    │   │   ├── get_my_feeds.py
-    │   │   ├── add_user.py
-    │   │   ├── add_friend.py
+    functions_js/
+    ├── src/
+    │   ├── app.ts                 # Express app, authentication, Zod validation
+    │   ├── functions/             # Directory for all function implementations
+    │   │   ├── own_profile/       # Functions related to current user's profile
+    │   │   ├── user_profile/      # Functions related to other users' profiles
+    │   │   ├── groups/           # Group-related functions
     │   │   └── ...
-    │   ├── user_profile/      # Functions related to other users' profiles
-    │   │   ├── get_user_profile.py
-    │   │   ├── get_user_updates.py
+    │   ├── models/               # Data models and constants
+    │   │   ├── constants.ts      # Enum constants
+    │   │   ├── data-models.ts    # Response interfaces
+    │   │   ├── validation-schemas.ts # Zod validation schemas
     │   │   └── ...
-    │   └── ...
-    ├── models/                # Data models and constants
-    │   ├── constants.py       # Enum constants
-    │   ├── data_models.py     # Response dataclasses
-    │   ├── pydantic_models.py # Request validation models
-    │   └── ...
-    ├── utils/                 # Utility functions
-    │   ├── logging_utils.py   # Logging utilities
-    │   └── ...
-    └── requirements.txt
+    │   ├── middleware/           # Express middleware
+    │   │   ├── validation.ts     # Request validation middleware
+    │   │   └── ...
+    │   ├── utils/               # Utility functions
+    │   │   ├── logging-utils.ts  # Logging utilities
+    │   │   ├── timestamp_utils.ts # Timestamp formatting
+    │   │   └── ...
+    │   └── index.ts             # Firebase Function entry point
+    ├── package.json
+    └── tsconfig.json
     ```
 
 - **Module Naming Conventions**
-  - Use snake_case for all file and directory names
+  - Use kebab-case for all file and directory names
   - Function implementation files should be named after the function they implement
   - Group related functions in subdirectories (e.g., `own_profile/`, `user_profile/`)
 
 - **Firebase Admin Initialization**  
-  - Call `firebase_admin.initialize_app()` **only once** (in `main.py`).  
+  - Call `initializeApp()` **only once** (in `app.ts`).  
   - Avoid re-initializing the Admin SDK for each request.
   - Example:
-    ```python
-    # In main.py
-    from firebase_admin import initialize_app
+    ```typescript
+    // In app.ts
+    import { initializeApp } from "firebase-admin/app";
     
-    # Initialize once at the module level
-    initialize_app()
+    // Initialize once at the module level
+    initializeApp();
     ```
 
 ---
 
-## 2. HTTP Routing (Flask)
+## 2. HTTP Routing (Express)
 
 - **Single Entrypoint**  
   - Expose exactly one function (e.g., `api`) to Firebase:
-    ```python
-    @https_fn.on_request()
-    def api(incoming_request):
-        """Cloud Function entry point that dispatches incoming HTTP requests to the Flask app."""
-        with app.request_context(incoming_request.environ):
-            return app.full_dispatch_request()
+    ```typescript
+    // In index.ts
+    import { onRequest } from "firebase-functions/v2/https";
+    import { app } from "./app";
+
+    export const api = onRequest(app);
     ```
 
 - **Routes**  
-  - Define clear endpoints in `main.py`:
-    ```python
-    from flask import Flask, abort, request
-    from own_profile.get_my_profile import get_my_profile
+  - Define clear endpoints in `app.ts`:
+    ```typescript
+    import express from "express";
+    import { getProfile } from "./own_profile/get-my-profile";
 
-    app = Flask(__name__)
+    const app = express();
 
-    @app.route('/', methods=['GET'])
-    def index():
-        abort(403, description="Forbidden")
-
-    @app.route('/me/profile', methods=['GET'])
-    def my_profile():
-        return get_my_profile(request).to_json()
+    app.get("/me/profile", handle_errors(false), async (req, res) => {
+        await getProfile(req, res);
+    });
     ```
 
 - **Route Naming Conventions**
@@ -91,8 +85,8 @@
     - `/me/profile` - Current user's profile
     - `/me/updates` - Current user's updates
     - `/me/friends` - Current user's friends
-    - `/user/<user_id>/profile` - Other user's profile
-    - `/user/<user_id>/updates` - Other user's updates
+    - `/user/:target_user_id/profile` - Other user's profile
+    - `/user/:target_user_id/updates` - Other user's updates
 
 - **HTTP Methods**
   - Use appropriate HTTP methods:
@@ -108,57 +102,94 @@
 - **ID Token Required**  
   - All endpoints (except explicitly public ones) **must** verify the Firebase ID token from `Authorization: Bearer <token>`.
 
-- **Attach `user_id`**  
-  - In `main.py`, use a `@app.before_request` hook to:
-    1. Extract and verify the token with `firebase_admin.auth.verify_id_token`.
-    2. Attach `request.user_id` or `abort(401)` on error.
-    ```python
-    @app.before_request
-    def authenticate():
-        # Skip authentication for public routes
-        if request.path in PUBLIC_ROUTES:
-            return
-            
-        # Get the Authorization header
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            abort(401, description="Missing or invalid Authorization header")
-            
-        # Extract and verify the token
-        token = auth_header.split('Bearer ')[1]
-        try:
-            decoded_token = auth.verify_id_token(token)
-            request.user_id = decoded_token['uid']
-        except Exception as e:
-            abort(401, description=f"Invalid token: {str(e)}")
+- **Attach `userId`**  
+  - In `app.ts`, use Express middleware to:
+    1. Extract and verify the token with `auth.verifyIdToken`
+    2. Attach `req.userId` or return 401 on error
+    ```typescript
+    // Authentication middleware
+    const authenticate_request: RequestHandler = async (req, res, next) => {
+        try {
+            const auth_header = req.headers.authorization;
+            if (!auth_header) {
+                res.status(401).json({
+                    code: 401,
+                    name: "Unauthorized",
+                    description: "Authentication required: valid Firebase ID token needed"
+                });
+                return;
+            }
+
+            const token = auth_header.startsWith("Bearer ")
+                ? auth_header.split("Bearer ")[1]
+                : auth_header;
+
+            const decoded_token = await auth.verifyIdToken(token);
+            const user_id = decoded_token.uid;
+
+            if (!user_id) {
+                res.status(401).json({
+                    code: 401,
+                    name: "Unauthorized",
+                    description: "Invalid token: no user ID found"
+                });
+                return;
+            }
+
+            // Attach userId to request
+            req.userId = user_id;
+            next();
+        } catch (error: unknown) {
+            const error_message = error instanceof Error ? error.message : "Unknown error";
+            res.status(401).json({
+                code: 401,
+                name: "Unauthorized",
+                description: `Authentication failed: ${error_message}`
+            });
+        }
+    };
     ```
 
-- **Error Decorator**
-  - Use a decorator for consistent error handling across routes:
-    ```python
-    def handle_errors(validate_request=False):
-        """
-        A decorator for route handlers that provides consistent error handling.
-        
-        Args:
-            validate_request: If True, ValidationError will be caught and return 400.
-                            If False, ValidationError will be propagated.
-        """
-        def decorator(f):
-            @functools.wraps(f)
-            def wrapper(*args, **kwargs):
-                try:
-                    return f(*args, **kwargs)
-                except ValidationError as e:
-                    if validate_request:
-                        abort(400, description=str(e))
-                    raise
-                except HTTPException:
-                    raise
-                except Exception:
-                    abort(500, description="Internal server error")
-            return wrapper
-        return decorator
+- **Error Handling Middleware**
+  - Use middleware for consistent error handling across routes:
+    ```typescript
+    const handle_errors = (validate_request: boolean = false): RequestHandler => {
+        return (req, res, next) => {
+            try {
+                next();
+            } catch (error: unknown) {
+                if (error instanceof ZodError) {
+                    if (validate_request) {
+                        res.status(400).json({
+                            code: 400,
+                            name: "Bad Request",
+                            description: "Invalid request parameters"
+                        });
+                        return;
+                    }
+                    throw error;
+                }
+
+                const error_message = error instanceof Error ? error.message : "Unknown error";
+                console.error(`Error in ${req.path}: ${error_message}`);
+
+                if (error && typeof error === 'object' && 'status' in error && typeof (error as any).status === 'number') {
+                    res.status((error as any).status).json({
+                        code: (error as any).status,
+                        name: (error as any).name || "Error",
+                        description: error_message
+                    });
+                    return;
+                }
+
+                res.status(500).json({
+                    code: 500,
+                    name: "Internal Server Error",
+                    description: "An unexpected error occurred"
+                });
+            }
+        };
+    };
     ```
 
 ---
@@ -167,355 +198,453 @@
 
 - **Direct Enum Access**
   - Always use direct enum access from the constants module:
-    ```python
-    from models.constants import Collections, ProfileFields
+    ```typescript
+    import { Collections, ProfileFields } from "../models/constants";
     
-    # Good
-    db.collection(Collections.PROFILES).document(user_id)
+    // Good
+    db.collection(Collections.PROFILES).doc(userId);
     
-    # Bad
-    db.collection('profiles').document(user_id)
+    // Bad
+    db.collection('profiles').doc(userId);
     ```
 
 - **Constants Definition**
-  - Define all collection names, field names, and status values as enums in `models/constants.py`:
-    ```python
-    class Collections:
-        PROFILES = "profiles"
-        FRIENDS = "friends"
-        UPDATES = "updates"
-        GROUPS = "groups"
-        SUMMARIES = "summaries"
-        USER_SUMMARIES = "user_summaries"
-        CHATS = "chats"
+  - Define all collection names, field names, and status values as enums in `models/constants.ts`:
+    ```typescript
+    export enum Collections {
+        PROFILES = "profiles",
+        FRIENDS = "friends",
+        UPDATES = "updates",
+        GROUPS = "groups",
+        SUMMARIES = "summaries",
+        USER_SUMMARIES = "user_summaries",
+        CHATS = "chats",
         SUMMARY = "summary"
+    }
 
-    class ProfileFields:
-        NAME = "name"
-        AVATAR = "avatar"
+    export enum ProfileFields {
+        NAME = "name",
+        AVATAR = "avatar",
         GROUP_IDS = "group_ids"
-        
-    class Status:
-        PENDING = "pending"
-        ACCEPTED = "accepted"
+    }
+
+    export enum Status {
+        PENDING = "pending",
+        ACCEPTED = "accepted",
         REJECTED = "rejected"
+    }
     ```
 
 - **Document/Collection Pattern**
   - Use the document/collection pattern for Firestore references:
-    ```python
-    # Good
-    user_profile_ref = db.collection(Collections.PROFILES).document(user_id)
-    friends_ref = user_profile_ref.collection(Collections.FRIENDS)
+    ```typescript
+    // Good
+    const user_profile_ref = db.collection(Collections.PROFILES).doc(userId);
+    const friends_ref = user_profile_ref.collection(Collections.FRIENDS);
     
-    # Bad
-    db.collection(f"{Collections.PROFILES}/{user_id}/{Collections.FRIENDS}")
+    // Bad
+    db.collection(`${Collections.PROFILES}/${userId}/${Collections.FRIENDS}`);
     ```
 
 - **Basic Reads**  
-  ```python
-  from firebase_admin import firestore
-  from flask import abort
-  from models.constants import Collections, ProfileFields
-  from utils.logging_utils import get_logger
+  ```typescript
+  import { getFirestore } from "firebase-admin/firestore";
+  import { Collections, ProfileFields } from "../models/constants";
+  import { getLogger } from "../utils/logging-utils";
 
-  logger = get_logger(__name__)
-  db = firestore.client()
+  const logger = getLogger(__filename);
+  const db = getFirestore();
   
-  # Get document reference
-  doc_ref = db.collection(Collections.PROFILES).document(user_id)
+  // Get document reference
+  const doc_ref = db.collection(Collections.PROFILES).doc(userId);
   
-  # Get document snapshot
-  doc_snapshot = doc_ref.get()
+  // Get document snapshot
+  const doc_snapshot = await doc_ref.get();
 
-  # Check if document exists
-  if not doc_snapshot.exists:
-      logger.warning(f"Profile not found for user {user_id}")
-      abort(404, "Profile not found")
+  // Check if document exists
+  if (!doc_snapshot.exists) {
+      logger.warn(`Profile not found for user ${userId}`);
+      return res.status(404).json({
+          code: 404,
+          name: "Not Found",
+          description: "Profile not found"
+      });
+  }
 
-  # Convert to dictionary with empty fallback
-  profile_data = doc_snapshot.to_dict() or {}
+  // Convert to dictionary with empty fallback
+  const profile_data = doc_snapshot.data() || {};
   ```
 
 - **Queries**
   - For filtering and limiting:
-    ```python
-    # Build query with filters, ordering, and limits
-    query = db.collection(Collections.UPDATES) \
-        .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, user_id) \
-        .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-        .limit(limit)
+    ```typescript
+    // Build query with filters, ordering, and limits
+    const query = db.collection(Collections.UPDATES)
+        .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
+        .orderBy(UpdateFields.CREATED_AT, "desc")
+        .limit(limit);
     
-    # Execute query and iterate through results
-    results = query.stream()
-    for doc in results:
-        doc_id = doc.id
-        doc_data = doc.to_dict()
-        # Process document data
+    // Execute query and iterate through results
+    const results = await query.get();
+    for (const doc of results.docs) {
+        const doc_id = doc.id;
+        const doc_data = doc.data();
+        // Process document data
+    }
     ```
 
 - **Pagination**
-  - For paginated queries, use the `start_after` method:
-    ```python
-    # Apply pagination if an after_timestamp is provided
-    if after_timestamp:
-        query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
+  - For paginated queries, use the `startAfter` method:
+    ```typescript
+    // Apply pagination if an after_timestamp is provided
+    if (after_timestamp) {
+        query = query.startAfter({ [UpdateFields.CREATED_AT]: after_timestamp });
+    }
     
-    # Track the last timestamp for next page
-    last_timestamp = None
+    // Track the last timestamp for next page
+    let last_timestamp: string | null = null;
     
-    # Process results and track last timestamp for pagination
-    for doc in query.stream():
-        doc_data = doc.to_dict()
-        timestamp = doc_data.get(UpdateFields.CREATED_AT)
-        if timestamp:
-            last_timestamp = timestamp
+    // Process results and track last timestamp for pagination
+    for (const doc of query.get().docs) {
+        const doc_data = doc.data();
+        const timestamp = doc_data[UpdateFields.CREATED_AT];
+        if (timestamp) {
+            last_timestamp = timestamp;
+        }
+    }
     
-    # Set up pagination for the next request
-    next_timestamp = None
-    if last_timestamp and len(results) == limit:
-        next_timestamp = last_timestamp
+    // Set up pagination for the next request
+    const next_timestamp = last_timestamp && results.docs.length === limit
+        ? last_timestamp
+        : null;
     ```
 
 ---
 
-## 5. Pydantic Validation (in main.py)
+## 5. Timestamp Formatting
 
-- **Model Definition**
-  - Define Pydantic models in `models/pydantic_models.py`:
-    ```python
-    from pydantic import BaseModel, Field
+- **Timestamp Types**
+  - Use Firestore's `Timestamp` type for all timestamp fields:
+    ```typescript
+    import { Timestamp } from "firebase-admin/firestore";
+
+    // For current time
+    const now = Timestamp.now();
+
+    // For specific timestamps
+    const timestamp = new Timestamp(seconds, nanoseconds);
+    ```
+
+- **Timestamp Utility**
+  - Use the timestamp formatting utility in `utils/timestamp-utils.ts` for consistent timestamp formatting:
+    ```typescript
+    import { formatInTimeZone } from "date-fns-tz";
+    import { Timestamp } from "firebase-admin/firestore";
+
+    /**
+     * Formats a Firestore Timestamp to an ISO string in the same format as Python's datetime.isoformat()
+     * This ensures consistent timestamp formatting between Python and TypeScript implementations.
+     * 
+     * @param timestamp - The Firestore Timestamp to format
+     * @returns A string in the format "YYYY-MM-DDTHH:mm:ss.ssssss+00:00"
+     */
+    export const formatTimestamp = (timestamp: Timestamp): string => {
+        const date = timestamp.toDate();
+        return formatInTimeZone(date, "UTC", "yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx");
+    };
+    ```
+
+- **Usage in Functions**
+  - Always use `formatTimestamp` when returning timestamps in responses:
+    ```typescript
+    import { formatTimestamp } from "../utils/timestamp-utils";
+
+    // When creating a response object
+    const response = {
+        id: doc.id,
+        created_at: formatTimestamp(doc_data[UpdateFields.CREATED_AT]),
+        updated_at: formatTimestamp(doc_data[UpdateFields.UPDATED_AT])
+    };
+    ```
+
+- **Pagination Timestamps**
+  - Use `formatTimestamp` for pagination tokens:
+    ```typescript
+    // When setting up pagination
+    const next_timestamp = last_timestamp && updates.length === limit
+        ? formatTimestamp(last_timestamp)
+        : null;
+    ```
+
+---
+
+## 6. Zod Validation
+
+- **Schema Definition**
+  - Define Zod schemas in `models/validation-schemas.ts`:
+    ```typescript
+    import { z } from "zod";
     
-    class GetPaginatedRequest(BaseModel):
-        limit: int = Field(default=20, ge=1, le=100)
-        after_timestamp: str | None = None
+    export const paginationSchema = z.object({
+        limit: z.number().min(1).max(100).default(20),
+        after_timestamp: z.string().optional()
+    });
     
-    class AddFriendRequest(BaseModel):
-        friend_id: str
+    export const addFriendSchema = z.object({
+        friend_id: z.string().min(1)
+    });
     ```
 
 - **Request Body Validation**
   - For validating incoming request data (e.g., POST, PUT):
-    ```python
-    from pydantic import BaseModel, ValidationError
-    from flask import request, abort
-    from models.pydantic_models import AddFriendRequest
+    ```typescript
+    import { validateRequest } from "../middleware/validation";
+    import { addFriendSchema } from "../models/validation-schemas";
 
-    @app.route('/me/friends', methods=['POST'])
-    def add_my_friend():
-        try:
-            # Validate request body
-            payload = AddFriendRequest.model_validate(request.get_json())
-            # Pass validated data to function
-            return add_friend(request, payload.friend_id).to_json()
-        except ValidationError as e:
-            abort(400, description=str(e))
+    app.post("/me/friends", handle_errors(true), validateRequest(addFriendSchema), async (req, res) => {
+        await addFriend(req, res);
+    });
     ```
 
 - **Query Parameter Validation**
   - For GET requests with query parameters:
-    ```python
-    @app.route('/me/updates', methods=['GET'])
-    def my_updates():
-        # Convert query parameters to dictionary
-        params = request.args.to_dict(flat=True)
-        # Validate parameters
-        request.validated_params = GetPaginatedRequest.model_validate(params)
-        # Pass request with validated parameters to function
-        return get_my_updates(request).to_json()
+    ```typescript
+    app.get("/me/updates", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+        await getUpdates(req, res);
+    });
     ```
 
 ---
 
-## 6. Using Dataclasses for Output
+## 7. Using Interfaces for Output
 
-  - **Dataclass Definition**
-    - Define response models in `models/data_models.py`:
-      ```python
-      from dataclasses import dataclass, asdict
-      from typing import List, Optional
+  - **Interface Definition**
+    - Define response interfaces in `models/data-models.ts`:
+      ```typescript
+      export interface Friend {
+          id: string;
+          name: string;
+          avatar: string;
+      }
       
-      @dataclass
-      class Friend:
-          id: str
-          name: str
-          avatar: str
-      
-      @dataclass
-      class FriendsResponse:
-          friends: List[Friend]
-          
-          def to_json(self):
-              return asdict(self)
+      export interface FriendsResponse {
+          friends: Friend[];
+      }
       ```
   
   - **Creating Response Objects**
     - Create response objects from Firestore data:
-      ```python
-      # Create a Friend object from Firestore data
-      friend = Friend(
-          id=friend_user_id,
-          name=profile_data.get(ProfileFields.NAME, ""),
-          avatar=profile_data.get(ProfileFields.AVATAR, "")
-      )
+      ```typescript
+      // Create a Friend object from Firestore data
+      const friend: Friend = {
+          id: friend_user_id,
+          name: profile_data[ProfileFields.NAME] ?? "",
+          avatar: profile_data[ProfileFields.AVATAR] ?? ""
+      };
       
-      # Create a FriendsResponse with a list of friends
-      response = FriendsResponse(
-          friends=friends_list
-      )
+      // Create a FriendsResponse with a list of friends
+      const response: FriendsResponse = {
+          friends: friends_list
+      };
       
-      # Convert to JSON for HTTP response
-      return response.to_json()
+      // Return JSON response
+      return res.json(response);
       ```
 
 ---
 
-## 7. Error Handling
+## 8. Error Handling
 
   - **HTTP Status Codes**
     - 401 Unauthorized for missing/invalid token
     - 403 Forbidden for restricted endpoints (or root path)
     - 404 Not Found if a requested document doesn't exist
-    - 400 Bad Request for invalid input (Pydantic errors)
+    - 400 Bad Request for invalid input (Zod errors)
     - 500 Internal Server Error for unexpected exceptions
     - 200 OK for successful calls
   
   - **Exception Handling**
-    - Wrap function implementations in try-except blocks:
-      ```python
-      try:
-          # Function implementation
-          return response
-      except Exception as e:
-          logger.error(f"Error in function: {str(e)}", exc_info=True)
-          abort(500, "Internal server error")
+    - Wrap function implementations in try-catch blocks:
+      ```typescript
+      try {
+          // Function implementation
+          return res.json(response);
+      } catch (error: unknown) {
+          logger.error(`Error in function: ${error instanceof Error ? error.message : "Unknown error"}`, { error });
+          return res.status(500).json({
+              code: 500,
+              name: "Internal Server Error",
+              description: "An unexpected error occurred"
+          });
+      }
       ```
   
   - **Error Handling Approach**
-    - For all functions, use abort() with appropriate status codes for error conditions:
-      ```python
-      except Exception as e:
-          logger.error(f"Error in function: {str(e)}", exc_info=True)
-          abort(500, "Internal server error")
+    - For all functions, use appropriate status codes for error conditions:
+      ```typescript
+      if (!doc_snapshot.exists) {
+          logger.warn(`Profile not found for user ${userId}`);
+          return res.status(404).json({
+              code: 404,
+              name: "Not Found",
+              description: "Profile not found"
+          });
+      }
       ```
     
-    - Do not return empty responses on errors - always use abort() with the appropriate status code.
+    - Do not return empty responses on errors - always use appropriate status codes
     - Include descriptive error messages:
-      ```python
-      abort(404, "Profile not found")
-      abort(400, f"Profile already exists for user {request.user_id}")
-      abort(500, "Internal server error")
+      ```typescript
+      return res.status(404).json({
+          code: 404,
+          name: "Not Found",
+          description: "Profile not found"
+      });
+      return res.status(400).json({
+          code: 400,
+          name: "Bad Request",
+          description: `Profile already exists for user ${req.userId}`
+      });
+      return res.status(500).json({
+          code: 500,
+          name: "Internal Server Error",
+          description: "An unexpected error occurred"
+      });
       ```
 
   - **Partial Data**
-    - Always allow partial responses if some fields in Firestore are missing.
-    - Replace missing fields with empty defaults and do not fail the request entirely.
-    - Use `.get()` with default values to handle missing fields gracefully:
-      ```python
-      name = profile_data.get(ProfileFields.NAME, "")
-      avatar = profile_data.get(ProfileFields.AVATAR, "")
-      group_ids = profile_data.get(ProfileFields.GROUP_IDS, [])
+    - Always allow partial responses if some fields in Firestore are missing
+    - Replace missing fields with empty defaults and do not fail the request entirely
+    - Use nullish coalescing for default values:
+      ```typescript
+      const name = profile_data[ProfileFields.NAME] ?? "";
+      const avatar = profile_data[ProfileFields.AVATAR] ?? "";
+      const group_ids = profile_data[ProfileFields.GROUP_IDS] ?? [];
       ```
 
 ---
 
-## 8. Logging
+## 9. Logging
 
   - **Logging Utility**
-    - Create a logging utility in `utils/logging_utils.py`:
-      ```python
-      import logging
-      
-      def get_logger(name):
-          """
-          Get a logger with the specified name.
-          
-          Args:
-              name: The name of the logger, typically __name__
-              
-          Returns:
-              A configured logger instance
-          """
-          logger = logging.getLogger(name)
-          return logger
+    - Create a logging utility in `utils/logging-utils.ts`:
+      ```typescript
+      /**
+       * Creates and returns a logger with the specified name.
+       * 
+       * This utility function provides a standardized way to create loggers
+       * across the application, ensuring consistent formatting and behavior.
+       * 
+       * @param name - The name for the logger, typically __filename from the calling module
+       * @returns A configured logger instance with consistent formatting
+       */
+      export const getLogger = (name: string) => {
+          // Format the name to be more readable (remove file extension and path)
+          const formattedName = name.split('/').pop()?.replace('.ts', '') || name;
+
+          return {
+              info: (message: string, ...args: any[]) => {
+                  const timestamp = new Date().toISOString();
+                  console.log(`[${timestamp}] [${formattedName}] [INFO] ${message}`, ...args);
+              },
+              warn: (message: string, ...args: any[]) => {
+                  const timestamp = new Date().toISOString();
+                  console.warn(`[${timestamp}] [${formattedName}] [WARN] ${message}`, ...args);
+              },
+              error: (message: string, ...args: any[]) => {
+                  const timestamp = new Date().toISOString();
+                  console.error(`[${timestamp}] [${formattedName}] [ERROR] ${message}`, ...args);
+              },
+              debug: (message: string, ...args: any[]) => {
+                  const timestamp = new Date().toISOString();
+                  console.debug(`[${timestamp}] [${formattedName}] [DEBUG] ${message}`, ...args);
+              }
+          };
+      };
       ```
   
   - **Standardized Logging**
     - Use the logging utility for consistent logging across files:
-      ```python
-      from utils.logging_utils import get_logger
+      ```typescript
+      import { getLogger } from "../utils/logging-utils";
       
-      def my_function(request):
-          logger = get_logger(__name__)
-          logger.info(f"Starting function execution for user: {request.user_id}")
+      const logger = getLogger(__filename);
+      
+      export const myFunction = async (req: Request, res: Response) => {
+          logger.info(`Starting function execution for user: ${req.userId}`);
           
-          # Function implementation
+          // Function implementation
           
-          logger.info(f"Function completed successfully for user: {request.user_id}")
-          return response
+          logger.info(`Function completed successfully for user: ${req.userId}`);
+          return res.json(response);
+      };
       ```
     
   - **Log Levels**
     - `info`: Normal operation information (function start/end, successful operations)
-      ```python
-      logger.info(f"Retrieving profile for user: {request.user_id}")
-      logger.info(f"Retrieved {len(updates)} updates for user: {request.user_id}")
+      ```typescript
+      logger.info(`Retrieving profile for user: ${req.userId}`);
+      logger.info(`Retrieved ${updates.length} updates for user: ${req.userId}`);
       ```
-    - `warning`: Potential issues that don't cause function failure (missing data, skipped operations)
-      ```python
-      logger.warning(f"Profile not found for user: {user_id}")
-      logger.warning(f"Friend {friend_user_id} profile not found, skipping")
+    - `warn`: Potential issues that don't cause function failure (missing data, skipped operations)
+      ```typescript
+      logger.warn(`Profile not found for user: ${userId}`);
+      logger.warn(`Friend ${friendUserId} profile not found, skipping`);
       ```
     - `error`: Errors that cause function failure (exceptions, critical missing data)
-      ```python
-      logger.error(f"Error retrieving profile for user {user_id}: {str(e)}", exc_info=True)
+      ```typescript
+      logger.error(`Error retrieving profile for user ${userId}: ${error instanceof Error ? error.message : "Unknown error"}`);
+      ```
+    - `debug`: Detailed information for debugging purposes
+      ```typescript
+      logger.debug(`Processing request with parameters: ${JSON.stringify(req.query)}`);
       ```
     
   - **Contextual Information**
     - Include relevant context in log messages:
-      ```python
-      logger.info(f"Processing request for user: {request.user_id}")
-      logger.warning(f"Profile not found for user: {user_id}")
-      logger.error(f"Error retrieving data: {str(e)}", exc_info=True)
+      ```typescript
+      logger.info(`Processing request for user: ${req.userId}`);
+      logger.warn(`Profile not found for user: ${userId}`);
+      logger.error(`Error retrieving data: ${error instanceof Error ? error.message : "Unknown error"}`);
       ```
     - Always include user IDs in log messages for easier troubleshooting
     - For pagination, include pagination parameters:
-      ```python
-      logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
+      ```typescript
+      logger.info(`Pagination parameters - limit: ${limit}, after_timestamp: ${after_timestamp}`);
       ```
     - Include operation outcomes:
-      ```python
-      logger.info(f"Successfully created profile for user {request.user_id}")
-      logger.info(f"Successfully added friend {friend_id} for user {request.user_id}")
+      ```typescript
+      logger.info(`Successfully created profile for user ${req.userId}`);
+      logger.info(`Successfully added friend ${friendId} for user ${req.userId}`);
       ```
 
 ---
 
-## 9. Function Implementation
+## 10. Function Implementation
 
   - **Function Documentation**
-    - Include detailed docstrings for all functions:
-      ```python
-      def get_my_profile(request) -> ProfileResponse:
-          """
-          Retrieves the current user's profile.
-          
-          This function fetches the profile of the authenticated user from Firestore.
-          If the profile does not exist, a 404 error is returned.
-          
-          Args:
-              request: The Flask request object containing:
-                      - user_id: The authenticated user's ID (attached by authentication middleware)
-          
-          Returns:
-              A ProfileResponse containing:
-              - Basic profile information (id, name, avatar)
-              - List of group IDs the user is a member of
-          
-          Raises:
-              404: If the user profile does not exist.
-              500: If an unexpected error occurs during profile retrieval.
-          """
+    - Include detailed JSDoc comments for all functions:
+      ```typescript
+      /**
+       * Retrieves the current user's profile.
+       * 
+       * This function fetches the profile of the authenticated user from Firestore.
+       * If the profile does not exist, a 404 error is returned.
+       * 
+       * @param req - The Express request object containing:
+       *              - userId: The authenticated user's ID (attached by authentication middleware)
+       * @param res - The Express response object
+       * 
+       * @returns A ProfileResponse containing:
+       * - Basic profile information (id, name, avatar)
+       * - List of group IDs the user is a member of
+       * 
+       * @throws 404: If the user profile does not exist
+       * @throws 500: If an unexpected error occurs during profile retrieval
+       */
+      export const getProfile = async (req: Request, res: Response) => {
+          // Implementation
+      };
       ```
   
   - **Function Structure**
@@ -524,123 +653,134 @@
       2. Log function start with user ID
       3. Get Firestore client
       4. Extract parameters from request
-      5. Implement function logic in try-except block
+      5. Implement function logic in try-catch block
       6. Log function completion with user ID
       7. Return response
-      ```python
-      def my_function(request) -> ResponseType:
-          # 1. Initialize logger
-          logger = get_logger(__name__)
+      ```typescript
+      export const myFunction = async (req: Request, res: Response) => {
+          // 1. Initialize logger
+          const logger = getLogger(__filename);
           
-          # 2. Log function start
-          logger.info(f"Starting function for user: {request.user_id}")
+          // 2. Log function start
+          logger.info(`Starting function for user: ${req.userId}`);
           
-          # 3. Get Firestore client
-          db = firestore.client()
+          // 3. Get Firestore client
+          const db = getFirestore();
           
-          # 4. Extract parameters
-          param1 = request.validated_params.param1
+          // 4. Extract parameters
+          const param1 = req.validated_params?.param1;
           
-          try:
-              # 5. Implement function logic
-              # ...
+          try {
+              // 5. Implement function logic
+              // ...
               
-              # 6. Log function completion
-              logger.info(f"Function completed successfully for user: {request.user_id}")
+              // 6. Log function completion
+              logger.info(`Function completed successfully for user: ${req.userId}`);
               
-              # 7. Return response
-              return ResponseType(...)
-          except Exception as e:
-              logger.error(f"Error in function for user {request.user_id}: {str(e)}", exc_info=True)
-              abort(500, "Internal server error")
+              // 7. Return response
+              return res.json(response);
+          } catch (error: unknown) {
+              logger.error(`Error in function for user ${req.userId}: ${error instanceof Error ? error.message : "Unknown error"}`);
+              return res.status(500).json({
+                  code: 500,
+                  name: "Internal Server Error",
+                  description: "An unexpected error occurred"
+              });
+          }
+      };
       ```
     
   - **Pagination Implementation**
     - For paginated endpoints, use consistent pagination parameters and logic:
-      ```python
-      # Get pagination parameters from the validated request
-      validated_params = request.validated_params
-      limit = validated_params.limit
-      after_timestamp = validated_params.after_timestamp
+      ```typescript
+      // Get pagination parameters from the validated request
+      const validated_params = req.validated_params;
+      const limit = validated_params?.limit ?? 20;
+      const after_timestamp = validated_params?.after_timestamp;
       
-      # Log pagination parameters
-      logger.info(f"Pagination parameters - limit: {limit}, after_timestamp: {after_timestamp}")
+      // Log pagination parameters
+      logger.info(`Pagination parameters - limit: ${limit}, after_timestamp: ${after_timestamp}`);
       
-      # Build base query
-      query = db.collection(Collections.UPDATES) \
-          .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, user_id) \
-          .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-          .limit(limit)
+      // Build base query
+      const query = db.collection(Collections.UPDATES)
+          .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
+          .orderBy(UpdateFields.CREATED_AT, "desc")
+          .limit(limit);
       
-      # Apply pagination if an after_timestamp is provided
-      if after_timestamp:
-          query = query.start_after({UpdateFields.CREATED_AT: after_timestamp})
+      // Apply pagination if an after_timestamp is provided
+      if (after_timestamp) {
+          query = query.startAfter({ [UpdateFields.CREATED_AT]: after_timestamp });
+      }
       
-      # Execute query and process results
-      updates = []
-      last_timestamp = None
+      // Execute query and process results
+      const updates: Update[] = [];
+      let last_timestamp: string | null = null;
       
-      for doc in query.stream():
-          doc_data = doc.to_dict()
-          created_at = doc_data.get(UpdateFields.CREATED_AT)
+      for (const doc of (await query.get()).docs) {
+          const doc_data = doc.data();
+          const created_at = doc_data[UpdateFields.CREATED_AT];
           
-          if created_at:
-              last_timestamp = created_at
+          if (created_at) {
+              last_timestamp = created_at;
+          }
           
-          # Add to results
-          updates.append(Update(...))
+          // Add to results
+          updates.push(Update.fromFirestore(doc_data));
+      }
       
-      # Set up pagination for the next request
-      next_timestamp = None
-      if last_timestamp and len(updates) == limit:
-          next_timestamp = last_timestamp
-          logger.info(f"More results available, next_timestamp: {next_timestamp}")
+      // Set up pagination for the next request
+      const next_timestamp = last_timestamp && updates.length === limit
+          ? last_timestamp
+          : null;
       
-      logger.info(f"Retrieved {len(updates)} updates for user: {request.user_id}")
+      logger.info(`Retrieved ${updates.length} updates for user: ${req.userId}`);
       
-      # Return response with pagination token
-      return UpdatesResponse(
-          updates=updates,
-          next_timestamp=next_timestamp
-      )
+      // Return response with pagination token
+      return res.json({
+          updates,
+          next_timestamp
+      });
       ```
 
   - **Friend Relationship Handling**
     - For functions that deal with friend relationships:
-      ```python
-      # Check if users are friends
-      friend_ref = user_profile_ref.collection(Collections.FRIENDS).document(friend_id)
-      is_friend = friend_ref.get().exists
+      ```typescript
+      // Check if users are friends
+      const friend_ref = user_profile_ref.collection(Collections.FRIENDS).doc(friendId);
+      const is_friend = (await friend_ref.get()).exists;
       
-      # If they are not friends, return an error
-      if not is_friend:
-          logger.warning(f"User {request.user_id} attempted to view profile of non-friend {friend_id}")
-          abort(403, "You must be friends with this user to view their profile")
+      // If they are not friends, return an error
+      if (!is_friend) {
+          logger.warn(`User ${req.userId} attempted to view profile of non-friend ${friendId}`);
+          return res.status(403).json({
+              code: 403,
+              name: "Forbidden",
+              description: "You must be friends with this user to view their profile"
+          });
+      }
       ```
 
 ---
 
-## 10. Code Style and Formatting
+## 11. Code Style and Formatting
 
   - **Imports**
     - Group imports in the following order:
       1. Standard library imports
-      2. Third-party imports (Flask, Firebase, etc.)
+      2. Third-party imports (Express, Firebase, etc.)
       3. Local imports (models, utils, etc.)
     - Example:
-      ```python
-      # Standard library imports
-      import datetime
-      import functools
+      ```typescript
+      // Standard library imports
+      import { Request, Response } from "express";
       
-      # Third-party imports
-      from firebase_admin import firestore
-      from flask import abort, request
+      // Third-party imports
+      import { getFirestore } from "firebase-admin/firestore";
       
-      # Local imports
-      from models.constants import Collections, ProfileFields
-      from models.data_models import ProfileResponse
-      from utils.logging_utils import get_logger
+      // Local imports
+      import { Collections, ProfileFields } from "../models/constants";
+      import { ProfileResponse } from "../models/data-models";
+      import { getLogger } from "../utils/logging-utils";
       ```
   
   - **Whitespace**
@@ -653,36 +793,41 @@
   - **Line Length**
     - Keep lines under 100 characters when possible
     - For long lines, use line breaks at logical points:
-      ```python
-      # Good
-      query = db.collection(Collections.UPDATES) \
-          .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, user_id) \
-          .order_by(UpdateFields.CREATED_AT, direction=firestore.Query.DESCENDING) \
-          .limit(limit)
+      ```typescript
+      // Good
+      const query = db.collection(Collections.UPDATES)
+          .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
+          .orderBy(UpdateFields.CREATED_AT, "desc")
+          .limit(limit);
       
-      # Also good
-      if (SummaryFields.EMOTIONAL_JOURNEY in summary_data and 
-              summary_data[SummaryFields.EMOTIONAL_JOURNEY]):
-          emotional_journey_parts.append(summary_data[SummaryFields.EMOTIONAL_JOURNEY])
+      // Also good
+      if (SummaryFields.EMOTIONAL_JOURNEY in summary_data && 
+              summary_data[SummaryFields.EMOTIONAL_JOURNEY]) {
+          emotional_journey_parts.push(summary_data[SummaryFields.EMOTIONAL_JOURNEY]);
+      }
       ```
 
   - **Variable Naming**
     - Use descriptive variable names:
-      - `user_id` instead of `uid`
-      - `profile_data` instead of `data`
-      - `friend_ref` instead of `ref`
-    - Use snake_case for variable and function names
-    - Use PascalCase for class names and dataclasses
+      - `userId` instead of `uid`
+      - `profileData` instead of `data`
+      - `friendRef` instead of `ref`
+    - Use camelCase for variable and function names
+    - Use PascalCase for interfaces and types
 
 ---
 
-## 11. Testing and Deployment
+## 12. Testing and Deployment
 
   - **Local Testing**
     - Test functions locally before deployment:
-      ```python
-      if __name__ == '__main__':
-          app.run(debug=True)
+      ```typescript
+      // In app.ts
+      if (process.env.NODE_ENV === "development") {
+          app.listen(3000, () => {
+              console.log("Server running on port 3000");
+          });
+      }
       ```
   
   - **Deployment**
@@ -695,10 +840,8 @@
 
   - **Environment Variables**
     - Use environment variables for configuration:
-      ```python
-      import os
-      
-      DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+      ```typescript
+      const DEBUG = process.env.DEBUG === "true";
       ```
     - Set environment variables in Firebase:
       ```
