@@ -32,10 +32,10 @@ export async function createUpdate(req: Request, res: Response): Promise<void> {
 
     // Get validated data from the request
     const validatedParams = req.validated_params;
-    const content = validatedParams.content;
-    const sentiment = validatedParams.sentiment;
-    const groupIds = validatedParams.group_ids ?? [];
-    const friendIds = validatedParams.friend_ids ?? [];
+    const content = validatedParams.content || "";
+    const sentiment = validatedParams.sentiment || "";
+    const groupIds = validatedParams.group_ids || [];
+    const friendIds = validatedParams.friend_ids || [];
 
     logger.info(
         `Update details - content length: ${content.length}, ` +

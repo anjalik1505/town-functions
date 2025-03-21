@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
 import { Insights, ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -54,6 +54,8 @@ export const createProfile = async (req: Request, res: Response) => {
 
   logger.info(`Creating new profile for user ${currentUserId}`);
 
+  const updatedAt = Timestamp.now();
+
   // Create profile with provided data
   const profileDataToSave = {
     [ProfileFields.USERNAME]: profileData.username,
@@ -64,7 +66,8 @@ export const createProfile = async (req: Request, res: Response) => {
     [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
     [ProfileFields.SUMMARY]: "",
     [ProfileFields.SUGGESTIONS]: "",
-    [ProfileFields.GROUP_IDS]: []
+    [ProfileFields.GROUP_IDS]: [],
+    [ProfileFields.UPDATED_AT]: updatedAt,
   };
 
   // Create the profile document
@@ -93,6 +96,7 @@ export const createProfile = async (req: Request, res: Response) => {
     notification_settings: profileDataToSave[ProfileFields.NOTIFICATION_SETTINGS],
     summary: profileDataToSave[ProfileFields.SUMMARY],
     suggestions: profileDataToSave[ProfileFields.SUGGESTIONS],
+    updated_at: updatedAt.toDate().toISOString(),
     insights: insightsData
   };
 

@@ -101,15 +101,15 @@ export const getUserProfile = async (req: Request, res: Response) => {
     const userSummaryDoc = await userSummaryRef.get();
 
     // Initialize summary and suggestions
-    let summary: string | undefined;
-    let suggestions: string | undefined;
+    let summary = "";
+    let suggestions = "";
 
     if (userSummaryDoc.exists) {
         const userSummaryData = userSummaryDoc.data() || {};
         // Only return the summary if the current user is the target (the one who should see it)
         if (userSummaryData[UserSummaryFields.TARGET_ID] === currentUserId) {
-            summary = userSummaryData[UserSummaryFields.SUMMARY];
-            suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS];
+            summary = userSummaryData[UserSummaryFields.SUMMARY] || "";
+            suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS] || "";
             logger.info(`Retrieved user summary for relationship ${relationshipId}`);
         } else {
             logger.info(`User ${currentUserId} is not the target for this summary`);
@@ -125,10 +125,10 @@ export const getUserProfile = async (req: Request, res: Response) => {
     const response: FriendProfileResponse = {
         user_id: targetUserId,
         username: targetUserProfileData[ProfileFields.USERNAME] || "",
-        name: targetUserProfileData[ProfileFields.NAME] || undefined,
-        avatar: targetUserProfileData[ProfileFields.AVATAR] || undefined,
-        location: targetUserProfileData[ProfileFields.LOCATION] || undefined,
-        birthday: targetUserProfileData[ProfileFields.BIRTHDAY] || undefined,
+        name: targetUserProfileData[ProfileFields.NAME] || "",
+        avatar: targetUserProfileData[ProfileFields.AVATAR] || "",
+        location: targetUserProfileData[ProfileFields.LOCATION] || "",
+        birthday: targetUserProfileData[ProfileFields.BIRTHDAY] || "",
         summary,
         suggestions,
         updated_at: updatedAt

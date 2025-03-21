@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore, WhereFilterOp } from "firebase-admin/firestore";
+import { getFirestore, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, GroupFields, InsightsFields, InvitationFields, ProfileFields, QueryOperators } from "../models/constants";
 import { ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -94,6 +94,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     // Update the profile in the batch
     if (Object.keys(profileUpdates).length > 0) {
+        profileUpdates[ProfileFields.UPDATED_AT] = Timestamp.now();
         batch.update(profileRef, profileUpdates);
         logger.info(`Added profile update to batch for user ${currentUserId}`);
     }
@@ -230,13 +231,13 @@ export const updateProfile = async (req: Request, res: Response) => {
     const response: ProfileResponse = {
         user_id: currentUserId,
         username: updatedProfileData[ProfileFields.USERNAME] || "",
-        name: updatedProfileData[ProfileFields.NAME] || null,
-        avatar: updatedProfileData[ProfileFields.AVATAR] || null,
-        location: updatedProfileData[ProfileFields.LOCATION] || null,
-        birthday: updatedProfileData[ProfileFields.BIRTHDAY] || null,
-        notification_settings: updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS] || null,
-        summary: updatedProfileData[ProfileFields.SUMMARY] || null,
-        suggestions: updatedProfileData[ProfileFields.SUGGESTIONS] || null,
+        name: updatedProfileData[ProfileFields.NAME] || "",
+        avatar: updatedProfileData[ProfileFields.AVATAR] || "",
+        location: updatedProfileData[ProfileFields.LOCATION] || "",
+        birthday: updatedProfileData[ProfileFields.BIRTHDAY] || "",
+        notification_settings: updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
+        summary: updatedProfileData[ProfileFields.SUMMARY] || "",
+        suggestions: updatedProfileData[ProfileFields.SUGGESTIONS] || "",
         updated_at: updatedAt,
         insights: {
             emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || "",

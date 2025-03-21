@@ -8,26 +8,30 @@ export interface Insights {
 export interface BaseUser {
   user_id: string;
   username: string;
-  name?: string;
-  avatar?: string;
+  name: string;
+  avatar: string;
 }
 
 export interface ProfileResponse extends BaseUser {
-  location?: string;
-  birthday?: string;
-  notification_settings?: string[];
-  summary?: string;
-  insights?: Insights;
-  suggestions?: string;
-  updated_at?: string;
+  location: string;
+  birthday: string;
+  notification_settings: string[];
+  summary: string;
+  insights: Insights;
+  suggestions: string;
+  updated_at: string;
 }
 
-export interface FriendProfileResponse extends BaseUser {
-  location?: string;
-  birthday?: string;
-  summary?: string;
-  suggestions?: string;
-  updated_at?: string;
+export interface FriendProfileResponse {
+  user_id: string;
+  username: string;
+  name: string;
+  avatar: string;
+  location: string;
+  birthday: string;
+  summary: string;
+  suggestions: string;
+  updated_at: string;
 }
 
 export interface Update {
@@ -75,4 +79,4 @@ export interface InvitationsResponse {
 export interface Device {
   device_id: string;
   updated_at: string;
-} 
+}
