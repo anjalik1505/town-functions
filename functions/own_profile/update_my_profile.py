@@ -6,6 +6,7 @@ from models.constants import (
     Collections,
     FriendshipFields,
     GroupFields,
+    InsightsFields,
     InvitationFields,
     ProfileFields,
     QueryOperators,
@@ -290,7 +291,7 @@ def update_profile(request):
     )
     insights_data = insights_doc.to_dict() if insights_doc else {}
 
-    updated_at = profile_data.get(ProfileFields.UPDATED_AT, "")
+    updated_at = updated_profile_data.get(ProfileFields.UPDATED_AT, "")
     if isinstance(updated_at, datetime):
         updated_at = updated_at.isoformat()
 
