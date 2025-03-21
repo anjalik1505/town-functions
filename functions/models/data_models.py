@@ -9,8 +9,8 @@ class Update:
     content: str
     sentiment: str
     created_at: str
-    group_ids: Optional[List[str]] = None
-    friend_ids: Optional[List[str]] = None
+    group_ids: List[str]
+    friend_ids: List[str]
 
     def to_json(self):
         return asdict(self)
@@ -48,19 +48,19 @@ class BaseUser:
 
     user_id: str
     username: str
-    name: Optional[str] = None
-    avatar: Optional[str] = None
+    name: str
+    avatar: str
 
 
 @dataclass
 class ProfileResponse(BaseUser):
-    location: Optional[str] = None
-    birthday: Optional[str] = None
-    notification_settings: Optional[List[str]] = None
-    summary: Optional[str] = None
-    insights: Optional[Insights] = None
-    suggestions: Optional[str] = None
-    updated_at: Optional[str] = None
+    location: str
+    birthday: str
+    notification_settings: List[str]
+    summary: str
+    insights: Insights
+    suggestions: str
+    updated_at: str
 
     def to_json(self):
         return asdict(self)
@@ -85,11 +85,11 @@ class FriendsResponse:
 class FriendProfileResponse(BaseUser):
     """A limited profile response for friend profiles that excludes notification settings and insights."""
 
-    location: Optional[str] = None
-    birthday: Optional[str] = None
-    summary: Optional[str] = None
-    suggestions: Optional[str] = None
-    updated_at: Optional[str] = None
+    location: str
+    birthday: str
+    summary: str
+    suggestions: str
+    updated_at: str
 
     def to_json(self):
         return asdict(self)
@@ -103,8 +103,8 @@ class Invitation:
     sender_id: str
     status: str
     username: str
-    name: Optional[str] = None
-    avatar: Optional[str] = None
+    name: str
+    avatar: str
 
     def __post_init__(self):
         # Ensure status is always a string, not an enum
@@ -142,8 +142,8 @@ class Group:
     name: str
     icon: str
     created_at: str
-    members: Optional[List[str]] = None
-    member_profiles: Optional[List[Dict[str, str]]] = None
+    members: List[str]
+    member_profiles: List[Dict[str, str]]
 
     def __post_init__(self):
         # Ensure any potential enum values are converted to strings

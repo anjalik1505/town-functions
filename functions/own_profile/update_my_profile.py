@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from firebase_admin import firestore
 from flask import abort
@@ -135,6 +135,7 @@ def update_profile(request):
 
     # Update the profile in the batch
     if profile_updates:
+        profile_updates[ProfileFields.UPDATED_AT] = datetime.now(timezone.utc)
         batch.update(profile_ref, profile_updates)
         logger.info(f"Added profile update to batch for user {current_user_id}")
 
@@ -299,15 +300,15 @@ def update_profile(request):
     return ProfileResponse(
         user_id=current_user_id,
         username=updated_profile_data.get(ProfileFields.USERNAME, ""),
-        name=updated_profile_data.get(ProfileFields.NAME, None),
-        avatar=updated_profile_data.get(ProfileFields.AVATAR, None),
-        location=updated_profile_data.get(ProfileFields.LOCATION, None),
-        birthday=updated_profile_data.get(ProfileFields.BIRTHDAY, None),
+        name=updated_profile_data.get(ProfileFields.NAME, ""),
+        avatar=updated_profile_data.get(ProfileFields.AVATAR, ""),
+        location=updated_profile_data.get(ProfileFields.LOCATION, ""),
+        birthday=updated_profile_data.get(ProfileFields.BIRTHDAY, ""),
         notification_settings=updated_profile_data.get(
-            ProfileFields.NOTIFICATION_SETTINGS, None
+            ProfileFields.NOTIFICATION_SETTINGS, []
         ),
-        summary=updated_profile_data.get(ProfileFields.SUMMARY, None),
-        suggestions=updated_profile_data.get(ProfileFields.SUGGESTIONS, None),
+        summary=updated_profile_data.get(ProfileFields.SUMMARY, ""),
+        suggestions=updated_profile_data.get(ProfileFields.SUGGESTIONS, ""),
         updated_at=updated_at,
         insights=Insights(
             emotional_overview=insights_data.get(InsightsFields.EMOTIONAL_OVERVIEW, ""),

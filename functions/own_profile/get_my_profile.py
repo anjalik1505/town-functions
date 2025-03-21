@@ -67,15 +67,13 @@ def get_my_profile(request) -> ProfileResponse:
     return ProfileResponse(
         user_id=current_user_id,
         username=profile_data.get(ProfileFields.USERNAME, ""),
-        name=profile_data.get(ProfileFields.NAME, None),
-        avatar=profile_data.get(ProfileFields.AVATAR, None),
-        location=profile_data.get(ProfileFields.LOCATION, None),
-        birthday=profile_data.get(ProfileFields.BIRTHDAY, None),
-        notification_settings=profile_data.get(
-            ProfileFields.NOTIFICATION_SETTINGS, None
-        ),
-        summary=profile_data.get(ProfileFields.SUMMARY, None),
-        suggestions=profile_data.get(ProfileFields.SUGGESTIONS, None),
+        name=profile_data.get(ProfileFields.NAME, ""),
+        avatar=profile_data.get(ProfileFields.AVATAR, ""),
+        location=profile_data.get(ProfileFields.LOCATION, ""),
+        birthday=profile_data.get(ProfileFields.BIRTHDAY, ""),
+        notification_settings=profile_data.get(ProfileFields.NOTIFICATION_SETTINGS, []),
+        summary=profile_data.get(ProfileFields.SUMMARY, ""),
+        suggestions=profile_data.get(ProfileFields.SUGGESTIONS, ""),
         updated_at=updated_at,
         insights=Insights(
             emotional_overview=insights_data.get(InsightsFields.EMOTIONAL_OVERVIEW, ""),
