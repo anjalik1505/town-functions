@@ -467,6 +467,9 @@ class VillageAPI:
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
+            # Log the full response data
+            logger.info(f"Full response data: {response.text}")
+
             response_data = response.json() if response.text else {}
             result = {"status_code": response.status_code, "response": response_data}
 

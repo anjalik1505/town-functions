@@ -123,15 +123,6 @@ def handle_errors(validate_request=False):
     return decorator
 
 
-@app.route("/")
-@handle_errors()
-def index():
-    """
-    Reject all requests to the root endpoint.
-    """
-    abort(403, description="Forbidden")
-
-
 @app.route("/me/profile", methods=["GET"])
 @handle_errors()
 def my_profile():
@@ -387,6 +378,16 @@ def create_new_update():
 
     request.validated_params = CreateUpdateRequest.model_validate(data)
     return create_update(request).to_json()
+
+
+# Catch-all route handler for unmatched routes
+@app.route("/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+@handle_errors()
+def catch_all(path):
+    """
+    Return 403 Forbidden for any unmatched routes.
+    """
+    abort(403, description="Forbidden")
 
 
 # Firebase Function entry point
