@@ -80,3 +80,37 @@ export interface Device {
   device_id: string;
   updated_at: string;
 }
+
+export interface Group {
+  group_id: string;
+  name: string;
+  icon: string;
+  created_at: string;
+  members: string[];
+  member_profiles: Record<string, string>[];
+}
+
+export interface GroupsResponse {
+  groups: Group[];
+}
+
+export interface GroupMember extends BaseUser {
+  // Group member with basic profile information
+}
+
+export interface GroupMembersResponse {
+  members: GroupMember[];
+}
+
+export interface ChatMessage {
+  message_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+  attachments?: string[];
+}
+
+export interface ChatResponse {
+  messages: ChatMessage[];
+  next_timestamp?: string | null;
+}

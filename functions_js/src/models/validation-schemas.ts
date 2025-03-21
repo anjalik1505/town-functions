@@ -34,4 +34,19 @@ export const createUpdateSchema = z.object({
     sentiment: z.string().min(1, "Sentiment is required"),
     group_ids: z.array(z.string()).optional(),
     friend_ids: z.array(z.string()).optional()
+});
+
+export const createChatMessageSchema = z.object({
+    text: z.string().min(1, "Message text is required"),
+    attachments: z.array(z.string()).optional()
+});
+
+export const createGroupSchema = z.object({
+    name: z.string().min(1, "Group name is required"),
+    icon: z.string().optional(),
+    members: z.array(z.string()).min(1, "At least one member is required")
+});
+
+export const addGroupMembersSchema = z.object({
+    members: z.array(z.string()).min(1, "At least one member is required")
 }); 

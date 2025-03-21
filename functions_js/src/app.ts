@@ -195,6 +195,35 @@ app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), a
     await createUpdate(req, res);
 });
 
+// // Group routes
+// app.get("/me/groups", handle_errors(false), async (req, res) => {
+//     await getMyGroups(req, res);
+// });
+
+// app.post("/groups", handle_errors(true), validateRequest(createGroupSchema), async (req, res) => {
+//     await createGroup(req, res);
+// });
+
+// app.get("/groups/:group_id/members", handle_errors(false), async (req, res) => {
+//     await getGroupMembers(req, res, req.params.group_id);
+// });
+
+// app.post("/groups/:group_id/members", handle_errors(true), validateRequest(addGroupMembersSchema), async (req, res) => {
+//     await addMembersToGroup(req, res, req.params.group_id);
+// });
+
+// app.get("/groups/:group_id/feed", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+//     await getGroupFeed(req, res, req.params.group_id);
+// });
+
+// app.get("/groups/:group_id/chats", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+//     await getGroupChats(req, res, req.params.group_id);
+// });
+
+// app.post("/groups/:group_id/chats", handle_errors(true), validateRequest(createChatMessageSchema), async (req, res) => {
+//     await createGroupChatMessage(req, res, req.params.group_id);
+// });
+
 // Catch-all route handler for unmatched routes
 app.use((req, res) => {
     res.status(403).json({
