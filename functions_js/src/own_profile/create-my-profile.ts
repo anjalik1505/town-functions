@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
 import { Insights, ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -96,7 +97,7 @@ export const createProfile = async (req: Request, res: Response) => {
     notification_settings: profileDataToSave[ProfileFields.NOTIFICATION_SETTINGS],
     summary: profileDataToSave[ProfileFields.SUMMARY],
     suggestions: profileDataToSave[ProfileFields.SUGGESTIONS],
-    updated_at: updatedAt.toDate().toISOString(),
+    updated_at: formatTimestamp(updatedAt),
     insights: insightsData
   };
 

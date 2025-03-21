@@ -3,6 +3,7 @@ import { getFirestore, Timestamp, WhereFilterOp } from "firebase-admin/firestore
 import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -123,7 +124,7 @@ export const getFeeds = async (req: Request, res: Response) => {
             const createdBy = docData[UpdateFields.CREATED_BY] || "";
 
             // Convert Firestore datetime to ISO format string
-            const createdAtIso = createdAt?.toDate?.()?.toISOString() || "";
+            const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
 
             // Convert Firestore document to Update model
             const update: Update = {

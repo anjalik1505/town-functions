@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, DeviceFields } from "../models/constants";
 import { Device } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -42,7 +43,7 @@ export const getDevice = async (req: Request, res: Response) => {
 
     // Format timestamp for consistent API response
     const updatedAt = deviceData?.[DeviceFields.UPDATED_AT] as Timestamp;
-    const updatedAtIso = updatedAt?.toDate?.()?.toISOString() || "";
+    const updatedAtIso = updatedAt ? formatTimestamp(updatedAt) : "";
 
     const device: Device = {
         device_id: deviceData?.[DeviceFields.DEVICE_ID] || "",

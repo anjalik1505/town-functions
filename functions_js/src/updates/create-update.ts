@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Collections, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -87,7 +88,7 @@ export async function createUpdate(req: Request, res: Response): Promise<void> {
         created_by: currentUserId,
         content: content,
         sentiment: sentiment,
-        created_at: createdAt.toDate().toISOString(),
+        created_at: formatTimestamp(createdAt),
         group_ids: groupIds,
         friend_ids: friendIds,
     };

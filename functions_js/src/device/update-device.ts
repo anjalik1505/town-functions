@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, DeviceFields } from "../models/constants";
 import { Device } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -43,7 +44,7 @@ export const updateDevice = async (req: Request, res: Response) => {
     // Create and return a Device object
     const device: Device = {
         device_id: deviceDataInput.device_id,
-        updated_at: currentTime.toDate().toISOString()
+        updated_at: formatTimestamp(currentTime)
     };
 
     return res.json(device);

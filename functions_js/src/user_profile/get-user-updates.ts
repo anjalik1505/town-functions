@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, QueryOperators, Status, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -165,7 +166,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
             const updateGroupIds = docData[UpdateFields.GROUP_IDS] || [];
 
             // Convert Firestore datetime to ISO format string for the Update model
-            const createdAtIso = createdAt?.toDate?.()?.toISOString() || "";
+            const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
 
             // Check if the update is in a shared group or if the current user is a friend
             const isInSharedGroup = updateGroupIds.some((groupId: string) => sharedGroupIds.includes(groupId));

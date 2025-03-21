@@ -3,6 +3,7 @@ import { getFirestore, Timestamp, WhereFilterOp } from "firebase-admin/firestore
 import { Collections, FriendshipFields, GroupFields, InsightsFields, InvitationFields, ProfileFields, QueryOperators } from "../models/constants";
 import { ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -225,7 +226,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     // Format updated_at timestamp - Firestore Timestamp to ISO string
     // This matches the Python datetime.isoformat() behavior
-    const updatedAt = updatedProfileData[ProfileFields.UPDATED_AT]?.toDate?.()?.toISOString() || "";
+    const updatedAt = updatedProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(updatedProfileData[ProfileFields.UPDATED_AT]) : "";
 
     // Construct and return the profile response
     const response: ProfileResponse = {

@@ -3,6 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { Collections, InsightsFields, ProfileFields } from "../models/constants";
 import { ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -57,7 +58,7 @@ export const getProfile = async (req: Request, res: Response) => {
   logger.info(`Retrieved insights data for user: ${currentUserId}`);
 
   // Format updated_at timestamp if it exists
-  const updatedAt = profileData[ProfileFields.UPDATED_AT]?.toDate?.()?.toISOString() || "";
+  const updatedAt = profileData[ProfileFields.UPDATED_AT] ? formatTimestamp(profileData[ProfileFields.UPDATED_AT]) : "";
 
   // Construct and return the profile response
   const response: ProfileResponse = {

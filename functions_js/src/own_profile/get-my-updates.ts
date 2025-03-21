@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, QueryOperators, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -72,7 +73,7 @@ export const getUpdates = async (req: Request, res: Response) => {
         }
 
         // Convert Firestore datetime to ISO format string
-        const createdAtIso = createdAt?.toDate?.()?.toISOString() || "";
+        const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
 
         // Convert Firestore document to Update model
         updates.push({
@@ -90,7 +91,7 @@ export const getUpdates = async (req: Request, res: Response) => {
     let nextTimestamp: string | null = null;
     if (lastTimestamp && updates.length === limit) {
         // Convert the timestamp to ISO format for pagination
-        nextTimestamp = lastTimestamp.toDate().toISOString();
+        nextTimestamp = formatTimestamp(lastTimestamp);
         logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
     }
 

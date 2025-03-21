@@ -3,6 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
 import { FriendProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -119,7 +120,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
     }
 
     // Format updated_at timestamp - Firestore Timestamp to ISO string
-    const updatedAt = targetUserProfileData[ProfileFields.UPDATED_AT]?.toDate?.()?.toISOString() || "";
+    const updatedAt = targetUserProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(targetUserProfileData[ProfileFields.UPDATED_AT]) : "";
 
     // Return a FriendProfileResponse with the user's profile information and summary/suggestions if available
     const response: FriendProfileResponse = {

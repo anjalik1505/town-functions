@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -76,10 +77,10 @@ export const rejectInvitation = async (req: Request, res: Response) => {
 
     // Format timestamps for consistent API response
     const createdAt = invitationData?.[InvitationFields.CREATED_AT] as Timestamp;
-    const createdAtIso = createdAt?.toDate?.()?.toISOString() || "";
+    const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
 
     const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
-    const expiresAtIso = expiresAt?.toDate?.()?.toISOString() || "";
+    const expiresAtIso = expiresAt ? formatTimestamp(expiresAt) : "";
 
     // Return the updated invitation
     const invitation: Invitation = {

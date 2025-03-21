@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
+import { formatTimestamp } from "../utils/timestamp_utils";
 
 const logger = getLogger(__filename);
 
@@ -73,8 +74,8 @@ export const createInvitation = async (req: Request, res: Response) => {
     // Return the invitation object
     const invitation: Invitation = {
         invitation_id: invitationRef.id,
-        created_at: currentTime.toDate().toISOString(),
-        expires_at: expiresAt.toDate().toISOString(),
+        created_at: formatTimestamp(currentTime),
+        expires_at: formatTimestamp(expiresAt),
         sender_id: currentUserId,
         status: Status.PENDING,
         username: currentUserProfile[ProfileFields.USERNAME] || "",
