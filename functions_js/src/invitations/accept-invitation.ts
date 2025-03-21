@@ -1,0 +1,212 @@
+import { Request, Response } from "express";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
+import { Friend } from "../models/data-models";
+import { getLogger } from "../utils/logging_utils";
+
+const logger = getLogger(__filename);
+
+/**
+ * Accepts an invitation and creates a friendship between the users.
+ * 
+ * This function:
+ * 1. Checks if the invitation exists and is still valid
+ * 2. Creates a new friendship document between the accepting user and the sender
+ * 3. Deletes the invitation document
+ * 
+ * @param req - The Express request object containing:
+ *              - userId: The authenticated user's ID (attached by authentication middleware)
+ *              - params: Route parameters containing:
+ *                - invitation_id: The ID of the invitation to accept
+ * @param res - The Express response object
+ * 
+ * @returns A Friend object representing the new friendship
+ * 
+ * @throws 400: Invitation cannot be accepted (status: {status})
+ * @throws 400: Invitation has expired
+ * @throws 400: You cannot accept your own invitation
+ * @throws 404: Invitation not found
+ * @throws 404: User profile not found
+ * @throws 404: Sender profile not found
+ */
+export const acceptInvitation = async (req: Request, res: Response) => {
+    const currentUserId = req.userId;
+    const invitationId = req.params.invitation_id;
+
+    logger.info(`User ${currentUserId} accepting invitation ${invitationId}`);
+
+    // Initialize Firestore client
+    const db = getFirestore();
+
+    // Get the invitation document
+    const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
+    const invitationDoc = await invitationRef.get();
+
+    // Check if the invitation exists
+    if (!invitationDoc.exists) {
+        logger.warn(`Invitation ${invitationId} not found`);
+        return res.status(404).json({
+            code: 404,
+            name: "Not Found",
+            description: "Invitation not found"
+        });
+    }
+
+    const invitationData = invitationDoc.data() || {};
+
+    // Check invitation status
+    const status = invitationData[InvitationFields.STATUS];
+    if (status !== Status.PENDING) {
+        logger.warn(`Invitation ${invitationId} has status ${status}, not pending`);
+        return res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: `Invitation cannot be accepted (status: ${status})`
+        });
+    }
+
+    // Check if invitation has expired
+    const currentTime = Timestamp.now();
+    const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
+    if (expiresAt && expiresAt.toDate() < currentTime.toDate()) {
+        // Update invitation status to expired
+        await invitationRef.update({ [InvitationFields.STATUS]: Status.EXPIRED });
+        logger.warn(`Invitation ${invitationId} has expired`);
+        return res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: "Invitation has expired"
+        });
+    }
+
+    // Get the sender's user ID
+    const senderId = invitationData[InvitationFields.SENDER_ID];
+
+    // Ensure the current user is not the sender (can't accept your own invitation)
+    if (senderId === currentUserId) {
+        logger.warn(
+            `User ${currentUserId} attempted to accept their own invitation ${invitationId}`
+        );
+        return res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: "You cannot accept your own invitation"
+        });
+    }
+
+    // Get current user's profile
+    const currentUserProfileRef = db.collection(Collections.PROFILES).doc(currentUserId);
+    const currentUserProfileDoc = await currentUserProfileRef.get();
+
+    if (!currentUserProfileDoc.exists) {
+        logger.warn(`Current user profile ${currentUserId} not found`);
+        return res.status(404).json({
+            code: 404,
+            name: "Not Found",
+            description: "User profile not found"
+        });
+    }
+
+    const currentUserProfile = currentUserProfileDoc.data() || {};
+
+    // Get sender's profile
+    const senderProfileRef = db.collection(Collections.PROFILES).doc(senderId);
+    const senderProfileDoc = await senderProfileRef.get();
+
+    if (!senderProfileDoc.exists) {
+        logger.warn(`Sender profile ${senderId} not found`);
+        return res.status(404).json({
+            code: 404,
+            name: "Not Found",
+            description: "Sender profile not found"
+        });
+    }
+
+    const senderProfile = senderProfileDoc.data() || {};
+
+    // Create a batch operation for atomicity
+    const batch = db.batch();
+
+    // Create a consistent friendship ID by sorting the user IDs
+    const userIds = [currentUserId, senderId].sort();
+    const friendshipId = `${userIds[0]}_${userIds[1]}`;
+
+    // Check if friendship already exists
+    const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
+    const friendshipDoc = await friendshipRef.get();
+
+    if (friendshipDoc.exists) {
+        const friendshipData = friendshipDoc.data() || {};
+        const friendshipStatus = friendshipData[FriendshipFields.STATUS];
+
+        if (friendshipStatus === Status.ACCEPTED) {
+            logger.warn(
+                `Users ${currentUserId} and ${senderId} are already friends`
+            );
+            // Delete the invitation since they're already friends
+            batch.delete(invitationRef);
+            await batch.commit();
+
+            // Return the existing friend using data from the friendship document
+            let friendName: string;
+            let friendUsername: string;
+            let friendAvatar: string;
+
+            if (friendshipData[FriendshipFields.SENDER_ID] === senderId) {
+                friendName = friendshipData[FriendshipFields.SENDER_NAME] || "";
+                friendUsername = friendshipData[FriendshipFields.SENDER_USERNAME] || "";
+                friendAvatar = friendshipData[FriendshipFields.SENDER_AVATAR] || "";
+            } else {
+                friendName = friendshipData[FriendshipFields.RECEIVER_NAME] || "";
+                friendUsername = friendshipData[FriendshipFields.RECEIVER_USERNAME] || "";
+                friendAvatar = friendshipData[FriendshipFields.RECEIVER_AVATAR] || "";
+            }
+
+            const friend: Friend = {
+                user_id: senderId,
+                username: friendUsername,
+                name: friendName,
+                avatar: friendAvatar
+            };
+
+            return res.json(friend);
+        }
+    }
+
+    // Create the friendship document using profile data directly
+    const friendshipData = {
+        [FriendshipFields.SENDER_ID]: senderId,
+        [FriendshipFields.SENDER_NAME]: senderProfile[ProfileFields.NAME] || "",
+        [FriendshipFields.SENDER_USERNAME]: senderProfile[ProfileFields.USERNAME] || "",
+        [FriendshipFields.SENDER_AVATAR]: senderProfile[ProfileFields.AVATAR] || "",
+        [FriendshipFields.RECEIVER_ID]: currentUserId,
+        [FriendshipFields.RECEIVER_NAME]: currentUserProfile[ProfileFields.NAME] || "",
+        [FriendshipFields.RECEIVER_USERNAME]: currentUserProfile[ProfileFields.USERNAME] || "",
+        [FriendshipFields.RECEIVER_AVATAR]: currentUserProfile[ProfileFields.AVATAR] || "",
+        [FriendshipFields.STATUS]: Status.ACCEPTED,
+        [FriendshipFields.CREATED_AT]: currentTime,
+        [FriendshipFields.UPDATED_AT]: currentTime,
+        [FriendshipFields.MEMBERS]: [senderId, currentUserId]
+    };
+
+    // Add operations to batch
+    batch.set(friendshipRef, friendshipData);
+    batch.delete(invitationRef);
+
+    // Commit the batch
+    await batch.commit();
+
+    logger.info(
+        `User ${currentUserId} accepted invitation ${invitationId} from ${senderId}`
+    );
+
+    // Return the friend object using sender's profile data
+    const friend: Friend = {
+        user_id: senderId,
+        username: senderProfile[ProfileFields.USERNAME] || "",
+        name: senderProfile[ProfileFields.NAME] || "",
+        avatar: senderProfile[ProfileFields.AVATAR] || ""
+    };
+
+    return res.json(friend);
+}; 
