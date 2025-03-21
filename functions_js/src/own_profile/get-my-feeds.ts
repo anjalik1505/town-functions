@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -105,21 +105,17 @@ export const getFeeds = async (req: Request, res: Response) => {
             visibilityQuery = visibilityQuery.startAfter({ [UpdateFields.CREATED_AT]: afterTimestamp });
         }
 
-        // Get updates - use the exact limit since we'll process all batches before sorting and limiting
-        const batchDocs = await visibilityQuery.limit(limit).get();
-        logger.info(
-            `Retrieved ${batchDocs.docs.length} updates from visibility batch of size ${visibilityBatch.length}`
-        );
+        // Process updates as they stream in
+        for await (const doc of visibilityQuery.limit(limit).stream()) {
+            const updateDoc = doc as unknown as QueryDocumentSnapshot;
 
-        // Process each document
-        for (const doc of batchDocs.docs) {
             // Skip if we've already processed this update
-            if (processedUpdateIds.has(doc.id)) {
+            if (processedUpdateIds.has(updateDoc.id)) {
                 continue;
             }
 
-            processedUpdateIds.add(doc.id);
-            const docData = doc.data();
+            processedUpdateIds.add(updateDoc.id);
+            const docData = updateDoc.data();
             const createdAt = docData[UpdateFields.CREATED_AT] as Timestamp;
             const createdBy = docData[UpdateFields.CREATED_BY] || "";
 
@@ -128,7 +124,7 @@ export const getFeeds = async (req: Request, res: Response) => {
 
             // Convert Firestore document to Update model
             const update: Update = {
-                update_id: doc.id,
+                update_id: updateDoc.id,
                 created_by: createdBy,
                 content: docData[UpdateFields.CONTENT] || "",
                 group_ids: docData[UpdateFields.GROUP_IDS] || [],

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, GroupFields, InsightsFields, InvitationFields, ProfileFields, QueryOperators } from "../models/constants";
 import { ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -108,8 +108,8 @@ export const updateProfile = async (req: Request, res: Response) => {
         const invitationsQuery = db.collection(Collections.INVITATIONS)
             .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, currentUserId);
 
-        const invitationDocs = await invitationsQuery.get();
-        for (const invitationDoc of invitationDocs.docs) {
+        for await (const doc of invitationsQuery.stream()) {
+            const invitationDoc = doc as unknown as QueryDocumentSnapshot;
             const invitationUpdates: Record<string, any> = {};
 
             if (usernameChanged) {
@@ -131,8 +131,8 @@ export const updateProfile = async (req: Request, res: Response) => {
         const friendshipsAsSenderQuery = db.collection(Collections.FRIENDSHIPS)
             .where(FriendshipFields.SENDER_ID, QueryOperators.EQUALS, currentUserId);
 
-        const friendshipSenderDocs = await friendshipsAsSenderQuery.get();
-        for (const friendshipDoc of friendshipSenderDocs.docs) {
+        for await (const doc of friendshipsAsSenderQuery.stream()) {
+            const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
             const friendshipUpdates: Record<string, any> = {};
 
             if (usernameChanged) {
@@ -154,8 +154,8 @@ export const updateProfile = async (req: Request, res: Response) => {
         const friendshipsAsReceiverQuery = db.collection(Collections.FRIENDSHIPS)
             .where(FriendshipFields.RECEIVER_ID, QueryOperators.EQUALS, currentUserId);
 
-        const friendshipReceiverDocs = await friendshipsAsReceiverQuery.get();
-        for (const friendshipDoc of friendshipReceiverDocs.docs) {
+        for await (const doc of friendshipsAsReceiverQuery.stream()) {
+            const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
             const friendshipUpdates: Record<string, any> = {};
 
             if (usernameChanged) {
@@ -177,8 +177,8 @@ export const updateProfile = async (req: Request, res: Response) => {
         const groupsQuery = db.collection(Collections.GROUPS)
             .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
 
-        const groupDocs = await groupsQuery.get();
-        for (const groupDoc of groupDocs.docs) {
+        for await (const doc of groupsQuery.stream()) {
+            const groupDoc = doc as unknown as QueryDocumentSnapshot;
             const groupData = groupDoc.data();
             const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
 

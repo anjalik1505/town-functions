@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, QueryOperators, Status, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -131,7 +131,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
 
     // Get updates from the target user with pagination to ensure we get enough items
     const userUpdates: Update[] = [];
-    let lastDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+    let lastDoc: QueryDocumentSnapshot | null = null;
     const batchSize = limit * 2; // Fetch more items than needed to account for filtering
 
     // Continue fetching until we have enough items or there are no more to fetch
@@ -149,19 +149,13 @@ export const getUserUpdates = async (req: Request, res: Response) => {
         }
 
         userQuery = userQuery.limit(batchSize);
-        const userDocs = await userQuery.get();
 
-        // If no more documents, break the loop
-        if (userDocs.empty) {
-            break;
-        }
-
-        // Keep track of the last document for pagination
-        lastDoc = userDocs.docs[userDocs.docs.length - 1];
-
-        // Process the documents
-        for (const doc of userDocs.docs) {
-            const docData = doc.data();
+        // Process updates as they stream in
+        let currentLastDoc: QueryDocumentSnapshot | null = null;
+        for await (const doc of userQuery.stream()) {
+            const updateDoc = doc as unknown as QueryDocumentSnapshot;
+            currentLastDoc = updateDoc;
+            const docData = updateDoc.data();
             const createdAt = docData[UpdateFields.CREATED_AT] as Timestamp;
             const updateGroupIds = docData[UpdateFields.GROUP_IDS] || [];
 
@@ -177,7 +171,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
             if (isInSharedGroup || isFriend) {
                 // Convert Firestore document to Update model
                 userUpdates.push({
-                    update_id: doc.id,
+                    update_id: updateDoc.id,
                     created_by: docData[UpdateFields.CREATED_BY] || "",
                     content: docData[UpdateFields.CONTENT] || "",
                     group_ids: updateGroupIds,
@@ -192,6 +186,14 @@ export const getUserUpdates = async (req: Request, res: Response) => {
                 }
             }
         }
+
+        // If no more documents, break the loop
+        if (userUpdates.length < limit) {
+            break;
+        }
+
+        // Keep track of the last document for pagination
+        lastDoc = currentLastDoc;
     }
 
     // Limit to exactly the requested number

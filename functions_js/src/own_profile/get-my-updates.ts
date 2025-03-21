@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, QueryOperators, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -56,15 +56,16 @@ export const getUpdates = async (req: Request, res: Response) => {
     query = query.limit(limit);
 
     // Execute the query
-    const docs = await query.get();
+    const docs = query.stream();
     logger.info("Query executed successfully");
 
     const updates: Update[] = [];
     let lastTimestamp: Timestamp | null = null;
 
     // Process the query results
-    for (const doc of docs.docs) {
-        const docData = doc.data();
+    for await (const doc of docs) {
+        const updateDoc = doc as unknown as QueryDocumentSnapshot;
+        const docData = updateDoc.data();
         const createdAt = docData[UpdateFields.CREATED_AT] as Timestamp;
 
         // Track the last timestamp for pagination
@@ -76,15 +77,17 @@ export const getUpdates = async (req: Request, res: Response) => {
         const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
 
         // Convert Firestore document to Update model
-        updates.push({
-            update_id: doc.id,
+        const update: Update = {
+            update_id: updateDoc.id,
             created_by: docData[UpdateFields.CREATED_BY] || currentUserId,
             content: docData[UpdateFields.CONTENT] || "",
             group_ids: docData[UpdateFields.GROUP_IDS] || [],
             friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
             sentiment: docData[UpdateFields.SENTIMENT] || "",
             created_at: createdAtIso
-        });
+        };
+
+        updates.push(update);
     }
 
     // Set up pagination for the next request

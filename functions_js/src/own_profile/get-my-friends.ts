@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
 import { getLogger } from "../utils/logging_utils";
@@ -37,13 +37,12 @@ export const getMyFriends = async (req: Request, res: Response) => {
 
     logger.info(`Querying friendships for user: ${currentUserId}`);
 
-    // Execute the query
-    const friendshipsSnapshot = await friendshipsQuery.get();
     const friends: Friend[] = [];
 
-    // Process friendships
-    for (const doc of friendshipsSnapshot.docs) {
-        const friendshipData = doc.data();
+    // Process friendships as they stream in
+    for await (const doc of friendshipsQuery.stream()) {
+        const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
+        const friendshipData = friendshipDoc.data();
         const friendshipStatus = friendshipData[FriendshipFields.STATUS];
 
         // Determine if the current user is the sender or receiver
