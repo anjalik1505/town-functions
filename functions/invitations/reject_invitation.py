@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from firebase_admin import firestore
 from flask import abort
 from models.constants import Collections, InvitationFields, Status
@@ -63,10 +65,18 @@ def reject_invitation(request, invitation_id) -> Invitation:
     # Return the updated invitation
     invitation_data[InvitationFields.STATUS] = Status.REJECTED
 
+    created_at = invitation_data.get(InvitationFields.CREATED_AT, "")
+    if isinstance(created_at, datetime):
+        created_at = created_at.isoformat()
+
+    expires_at = invitation_data.get(InvitationFields.EXPIRES_AT, "")
+    if isinstance(expires_at, datetime):
+        expires_at = expires_at.isoformat()
+
     return Invitation(
         invitation_id=invitation_id,
-        created_at=invitation_data.get(InvitationFields.CREATED_AT, ""),
-        expires_at=invitation_data.get(InvitationFields.EXPIRES_AT, ""),
+        created_at=created_at,
+        expires_at=expires_at,
         sender_id=invitation_data.get(InvitationFields.SENDER_ID, ""),
         status=Status.REJECTED,
         username=invitation_data.get(InvitationFields.USERNAME, ""),

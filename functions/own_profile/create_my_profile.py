@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from firebase_admin import firestore
 from flask import abort
@@ -58,6 +58,8 @@ def create_profile(request):
 
     logger.info(f"Creating new profile for user {current_user_id}")
 
+    updated_at = datetime.now(timezone.utc)
+
     # Create profile with provided data
     profile_data = {
         ProfileFields.USERNAME: profile_data_input.username,
@@ -70,6 +72,7 @@ def create_profile(request):
         ProfileFields.SUMMARY: "",
         ProfileFields.SUGGESTIONS: "",
         ProfileFields.GROUP_IDS: [],
+        ProfileFields.UPDATED_AT: updated_at,
     }
 
     # Create the profile document
@@ -96,10 +99,6 @@ def create_profile(request):
         recurring_themes="",
         progress_and_growth="",
     )
-
-    updated_at = profile_data.get(ProfileFields.UPDATED_AT, "")
-    if isinstance(updated_at, datetime):
-        updated_at = updated_at.isoformat()
 
     response = ProfileResponse(
         user_id=current_user_id,
