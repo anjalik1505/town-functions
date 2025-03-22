@@ -114,3 +114,18 @@ export interface ChatResponse {
   messages: ChatMessage[];
   next_timestamp?: string | null;
 }
+
+// Define types for AI generation results
+export interface FriendProfileResult {
+  summary: string;
+  suggestions: string;
+}
+
+export interface CreatorProfileResult {
+  summary: string;
+  suggestions: string;
+  emotional_overview: string;
+  key_moments: string;
+  recurring_themes: string;
+  progress_and_growth: string;
+}
