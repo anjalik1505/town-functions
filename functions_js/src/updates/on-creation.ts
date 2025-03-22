@@ -1,93 +1,10 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { FirestoreEvent } from "firebase-functions/v2/firestore";
+import { generateCreatorProfileFlow, generateFriendProfileFlow } from "../ai/flows";
 import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, UserSummaryFields } from "../models/constants";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
-
-/**
- * Generate a summary using AI. This is a dummy implementation.
- * 
- * @param existingSummary - The existing summary text, if any
- * @param updateContent - The content of the new update
- * @param sentiment - The sentiment of the new update
- * @returns The updated summary text
- */
-async function generateSummary(
-    existingSummary: string | undefined,
-    updateContent: string,
-    sentiment: string
-): Promise<string> {
-    // TODO: Implement actual AI call to Gemini Flash Lite 2.0
-    // This is a dummy implementation
-    logger.info("Generating summary with AI");
-
-    if (existingSummary) {
-        return `${existingSummary}\nNew update: ${updateContent} (Sentiment: ${sentiment})`;
-    } else {
-        return `Summary started with: ${updateContent} (Sentiment: ${sentiment})`;
-    }
-}
-
-/**
- * Generate suggestions using AI. This is a dummy implementation.
- * 
- * @param existingSuggestions - The existing suggestions text, if any
- * @param updateContent - The content of the new update
- * @param sentiment - The sentiment of the new update
- * @returns The updated suggestions text
- */
-async function generateSuggestions(
-    existingSuggestions: string | undefined,
-    updateContent: string,
-    sentiment: string
-): Promise<string> {
-    // TODO: Implement actual AI call to Gemini Flash Lite 2.0
-    // This is a dummy implementation
-    logger.info("Generating suggestions with AI");
-
-    if (existingSuggestions) {
-        return `${existingSuggestions}\nNew suggestion based on: ${updateContent}`;
-    } else {
-        return `Consider asking about: ${updateContent}`;
-    }
-}
-
-/**
- * Generate insights using AI. This is a dummy implementation.
- * 
- * @param existingInsights - The existing insights data, if any
- * @param updateContent - The content of the new update
- * @param sentiment - The sentiment of the new update
- * @returns The updated insights data
- */
-async function generateInsights(
-    existingInsights: Record<string, string> | undefined,
-    updateContent: string,
-    sentiment: string
-): Promise<Record<string, string>> {
-    // TODO: Implement actual AI call to Gemini Flash Lite 2.0
-    // This is a dummy implementation
-    logger.info("Generating insights with AI");
-
-    // Create default insights if none exist
-    if (!existingInsights) {
-        existingInsights = {
-            [InsightsFields.EMOTIONAL_OVERVIEW]: "",
-            [InsightsFields.KEY_MOMENTS]: "",
-            [InsightsFields.RECURRING_THEMES]: "",
-            [InsightsFields.PROGRESS_AND_GROWTH]: ""
-        };
-    }
-
-    // Update the insights with new information
-    return {
-        [InsightsFields.EMOTIONAL_OVERVIEW]: `${existingInsights[InsightsFields.EMOTIONAL_OVERVIEW]}\nSentiment: ${sentiment}`,
-        [InsightsFields.KEY_MOMENTS]: `${existingInsights[InsightsFields.KEY_MOMENTS]}\nNew moment: ${updateContent}`,
-        [InsightsFields.RECURRING_THEMES]: existingInsights[InsightsFields.RECURRING_THEMES] || "Themes will be identified over time",
-        [InsightsFields.PROGRESS_AND_GROWTH]: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || "Progress tracking will develop over time"
-    };
-}
 
 /**
  * Process a summary for a specific friend.
@@ -135,19 +52,37 @@ async function processFriendSummary(
     const sentiment = updateData[UpdateFields.SENTIMENT];
     const updateId = updateData[UpdateFields.ID];
 
-    // Generate summary and suggestions in parallel
-    const [newSummary, newSuggestions] = await Promise.all([
-        generateSummary(existingSummary, updateContent, sentiment),
-        generateSuggestions(existingSuggestions, updateContent, sentiment)
-    ]);
+    // Get the creator's name or username
+    const creatorProfileRef = db.collection(Collections.PROFILES).doc(creatorId);
+    const creatorProfileDoc = await creatorProfileRef.get();
+
+    let creatorName = "Friend";
+    if (creatorProfileDoc.exists) {
+        const creatorProfileData = creatorProfileDoc.data() || {};
+        // Try to get name first, then username, then fall back to "Friend"
+        creatorName = creatorProfileData[ProfileFields.NAME] ||
+            creatorProfileData[ProfileFields.USERNAME] ||
+            "Friend";
+    } else {
+        logger.warn(`Creator profile not found: ${creatorId}`);
+    }
+
+    // Use the friend profile flow to generate summary and suggestions
+    const result = await generateFriendProfileFlow({
+        existingSummary,
+        existingSuggestions,
+        updateContent,
+        sentiment,
+        creatorName
+    });
 
     // Prepare the summary document
     const now = Timestamp.now();
-    const summaryData: Record<string, any> = {
+    const summaryUpdateData: Record<string, any> = {
         [UserSummaryFields.CREATOR_ID]: creatorId,
         [UserSummaryFields.TARGET_ID]: targetId,
-        [UserSummaryFields.SUMMARY]: newSummary,
-        [UserSummaryFields.SUGGESTIONS]: newSuggestions,
+        [UserSummaryFields.SUMMARY]: result.summary,
+        [UserSummaryFields.SUGGESTIONS]: result.suggestions,
         [UserSummaryFields.LAST_UPDATE_ID]: updateId,
         [UserSummaryFields.UPDATED_AT]: now,
         [UserSummaryFields.UPDATE_COUNT]: updateCount
@@ -155,11 +90,11 @@ async function processFriendSummary(
 
     // If this is a new summary, add created_at
     if (!summaryDoc.exists) {
-        summaryData[UserSummaryFields.CREATED_AT] = now;
+        summaryUpdateData[UserSummaryFields.CREATED_AT] = now;
     }
 
     // Add to batch instead of writing immediately
-    batch.set(summaryRef, summaryData, { merge: true });
+    batch.set(summaryRef, summaryUpdateData, { merge: true });
     logger.info(`Added summary update for relationship ${relationshipId} to batch`);
 }
 
@@ -177,18 +112,17 @@ async function updateCreatorProfile(
     creatorId: string,
     batch: FirebaseFirestore.WriteBatch
 ): Promise<void> {
-    // Get the creator's profile
+    // Get the profile document
     const profileRef = db.collection(Collections.PROFILES).doc(creatorId);
     const profileDoc = await profileRef.get();
 
     if (!profileDoc.exists) {
-        logger.warn(`Creator profile not found: ${creatorId}`);
+        logger.warn(`Profile not found for user ${creatorId}`);
         return;
     }
 
+    // Extract data from the profile
     const profileData = profileDoc.data() || {};
-
-    // Extract existing summary and suggestions
     const existingSummary = profileData[ProfileFields.SUMMARY];
     const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
 
@@ -202,30 +136,47 @@ async function updateCreatorProfile(
     const insightsDoc = insightsSnapshot.docs[0];
     const existingInsights = insightsDoc?.data() || {};
 
-    // Generate summary, suggestions, and insights in parallel
-    const [newSummary, newSuggestions, newInsights] = await Promise.all([
-        generateSummary(existingSummary, updateContent, sentiment),
-        generateSuggestions(existingSuggestions, updateContent, sentiment),
-        generateInsights(existingInsights, updateContent, sentiment)
-    ]);
+    // Use the creator profile flow to generate insights
+    const result = await generateCreatorProfileFlow({
+        existingSummary,
+        existingSuggestions,
+        existingInsights: {
+            emotional_overview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || "",
+            key_moments: existingInsights[InsightsFields.KEY_MOMENTS] || "",
+            recurring_themes: existingInsights[InsightsFields.RECURRING_THEMES] || "",
+            progress_and_growth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || ""
+        },
+        updateContent,
+        sentiment
+    });
 
     // Update the profile
-    const now = Timestamp.now();
-    const profileUpdates = {
-        [ProfileFields.SUMMARY]: newSummary,
-        [ProfileFields.SUGGESTIONS]: newSuggestions,
+    const profileUpdate = {
+        [ProfileFields.SUMMARY]: result.summary,
+        [ProfileFields.SUGGESTIONS]: result.suggestions,
         [ProfileFields.LAST_UPDATE_ID]: updateId,
-        [ProfileFields.UPDATED_AT]: now
+        [ProfileFields.UPDATED_AT]: Timestamp.now()
     };
 
     // Add profile update to batch
-    batch.update(profileRef, profileUpdates);
-    logger.info(`Added profile update for creator ${creatorId} to batch`);
+    batch.update(profileRef, profileUpdate);
+    logger.info(`Added profile update for user ${creatorId} to batch`);
 
-    // Update or create the insights document
-    const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
-    batch.set(insightsRef, newInsights, { merge: true });
-    logger.info(`Added insights update for creator ${creatorId} to batch`);
+    // Update or create insights document
+    const insightsData = {
+        [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview,
+        [InsightsFields.KEY_MOMENTS]: result.key_moments,
+        [InsightsFields.RECURRING_THEMES]: result.recurring_themes,
+        [InsightsFields.PROGRESS_AND_GROWTH]: result.progress_and_growth
+    };
+
+    const insightsRef = insightsDoc
+        ? insightsDoc.ref
+        : profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
+
+    // Add insights update to batch
+    batch.set(insightsRef, insightsData, { merge: true });
+    logger.info(`Added insights update for user ${creatorId} to batch`);
 }
 
 /**

@@ -49,4 +49,18 @@ export const createGroupSchema = z.object({
 
 export const addGroupMembersSchema = z.object({
     members: z.array(z.string()).min(1, "At least one member is required")
-}); 
+});
+
+export const ownProfileSchema = z.object({
+    summary: z.string(),
+    suggestions: z.string(),
+    emotional_overview: z.string(),
+    key_moments: z.string(),
+    recurring_themes: z.string(),
+    progress_and_growth: z.string()
+});
+
+export const friendProfileSchema = z.object({
+    summary: z.string(),
+    suggestions: z.string()
+});
