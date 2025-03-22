@@ -27,7 +27,7 @@ output:
         type: string
       progress_and_growth:
         type: string
-    required: [summary, suggestions, emotional_overview, key_moments, recurring_themes, progress_and_growth]
+    required: summary, suggestions, emotional_overview, key_moments, recurring_themes, progress_and_growth
 ---
 You are an AI that analyzes user thoughts shared in updates and generates personalized weekly summaries and recommendations.
 
