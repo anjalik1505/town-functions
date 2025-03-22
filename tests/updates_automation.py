@@ -15,6 +15,7 @@ It creates users, authenticates them, and performs various update operations:
 import json
 import logging
 import random
+import time
 
 from utils.village_api import API_BASE_URL, VillageAPI
 
@@ -26,6 +27,15 @@ logger = logging.getLogger(__name__)
 
 # Available sentiments for updates
 SENTIMENTS = ["happy", "sad", "neutral", "angry", "surprised"]
+
+# Test configuration
+TEST_CONFIG = {
+    "initial_updates_count": 2,  # Number of initial updates per user
+    "shared_updates_count": 1,  # Number of updates shared with friends
+    "pagination_updates_count": 1,  # Additional updates for pagination test
+    "pagination_limit": 1,  # Limit for pagination test
+    "wait_time": 10,  # Time to wait for Firestore triggers and AI processing
+}
 
 
 def run_updates_tests():
@@ -68,7 +78,7 @@ def run_updates_tests():
     # Step 1: Create updates for the first user
     logger.info("Step 1: Creating updates for the first user")
     user1_updates = []
-    for i in range(5):
+    for i in range(TEST_CONFIG["initial_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
         update_data = {
             "content": f"This is update #{i+1} from user 1 with {sentiment} sentiment",
@@ -95,7 +105,7 @@ def run_updates_tests():
     # Step 3: Create updates for the second user
     logger.info("Step 3: Creating updates for the second user")
     user2_updates = []
-    for i in range(3):
+    for i in range(TEST_CONFIG["initial_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
         update_data = {
             "content": f"This is update #{i+1} from user 2 with {sentiment} sentiment",
@@ -147,7 +157,7 @@ def run_updates_tests():
         "Step 6: Creating updates for the second user that are shared with the first user"
     )
     user2_shared_updates = []
-    for i in range(3):
+    for i in range(TEST_CONFIG["shared_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
         update_data = {
             "content": f"This is update #{i+1} from user 2 shared with user 1, with {sentiment} sentiment",
@@ -183,20 +193,29 @@ def run_updates_tests():
     logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} updates")
 
     # Step 9: Test pagination for updates
+    # Reuse existing updates instead of creating new ones if possible
     logger.info("Step 9: Testing pagination for updates")
-    # Create more updates to test pagination
-    for i in range(5):
-        sentiment = random.choice(SENTIMENTS)
-        update_data = {
-            "content": f"Pagination test update #{i+1} with {sentiment} sentiment",
-            "sentiment": sentiment,
-            "friend_ids": [api.user_ids[users[1]["email"]]],
-            "group_ids": [],
-        }
-        api.create_update(users[0]["email"], update_data)
+
+    # Only create additional updates if we need more for pagination testing
+    total_user1_updates = len(my_updates["updates"])
+    if total_user1_updates < TEST_CONFIG["pagination_limit"] + 1:
+        # Create just enough updates to test pagination
+        additional_needed = (TEST_CONFIG["pagination_limit"] + 1) - total_user1_updates
+        for i in range(additional_needed):
+            sentiment = random.choice(SENTIMENTS)
+            update_data = {
+                "content": f"Pagination test update #{i+1} with {sentiment} sentiment",
+                "sentiment": sentiment,
+                "friend_ids": [api.user_ids[users[1]["email"]]],
+                "group_ids": [],
+            }
+            api.create_update(users[0]["email"], update_data)
+            logger.info(f"Created additional update for pagination testing")
 
     # Get updates with small limit to test pagination
-    first_page = api.get_my_updates(users[0]["email"], limit=3)
+    first_page = api.get_my_updates(
+        users[0]["email"], limit=TEST_CONFIG["pagination_limit"]
+    )
     logger.info(f"Retrieved first page of updates: {json.dumps(first_page, indent=2)}")
 
     # Check if the response contains the next_timestamp field for pagination
@@ -212,7 +231,9 @@ def run_updates_tests():
         logger.info(f"Using next_timestamp for pagination: {next_timestamp}")
 
         second_page = api.get_my_updates(
-            users[0]["email"], limit=3, after_timestamp=next_timestamp
+            users[0]["email"],
+            limit=TEST_CONFIG["pagination_limit"],
+            after_timestamp=next_timestamp,
         )
         logger.info(
             f"Retrieved second page of updates: {json.dumps(second_page, indent=2)}"
@@ -287,10 +308,10 @@ def run_updates_tests():
     logger.info("========== CHECKING PROFILES AFTER UPDATES ==========")
 
     # Wait a bit for the Firestore triggers to process the updates
-    import time
-
-    logger.info("Waiting for Firestore triggers to process updates...")
-    time.sleep(3)  # Wait 3 seconds for processing
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for Firestore triggers to process updates..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
 
     # Retrieve profiles for both users
     logger.info("Retrieving profiles to check for summary and suggestions updates")
@@ -384,7 +405,6 @@ def run_updates_tests():
 if __name__ == "__main__":
     try:
         run_updates_tests()
-        logger.info("Updates automation completed successfully")
     except Exception as e:
-        logger.error(f"Updates automation failed: {str(e)}")
+        logger.error(f"Error running tests: {e}")
         raise

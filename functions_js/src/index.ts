@@ -12,4 +12,3 @@ export const process_update_creation = onDocumentCreated(
   `${Collections.UPDATES}/{id}`,
   (event) => onUpdateCreated(event)
 );
-
