@@ -64,3 +64,15 @@ export const friendProfileSchema = z.object({
     summary: z.string(),
     suggestions: z.string()
 });
+
+export const testPromptSchema = z.object({
+    summary: z.string(),
+    suggestions: z.string(),
+    emotional_overview: z.string().optional(),
+    key_moments: z.string().optional(),
+    recurring_themes: z.string().optional(),
+    progress_and_growth: z.string().optional(),
+    update_content: z.string(),
+    update_sentiment: z.string(),
+    prompt: z.string()
+});

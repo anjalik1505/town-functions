@@ -1,0 +1,101 @@
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyDxwXqXqXqXqXqXqXqXqXqXqXqXqXqXqXq",
+    authDomain: "village-functions.firebaseapp.com",
+    projectId: "village-functions",
+    storageBucket: "village-functions.appspot.com",
+    messagingSenderId: "123456789012",
+    appId: "1:123456789012:web:abcdef1234567890"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM elements
+    const signInButton = document.getElementById('sign-in-button');
+    const submitButton = document.getElementById('submit-button');
+    const updateTextarea = document.getElementById('update');
+    const promptTextarea = document.getElementById('prompt');
+
+    // Content textareas
+    const summaryTextarea = document.getElementById('summary');
+    const suggestionsTextarea = document.getElementById('suggestions');
+    const emotionalOverviewTextarea = document.getElementById('emotional-overview');
+    const keyMomentsTextarea = document.getElementById('key-moments');
+    const recurringThemesTextarea = document.getElementById('recurring-themes');
+    const progressAndGrowthTextarea = document.getElementById('progress-and-growth');
+
+    // Auth state observer
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            signInButton.textContent = 'Refresh Token';
+            submitButton.disabled = false;
+        } else {
+            signInButton.textContent = 'Sign in with Google';
+            submitButton.disabled = true;
+        }
+    });
+
+    // Sign in/refresh token handler
+    signInButton.addEventListener('click', async () => {
+        if (auth.currentUser) {
+            // Force token refresh
+            await auth.currentUser.getIdToken(true);
+        } else {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await auth.signInWithPopup(provider);
+        }
+    });
+
+    // Submit handler
+    submitButton.addEventListener('click', async () => {
+        try {
+            const token = await auth.currentUser.getIdToken();
+
+            // Get values from all textareas
+            const data = {
+                summary: summaryTextarea.value,
+                suggestions: suggestionsTextarea.value,
+                insights: {
+                    emotional_overview: emotionalOverviewTextarea.value,
+                    key_moments: keyMomentsTextarea.value,
+                    recurring_themes: recurringThemesTextarea.value,
+                    progress_and_growth: progressAndGrowthTextarea.value
+                },
+                update_content: updateTextarea.value,
+                update_sentiment: 'neutral', // You might want to add sentiment analysis
+                prompt: promptTextarea.value
+            };
+
+            // Make API call
+            const response = await fetch('/test/prompt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error('API call failed');
+            }
+
+            const result = await response.json();
+
+            // Update content boxes with the response
+            summaryTextarea.value = result.summary || '';
+            suggestionsTextarea.value = result.suggestions || '';
+            emotionalOverviewTextarea.value = result.emotional_overview || '';
+            keyMomentsTextarea.value = result.key_moments || '';
+            recurringThemesTextarea.value = result.recurring_themes || '';
+            progressAndGrowthTextarea.value = result.progress_and_growth || '';
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        }
+    });
+}); 

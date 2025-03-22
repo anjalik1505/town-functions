@@ -18,6 +18,7 @@ import { getMyFriends } from "./own_profile/get-my-friends";
 import { getProfile } from "./own_profile/get-my-profile";
 import { getUpdates } from "./own_profile/get-my-updates";
 import { updateProfile } from "./own_profile/update-my-profile";
+import { testPrompt } from "./test/test-prompt";
 import { createUpdate } from "./updates/create-update";
 import { getUserProfile } from "./user_profile/get-user-profile";
 import { getUserUpdates } from "./user_profile/get-user-updates";
@@ -223,6 +224,12 @@ app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), a
 // app.post("/groups/:group_id/chats", handle_errors(true), validateRequest(createChatMessageSchema), async (req, res) => {
 //     await createGroupChatMessage(req, res, req.params.group_id);
 // });
+
+// Test prompt endpoint
+
+app.post("/test/prompt", handle_errors(true), validateRequest(createProfileSchema), async (req, res) => {
+    await testPrompt(req, res);
+});
 
 // Catch-all route handler for unmatched routes
 app.use((req, res) => {
