@@ -1,5 +1,12 @@
 ---
 model: googleai/gemini-2.0-flash-lite
+input:
+  schema:
+    existingSummary: string
+    existingSuggestions: string
+    updateContent: string
+    sentiment: string
+    creatorName: string
 output:
   schema:
     type: object

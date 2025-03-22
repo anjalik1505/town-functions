@@ -69,11 +69,11 @@ async function processFriendSummary(
 
     // Use the friend profile flow to generate summary and suggestions
     const result = await generateFriendProfileFlow({
-        existingSummary,
-        existingSuggestions,
-        updateContent,
-        sentiment,
-        creatorName
+        existingSummary: existingSummary || "",
+        existingSuggestions: existingSuggestions || "",
+        updateContent: updateContent || "",
+        sentiment: sentiment || "",
+        creatorName: creatorName || 'User'
     });
 
     // Prepare the summary document
@@ -81,8 +81,8 @@ async function processFriendSummary(
     const summaryUpdateData: Record<string, any> = {
         [UserSummaryFields.CREATOR_ID]: creatorId,
         [UserSummaryFields.TARGET_ID]: targetId,
-        [UserSummaryFields.SUMMARY]: result.summary,
-        [UserSummaryFields.SUGGESTIONS]: result.suggestions,
+        [UserSummaryFields.SUMMARY]: result.summary || "",
+        [UserSummaryFields.SUGGESTIONS]: result.suggestions || "",
         [UserSummaryFields.LAST_UPDATE_ID]: updateId,
         [UserSummaryFields.UPDATED_AT]: now,
         [UserSummaryFields.UPDATE_COUNT]: updateCount
@@ -138,22 +138,20 @@ async function updateCreatorProfile(
 
     // Use the creator profile flow to generate insights
     const result = await generateCreatorProfileFlow({
-        existingSummary,
-        existingSuggestions,
-        existingInsights: {
-            emotional_overview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || "",
-            key_moments: existingInsights[InsightsFields.KEY_MOMENTS] || "",
-            recurring_themes: existingInsights[InsightsFields.RECURRING_THEMES] || "",
-            progress_and_growth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || ""
-        },
-        updateContent,
-        sentiment
+        existingSummary: existingSummary || "",
+        existingSuggestions: existingSuggestions || "",
+        existingEmotionalOverview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || "",
+        existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || "",
+        existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || "",
+        existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || "",
+        updateContent: updateContent || "",
+        sentiment: sentiment || ""
     });
 
     // Update the profile
     const profileUpdate = {
-        [ProfileFields.SUMMARY]: result.summary,
-        [ProfileFields.SUGGESTIONS]: result.suggestions,
+        [ProfileFields.SUMMARY]: result.summary || "",
+        [ProfileFields.SUGGESTIONS]: result.suggestions || "",
         [ProfileFields.LAST_UPDATE_ID]: updateId,
         [ProfileFields.UPDATED_AT]: Timestamp.now()
     };
@@ -164,10 +162,10 @@ async function updateCreatorProfile(
 
     // Update or create insights document
     const insightsData = {
-        [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview,
-        [InsightsFields.KEY_MOMENTS]: result.key_moments,
-        [InsightsFields.RECURRING_THEMES]: result.recurring_themes,
-        [InsightsFields.PROGRESS_AND_GROWTH]: result.progress_and_growth
+        [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview || "",
+        [InsightsFields.KEY_MOMENTS]: result.key_moments || "",
+        [InsightsFields.RECURRING_THEMES]: result.recurring_themes || "",
+        [InsightsFields.PROGRESS_AND_GROWTH]: result.progress_and_growth || ""
     };
 
     const insightsRef = insightsDoc
@@ -257,4 +255,4 @@ export async function onUpdateCreated(event: FirestoreEvent<QueryDocumentSnapsho
         logger.error(`Error processing update ${updateData[UpdateFields.ID] || "unknown"}: ${error}`);
         // In a production environment, we would implement retry logic here
     }
-} 
+}

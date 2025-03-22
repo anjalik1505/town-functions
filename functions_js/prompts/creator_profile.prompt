@@ -1,5 +1,16 @@
 ---
 model: googleai/gemini-2.0-flash-lite
+input:
+  schema:
+    existingSummary: string
+    existingSuggestions: string
+    existingEmotionalOverview: string
+    existingKeyMoments: string
+    existingRecurringThemes: string
+    existingProgressAndGrowth: string
+    updateContent: string
+    sentiment: string
+    creatorName: string
 output:
   schema:
     type: object
@@ -23,10 +34,10 @@ You are an AI that analyzes user thoughts shared in updates and generates person
 ### CONTEXT:
 - Current Weekly Summary: {{existingSummary}}
 - Current Suggestions: {{existingSuggestions}}
-- Current Emotional Overview: {{existingInsights.emotional_overview}}
-- Current Key Moments: {{existingInsights.key_moments}}
-- Current Recurring Themes: {{existingInsights.recurring_themes}}
-- Current Progress and Growth: {{existingInsights.progress_and_growth}}
+- Current Emotional Overview: {{existingEmotionalOverview}}
+- Current Key Moments: {{existingKeyMoments}}
+- Current Recurring Themes: {{existingRecurringThemes}}
+- Current Progress and Growth: {{existingProgressAndGrowth}}
 
 ### NEW UPDATE:
 - Content: {{updateContent}}
