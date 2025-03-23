@@ -114,6 +114,7 @@ This repository contains the backend functions for the Village application.
     "key_moments": "Family vacation in June 2023",
     "recurring_themes": "Family, Travel, Work",
     "progress_and_growth": "Increased social connections by 25%"
+  }
 }
 ```
 
@@ -141,14 +142,12 @@ This repository contains the backend functions for the Village application.
   "updates": [
     {
       "update_id": "update123",
-      "user_id": "user123",
-      "username": "johndoe",
-      "name": "John Doe",
-      "avatar": "https://example.com/avatar.jpg",
+      "created_by": "user123",
       "content": "Hello world!",
-      "created_at": "2025-01-01T00:00:00.000+00:00",
-      "likes_count": 5,
-      "comments_count": 2
+      "group_ids": [],
+      "friend_ids": [],
+      "sentiment": "happy",
+      "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],
   "next_timestamp": "2025-01-01T00:00:00.000+00:00"
@@ -178,10 +177,12 @@ This repository contains the backend functions for the Village application.
   "updates": [
     {
       "update_id": "update123",
-      "created_by": "johndoe",
+      "created_by": "user123",
       "content": "Hello world!",
+      "group_ids": [],
+      "friend_ids": [],
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],
   "next_timestamp": "2025-01-01T00:00:00.000+00:00"
@@ -203,10 +204,10 @@ This repository contains the backend functions for the Village application.
 {
   "friends": [
     {
-      "id": "friend123",
+      "user_id": "friend123",
+      "username": "janedoe",
       "name": "Jane Doe",
-      "avatar": "https://example.com/avatar.jpg",
-      "status": "accepted"
+      "avatar": "https://example.com/avatar.jpg"
     }
   ]
 }
@@ -214,6 +215,39 @@ This repository contains the backend functions for the Village application.
 
 **Errors**:
 - 404: Profile not found
+- 500: Internal server error
+
+### Updates
+
+#### POST /updates
+**Purpose**: Create a new update for the authenticated user.
+
+**Input**:
+```json
+{
+  "content": "Hello world!",
+  "sentiment": "happy",
+  "group_ids": ["group123"],
+  "friend_ids": ["friend123"]
+}
+```
+*Note: group_ids and friend_ids are optional.*
+
+**Output**:
+```json
+{
+  "update_id": "update123",
+  "created_by": "user123",
+  "content": "Hello world!",
+  "group_ids": ["group123"],
+  "friend_ids": ["friend123"],
+  "sentiment": "happy",
+  "created_at": "2025-01-01T00:00:00.000+00:00"
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
 - 500: Internal server error
 
 ### Invitations
@@ -426,10 +460,12 @@ This repository contains the backend functions for the Village application.
   "updates": [
     {
       "update_id": "update123",
-      "created_by": "johndoe",
+      "created_by": "user123",
       "content": "Hello world!",
+      "group_ids": [],
+      "friend_ids": [],
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],
   "next_timestamp": "2025-01-01T00:00:00.000+00:00"
