@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             // Make API call
-            const response = await fetch('/test/prompt', {
+            const response = await fetch('https://api-jywgqzmk7a-uc.a.run.app/api/test/prompt', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
