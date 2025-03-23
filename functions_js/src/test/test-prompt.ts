@@ -33,9 +33,7 @@ export const testPrompt = async (req: Request, res: Response) => {
         while (!success && retryCount < maxRetries) {
             try {
                 const { output } = await ai.generate({
-                    prompt: `You are an AI that analyzes user thoughts shared in updates and generates personalized weekly summaries and recommendations.
-        
-        ### CONTEXT:
+                    prompt: `### CONTEXT:
         - Current Weekly Summary: ${{ summary }}
         - Current Suggestions: ${{ suggestions }}
         - Current Emotional Overview: ${{ existingEmotionalOverview }}

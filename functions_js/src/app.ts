@@ -11,7 +11,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateRequest } from "./middleware/validation";
-import { createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, updateProfileSchema } from "./models/validation-schemas";
+import { createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
@@ -227,7 +227,7 @@ app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), a
 
 // Test prompt endpoint
 
-app.post("/test/prompt", handle_errors(true), validateRequest(createProfileSchema), async (req, res) => {
+app.post("/test/prompt", handle_errors(true), validateRequest(testPromptSchema), async (req, res) => {
     await testPrompt(req, res);
 });
 

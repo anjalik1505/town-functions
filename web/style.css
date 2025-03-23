@@ -24,13 +24,26 @@ body {
 }
 
 .content-box {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .insights-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
+    margin-top: 10px;
+}
+
+.insights-grid textarea {
+    min-height: 80px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 h3 {
@@ -50,10 +63,14 @@ h5 {
 
 textarea {
     width: 100%;
+    min-height: 100px;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    resize: none;
     box-sizing: border-box;
+    font-family: inherit;
+    overflow: hidden;
 }
 
 button {

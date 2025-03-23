@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const signInButton = document.getElementById('sign-in-button');
     const submitButton = document.getElementById('submit-button');
     const updateTextarea = document.getElementById('update');
+    const updateSentimentTextarea = document.getElementById('update-sentiment');
     const promptTextarea = document.getElementById('prompt');
 
     // Content textareas
@@ -27,6 +28,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyMomentsTextarea = document.getElementById('key-moments');
     const recurringThemesTextarea = document.getElementById('recurring-themes');
     const progressAndGrowthTextarea = document.getElementById('progress-and-growth');
+
+    // Auto-resize function for textareas
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    // Add input event listeners to all textareas
+    const allTextareas = [
+        updateTextarea,
+        updateSentimentTextarea,
+        promptTextarea,
+        summaryTextarea,
+        suggestionsTextarea,
+        emotionalOverviewTextarea,
+        keyMomentsTextarea,
+        recurringThemesTextarea,
+        progressAndGrowthTextarea
+    ];
+
+    allTextareas.forEach(textarea => {
+        textarea.addEventListener('input', () => autoResize(textarea));
+        // Initial resize
+        autoResize(textarea);
+    });
 
     // Auth state observer
     auth.onAuthStateChanged((user) => {
@@ -59,14 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = {
                 summary: summaryTextarea.value,
                 suggestions: suggestionsTextarea.value,
-                insights: {
-                    emotional_overview: emotionalOverviewTextarea.value,
-                    key_moments: keyMomentsTextarea.value,
-                    recurring_themes: recurringThemesTextarea.value,
-                    progress_and_growth: progressAndGrowthTextarea.value
-                },
+                emotional_overview: emotionalOverviewTextarea.value,
+                key_moments: keyMomentsTextarea.value,
+                recurring_themes: recurringThemesTextarea.value,
+                progress_and_growth: progressAndGrowthTextarea.value,
                 update_content: updateTextarea.value,
-                update_sentiment: 'neutral', // You might want to add sentiment analysis
+                update_sentiment: updateSentimentTextarea.value,
                 prompt: promptTextarea.value
             };
 
