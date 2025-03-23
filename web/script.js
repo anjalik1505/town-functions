@@ -1,11 +1,12 @@
 // Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDxwXqXqXqXqXqXqXqXqXqXqXqXqXqXqXq",
-    authDomain: "village-functions.firebaseapp.com",
-    projectId: "village-functions",
-    storageBucket: "village-functions.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef1234567890"
+    apiKey: "AIzaSyBP8FhUtJAG-yr-msuFQ0QxTajhYWituM4",
+    authDomain: "village-staging-9178d.firebaseapp.com",
+    projectId: "village-staging-9178d",
+    storageBucket: "village-staging-9178d.firebasestorage.app",
+    messagingSenderId: "263854518938",
+    appId: "1:263854518938:web:04dd8bdb6647a83205e523",
+    measurementId: "G-J6CMQEDYJF"
 };
 
 // Initialize Firebase
