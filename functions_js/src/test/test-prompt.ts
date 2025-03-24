@@ -1,18 +1,25 @@
-import { googleAI } from '@genkit-ai/googleai';
+import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
-import { defineSecret } from 'firebase-functions/params';
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
-// Define the API key secret for Gemini
-export const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
-// Configure a Genkit instance with the prompts directory
+// Configure a Genkit instance
 const ai = genkit({
     plugins: [googleAI({
-        apiKey: process.env.GEMINI_API_KEY || "API_KEY_PLACEHOLDER"
+        apiKey: process.env.GEMINI_API_KEY
     })],
+    model: gemini20FlashLite,
+});
+
+export const ownProfileSchema = z.object({
+    summary: z.string(),
+    suggestions: z.string(),
+    emotional_overview: z.string(),
+    key_moments: z.string(),
+    recurring_themes: z.string(),
+    progress_and_growth: z.string()
 });
 
 export const testPrompt = async (req: Request, res: Response) => {
@@ -30,30 +37,37 @@ export const testPrompt = async (req: Request, res: Response) => {
         let success = false;
         let retryCount = 0;
         const maxRetries = 3;
+
         while (!success && retryCount < maxRetries) {
             try {
+
+                const config = {
+                    apiKey: process.env.GEMINI_API_KEY,
+                    maxOutputTokens: 1000,
+                    temperature: 0.0,
+                };
+
                 const { output } = await ai.generate({
                     prompt: `### CONTEXT:
-        - Current Weekly Summary: ${{ summary }}
-        - Current Suggestions: ${{ suggestions }}
-        - Current Emotional Overview: ${{ existingEmotionalOverview }}
-        - Current Key Moments: ${{ existingKeyMoments }}
-        - Current Recurring Themes: ${{ existingRecurringThemes }}
-        - Current Progress and Growth: ${{ existingProgressAndGrowth }}
-        
-        ### NEW UPDATE:
-        - Content: ${{ updateContent }}
-        - Sentiment: ${{ updateSentiment }}
-        
-        ` + prompt,
-                    config: {
-                        maxOutputTokens: 1000,
-                        temperature: 0.0,
-                    },
+                    - Current Weekly Summary: ${summary}
+                    - Current Suggestions: ${suggestions}
+                    - Current Emotional Overview: ${existingEmotionalOverview}
+                    - Current Key Moments: ${existingKeyMoments}
+                    - Current Recurring Themes: ${existingRecurringThemes}
+                    - Current Progress and Growth: ${existingProgressAndGrowth}
+                    
+                    ### NEW UPDATE:
+                    - Content: ${updateContent}
+                    - Sentiment: ${updateSentiment}
+                    
+                    ${data.prompt}`,
+                    output: { schema: ownProfileSchema },
+                    config,
                 });
 
                 if (output) {
                     success = true;
+                    logger.info("Generated output:", JSON.stringify(output, null, 2));
                     return res.json(output);
                 }
             } catch (error) {
