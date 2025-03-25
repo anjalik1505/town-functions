@@ -253,7 +253,7 @@ This repository contains the backend functions for the Village application.
 ### Invitations
 
 #### POST /invitations
-**Purpose**: Create an invitation for a user to join the Village app.
+**Purpose**: Create an invitation for a user to join the Village app. The user must not have reached the combined limit of friends and active invitations (5).
 
 **Input**: (None, uses auth token)
 
@@ -272,13 +272,12 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
-- 400: User has reached the maximum number of active invitations (5)
-- 400: User has reached the maximum number of friends (5)
-- 400: User profile not found
+- 400: User has reached the maximum number of friends and active invitations (5)
+- 404: User profile not found
 - 500: Internal server error
 
 #### POST /invitations/{invitation_id}/accept
-**Purpose**: Accept an invitation to connect with another user.
+**Purpose**: Accept an invitation to connect with another user. Both the sender and receiver must not have reached the combined limit of friends and active invitations (5).
 
 **Input**: (None, uses auth token)
 
@@ -296,7 +295,8 @@ This repository contains the backend functions for the Village application.
 - 400: Invitation cannot be accepted (status: {status})
 - 400: Invitation has expired
 - 400: You cannot accept your own invitation
-- 400: You have reached the maximum number of friends (5)
+- 400: You have reached the maximum number of friends and active invitations (5)
+- 400: The sender has reached the maximum number of friends and active invitations (5)
 - 404: Invitation not found
 - 404: User profile not found
 - 404: Sender profile not found
@@ -328,7 +328,7 @@ This repository contains the backend functions for the Village application.
 - 500: Internal server error
 
 #### POST /invitations/{invitation_id}/resend
-**Purpose**: Resend an invitation by refreshing its timestamps.
+**Purpose**: Resend an invitation by refreshing its timestamps. The user must not have reached the combined limit of friends and active invitations (5). When resending, the current invitation is excluded from the limit count.
 
 **Input**: (None, uses auth token)
 
@@ -347,7 +347,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
-- 400: You have reached the maximum number of active invitations (5)
+- 400: You have reached the maximum number of friends and active invitations (5)
 - 403: You can only resend your own invitations
 - 404: Invitation not found
 - 500: Internal server error
