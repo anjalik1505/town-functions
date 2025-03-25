@@ -74,5 +74,9 @@ export const testPromptSchema = z.object({
     progress_and_growth: z.string().optional(),
     update_content: z.string(),
     update_sentiment: z.string(),
-    prompt: z.string()
+    gender: z.string().optional().default("they"),
+    location: z.string().optional(),
+    is_own_profile: z.boolean(),
+    prompt: z.string(),
+    temperature: z.number().optional()
 });
