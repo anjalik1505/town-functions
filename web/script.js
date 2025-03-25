@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateTextarea = document.getElementById('update');
     const updateSentimentTextarea = document.getElementById('update-sentiment');
     const promptTextarea = document.getElementById('prompt');
+    const ownProfileToggle = document.getElementById('own-profile-toggle');
+    const insightsSection = document.querySelector('.insights-section');
+    const genderTextarea = document.getElementById('gender');
+    const locationTextarea = document.getElementById('location');
+    const temperatureInput = document.getElementById('temperature');
 
     // Content textareas
     const summaryTextarea = document.getElementById('summary');
@@ -29,6 +34,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyMomentsTextarea = document.getElementById('key-moments');
     const recurringThemesTextarea = document.getElementById('recurring-themes');
     const progressAndGrowthTextarea = document.getElementById('progress-and-growth');
+
+    // Initialize insights section visibility and show it by default
+    insightsSection.classList.add('visible');
+    ownProfileToggle.checked = true;  // Ensure toggle is checked programmatically
+
+    // Toggle handler
+    ownProfileToggle.addEventListener('change', () => {
+        insightsSection.classList.toggle('visible', ownProfileToggle.checked);
+    });
 
     // Auto-resize function for textareas
     function autoResize(textarea) {
@@ -86,14 +100,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = {
                 summary: summaryTextarea.value,
                 suggestions: suggestionsTextarea.value,
-                emotional_overview: emotionalOverviewTextarea.value,
-                key_moments: keyMomentsTextarea.value,
-                recurring_themes: recurringThemesTextarea.value,
-                progress_and_growth: progressAndGrowthTextarea.value,
                 update_content: updateTextarea.value,
                 update_sentiment: updateSentimentTextarea.value,
-                prompt: promptTextarea.value
+                prompt: promptTextarea.value,
+                is_own_profile: ownProfileToggle.checked
             };
+
+            // Add gender and location only if they have values
+            if (genderTextarea.value.trim()) {
+                data.gender = genderTextarea.value;
+            }
+            if (locationTextarea.value.trim()) {
+                data.location = locationTextarea.value;
+            }
+
+            // Add temperature if it has a value
+            if (temperatureInput.value) {
+                const temp = parseFloat(temperatureInput.value);
+                if (!isNaN(temp) && temp >= 0 && temp <= 2) {
+                    data.temperature = temp;
+                } else {
+                    alert('Temperature must be a number between 0 and 2');
+                    return;
+                }
+            }
+
+            // Only include insights data if it's own profile
+            if (ownProfileToggle.checked) {
+                data.emotional_overview = emotionalOverviewTextarea.value;
+                data.key_moments = keyMomentsTextarea.value;
+                data.recurring_themes = recurringThemesTextarea.value;
+                data.progress_and_growth = progressAndGrowthTextarea.value;
+            }
 
             // Make API call
             const response = await fetch('https://api-jywgqzmk7a-uc.a.run.app/test/prompt', {
@@ -114,10 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update content boxes with the response
             summaryTextarea.value = result.summary || '';
             suggestionsTextarea.value = result.suggestions || '';
-            emotionalOverviewTextarea.value = result.emotional_overview || '';
-            keyMomentsTextarea.value = result.key_moments || '';
-            recurringThemesTextarea.value = result.recurring_themes || '';
-            progressAndGrowthTextarea.value = result.progress_and_growth || '';
+            if (result.emotional_overview) emotionalOverviewTextarea.value = result.emotional_overview;
+            if (result.key_moments) keyMomentsTextarea.value = result.key_moments;
+            if (result.recurring_themes) recurringThemesTextarea.value = result.recurring_themes;
+            if (result.progress_and_growth) progressAndGrowthTextarea.value = result.progress_and_growth;
         } catch (error) {
             console.error('Error:', error);
             alert('An error occurred. Please try again.');

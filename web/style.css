@@ -19,6 +19,18 @@ body {
     margin-bottom: 20px;
 }
 
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+}
+
 .content-section {
     margin-bottom: 20px;
 }
@@ -31,6 +43,8 @@ body {
     margin-bottom: 20px;
     width: 100%;
     box-sizing: border-box;
+    position: relative;
+    z-index: 0;
 }
 
 .insights-grid {
@@ -46,9 +60,11 @@ body {
     box-sizing: border-box;
 }
 
-h3 {
+.content-section>h3 {
     margin-top: 0;
     color: #333;
+    display: inline-block;
+    margin-right: 20px;
 }
 
 h4 {
@@ -73,6 +89,15 @@ textarea {
     overflow: hidden;
 }
 
+input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
 button {
     padding: 10px 20px;
     border: none;
@@ -95,4 +120,73 @@ button {
 #submit-button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+}
+
+/* Toggle Switch Styles */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    overflow: hidden;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    user-select: none;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked+.slider {
+    background-color: #34a853;
+}
+
+input:checked+.slider:before {
+    transform: translateX(26px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.toggle-label {
+    margin-left: 10px;
+    color: #666;
+}
+
+/* Insights Section */
+.insights-section {
+    display: none;
+}
+
+.insights-section.visible {
+    display: block;
 }

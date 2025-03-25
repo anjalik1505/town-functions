@@ -13,8 +13,17 @@
 
 <body>
     <div class="container">
-        <div id="auth-container">
-            <button id="sign-in-button">Sign in with Google</button>
+        <div class="header-container">
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="own-profile-toggle" checked>
+                    <span class="slider round"></span>
+                    <span class="toggle-label">Own Profile</span>
+                </label>
+            </div>
+            <div id="auth-container">
+                <button id="sign-in-button">Sign in with Google</button>
+            </div>
         </div>
 
         <div class="content-section">
@@ -29,7 +38,7 @@
                 <textarea id="suggestions" rows="3" placeholder="Enter suggestions here..."></textarea>
             </div>
 
-            <div class="content-box">
+            <div class="content-box insights-section visible">
                 <h4>Insights</h4>
                 <div class="insights-grid">
                     <div>
@@ -64,6 +73,19 @@
             <div class="content-box">
                 <textarea id="update-sentiment"
                     placeholder="Enter the sentiment of your update (positive, negative, or neutral)..."></textarea>
+            </div>
+            <h3>Gender</h3>
+            <div class="content-box">
+                <textarea id="gender" placeholder="Enter gender (defaults to 'they' if empty)..."></textarea>
+            </div>
+            <h3>Location</h3>
+            <div class="content-box">
+                <textarea id="location" placeholder="Enter location..."></textarea>
+            </div>
+            <h3>Temperature</h3>
+            <div class="content-box">
+                <input type="number" id="temperature" placeholder="Enter temperature (0.0-2.0)" min="0" max="2"
+                    step="0.1">
             </div>
         </div>
 

@@ -1,6 +1,7 @@
 import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
-import { genkit, z } from 'genkit';
+import { genkit } from 'genkit';
+import { friendProfileSchema, ownProfileSchema } from '../models/validation-schemas';
 import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
@@ -11,15 +12,6 @@ const ai = genkit({
         apiKey: process.env.GEMINI_API_KEY
     })],
     model: gemini20FlashLite,
-});
-
-export const ownProfileSchema = z.object({
-    summary: z.string(),
-    suggestions: z.string(),
-    emotional_overview: z.string(),
-    key_moments: z.string(),
-    recurring_themes: z.string(),
-    progress_and_growth: z.string()
 });
 
 export const testPrompt = async (req: Request, res: Response) => {
@@ -33,6 +25,9 @@ export const testPrompt = async (req: Request, res: Response) => {
         const existingProgressAndGrowth = data.progress_and_growth;
         const updateContent = data.update_content;
         const updateSentiment = data.update_sentiment;
+        const gender = data.gender;
+        const location = data.location;
+
 
         let success = false;
         let retryCount = 0;
@@ -44,24 +39,26 @@ export const testPrompt = async (req: Request, res: Response) => {
                 const config = {
                     apiKey: process.env.GEMINI_API_KEY,
                     maxOutputTokens: 1000,
-                    temperature: 0.0,
+                    temperature: data.temperature ?? 0.0,
                 };
 
                 const { output } = await ai.generate({
                     prompt: `### CONTEXT:
-                    - Current Weekly Summary: ${summary}
-                    - Current Suggestions: ${suggestions}
-                    - Current Emotional Overview: ${existingEmotionalOverview}
-                    - Current Key Moments: ${existingKeyMoments}
-                    - Current Recurring Themes: ${existingRecurringThemes}
-                    - Current Progress and Growth: ${existingProgressAndGrowth}
+                    - <CurrentSummary>: ${summary}
+                    - <CurrentSuggestions>: ${suggestions}${data.is_own_profile ? `
+                    - <CurrentEmotionalOverview>: ${existingEmotionalOverview}
+                    - <CurrentKeyMoments>: ${existingKeyMoments}
+                    - <CurrentRecurringThemes>: ${existingRecurringThemes}
+                    - <CurrentProgressAndGrowth>: ${existingProgressAndGrowth}` : ''}
+                    - <Gender>: ${gender}
+                    - <Location>: ${location}
                     
                     ### NEW UPDATE:
-                    - Content: ${updateContent}
-                    - Sentiment: ${updateSentiment}
+                    - <CurrentUpdateContent>: ${updateContent}
+                    - <CurrentUpdateSentiment>: ${updateSentiment}
                     
                     ${data.prompt}`,
-                    output: { schema: ownProfileSchema },
+                    output: { schema: data.is_own_profile ? ownProfileSchema : friendProfileSchema },
                     config,
                 });
 
