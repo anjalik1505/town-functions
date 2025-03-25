@@ -11,13 +11,14 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateRequest } from "./middleware/validation";
-import { createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
+import { createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
 import { getProfile } from "./own_profile/get-my-profile";
 import { getUpdates } from "./own_profile/get-my-updates";
 import { updateProfile } from "./own_profile/update-my-profile";
+import { testNotification } from "./test/test-notification";
 import { testPrompt } from "./test/test-prompt";
 import { createUpdate } from "./updates/create-update";
 import { getUserProfile } from "./user_profile/get-user-profile";
@@ -226,9 +227,13 @@ app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), a
 // });
 
 // Test prompt endpoint
-
 app.post("/test/prompt", handle_errors(true), validateRequest(testPromptSchema), async (req, res) => {
     await testPrompt(req, res);
+});
+
+// Test notification endpoint
+app.post("/test/notification", handle_errors(true), validateRequest(testNotificationSchema), async (req, res) => {
+    await testNotification(req, res);
 });
 
 // Catch-all route handler for unmatched routes

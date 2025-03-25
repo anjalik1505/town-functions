@@ -80,3 +80,8 @@ export const testPromptSchema = z.object({
     prompt: z.string(),
     temperature: z.number().optional()
 });
+
+export const testNotificationSchema = z.object({
+    title: z.string().min(1, "Notification title is required"),
+    body: z.string().min(1, "Notification body is required")
+});

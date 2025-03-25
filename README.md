@@ -477,3 +477,70 @@ This repository contains the backend functions for the Village application.
 - 403: You must be friends with this user to view their updates
 - 404: Profile not found
 - 500: Internal server error
+
+### Test Endpoints
+
+#### POST /test/notification
+**Purpose**: Send a test notification to the authenticated user's device.
+
+**Input**:
+```json
+{
+  "title": "Test Notification",
+  "body": "This is a test notification message"
+}
+```
+
+**Output**:
+```json
+{
+  "success": true,
+  "message": "Notification sent successfully",
+  "messageId": "projects/village-staging-9178d/messages/1234567890"
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
+- 404: Device not found. Please register a device first.
+- 404: Device token not found. Please register a device first.
+- 500: Internal server error
+
+#### POST /test/prompt
+**Purpose**: Test the AI prompt generation functionality for profile insights.
+
+**Input**:
+```json
+{
+  "summary": "Current profile summary",
+  "suggestions": "Current profile suggestions",
+  "update_content": "Content of the new update",
+  "update_sentiment": "Sentiment of the new update",
+  "is_own_profile": true,
+  "prompt": "Custom prompt for the AI",
+  "emotional_overview": "Current emotional overview",
+  "key_moments": "Current key moments",
+  "recurring_themes": "Current recurring themes",
+  "progress_and_growth": "Current progress and growth",
+  "gender": "they",
+  "location": "User's location",
+  "temperature": 0.7
+}
+```
+*Note: If is_own_profile is false, emotional_overview, key_moments, recurring_themes, and progress_and_growth are not included in the context.*
+
+**Output**:
+```json
+{
+  "summary": "Updated profile summary",
+  "suggestions": "Updated profile suggestions",
+  "emotional_overview": "Updated emotional overview",
+  "key_moments": "Updated key moments",
+  "recurring_themes": "Updated recurring themes",
+  "progress_and_growth": "Updated progress and growth"
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
+- 500: Internal server error

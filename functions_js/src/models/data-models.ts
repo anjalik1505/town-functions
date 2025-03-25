@@ -129,3 +129,9 @@ export interface CreatorProfileResult {
   recurring_themes: string;
   progress_and_growth: string;
 }
+
+export interface NotificationResponse {
+  success: boolean;
+  message: string;
+  messageId: string;
+}
