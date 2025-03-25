@@ -2,8 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
-import { createFriendshipId } from "../utils/friendship-utils";
-import { hasReachedFriendLimit } from "../utils/invitation-utils";
+import { createFriendshipId, hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -17,7 +16,8 @@ const logger = getLogger(__filename);
  * 3. Deletes the invitation document
  * 
  * Validates that:
- * 1. The user hasn't reached the maximum number of friends (5)
+ * 1. The accepting user hasn't reached the combined limit of friends and active invitations (5)
+ * 2. The sender hasn't reached the combined limit of friends and active invitations (5)
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -30,7 +30,8 @@ const logger = getLogger(__filename);
  * @throws 400: Invitation cannot be accepted (status: {status})
  * @throws 400: Invitation has expired
  * @throws 400: You cannot accept your own invitation
- * @throws 400: User has reached the maximum number of friends
+ * @throws 400: User has reached the maximum number of friends and active invitations
+ * @throws 400: Sender has reached the maximum number of friends and active invitations
  * @throws 404: Invitation not found
  * @throws 404: User profile not found
  * @throws 404: Sender profile not found
@@ -100,14 +101,25 @@ export const acceptInvitation = async (req: Request, res: Response) => {
         });
     }
 
-    // Check friend limit
-    const hasReachedMaxFriends = await hasReachedFriendLimit(currentUserId);
-    if (hasReachedMaxFriends) {
-        logger.warn(`User ${currentUserId} has reached the maximum number of friends`);
+    // Check combined limit for the accepting user
+    const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
+    if (hasReachedLimit) {
+        logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
         return res.status(400).json({
             code: 400,
             name: "Bad Request",
-            description: "You have reached the maximum number of friends"
+            description: "You have reached the maximum number of friends and active invitations"
+        });
+    }
+
+    // Check combined limit for the sender (excluding this invitation)
+    const hasReachedSenderLimit = await hasReachedCombinedLimit(senderId, invitationId);
+    if (hasReachedSenderLimit) {
+        logger.warn(`Sender ${senderId} has reached the maximum number of friends and active invitations`);
+        return res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: "Sender has reached the maximum number of friends and active invitations"
         });
     }
 

@@ -257,8 +257,8 @@ def run_invitation_demo():
     )
     logger.info("✓ Unauthenticated access test passed")
 
-    # Test 9: Test invitation limit (5 active invitations)
-    logger.info("Test 9: Testing invitation limit (5 active invitations)")
+    # Test 9: Test combined limit (5 friends + active invitations)
+    logger.info("Test 9: Testing combined limit (5 friends + active invitations)")
 
     # First, get current invitations for the fourth user
     current_invitations = api.get_invitations(users[3]["email"])
@@ -297,12 +297,12 @@ def run_invitation_demo():
         f"{API_BASE_URL}/invitations",
         headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
         expected_status_code=400,
-        expected_error_message="You have reached the maximum number of active invitations",
+        expected_error_message="You have reached the maximum number of friends and active invitations",
     )
-    logger.info("✓ Invitation limit test passed")
+    logger.info("✓ Combined limit test passed")
 
-    # Test 10: Test invitation limit when resending
-    logger.info("Test 10: Testing invitation limit when resending")
+    # Test 10: Test combined limit when resending
+    logger.info("Test 10: Testing combined limit when resending")
 
     # Get the first pending invitation from the fourth user's invitations
     pending_invitations = [
@@ -317,12 +317,12 @@ def run_invitation_demo():
         f"{API_BASE_URL}/invitations/{pending_invitations[0]['invitation_id']}/resend",
         headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
         expected_status_code=400,
-        expected_error_message="You have reached the maximum number of active invitations",
+        expected_error_message="You have reached the maximum number of friends and active invitations",
     )
-    logger.info("✓ Invitation limit resend test passed")
+    logger.info("✓ Combined limit resend test passed")
 
-    # Test 11: Test friend limit (5 friends)
-    logger.info("Test 11: Testing friend limit (5 friends)")
+    # Test 11: Test combined limit when accepting
+    logger.info("Test 11: Testing combined limit when accepting")
 
     # Find the user with the most friends
     max_friends = 0
@@ -381,7 +381,7 @@ def run_invitation_demo():
     if final_friend_count != 5:
         raise Exception(f"Expected 5 friends, got {final_friend_count}")
 
-    # Create a new user to send an invitation to the user who has reached their friend limit
+    # Create a new user to send an invitation to the user who has reached their combined limit
     sender_user = {
         "email": "sender_test@example.com",
         "password": "password123",
@@ -399,13 +399,13 @@ def run_invitation_demo():
     }
     api.create_profile(sender_user["email"], profile_data)
 
-    # Create invitation from the new user to the user who has reached their friend limit
+    # Create invitation from the new user to the user who has reached their combined limit
     invitation = api.create_invitation(sender_user["email"])
     logger.info(
         f"Created invitation from {sender_user['email']} to {user_with_most_friends['email']}"
     )
 
-    # Attempt to accept the invitation (should fail due to friend limit)
+    # Attempt to accept the invitation (should fail due to combined limit)
     api.make_request_expecting_error(
         "post",
         f"{API_BASE_URL}/invitations/{api.invitation_ids[sender_user['email']]}/accept",
@@ -413,9 +413,9 @@ def run_invitation_demo():
             "Authorization": f"Bearer {api.tokens[user_with_most_friends['email']]}"
         },
         expected_status_code=400,
-        expected_error_message="You have reached the maximum number of friends",
+        expected_error_message="You have reached the maximum number of friends and active invitations",
     )
-    logger.info("✓ Friend limit test passed")
+    logger.info("✓ Combined limit accept test passed")
 
     logger.info("========== NEGATIVE PATH TESTS COMPLETED ==========")
 
