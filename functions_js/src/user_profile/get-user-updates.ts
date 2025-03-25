@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, QueryOperators, Status, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
+import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -105,9 +106,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
     logger.info(`Found ${sharedGroupIds.length} shared groups between users`);
 
     // Check if users are friends using the unified friendships collection
-    // Create a consistent ordering of user IDs for the query
-    const userIds = [currentUserId, targetUserId].sort();
-    const friendshipId = `${userIds[0]}_${userIds[1]}`;
+    const friendshipId = createFriendshipId(currentUserId, targetUserId);
 
     const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
     const friendshipDoc = await friendshipRef.get();

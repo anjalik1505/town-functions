@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
 import { FriendProfileResponse } from "../models/data-models";
+import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -70,9 +71,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
     const targetUserProfileData = targetUserProfileDoc.data() || {};
 
     // Check if users are friends using the unified friendships collection
-    // Create a consistent ordering of user IDs for the query
-    const userIds = [currentUserId, targetUserId].sort();
-    const friendshipId = `${userIds[0]}_${userIds[1]}`;
+    const friendshipId = createFriendshipId(currentUserId, targetUserId);
 
     const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
     const friendshipDoc = await friendshipRef.get();
@@ -94,11 +93,8 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
     logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
 
-    // Sort user IDs to create a consistent relationship ID (same logic as in process_friend_summary)
-    const relationshipId = `${userIds[0]}_${userIds[1]}`;
-
     // Get the user summary document for this friendship
-    const userSummaryRef = db.collection(Collections.USER_SUMMARIES).doc(relationshipId);
+    const userSummaryRef = db.collection(Collections.USER_SUMMARIES).doc(friendshipId);
     const userSummaryDoc = await userSummaryRef.get();
 
     // Initialize summary and suggestions
@@ -111,12 +107,12 @@ export const getUserProfile = async (req: Request, res: Response) => {
         if (userSummaryData[UserSummaryFields.TARGET_ID] === currentUserId) {
             summary = userSummaryData[UserSummaryFields.SUMMARY] || "";
             suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS] || "";
-            logger.info(`Retrieved user summary for relationship ${relationshipId}`);
+            logger.info(`Retrieved user summary for relationship ${friendshipId}`);
         } else {
             logger.info(`User ${currentUserId} is not the target for this summary`);
         }
     } else {
-        logger.info(`No user summary found for relationship ${relationshipId}`);
+        logger.info(`No user summary found for relationship ${friendshipId}`);
     }
 
     // Format updated_at timestamp - Firestore Timestamp to ISO string

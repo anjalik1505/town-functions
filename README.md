@@ -272,6 +272,8 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: User has reached the maximum number of active invitations (5)
+- 400: User has reached the maximum number of friends (5)
 - 400: User profile not found
 - 500: Internal server error
 
@@ -294,6 +296,7 @@ This repository contains the backend functions for the Village application.
 - 400: Invitation cannot be accepted (status: {status})
 - 400: Invitation has expired
 - 400: You cannot accept your own invitation
+- 400: You have reached the maximum number of friends (5)
 - 404: Invitation not found
 - 404: User profile not found
 - 404: Sender profile not found
@@ -344,6 +347,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: You have reached the maximum number of active invitations (5)
 - 403: You can only resend your own invitations
 - 404: Invitation not found
 - 500: Internal server error
