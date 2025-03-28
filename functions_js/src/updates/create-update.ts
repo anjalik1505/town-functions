@@ -5,6 +5,11 @@ import { Collections, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
+import {
+    createFriendVisibilityIdentifier,
+    createFriendVisibilityIdentifiers,
+    createGroupVisibilityIdentifiers
+} from "../utils/visibility-utils";
 
 const logger = getLogger(__filename);
 
@@ -54,18 +59,16 @@ export async function createUpdate(req: Request, res: Response): Promise<void> {
     const createdAt = Timestamp.now();
 
     // Prepare the visible_to array for efficient querying
-    // Format: ["friend:{friend_id}", "group:{group_id}"]
     const visibleTo: string[] = [];
 
+    // Add creator to visible_to array
+    visibleTo.push(createFriendVisibilityIdentifier(currentUserId));
+
     // Add friend visibility identifiers
-    for (const friendId of friendIds) {
-        visibleTo.push(`friend:${friendId}`);
-    }
+    visibleTo.push(...createFriendVisibilityIdentifiers(friendIds));
 
     // Add group visibility identifiers
-    for (const groupId of groupIds) {
-        visibleTo.push(`group:${groupId}`);
-    }
+    visibleTo.push(...createGroupVisibilityIdentifiers(groupIds));
 
     // Create the update document
     const updateData = {

@@ -4,6 +4,10 @@ import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../mod
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
+import {
+    createFriendVisibilityIdentifier,
+    createGroupVisibilityIdentifiers
+} from "../utils/visibility-utils";
 
 const logger = getLogger(__filename);
 
@@ -59,10 +63,10 @@ export const getFeeds = async (req: Request, res: Response) => {
 
     // Prepare visibility identifiers
     // Direct visibility as a friend
-    const friendVisibility = `friend:${currentUserId}`;
+    const friendVisibility = createFriendVisibilityIdentifier(currentUserId);
 
     // Group visibility for all groups the user is in
-    const groupVisibilities = groupIds.map((groupId: string) => `group:${groupId}`);
+    const groupVisibilities = createGroupVisibilityIdentifiers(groupIds);
 
     // Combine all visibility identifiers
     const allVisibilities = [friendVisibility, ...groupVisibilities];

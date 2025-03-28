@@ -190,7 +190,30 @@ def run_updates_tests():
     assert "updates" in user1_feeds, "Response does not contain updates field"
     # Should include updates from user 2 that were shared with user 1
     assert len(user1_feeds["updates"]) > 0, "No updates found in user 1's feed"
-    logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} updates")
+
+    # Verify that user's own updates appear in their feed
+    user1_own_updates = [
+        update
+        for update in user1_feeds["updates"]
+        if update["created_by"] == api.user_ids[users[0]["email"]]
+    ]
+    assert len(user1_own_updates) > 0, "User's own updates not found in their feed"
+    logger.info(
+        f"✓ User 1's feed contains {len(user1_own_updates)} of their own updates"
+    )
+
+    # Verify that friend's updates appear in the feed
+    user2_updates = [
+        update
+        for update in user1_feeds["updates"]
+        if update["created_by"] == api.user_ids[users[1]["email"]]
+    ]
+    assert len(user2_updates) > 0, "Friend's updates not found in the feed"
+    logger.info(
+        f"✓ User 1's feed contains {len(user2_updates)} updates from their friend"
+    )
+
+    logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
 
     # Step 9: Test pagination for updates
     # Reuse existing updates instead of creating new ones if possible
