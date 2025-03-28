@@ -264,7 +264,12 @@ This repository contains the backend functions for the Village application.
 #### POST /invitations
 **Purpose**: Create an invitation for a user to join the Village app.
 
-**Input**: (None, uses auth token)
+**Input**:
+```json
+{
+  "receiver_name": "John Doe"
+}
+```
 
 **Output**:
 ```json
@@ -276,11 +281,13 @@ This repository contains the backend functions for the Village application.
   "status": "pending",
   "username": "johndoe",
   "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg"
+  "avatar": "https://example.com/avatar.jpg",
+  "receiver_name": "John Doe"
 }
 ```
 
 **Errors**:
+- 400: Invalid request parameters
 - 400: User profile not found
 - 500: Internal server error
 
@@ -323,7 +330,8 @@ This repository contains the backend functions for the Village application.
   "status": "rejected",
   "username": "johndoe",
   "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg"
+  "avatar": "https://example.com/avatar.jpg",
+  "receiver_name": "John Doe"
 }
 ```
 
@@ -348,7 +356,8 @@ This repository contains the backend functions for the Village application.
   "status": "pending",
   "username": "johndoe",
   "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg"
+  "avatar": "https://example.com/avatar.jpg",
+  "receiver_name": "John Doe"
 }
 ```
 
@@ -378,7 +387,8 @@ This repository contains the backend functions for the Village application.
       "status": "pending",
       "username": "johndoe",
       "name": "John Doe",
-      "avatar": "https://example.com/avatar.jpg"
+      "avatar": "https://example.com/avatar.jpg",
+      "receiver_name": "John Doe"
     }
   ],
   "next_timestamp": "2025-01-01T00:00:00.000+00:00"

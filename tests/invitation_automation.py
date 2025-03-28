@@ -63,7 +63,7 @@ def run_invitation_demo():
     api.create_profile(users[0]["email"], profile_data)
 
     # Step 2: First user creates an invitation
-    invitation = api.create_invitation(users[0]["email"])
+    invitation = api.create_invitation(users[0]["email"], "Test Receiver One")
     logger.info(f"First user created invitation: {json.dumps(invitation, indent=2)}")
 
     # Step 3: First user gets their invitations
@@ -104,13 +104,13 @@ def run_invitation_demo():
     logger.info(f"Second user's friends: {json.dumps(friends_user2, indent=2)}")
 
     # Step 8: Second user creates an invitation
-    invitation2 = api.create_invitation(users[1]["email"])
+    invitation2 = api.create_invitation(users[1]["email"], "Test Receiver Two")
     logger.info(f"Second user created invitation: {json.dumps(invitation2, indent=2)}")
 
     # Step 8.1: Create additional invitations for pagination test
     logger.info("Step 8.1: Creating additional invitations for pagination test")
-    invitation3 = api.create_invitation(users[1]["email"])
-    invitation4 = api.create_invitation(users[1]["email"])
+    invitation3 = api.create_invitation(users[1]["email"], "Test Receiver Three")
+    invitation4 = api.create_invitation(users[1]["email"], "Test Receiver Four")
     logger.info("Created two additional invitations")
 
     # Step 9: Second user gets their invitations
@@ -220,7 +220,7 @@ def run_invitation_demo():
     # Test 4: User attempts to accept their own invitation
     logger.info("Test 4: User attempting to accept their own invitation")
     # Fourth user creates an invitation
-    invitation4 = api.create_invitation(users[3]["email"])
+    invitation4 = api.create_invitation(users[3]["email"], "Test Receiver Five")
     api.make_request_expecting_error(
         "post",
         f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/accept",
@@ -274,11 +274,28 @@ def run_invitation_demo():
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api.tokens[no_profile_user['email']]}",
         },
-        json_data={},
+        json_data={
+            "receiver_name": "Test Receiver"
+        },  # Include receiver_name to properly test profile validation
         expected_status_code=404,
         expected_error_message="Profile not found",
     )
     logger.info("✓ Create invitation without profile test passed")
+
+    # Test 7.1: Attempt to create invitation without receiver_name
+    logger.info("Test 7.1: Attempting to create invitation without receiver_name")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={},
+        expected_status_code=400,
+        expected_error_message="validation error",
+    )
+    logger.info("✓ Create invitation without receiver_name test passed")
 
     # Test 8: Attempt to access invitations without authentication
     logger.info("Test 8: Attempting to access invitations without authentication")

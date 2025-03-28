@@ -71,6 +71,7 @@ export interface Invitation {
   username: string;
   name: string;
   avatar: string;
+  receiver_name: string;
 }
 
 export interface Friend {

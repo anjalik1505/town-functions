@@ -106,7 +106,8 @@ export const getInvitations = async (req: Request, res: Response) => {
             status: invitationData[InvitationFields.STATUS] || "",
             username: invitationData[InvitationFields.USERNAME] || "",
             name: invitationData[InvitationFields.NAME] || "",
-            avatar: invitationData[InvitationFields.AVATAR] || ""
+            avatar: invitationData[InvitationFields.AVATAR] || "",
+            receiver_name: invitationData[InvitationFields.RECEIVER_NAME] || ""
         };
 
         invitations.push(invitation);

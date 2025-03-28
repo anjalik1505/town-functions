@@ -135,7 +135,7 @@ def run_updates_tests():
     # Step 5: Connect users as friends
     logger.info("Step 5: Connecting users as friends using invitations")
     # User 1 creates an invitation
-    invitation = api.create_invitation(users[0]["email"])
+    invitation = api.create_invitation(users[0]["email"], users[1]["name"])
     logger.info(f"First user created invitation: {json.dumps(invitation, indent=2)}")
 
     # User 2 accepts the invitation
