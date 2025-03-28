@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, QueryOperators, Status } from "../models/constants";
-import { Invitation } from "../models/data-models";
+import { Invitation, InvitationsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -93,5 +93,6 @@ export const getInvitations = async (req: Request, res: Response) => {
     logger.info(`Retrieved ${invitations.length} invitations for user ${currentUserId}`);
 
     // Return the invitations response
-    return res.json({ invitations });
+    const response: InvitationsResponse = { invitations };
+    return res.json(response);
 }; 

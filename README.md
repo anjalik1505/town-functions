@@ -182,7 +182,10 @@ This repository contains the backend functions for the Village application.
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
-      "created_at": "2025-01-01T00:00:00.000+00:00"
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "username": "johndoe",
+      "name": "John Doe",
+      "avatar": "https://example.com/avatar.jpg"
     }
   ],
   "next_timestamp": "2025-01-01T00:00:00.000+00:00"

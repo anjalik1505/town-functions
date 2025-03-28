@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, QueryOperators, Status } from "../models/constants";
-import { Friend } from "../models/data-models";
+import { Friend, FriendsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -75,5 +75,6 @@ export const getMyFriends = async (req: Request, res: Response) => {
     );
 
     // Return the list of friends
-    return res.json({ friends });
+    const response: FriendsResponse = { friends };
+    return res.json(response);
 }; 

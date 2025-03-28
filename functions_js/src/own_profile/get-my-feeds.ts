@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
+import { FieldPath, getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
-import { Update } from "../models/data-models";
+import { EnrichedUpdate, FeedResponse, Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 import {
@@ -149,19 +149,88 @@ export const getFeeds = async (req: Request, res: Response) => {
         // Take only up to the limit
         const sortedUpdates = allBatchUpdates.slice(0, limit);
 
+        // Get unique user IDs from the updates
+        const uniqueUserIds = Array.from(new Set(sortedUpdates.map(update => update.created_by)));
+
+        // Create batches of user IDs (max 10 per batch)
+        const userIdBatches = [];
+        for (let i = 0; i < uniqueUserIds.length; i += MAX_ARRAY_CONTAINS) {
+            userIdBatches.push(uniqueUserIds.slice(i, i + MAX_ARRAY_CONTAINS));
+        }
+
+        logger.info(
+            `Split ${uniqueUserIds.length} unique user IDs into ${userIdBatches.length} batches for profile lookup`
+        );
+
+        // Get all profiles in batches
+        const userProfilesMap = new Map();
+        let missingProfiles: string[] = [];
+
+        for (const batch of userIdBatches) {
+            try {
+                const userProfilesSnapshot = await db.collection(Collections.PROFILES)
+                    .where(FieldPath.documentId(), QueryOperators.IN, batch)
+                    .get();
+
+                // Add profiles to map
+                userProfilesSnapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (!data) {
+                        missingProfiles.push(doc.id);
+                        return;
+                    }
+                    userProfilesMap.set(doc.id, data);
+                });
+
+                // Check for missing profiles in this batch
+                const foundIds = new Set(userProfilesSnapshot.docs.map(doc => doc.id));
+                batch.forEach(id => {
+                    if (!foundIds.has(id)) {
+                        missingProfiles.push(id);
+                    }
+                });
+            } catch (error) {
+                logger.error(`Error fetching profiles for batch: ${error}`);
+                // Continue with other batches even if one fails
+            }
+        }
+
+        // Log any missing profiles
+        if (missingProfiles.length > 0) {
+            logger.warn(`Missing profiles for users: ${missingProfiles.join(', ')}`);
+        }
+
+        // Enrich updates with profile data
+        const enrichedUpdates: EnrichedUpdate[] = sortedUpdates.map(update => {
+            const profile = userProfilesMap.get(update.created_by);
+            if (!profile) {
+                logger.warn(`Missing profile data for update ${update.update_id} created by ${update.created_by}`);
+            }
+
+            // Always include the enriched fields, even if profile is missing
+            return {
+                ...update,
+                username: profile?.[ProfileFields.USERNAME] || "",
+                name: profile?.[ProfileFields.NAME] || "",
+                avatar: profile?.[ProfileFields.AVATAR] || ""
+            };
+        });
+
         // Set up pagination for the next request
         let nextTimestamp: string | null = null;
         if (allBatchUpdates.length > limit) {
-            const lastUpdate = sortedUpdates[sortedUpdates.length - 1];
+            const lastUpdate = enrichedUpdates[enrichedUpdates.length - 1];
             nextTimestamp = lastUpdate.created_at;
             logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
         }
 
-        logger.info(`Retrieved ${sortedUpdates.length} updates for user ${currentUserId}`);
-        return res.json({ updates: sortedUpdates, next_timestamp: nextTimestamp });
+        logger.info(`Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`);
+        const response: FeedResponse = { updates: enrichedUpdates, next_timestamp: nextTimestamp };
+        return res.json(response);
     } else {
         // No updates found
         logger.info(`No updates found for user ${currentUserId}`);
-        return res.json({ updates: [], next_timestamp: null });
+        const response: FeedResponse = { updates: [], next_timestamp: null };
+        return res.json(response);
     }
 }; 

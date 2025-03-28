@@ -44,13 +44,19 @@ export interface Update {
   created_at: string;
 }
 
+export interface EnrichedUpdate extends Update {
+  username: string;
+  name: string;
+  avatar: string;
+}
+
 export interface UpdatesResponse {
   updates: Update[];
   next_timestamp: string | null;
 }
 
 export interface FeedResponse {
-  updates: Update[];
+  updates: EnrichedUpdate[];
   next_timestamp: string | null;
 }
 
@@ -70,6 +76,10 @@ export interface Friend {
   username: string;
   name: string;
   avatar: string;
+}
+
+export interface FriendsResponse {
+  friends: Friend[];
 }
 
 export interface InvitationsResponse {

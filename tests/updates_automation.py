@@ -202,6 +202,21 @@ def run_updates_tests():
         f"✓ User 1's feed contains {len(user1_own_updates)} of their own updates"
     )
 
+    # Verify enriched profile data in user's own updates
+    for update in user1_own_updates:
+        assert "username" in update, "Update missing username field"
+        assert "name" in update, "Update missing name field"
+        assert "avatar" in update, "Update missing avatar field"
+        assert (
+            update["username"] == users[0]["email"].split("@")[0]
+        ), "Incorrect username in update"
+        assert update["name"] == users[0]["name"], "Incorrect name in update"
+        assert (
+            update["avatar"]
+            == f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg"
+        ), "Incorrect avatar in update"
+    logger.info("✓ User's own updates contain correct enriched profile data")
+
     # Verify that friend's updates appear in the feed
     user2_updates = [
         update
@@ -212,6 +227,21 @@ def run_updates_tests():
     logger.info(
         f"✓ User 1's feed contains {len(user2_updates)} updates from their friend"
     )
+
+    # Verify enriched profile data in friend's updates
+    for update in user2_updates:
+        assert "username" in update, "Update missing username field"
+        assert "name" in update, "Update missing name field"
+        assert "avatar" in update, "Update missing avatar field"
+        assert (
+            update["username"] == users[1]["email"].split("@")[0]
+        ), "Incorrect username in update"
+        assert update["name"] == users[1]["name"], "Incorrect name in update"
+        assert (
+            update["avatar"]
+            == f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg"
+        ), "Incorrect avatar in update"
+    logger.info("✓ Friend's updates contain correct enriched profile data")
 
     logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
 
