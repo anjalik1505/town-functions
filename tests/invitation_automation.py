@@ -8,7 +8,11 @@ It creates users, authenticates them, and performs various invitation operations
 
 import json
 import logging
+import os
 
+import firebase_admin
+from firebase_admin import firestore
+from google.protobuf.timestamp_pb2 import Timestamp
 from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
@@ -16,6 +20,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8080"
 
 
 def run_invitation_demo():
@@ -304,17 +310,43 @@ def run_invitation_demo():
     # Test 10: Test combined limit when resending
     logger.info("Test 10: Testing combined limit when resending")
 
-    # Get the first pending invitation from the fourth user's invitations
+    # Get the first pending invitation from the existing invitations
     pending_invitations = [
         inv for inv in final_invitations["invitations"] if inv["status"] == "pending"
     ]
     if not pending_invitations:
         raise Exception("No pending invitations found for resend test")
 
-    # Attempt to resend the first pending invitation
+    expired_invitation = pending_invitations[0]
+    expired_invitation_id = expired_invitation["invitation_id"]
+
+    # Manually expire the invitation by setting its expiration date to 1 second after creation
+    firebase_admin.initialize_app()
+    db = firestore.client()
+    invitation_ref = db.collection("invitations").document(expired_invitation_id)
+    invitation_doc = invitation_ref.get()
+    if not invitation_doc.exists:
+        raise Exception(f"Invitation {expired_invitation_id} not found in database")
+
+    invitation_data = invitation_doc.to_dict()
+    created_at = invitation_data["created_at"]
+    # Set expiration to 1 second after creation
+    expires_at = Timestamp(created_at.seconds + 1, created_at.nanoseconds)
+
+    invitation_ref.update({"expires_at": expires_at})
+    logger.info(f"Manually expired invitation {expired_invitation_id}")
+
+    # Create a new invitation to reach the limit again
+    new_invitation = api.create_invitation(users[3]["email"])
+    logger.info(
+        f"Created new invitation to reach limit: {json.dumps(new_invitation, indent=2)}"
+    )
+
+    # Attempt to resend the expired invitation
+    logger.info(f"Attempting to resend expired invitation {expired_invitation_id}")
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/invitations/{pending_invitations[0]['invitation_id']}/resend",
+        f"{API_BASE_URL}/invitations/{expired_invitation_id}/resend",
         headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
         expected_status_code=400,
         expected_error_message="You have reached the maximum number of friends and active invitations",
