@@ -16,6 +16,7 @@ export interface ProfileResponse extends BaseUser {
   location: string;
   birthday: string;
   notification_settings: string[];
+  gender: string;
   summary: string;
   insights: Insights;
   suggestions: string;
@@ -29,6 +30,7 @@ export interface FriendProfileResponse {
   avatar: string;
   location: string;
   birthday: string;
+  gender: string;
   summary: string;
   suggestions: string;
   updated_at: string;
@@ -44,13 +46,19 @@ export interface Update {
   created_at: string;
 }
 
+export interface EnrichedUpdate extends Update {
+  username: string;
+  name: string;
+  avatar: string;
+}
+
 export interface UpdatesResponse {
   updates: Update[];
   next_timestamp: string | null;
 }
 
 export interface FeedResponse {
-  updates: Update[];
+  updates: EnrichedUpdate[];
   next_timestamp: string | null;
 }
 
@@ -72,8 +80,14 @@ export interface Friend {
   avatar: string;
 }
 
+export interface FriendsResponse {
+  friends: Friend[];
+  next_timestamp: string | null;
+}
+
 export interface InvitationsResponse {
   invitations: Invitation[];
+  next_timestamp: string | null;
 }
 
 export interface Device {

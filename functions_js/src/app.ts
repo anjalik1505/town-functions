@@ -10,7 +10,7 @@ import { createInvitation } from "./invitations/create-invitation";
 import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
-import { validateRequest } from "./middleware/validation";
+import { validateQueryParams, validateRequest } from "./middleware/validation";
 import { createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
@@ -141,15 +141,15 @@ app.put("/me/profile", handle_errors(true), validateRequest(updateProfileSchema)
     await updateProfile(req, res);
 });
 
-app.get("/me/updates", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+app.get("/me/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
     await getUpdates(req, res);
 });
 
-app.get("/me/feed", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+app.get("/me/feed", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
     await getFeeds(req, res);
 });
 
-app.get("/me/friends", handle_errors(false), async (req, res) => {
+app.get("/me/friends", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
     await getMyFriends(req, res);
 });
 
@@ -158,12 +158,12 @@ app.get("/users/:target_user_id/profile", handle_errors(false), async (req, res)
     await getUserProfile(req, res);
 });
 
-app.get("/users/:target_user_id/updates", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+app.get("/users/:target_user_id/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
     await getUserUpdates(req, res);
 });
 
 // Invitation routes
-app.get("/invitations", handle_errors(false), async (req, res) => {
+app.get("/invitations", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
     await getInvitations(req, res);
 });
 
@@ -214,11 +214,11 @@ app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), a
 //     await addMembersToGroup(req, res, req.params.group_id);
 // });
 
-// app.get("/groups/:group_id/feed", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+// app.get("/groups/:group_id/feed", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
 //     await getGroupFeed(req, res, req.params.group_id);
 // });
 
-// app.get("/groups/:group_id/chats", handle_errors(true), validateRequest(paginationSchema), async (req, res) => {
+// app.get("/groups/:group_id/chats", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
 //     await getGroupChats(req, res, req.params.group_id);
 // });
 

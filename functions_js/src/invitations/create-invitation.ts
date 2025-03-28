@@ -83,5 +83,5 @@ export const createInvitation = async (req: Request, res: Response) => {
         avatar: currentUserProfile[ProfileFields.AVATAR] || ""
     };
 
-    return res.json(invitation);
+    return res.status(201).json(invitation);
 }; 

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { Collections, GroupFields, QueryOperators, UpdateFields } from "../models/constants";
-import { FeedResponse, Update } from "../models/data-models";
+import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
+import { EnrichedUpdate, FeedResponse, GroupMember, Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -121,18 +121,49 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
 
     logger.info("Query executed successfully");
 
+    // Get member profiles from the group document
+    const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
+    const memberProfilesMap = new Map<string, GroupMember>();
+
+    // Build the map of user IDs to their profile data
+    for (const profile of memberProfiles) {
+        const member: GroupMember = {
+            user_id: profile[ProfileFields.USER_ID] || "",
+            username: profile[ProfileFields.USERNAME] || "",
+            name: profile[ProfileFields.NAME] || "",
+            avatar: profile[ProfileFields.AVATAR] || ""
+        };
+        memberProfilesMap.set(member.user_id, member);
+    }
+
+    // Enrich updates with profile data from member profiles
+    const enrichedUpdates: EnrichedUpdate[] = updates.map(update => {
+        const profile = memberProfilesMap.get(update.created_by);
+        if (!profile) {
+            logger.warn(`Missing profile data for update ${update.update_id} created by ${update.created_by}`);
+        }
+
+        const enrichedUpdate: EnrichedUpdate = {
+            ...update,
+            username: profile?.username || "",
+            name: profile?.name || "",
+            avatar: profile?.avatar || ""
+        };
+        return enrichedUpdate;
+    });
+
     // Set up pagination for the next request
     let nextTimestamp: string | null = null;
-    if (lastTimestamp && updates.length === limit) {
+    if (lastTimestamp && enrichedUpdates.length === limit) {
         nextTimestamp = lastTimestamp;
         logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
     }
 
-    logger.info(`Retrieved ${updates.length} updates for group: ${groupId}`);
+    logger.info(`Retrieved ${enrichedUpdates.length} updates for group: ${groupId}`);
 
     // Return the response
     const response: FeedResponse = {
-        updates,
+        updates: enrichedUpdates,
         next_timestamp: nextTimestamp
     };
 

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, GroupFields, QueryOperators } from "../models/constants";
-import { Group } from "../models/data-models";
+import { Group, GroupsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -57,5 +57,6 @@ export const getMyGroups = async (req: Request, res: Response) => {
     logger.info(`Retrieved ${groups.length} groups for user: ${currentUserId}`);
 
     // Return the list of groups
-    return res.json({ groups });
+    const response: GroupsResponse = { groups };
+    return res.json(response);
 }; 

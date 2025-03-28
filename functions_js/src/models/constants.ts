@@ -38,6 +38,7 @@ export const ProfileFields = {
   LOCATION: 'location',
   BIRTHDAY: 'birthday',
   NOTIFICATION_SETTINGS: 'notification_settings',
+  GENDER: 'gender',
   GROUP_IDS: 'group_ids',
   INSIGHTS: 'insights',
   SUMMARY: 'summary',

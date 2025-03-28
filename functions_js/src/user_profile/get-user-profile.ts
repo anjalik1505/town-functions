@@ -130,6 +130,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
         avatar: targetUserProfileData[ProfileFields.AVATAR] || "",
         location: targetUserProfileData[ProfileFields.LOCATION] || "",
         birthday: targetUserProfileData[ProfileFields.BIRTHDAY] || "",
+        gender: targetUserProfileData[ProfileFields.GENDER] || "",
         summary,
         suggestions,
         updated_at: updatedAt

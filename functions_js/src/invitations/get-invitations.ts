@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, QueryOperators, Status } from "../models/constants";
-import { Invitation } from "../models/data-models";
+import { Invitation, InvitationsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -17,9 +17,12 @@ const logger = getLogger(__filename);
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
+ *              - validated_params: Pagination parameters containing:
+ *                - limit: Maximum number of invitations to return (default: 20, min: 1, max: 100)
+ *                - after_timestamp: Timestamp for pagination in ISO format
  * @param res - The Express response object
  * 
- * @returns An InvitationsResponse object containing all invitations
+ * @returns An InvitationsResponse object containing all invitations and pagination info
  */
 export const getInvitations = async (req: Request, res: Response) => {
     const currentUserId = req.userId;
@@ -28,14 +31,36 @@ export const getInvitations = async (req: Request, res: Response) => {
     // Initialize Firestore client
     const db = getFirestore();
 
-    // Get all invitations where the current user is the sender
-    const invitationsQuery = await db.collection(Collections.INVITATIONS)
+    // Get pagination parameters from the validated request
+    const validatedParams = req.validated_params;
+    const limit = validatedParams?.limit || 20;
+    const afterTimestamp = validatedParams?.after_timestamp;
+
+    logger.info(
+        `Pagination parameters - limit: ${limit}, after_timestamp: ${afterTimestamp}`
+    );
+
+    // Build the query
+    let query = db.collection(Collections.INVITATIONS)
         .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, currentUserId)
-        .get();
+        .orderBy(InvitationFields.CREATED_AT, "desc");
+
+    // Apply pagination if an after_timestamp is provided
+    if (afterTimestamp) {
+        query = query.startAfter({ [InvitationFields.CREATED_AT]: afterTimestamp });
+        logger.info(`Applying pagination with timestamp: ${afterTimestamp}`);
+    }
+
+    // Apply limit last
+    query = query.limit(limit);
+
+    // Get all invitations where the current user is the sender
+    const invitationsQuery = await query.get();
 
     const invitations: Invitation[] = [];
     const batch = db.batch();
     let batchUpdated = false;
+    let lastTimestamp: Timestamp | null = null;
 
     const currentTime = Timestamp.now();
 
@@ -47,6 +72,12 @@ export const getInvitations = async (req: Request, res: Response) => {
         // Check if pending invitation has expired
         const status = invitationData[InvitationFields.STATUS];
         const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
+        const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
+
+        // Track the last timestamp for pagination
+        if (createdAt) {
+            lastTimestamp = createdAt;
+        }
 
         // Only update if the invitation is pending and has expired
         if (
@@ -63,11 +94,8 @@ export const getInvitations = async (req: Request, res: Response) => {
         }
 
         // Format timestamps for consistent API response
-        const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
         const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-
-        const expiresAtFormatted = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
-        const expiresAtIso = expiresAtFormatted ? formatTimestamp(expiresAtFormatted) : "";
+        const expiresAtIso = expiresAt ? formatTimestamp(expiresAt) : "";
 
         // Create Invitation object
         const invitation: Invitation = {
@@ -90,8 +118,17 @@ export const getInvitations = async (req: Request, res: Response) => {
         logger.info(`Updated expired invitations for user ${currentUserId}`);
     }
 
+    // Set up pagination for the next request
+    let nextTimestamp: string | null = null;
+    if (lastTimestamp && invitations.length === limit) {
+        // Convert the timestamp to ISO format for pagination
+        nextTimestamp = formatTimestamp(lastTimestamp);
+        logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
+    }
+
     logger.info(`Retrieved ${invitations.length} invitations for user ${currentUserId}`);
 
-    // Return the invitations response
-    return res.json({ invitations });
+    // Return the invitations response with pagination info
+    const response: InvitationsResponse = { invitations, next_timestamp: nextTimestamp };
+    return res.json(response);
 }; 
