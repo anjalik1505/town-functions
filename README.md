@@ -17,7 +17,8 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "New York",
   "birthday": "1990-01-01",
-  "notification_settings": ["messages", "updates"]
+  "notification_settings": ["messages", "updates"],
+  "gender": "male"
 }
 ```
 
@@ -32,6 +33,7 @@ This repository contains the backend functions for the Village application.
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["messages", "updates"],
+  "gender": "male",
   "summary": "",
   "suggestions": "",
   "insights": {
@@ -59,7 +61,8 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/new_avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
-  "notification_settings": ["messages", "updates", "groups"]
+  "notification_settings": ["messages", "updates", "groups"],
+  "gender": "male"
 }
 ```
 *Note: All fields are optional. Only the fields included in the request will be updated.*
@@ -75,6 +78,7 @@ This repository contains the backend functions for the Village application.
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["messages", "updates", "groups"],
+  "gender": "male",
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
   "insights": {
@@ -106,6 +110,7 @@ This repository contains the backend functions for the Village application.
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["messages", "updates"],
+  "gender": "male",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
@@ -434,6 +439,7 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
+  "gender": "male",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "summary": "John Doe is a 35-year-old software engineer from San Francisco.",
   "suggestions": "Connect with this person to get insights into their life."

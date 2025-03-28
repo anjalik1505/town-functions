@@ -58,6 +58,7 @@ def run_profile_tests():
         "location": "New York",
         "birthday": "1990-01-01",
         "notification_settings": ["messages", "updates"],
+        "gender": "male",
     }
     created_profile = api.create_profile(users[0]["email"], initial_profile_data)
     logger.info(f"Created profile: {json.dumps(created_profile, indent=2)}")
@@ -80,6 +81,9 @@ def run_profile_tests():
     assert (
         retrieved_profile["birthday"] == initial_profile_data["birthday"]
     ), "Birthday mismatch"
+    assert (
+        retrieved_profile["gender"] == initial_profile_data["gender"]
+    ), "Gender mismatch"
     logger.info("Profile verification successful - all fields match")
 
     # Step 3: Update the profile
@@ -89,6 +93,7 @@ def run_profile_tests():
         "avatar": f"https://example.com/new_avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
         "location": "San Francisco",
         "notification_settings": ["messages", "updates", "groups"],
+        "gender": "female",
     }
     updated_profile = api.update_profile(users[0]["email"], updated_profile_data)
     logger.info(f"Updated profile: {json.dumps(updated_profile, indent=2)}")
@@ -112,14 +117,20 @@ def run_profile_tests():
     assert (
         retrieved_updated_profile["location"] == updated_profile_data["location"]
     ), "Updated location mismatch"
+    assert (
+        retrieved_updated_profile["gender"] == updated_profile_data["gender"]
+    ), "Updated gender mismatch"
     # Birthday should remain unchanged as it wasn't updated
     assert (
         retrieved_updated_profile["birthday"] == initial_profile_data["birthday"]
     ), "Birthday should be unchanged"
     logger.info("Updated profile verification successful - all fields match")
 
-    # Step 5: Test partial update (only update name)
-    partial_update_data = {"name": f"{users[0]['name']} Partial Update"}
+    # Step 5: Test partial update (only update name and gender)
+    partial_update_data = {
+        "name": f"{users[0]['name']} Partial Update",
+        "gender": "non-binary",
+    }
     partially_updated_profile = api.update_profile(
         users[0]["email"], partial_update_data
     )
@@ -130,10 +141,13 @@ def run_profile_tests():
     # Get the profile again to verify partial update
     retrieved_partial_profile = api.get_profile(users[0]["email"])
 
-    # Verify that only the name was updated
+    # Verify that only the name and gender were updated
     assert (
         retrieved_partial_profile["name"] == partial_update_data["name"]
     ), "Partially updated name mismatch"
+    assert (
+        retrieved_partial_profile["gender"] == partial_update_data["gender"]
+    ), "Partially updated gender mismatch"
     assert (
         retrieved_partial_profile["username"] == updated_profile_data["username"]
     ), "Username should be unchanged"
@@ -279,6 +293,7 @@ def run_profile_tests():
         "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
         "location": "Los Angeles",
         "birthday": "1992-05-15",
+        "gender": "female",
     }
     api.create_profile(users[1]["email"], second_user_profile_data)
     logger.info(f"Created profile for second user: {users[1]['email']}")
@@ -329,6 +344,9 @@ def run_profile_tests():
         user2_profile["username"] == second_user_profile_data["username"]
     ), "Username mismatch"
     assert user2_profile["name"] == second_user_profile_data["name"], "Name mismatch"
+    assert (
+        user2_profile["gender"] == second_user_profile_data["gender"]
+    ), "Gender mismatch"
     logger.info("✓ Friend profile access test passed")
 
     logger.info("========== ALL TESTS COMPLETED ==========")

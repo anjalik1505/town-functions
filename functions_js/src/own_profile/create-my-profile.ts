@@ -24,11 +24,12 @@ const logger = getLogger(__filename);
  *                - location: Optional location information
  *                - birthday: Optional birthday in ISO format
  *                - notification_settings: Optional list of notification preferences
+ *                - gender: Optional gender information
  * @param res - The Express response object
  * 
  * @returns A ProfileResponse containing:
  * - Basic profile information (id, username, name, avatar)
- * - Optional profile fields (location, birthday, notification_settings)
+ * - Optional profile fields (location, birthday, notification_settings, gender)
  * - Empty insights, summary, suggestions information
  * 
  * @throws 400: Profile already exists for user {user_id}
@@ -65,6 +66,7 @@ export const createProfile = async (req: Request, res: Response) => {
     [ProfileFields.LOCATION]: profileData.location || "",
     [ProfileFields.BIRTHDAY]: profileData.birthday || "",
     [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
+    [ProfileFields.GENDER]: profileData.gender || "",
     [ProfileFields.SUMMARY]: "",
     [ProfileFields.SUGGESTIONS]: "",
     [ProfileFields.GROUP_IDS]: [],
@@ -95,6 +97,7 @@ export const createProfile = async (req: Request, res: Response) => {
     location: profileDataToSave[ProfileFields.LOCATION],
     birthday: profileDataToSave[ProfileFields.BIRTHDAY],
     notification_settings: profileDataToSave[ProfileFields.NOTIFICATION_SETTINGS],
+    gender: profileDataToSave[ProfileFields.GENDER],
     summary: profileDataToSave[ProfileFields.SUMMARY],
     suggestions: profileDataToSave[ProfileFields.SUGGESTIONS],
     updated_at: formatTimestamp(updatedAt),

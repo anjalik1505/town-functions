@@ -16,6 +16,7 @@ export interface ProfileResponse extends BaseUser {
   location: string;
   birthday: string;
   notification_settings: string[];
+  gender: string;
   summary: string;
   insights: Insights;
   suggestions: string;
@@ -29,6 +30,7 @@ export interface FriendProfileResponse {
   avatar: string;
   location: string;
   birthday: string;
+  gender: string;
   summary: string;
   suggestions: string;
   updated_at: string;
