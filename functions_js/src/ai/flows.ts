@@ -13,7 +13,7 @@ const ai = genkit({
     plugins: [googleAI({
         // Don't access the secret value during initialization
         // It will be accessed at runtime in the flow functions
-        apiKey: process.env.GEMINI_API_KEY || "API_KEY_PLACEHOLDER"
+        apiKey: process.env.GEMINI_API_KEY
     })],
 });
 
@@ -44,9 +44,7 @@ export async function generateCreatorProfileFlow(params: {
 
     // Configure with the actual API key at runtime
     const config = {
-        apiKey: process.env.GEMINI_API_KEY ||
-            (typeof geminiApiKey.value === 'function' ? geminiApiKey.value() : undefined) ||
-            "API_KEY_PLACEHOLDER",
+        apiKey: process.env.GEMINI_API_KEY,
         ...globalConfig
     };
 
@@ -111,9 +109,7 @@ export async function generateFriendProfileFlow(params: {
 
     // Configure with the actual API key at runtime
     const config = {
-        apiKey: process.env.GEMINI_API_KEY ||
-            (typeof geminiApiKey.value === 'function' ? geminiApiKey.value() : undefined) ||
-            "API_KEY_PLACEHOLDER",
+        apiKey: process.env.GEMINI_API_KEY,
         ...globalConfig
     };
 

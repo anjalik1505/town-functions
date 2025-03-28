@@ -15,6 +15,9 @@ export const api = onRequest({
 
 // Export the Firestore trigger function for new updates
 export const process_update_creation = onDocumentCreated(
-  `${Collections.UPDATES}/{id}`,
+  {
+    document: `${Collections.UPDATES}/{id}`,
+    secrets: [geminiApiKey],
+  },
   (event) => onUpdateCreated(event)
 );
