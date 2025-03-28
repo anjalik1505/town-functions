@@ -133,14 +133,11 @@ This repository contains the backend functions for the Village application.
 #### GET /me/updates
 **Purpose**: Get all updates of the authenticated user, paginated.
 
-**Input**:
-```json
-{
-  "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
-}
+**Input**: Query Parameters
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
+?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+```
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
 **Output**:
 ```json
@@ -161,21 +158,18 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
-- 400: Invalid request parameters
+- 400: Invalid query parameters
 - 404: Profile not found
 - 500: Internal server error
 
 #### GET /me/feed
 **Purpose**: Get all updates from the authenticated user's feed, paginated.
 
-**Input**:
-```json
-{
-  "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
-}
+**Input**: Query Parameters
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
+?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+```
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
 **Output**:
 ```json
@@ -199,14 +193,18 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
-- 400: Invalid request parameters
+- 400: Invalid query parameters
 - 404: Profile not found
 - 500: Internal server error
 
 #### GET /me/friends
-**Purpose**: Get all friends of the authenticated user.
+**Purpose**: Get all friends of the authenticated user, paginated.
 
-**Input**: (None, uses auth token)
+**Input**: Query Parameters
+```
+?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+```
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
 **Output**:
 ```json
@@ -218,11 +216,13 @@ This repository contains the backend functions for the Village application.
       "name": "Jane Doe",
       "avatar": "https://example.com/avatar.jpg"
     }
-  ]
+  ],
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
 **Errors**:
+- 400: Invalid query parameters
 - 404: Profile not found
 - 500: Internal server error
 
@@ -358,9 +358,13 @@ This repository contains the backend functions for the Village application.
 - 500: Internal server error
 
 #### GET /invitations
-**Purpose**: Get all invitations created by the current user.
+**Purpose**: Get all invitations created by the current user, paginated.
 
-**Input**: (None, uses auth token)
+**Input**: Query Parameters
+```
+?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+```
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
 **Output**:
 ```json
@@ -376,11 +380,13 @@ This repository contains the backend functions for the Village application.
       "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg"
     }
-  ]
+  ],
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
 }
 ```
 
 **Errors**:
+- 400: Invalid query parameters
 - 500: Internal server error
 
 ### Device Management
@@ -455,14 +461,11 @@ This repository contains the backend functions for the Village application.
 #### GET /users/{user_id}/updates
 **Purpose**: Get another user's updates. The authenticated user must be friends with the target user.
 
-**Input**:
-```json
-{
-  "limit": 20,
-  "after_timestamp": "2025-01-01T12:00:00.000+00:00"
-}
+**Input**: Query Parameters
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100).*
+?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+```
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
 **Output**:
 ```json
@@ -483,7 +486,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
-- 400: Invalid request parameters
+- 400: Invalid query parameters
 - 403: You must be friends with this user to view their updates
 - 404: Profile not found
 - 500: Internal server error

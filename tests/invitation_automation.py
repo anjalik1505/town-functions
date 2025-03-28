@@ -107,9 +107,39 @@ def run_invitation_demo():
     invitation2 = api.create_invitation(users[1]["email"])
     logger.info(f"Second user created invitation: {json.dumps(invitation2, indent=2)}")
 
+    # Step 8.1: Create additional invitations for pagination test
+    logger.info("Step 8.1: Creating additional invitations for pagination test")
+    invitation3 = api.create_invitation(users[1]["email"])
+    invitation4 = api.create_invitation(users[1]["email"])
+    logger.info("Created two additional invitations")
+
     # Step 9: Second user gets their invitations
     invitations2 = api.get_invitations(users[1]["email"])
     logger.info(f"Second user's invitations: {json.dumps(invitations2, indent=2)}")
+
+    # Step 9.1: Test pagination for invitations
+    logger.info("Step 9.1: Testing pagination for invitations")
+    # Get first page with limit of 2
+    first_page = api.get_invitations(users[1]["email"], limit=2)
+    logger.info(f"First page of invitations: {json.dumps(first_page, indent=2)}")
+
+    # Get second page using next_timestamp
+    if first_page.get("next_timestamp"):
+        second_page = api.get_invitations(
+            users[1]["email"], limit=2, after_timestamp=first_page["next_timestamp"]
+        )
+        logger.info(f"Second page of invitations: {json.dumps(second_page, indent=2)}")
+
+    # Test invalid pagination parameters
+    logger.info("Testing invalid pagination parameters")
+    api.make_request_expecting_error(
+        "get",
+        f"{API_BASE_URL}/invitations?limit=101",  # Test limit > 100
+        headers={"Authorization": f"Bearer {api.tokens[users[1]['email']]}"},
+        expected_status_code=400,
+        expected_error_message="Invalid request parameters",
+    )
+    logger.info("✓ Invalid pagination parameters test passed")
 
     # Step 10: Create a profile for the third user
     profile_data = {

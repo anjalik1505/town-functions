@@ -82,10 +82,12 @@ export interface Friend {
 
 export interface FriendsResponse {
   friends: Friend[];
+  next_timestamp: string | null;
 }
 
 export interface InvitationsResponse {
   invitations: Invitation[];
+  next_timestamp: string | null;
 }
 
 export interface Device {

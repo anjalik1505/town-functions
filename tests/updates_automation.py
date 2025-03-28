@@ -246,10 +246,9 @@ def run_updates_tests():
     logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
 
     # Step 9: Test pagination for updates
-    # Reuse existing updates instead of creating new ones if possible
-    logger.info("Step 9: Testing pagination for updates")
+    logger.info("Step 9: Testing pagination for all update endpoints")
 
-    # Only create additional updates if we need more for pagination testing
+    # Create enough updates for pagination testing if needed
     total_user1_updates = len(my_updates["updates"])
     if total_user1_updates < TEST_CONFIG["pagination_limit"] + 1:
         # Create just enough updates to test pagination
@@ -265,36 +264,88 @@ def run_updates_tests():
             api.create_update(users[0]["email"], update_data)
             logger.info(f"Created additional update for pagination testing")
 
-    # Get updates with small limit to test pagination
+    # Test pagination for /me/updates
+    logger.info("Testing pagination for /me/updates")
     first_page = api.get_my_updates(
         users[0]["email"], limit=TEST_CONFIG["pagination_limit"]
     )
-    logger.info(f"Retrieved first page of updates: {json.dumps(first_page, indent=2)}")
-
-    # Check if the response contains the next_timestamp field for pagination
+    logger.info(
+        f"Retrieved first page of /me/updates: {json.dumps(first_page, indent=2)}"
+    )
     assert (
         "next_timestamp" in first_page
     ), "Response does not contain next_timestamp field for pagination"
 
-    # If there's a next_timestamp, try to get the second page
     if first_page["next_timestamp"]:
-        # Ensure the timestamp is in ISO format (2025-01-01T12:00:00Z)
-        # The API returns timestamps in ISO format but we need to ensure it's properly passed
-        next_timestamp = first_page["next_timestamp"]
-        logger.info(f"Using next_timestamp for pagination: {next_timestamp}")
-
         second_page = api.get_my_updates(
             users[0]["email"],
             limit=TEST_CONFIG["pagination_limit"],
-            after_timestamp=next_timestamp,
+            after_timestamp=first_page["next_timestamp"],
         )
         logger.info(
-            f"Retrieved second page of updates: {json.dumps(second_page, indent=2)}"
+            f"Retrieved second page of /me/updates: {json.dumps(second_page, indent=2)}"
         )
-        assert len(second_page["updates"]) > 0, "No updates found in second page"
-        logger.info(f"✓ Second page contains {len(second_page['updates'])} updates")
+        assert (
+            len(second_page["updates"]) > 0
+        ), "No updates found in second page of /me/updates"
+        logger.info(f"✓ /me/updates pagination test passed")
 
-    logger.info("✓ Update pagination test passed")
+    # Test pagination for /me/feed
+    logger.info("Testing pagination for /me/feed")
+    first_page_feed = api.get_my_feed(
+        users[0]["email"], limit=TEST_CONFIG["pagination_limit"]
+    )
+    logger.info(
+        f"Retrieved first page of /me/feed: {json.dumps(first_page_feed, indent=2)}"
+    )
+    assert (
+        "next_timestamp" in first_page_feed
+    ), "Response does not contain next_timestamp field for feed pagination"
+
+    if first_page_feed["next_timestamp"]:
+        second_page_feed = api.get_my_feed(
+            users[0]["email"],
+            limit=TEST_CONFIG["pagination_limit"],
+            after_timestamp=first_page_feed["next_timestamp"],
+        )
+        logger.info(
+            f"Retrieved second page of /me/feed: {json.dumps(second_page_feed, indent=2)}"
+        )
+        assert (
+            len(second_page_feed["updates"]) > 0
+        ), "No updates found in second page of /me/feed"
+        logger.info(f"✓ /me/feed pagination test passed")
+
+    # Test pagination for /users/{user_id}/updates
+    logger.info("Testing pagination for /users/{user_id}/updates")
+    first_page_user = api.get_user_updates(
+        users[0]["email"],
+        api.user_ids[users[1]["email"]],
+        limit=TEST_CONFIG["pagination_limit"],
+    )
+    logger.info(
+        f"Retrieved first page of user updates: {json.dumps(first_page_user, indent=2)}"
+    )
+    assert (
+        "next_timestamp" in first_page_user
+    ), "Response does not contain next_timestamp field for user updates pagination"
+
+    if first_page_user["next_timestamp"]:
+        second_page_user = api.get_user_updates(
+            users[0]["email"],
+            api.user_ids[users[1]["email"]],
+            limit=TEST_CONFIG["pagination_limit"],
+            after_timestamp=first_page_user["next_timestamp"],
+        )
+        logger.info(
+            f"Retrieved second page of user updates: {json.dumps(second_page_user, indent=2)}"
+        )
+        assert (
+            len(second_page_user["updates"]) > 0
+        ), "No updates found in second page of user updates"
+        logger.info("✓ /users/{user_id}/updates pagination test passed")
+
+    logger.info("✓ All pagination tests completed successfully")
 
     # ============ NEGATIVE PATH TESTS ============
     logger.info("========== STARTING NEGATIVE PATH TESTS ==========")
