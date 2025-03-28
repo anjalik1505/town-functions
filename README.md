@@ -17,10 +17,11 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "New York",
   "birthday": "1990-01-01",
-  "notification_settings": ["messages", "updates"],
+  "notification_settings": ["all"],
   "gender": "male"
 }
 ```
+*Note: notification_settings is an optional array that can only contain "all" or "urgent".*
 
 **Output**:
 ```json
@@ -32,7 +33,7 @@ This repository contains the backend functions for the Village application.
   "location": "New York",
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
-  "notification_settings": ["messages", "updates"],
+  "notification_settings": ["all"],
   "gender": "male",
   "summary": "",
   "suggestions": "",
@@ -61,11 +62,11 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/new_avatar.jpg",
   "location": "San Francisco",
   "birthday": "1990-01-01",
-  "notification_settings": ["messages", "updates", "groups"],
+  "notification_settings": ["urgent"],
   "gender": "male"
 }
 ```
-*Note: All fields are optional. Only the fields included in the request will be updated.*
+*Note: All fields are optional. Only the fields included in the request will be updated. notification_settings can only contain "all" or "urgent".*
 
 **Output**:
 ```json
@@ -77,7 +78,7 @@ This repository contains the backend functions for the Village application.
   "location": "San Francisco",
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
-  "notification_settings": ["messages", "updates", "groups"],
+  "notification_settings": ["urgent"],
   "gender": "male",
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
@@ -109,7 +110,7 @@ This repository contains the backend functions for the Village application.
   "avatar": "https://example.com/avatar.jpg",
   "location": "New York",
   "birthday": "1990-01-01",
-  "notification_settings": ["messages", "updates"],
+  "notification_settings": ["all"],
   "gender": "male",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "summary": "Active user since January 2023",

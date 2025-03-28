@@ -57,7 +57,7 @@ def run_profile_tests():
         "avatar": f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
         "location": "New York",
         "birthday": "1990-01-01",
-        "notification_settings": ["messages", "updates"],
+        "notification_settings": ["all"],
         "gender": "male",
     }
     created_profile = api.create_profile(users[0]["email"], initial_profile_data)
@@ -92,7 +92,7 @@ def run_profile_tests():
         "name": f"{users[0]['name']} Updated",
         "avatar": f"https://example.com/new_avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
         "location": "San Francisco",
-        "notification_settings": ["messages", "updates", "groups"],
+        "notification_settings": ["urgent"],
         "gender": "female",
     }
     updated_profile = api.update_profile(users[0]["email"], updated_profile_data)
@@ -275,6 +275,29 @@ def run_profile_tests():
         expected_error_message="validation error",
     )
     logger.info("✓ Invalid field values test passed")
+
+    # Test 6.1: Try to update profile with invalid notification settings
+    logger.info(
+        "Test 6.1: Attempting to update profile with invalid notification settings"
+    )
+    invalid_notification_data = {
+        "notification_settings": [
+            "messages",
+            "updates",
+        ],  # Invalid notification settings
+    }
+    api.make_request_expecting_error(
+        "put",
+        f"{API_BASE_URL}/me/profile",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data=invalid_notification_data,
+        expected_status_code=400,
+        expected_error_message="validation error",
+    )
+    logger.info("✓ Invalid notification settings test passed")
 
     # Test 7: Try to access profile without authentication
     logger.info("Test 7: Attempting to access profile without authentication")

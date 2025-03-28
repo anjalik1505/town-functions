@@ -7,7 +7,7 @@ export const createProfileSchema = z.object({
     avatar: z.string().optional(),
     location: z.string().optional(),
     birthday: z.string().optional(),
-    notification_settings: z.array(z.string()).optional(),
+    notification_settings: z.array(z.enum(["all", "urgent"])).optional(),
     gender: z.string().optional()
 });
 
@@ -17,7 +17,7 @@ export const updateProfileSchema = z.object({
     avatar: z.string().optional(),
     location: z.string().optional(),
     birthday: z.string().optional(),
-    notification_settings: z.array(z.string()).optional(),
+    notification_settings: z.array(z.enum(["all", "urgent"])).optional(),
     gender: z.string().optional()
 });
 
