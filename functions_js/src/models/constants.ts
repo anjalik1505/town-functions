@@ -72,7 +72,8 @@ export const InvitationFields = {
   STATUS: 'status',
   USERNAME: 'username',
   NAME: 'name',
-  AVATAR: 'avatar'
+  AVATAR: 'avatar',
+  RECEIVER_NAME: 'receiver_name'
 } as const;
 
 // Field names for Update documents

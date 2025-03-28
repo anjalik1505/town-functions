@@ -17,6 +17,8 @@ const logger = getLogger(__filename);
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
+ *              - validated_params: The validated request body containing:
+ *                - receiver_name: The name of the person being invited
  * @param res - The Express response object
  * 
  * @returns An Invitation object representing the newly created invitation
@@ -44,6 +46,7 @@ export const createInvitation = async (req: Request, res: Response) => {
     }
 
     const currentUserProfile = currentUserProfileDoc.data() || {};
+    const validatedParams = req.validated_params;
 
     // Create a new invitation document
     const invitationRef = db.collection(Collections.INVITATIONS).doc();
@@ -64,6 +67,7 @@ export const createInvitation = async (req: Request, res: Response) => {
         [InvitationFields.STATUS]: Status.PENDING,
         [InvitationFields.CREATED_AT]: currentTime,
         [InvitationFields.EXPIRES_AT]: expiresAt,
+        [InvitationFields.RECEIVER_NAME]: validatedParams.receiver_name,
     };
 
     // Set the invitation document
@@ -80,7 +84,8 @@ export const createInvitation = async (req: Request, res: Response) => {
         status: Status.PENDING,
         username: currentUserProfile[ProfileFields.USERNAME] || "",
         name: currentUserProfile[ProfileFields.NAME] || "",
-        avatar: currentUserProfile[ProfileFields.AVATAR] || ""
+        avatar: currentUserProfile[ProfileFields.AVATAR] || "",
+        receiver_name: validatedParams.receiver_name
     };
 
     return res.status(201).json(invitation);

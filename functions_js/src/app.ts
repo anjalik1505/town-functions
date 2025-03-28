@@ -11,7 +11,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
-import { createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
+import { createInvitationSchema, createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
@@ -167,7 +167,7 @@ app.get("/invitations", handle_errors(true), validateQueryParams(paginationSchem
     await getInvitations(req, res);
 });
 
-app.post("/invitations", handle_errors(true), async (req, res) => {
+app.post("/invitations", handle_errors(true), validateRequest(createInvitationSchema), async (req, res) => {
     await createInvitation(req, res);
 });
 

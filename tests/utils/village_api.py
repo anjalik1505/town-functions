@@ -319,7 +319,7 @@ class VillageAPI:
         return response.json()
 
     # Invitation Methods
-    def create_invitation(self, email: str) -> Dict[str, Any]:
+    def create_invitation(self, email: str, receiver_name: str) -> Dict[str, Any]:
         """Create a new invitation"""
         logger.info(f"User {email} creating invitation")
 
@@ -328,8 +328,8 @@ class VillageAPI:
             "Authorization": f"Bearer {self.tokens[email]}",
         }
 
-        # Send an empty JSON payload
-        payload = {}
+        # Send invitation data with receiver_name
+        payload = {"receiver_name": receiver_name}
         response = requests.post(
             f"{API_BASE_URL}/invitations", headers=headers, json=payload
         )
