@@ -292,20 +292,32 @@ def run_updates_tests():
 
     # Test pagination for /me/feed
     logger.info("Testing pagination for /me/feed")
-    first_page_feed = api.get_my_feed(
-        users[0]["email"], limit=TEST_CONFIG["pagination_limit"]
-    )
+
+    # First verify we have enough updates for pagination
+    first_page_feed = api.get_my_feed(users[0]["email"])
+    total_updates = len(first_page_feed["updates"])
+    logger.info(f"Total updates in feed: {total_updates}")
+
+    # Test with a limit that should definitely produce a next_timestamp
+    test_limit = min(2, total_updates - 1)  # Use 2 or total-1, whichever is smaller
+    first_page_feed = api.get_my_feed(users[0]["email"], limit=test_limit)
     logger.info(
-        f"Retrieved first page of /me/feed: {json.dumps(first_page_feed, indent=2)}"
+        f"Retrieved first page of /me/feed with limit {test_limit}: {json.dumps(first_page_feed, indent=2)}"
     )
     assert (
         "next_timestamp" in first_page_feed
     ), "Response does not contain next_timestamp field for feed pagination"
+    assert (
+        len(first_page_feed["updates"]) == test_limit
+    ), f"Expected {test_limit} updates in first page, got {len(first_page_feed['updates'])}"
+    assert (
+        first_page_feed["next_timestamp"] is not None
+    ), "next_timestamp should not be null when we have more updates than the limit"
 
     if first_page_feed["next_timestamp"]:
         second_page_feed = api.get_my_feed(
             users[0]["email"],
-            limit=TEST_CONFIG["pagination_limit"],
+            limit=test_limit,
             after_timestamp=first_page_feed["next_timestamp"],
         )
         logger.info(
