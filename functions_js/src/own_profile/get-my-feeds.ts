@@ -218,7 +218,7 @@ export const getFeeds = async (req: Request, res: Response) => {
 
         // Set up pagination for the next request
         let nextTimestamp: string | null = null;
-        if (allBatchUpdates.length > limit) {
+        if (enrichedUpdates.length === limit) {
             const lastUpdate = enrichedUpdates[enrichedUpdates.length - 1];
             nextTimestamp = lastUpdate.created_at;
             logger.info(`More results available, next_timestamp: ${nextTimestamp}`);

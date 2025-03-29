@@ -13,21 +13,12 @@ input:
     creatorName: string
 output:
   schema:
-    type: object
-    properties:
-      summary:
-        type: string
-      suggestions:
-        type: string
-      emotional_overview:
-        type: string
-      key_moments:
-        type: string
-      recurring_themes:
-        type: string
-      progress_and_growth:
-        type: string
-    required: summary, suggestions, emotional_overview, key_moments, recurring_themes, progress_and_growth
+    summary: string
+    suggestions: string
+    emotional_overview: string
+    key_moments: string
+    recurring_themes: string
+    progress_and_growth: string
 ---
 You are an AI that analyzes user thoughts shared in updates and generates personalized weekly summaries and recommendations.
 

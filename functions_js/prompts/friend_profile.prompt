@@ -9,13 +9,8 @@ input:
     creatorName: string
 output:
   schema:
-    type: object
-    properties:
-      summary:
-        type: string
-      suggestions:
-        type: string
-    required: summary, suggestions
+    summary: string
+    suggestions: string
 ---
 You are an AI that summarizes user thoughts shared in updates and generates personalized suggestions for friends.
 
