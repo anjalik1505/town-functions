@@ -58,7 +58,7 @@ jobs:
 
       - name: Deploy Functions
         if: steps.functions-changes.outputs.any_changed == 'true'
-        uses: w9jds/firebase-action@14
+        uses: w9jds/firebase-action@14.0.1
         with:
           args: deploy --only functions
         env:

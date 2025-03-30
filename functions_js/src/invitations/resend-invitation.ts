@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
+import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -9,6 +10,9 @@ const logger = getLogger(__filename);
 
 /**
  * Resends an invitation by resetting its created_at time and updating the expires_at time.
+ * 
+ * Validates that:
+ * 1. The user hasn't reached the combined limit of friends and active invitations (5)
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -18,6 +22,7 @@ const logger = getLogger(__filename);
  * 
  * @returns The updated Invitation object with refreshed timestamps
  * 
+ * @throws {400} User has reached the maximum number of friends and active invitations
  * @throws {403} You can only resend your own invitations
  * @throws {404} Invitation not found
  */
@@ -55,6 +60,17 @@ export const resendInvitation = async (req: Request, res: Response) => {
             code: 403,
             name: "Forbidden",
             description: "You can only resend your own invitations"
+        });
+    }
+
+    // Check combined limit (excluding the current invitation)
+    const hasReachedLimit = await hasReachedCombinedLimit(currentUserId, invitationId);
+    if (hasReachedLimit) {
+        logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
+        return res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: "You have reached the maximum number of friends and active invitations"
         });
     }
 

@@ -8,7 +8,11 @@ It creates users, authenticates them, and performs various invitation operations
 
 import json
 import logging
+import os
+from datetime import timedelta
 
+import firebase_admin
+from firebase_admin import credentials, firestore
 from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
@@ -16,6 +20,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8080"
 
 
 def run_invitation_demo():
@@ -303,6 +309,195 @@ def run_invitation_demo():
         "get", f"{API_BASE_URL}/invitations", headers={}, expected_status_code=401
     )
     logger.info("✓ Unauthenticated access test passed")
+
+    # Test 9: Test combined limit (5 friends + active invitations)
+    logger.info("Test 9: Testing combined limit (5 friends + active invitations)")
+
+    # First, get current invitations for the fourth user
+    current_invitations = api.get_invitations(users[3]["email"])
+    logger.info(
+        f"Current invitations for fourth user: {json.dumps(current_invitations, indent=2)}"
+    )
+
+    # Calculate how many more invitations we need to create
+    active_count = len(
+        [
+            inv
+            for inv in current_invitations["invitations"]
+            if inv["status"] == "pending"
+        ]
+    )
+    invitations_to_create = 5 - active_count
+
+    # Create additional invitations to reach exactly 5
+    for i in range(invitations_to_create):
+        invitation = api.create_invitation(users[3]["email"], "Test Receiver Six")
+        logger.info(
+            f"Created invitation {i+1}/{invitations_to_create}: {json.dumps(invitation, indent=2)}"
+        )
+
+    # Verify we have exactly 5 active invitations
+    final_invitations = api.get_invitations(users[3]["email"])
+    active_count = len(
+        [inv for inv in final_invitations["invitations"] if inv["status"] == "pending"]
+    )
+    if active_count != 5:
+        raise Exception(f"Expected 5 active invitations, got {active_count}")
+
+    # Attempt to create a 6th invitation
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=400,
+        expected_error_message="You have reached the maximum number of friends and active invitations",
+    )
+    logger.info("✓ Combined limit test passed")
+
+    # Test 10: Test combined limit when resending
+    logger.info("Test 10: Testing combined limit when resending")
+
+    # Get the first pending invitation from the existing invitations
+    pending_invitations = [
+        inv for inv in final_invitations["invitations"] if inv["status"] == "pending"
+    ]
+    if not pending_invitations:
+        raise Exception("No pending invitations found for resend test")
+
+    expired_invitation = pending_invitations[0]
+    expired_invitation_id = expired_invitation["invitation_id"]
+
+    # Manually expire the invitation by setting its expiration date to 1 second after creation
+    # Requires default credentials to be set up
+    cred = credentials.ApplicationDefault()
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    invitation_ref = db.collection("invitations").document(expired_invitation_id)
+    invitation_doc = invitation_ref.get()
+    if not invitation_doc.exists:
+        raise Exception(f"Invitation {expired_invitation_id} not found in database")
+
+    invitation_data = invitation_doc.to_dict()
+    created_at = invitation_data["created_at"]
+    # Set expiration to 1 second after creation
+    expires_at = created_at + timedelta(seconds=1)
+    invitation_ref.update({"expires_at": expires_at})
+    logger.info(f"Manually expired invitation {expired_invitation_id}")
+
+    # Create a new invitation to reach the limit again
+    new_invitation = api.create_invitation(users[3]["email"], "Test Receiver Seven")
+    logger.info(
+        f"Created new invitation to reach limit: {json.dumps(new_invitation, indent=2)}"
+    )
+
+    # Attempt to resend the expired invitation
+    logger.info(f"Attempting to resend expired invitation {expired_invitation_id}")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/{expired_invitation_id}/resend",
+        headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
+        expected_status_code=400,
+        expected_error_message="You have reached the maximum number of friends and active invitations",
+    )
+    logger.info("✓ Combined limit resend test passed")
+
+    # Test 11: Test combined limit when accepting
+    logger.info("Test 11: Testing combined limit when accepting")
+
+    # Find the user with the most friends
+    max_friends = 0
+    user_with_most_friends = None
+    for user in users:
+        friends = api.get_friends(user["email"])
+        friend_count = len(friends.get("friends", []))
+        if friend_count > max_friends:
+            max_friends = friend_count
+            user_with_most_friends = user
+
+    if not user_with_most_friends:
+        raise Exception("No users found with friends")
+
+    logger.info(
+        f"User with most friends: {user_with_most_friends['email']} ({max_friends} friends)"
+    )
+
+    # Calculate how many more friends we need to create
+    friends_to_create = 5 - max_friends
+
+    # Create additional friends to reach exactly 5
+    for i in range(friends_to_create):
+        # Create a new user for each friend
+        friend_user = {
+            "email": f"friend{i+1}_test@example.com",
+            "password": "password123",
+            "name": f"Friend Test {i+1}",
+        }
+        api.create_user(
+            friend_user["email"], friend_user["password"], friend_user["name"]
+        )
+
+        # Create profile for the friend
+        profile_data = {
+            "username": friend_user["email"].split("@")[0],
+            "name": friend_user["name"],
+            "avatar": f"https://example.com/avatar_{friend_user['name'].replace(' ', '_').lower()}.jpg",
+            "location": "Test City",
+            "birthday": "1990-01-01",
+        }
+        api.create_profile(friend_user["email"], profile_data)
+
+        # Create and accept invitation
+        invitation = api.create_invitation(
+            user_with_most_friends["email"], "Test Receiver Eight"
+        )
+        accepted = api.accept_invitation(
+            friend_user["email"], api.invitation_ids[user_with_most_friends["email"]]
+        )
+        logger.info(
+            f"Created and accepted friend {i+1}/{friends_to_create}: {json.dumps(accepted, indent=2)}"
+        )
+
+    # Verify we have exactly 5 friends
+    final_friends = api.get_friends(user_with_most_friends["email"])
+    final_friend_count = len(final_friends.get("friends", []))
+    if final_friend_count != 5:
+        raise Exception(f"Expected 5 friends, got {final_friend_count}")
+
+    # Create a new user to send an invitation to the user who has reached their combined limit
+    sender_user = {
+        "email": "sender_test@example.com",
+        "password": "password123",
+        "name": "Sender Test User",
+    }
+    api.create_user(sender_user["email"], sender_user["password"], sender_user["name"])
+
+    # Create profile for the sender
+    profile_data = {
+        "username": sender_user["email"].split("@")[0],
+        "name": sender_user["name"],
+        "avatar": f"https://example.com/avatar_{sender_user['name'].replace(' ', '_').lower()}.jpg",
+        "location": "Test City",
+        "birthday": "1990-01-01",
+    }
+    api.create_profile(sender_user["email"], profile_data)
+
+    # Create invitation from the new user to the user who has reached their combined limit
+    invitation = api.create_invitation(sender_user["email"], "Test Receiver Nine")
+    logger.info(
+        f"Created invitation from {sender_user['email']} to {user_with_most_friends['email']}"
+    )
+
+    # Attempt to accept the invitation (should fail due to combined limit)
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitations/{api.invitation_ids[sender_user['email']]}/accept",
+        headers={
+            "Authorization": f"Bearer {api.tokens[user_with_most_friends['email']]}"
+        },
+        expected_status_code=400,
+        expected_error_message="You have reached the maximum number of friends and active invitations",
+    )
+    logger.info("✓ Combined limit accept test passed")
 
     logger.info("========== NEGATIVE PATH TESTS COMPLETED ==========")
 

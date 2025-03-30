@@ -2,6 +2,7 @@ import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/f
 import { FirestoreEvent } from "firebase-functions/v2/firestore";
 import { generateCreatorProfileFlow, generateFriendProfileFlow } from "../ai/flows";
 import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, UserSummaryFields } from "../models/constants";
+import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -22,9 +23,8 @@ async function processFriendSummary(
     friendId: string,
     batch: FirebaseFirestore.WriteBatch
 ): Promise<void> {
-    // Sort user IDs to create a consistent relationship ID
-    const userIds = [creatorId, friendId].sort();
-    const relationshipId = `${userIds[0]}_${userIds[1]}`;
+    // Create a consistent relationship ID using the utility function
+    const relationshipId = createFriendshipId(creatorId, friendId);
 
     // Determine which user is the target (the friend who will see the summary)
     const targetId = friendId;

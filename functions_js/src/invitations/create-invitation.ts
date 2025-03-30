@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
+import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -13,7 +14,8 @@ const logger = getLogger(__filename);
  * This function creates a new invitation document in the invitations collection.
  * The invitation will have a pending status and will expire after 1 day.
  * 
- * Validates that the user doesn't already have a pending invitation.
+ * Validates that:
+ * 1. The user hasn't reached the combined limit of friends and active invitations (5)
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -23,11 +25,23 @@ const logger = getLogger(__filename);
  * 
  * @returns An Invitation object representing the newly created invitation
  * 
+ * @throws 400: User has reached the maximum number of friends and active invitations
  * @throws 404: User profile not found
  */
 export const createInvitation = async (req: Request, res: Response) => {
     const currentUserId = req.userId;
     logger.info(`Creating invitation for user ${currentUserId}`);
+
+    // Check combined limit
+    const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
+    if (hasReachedLimit) {
+        logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
+        return res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: "You have reached the maximum number of friends and active invitations"
+        });
+    }
 
     // Initialize Firestore client
     const db = getFirestore();
