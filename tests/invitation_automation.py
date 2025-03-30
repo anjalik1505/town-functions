@@ -9,10 +9,10 @@ It creates users, authenticates them, and performs various invitation operations
 import json
 import logging
 import os
+from datetime import timedelta
 
 import firebase_admin
-from firebase_admin import firestore
-from google.protobuf.timestamp_pb2 import Timestamp
+from firebase_admin import credentials, firestore
 from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
@@ -331,7 +331,7 @@ def run_invitation_demo():
 
     # Create additional invitations to reach exactly 5
     for i in range(invitations_to_create):
-        invitation = api.create_invitation(users[3]["email"])
+        invitation = api.create_invitation(users[3]["email"], "Test Receiver Six")
         logger.info(
             f"Created invitation {i+1}/{invitations_to_create}: {json.dumps(invitation, indent=2)}"
         )
@@ -368,7 +368,9 @@ def run_invitation_demo():
     expired_invitation_id = expired_invitation["invitation_id"]
 
     # Manually expire the invitation by setting its expiration date to 1 second after creation
-    firebase_admin.initialize_app()
+    # Requires default credentials to be set up
+    cred = credentials.ApplicationDefault()
+    firebase_admin.initialize_app(cred)
     db = firestore.client()
     invitation_ref = db.collection("invitations").document(expired_invitation_id)
     invitation_doc = invitation_ref.get()
@@ -378,13 +380,12 @@ def run_invitation_demo():
     invitation_data = invitation_doc.to_dict()
     created_at = invitation_data["created_at"]
     # Set expiration to 1 second after creation
-    expires_at = Timestamp(created_at.seconds + 1, created_at.nanoseconds)
-
+    expires_at = created_at + timedelta(seconds=1)
     invitation_ref.update({"expires_at": expires_at})
     logger.info(f"Manually expired invitation {expired_invitation_id}")
 
     # Create a new invitation to reach the limit again
-    new_invitation = api.create_invitation(users[3]["email"])
+    new_invitation = api.create_invitation(users[3]["email"], "Test Receiver Seven")
     logger.info(
         f"Created new invitation to reach limit: {json.dumps(new_invitation, indent=2)}"
     )
@@ -446,7 +447,9 @@ def run_invitation_demo():
         api.create_profile(friend_user["email"], profile_data)
 
         # Create and accept invitation
-        invitation = api.create_invitation(user_with_most_friends["email"])
+        invitation = api.create_invitation(
+            user_with_most_friends["email"], "Test Receiver Eight"
+        )
         accepted = api.accept_invitation(
             friend_user["email"], api.invitation_ids[user_with_most_friends["email"]]
         )
@@ -479,7 +482,7 @@ def run_invitation_demo():
     api.create_profile(sender_user["email"], profile_data)
 
     # Create invitation from the new user to the user who has reached their combined limit
-    invitation = api.create_invitation(sender_user["email"])
+    invitation = api.create_invitation(sender_user["email"], "Test Receiver Nine")
     logger.info(
         f"Created invitation from {sender_user['email']} to {user_with_most_friends['email']}"
     )
