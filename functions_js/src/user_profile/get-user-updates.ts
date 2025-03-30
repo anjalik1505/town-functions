@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, QueryOperators, Status, UpdateFields } from "../models/constants";
-import { Update } from "../models/data-models";
+import { Update, UpdatesResponse } from "../models/data-models";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -206,5 +206,6 @@ export const getUserUpdates = async (req: Request, res: Response) => {
     }
 
     logger.info(`Retrieved ${limitedUpdates.length} updates for user ${targetUserId}`);
-    return res.json({ updates: limitedUpdates, next_timestamp: nextTimestamp });
+    const response: UpdatesResponse = { updates: limitedUpdates, next_timestamp: nextTimestamp };
+    return res.json(response);
 }; 

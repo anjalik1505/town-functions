@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, QueryOperators, UpdateFields } from "../models/constants";
-import { Update } from "../models/data-models";
+import { Update, UpdatesResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -99,5 +99,6 @@ export const getUpdates = async (req: Request, res: Response) => {
     }
 
     logger.info(`Retrieved ${updates.length} updates for user: ${currentUserId}`);
-    return res.json({ updates, next_timestamp: nextTimestamp });
+    const response: UpdatesResponse = { updates, next_timestamp: nextTimestamp };
+    return res.json(response);
 }; 

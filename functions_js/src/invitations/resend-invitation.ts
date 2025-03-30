@@ -99,7 +99,8 @@ export const resendInvitation = async (req: Request, res: Response) => {
         status: Status.PENDING,
         username: invitationData?.[InvitationFields.USERNAME] || "",
         name: invitationData?.[InvitationFields.NAME] || "",
-        avatar: invitationData?.[InvitationFields.AVATAR] || ""
+        avatar: invitationData?.[InvitationFields.AVATAR] || "",
+        receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || ""
     };
 
     return res.json(invitation);

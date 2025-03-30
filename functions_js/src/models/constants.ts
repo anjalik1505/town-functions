@@ -38,6 +38,7 @@ export const ProfileFields = {
   LOCATION: 'location',
   BIRTHDAY: 'birthday',
   NOTIFICATION_SETTINGS: 'notification_settings',
+  GENDER: 'gender',
   GROUP_IDS: 'group_ids',
   INSIGHTS: 'insights',
   SUMMARY: 'summary',
@@ -71,7 +72,8 @@ export const InvitationFields = {
   STATUS: 'status',
   USERNAME: 'username',
   NAME: 'name',
-  AVATAR: 'avatar'
+  AVATAR: 'avatar',
+  RECEIVER_NAME: 'receiver_name'
 } as const;
 
 // Field names for Update documents

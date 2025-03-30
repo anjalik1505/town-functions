@@ -89,6 +89,9 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (profileData.notification_settings !== undefined) {
         profileUpdates[ProfileFields.NOTIFICATION_SETTINGS] = profileData.notification_settings;
     }
+    if (profileData.gender !== undefined) {
+        profileUpdates[ProfileFields.GENDER] = profileData.gender;
+    }
 
     // Create a batch for all updates
     const batch = db.batch();
@@ -237,6 +240,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         location: updatedProfileData[ProfileFields.LOCATION] || "",
         birthday: updatedProfileData[ProfileFields.BIRTHDAY] || "",
         notification_settings: updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
+        gender: updatedProfileData[ProfileFields.GENDER] || "",
         summary: updatedProfileData[ProfileFields.SUMMARY] || "",
         suggestions: updatedProfileData[ProfileFields.SUGGESTIONS] || "",
         updated_at: updatedAt,

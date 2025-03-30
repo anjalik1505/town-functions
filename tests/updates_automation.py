@@ -135,7 +135,7 @@ def run_updates_tests():
     # Step 5: Connect users as friends
     logger.info("Step 5: Connecting users as friends using invitations")
     # User 1 creates an invitation
-    invitation = api.create_invitation(users[0]["email"])
+    invitation = api.create_invitation(users[0]["email"], users[1]["name"])
     logger.info(f"First user created invitation: {json.dumps(invitation, indent=2)}")
 
     # User 2 accepts the invitation
@@ -190,13 +190,65 @@ def run_updates_tests():
     assert "updates" in user1_feeds, "Response does not contain updates field"
     # Should include updates from user 2 that were shared with user 1
     assert len(user1_feeds["updates"]) > 0, "No updates found in user 1's feed"
-    logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} updates")
+
+    # Verify that user's own updates appear in their feed
+    user1_own_updates = [
+        update
+        for update in user1_feeds["updates"]
+        if update["created_by"] == api.user_ids[users[0]["email"]]
+    ]
+    assert len(user1_own_updates) > 0, "User's own updates not found in their feed"
+    logger.info(
+        f"✓ User 1's feed contains {len(user1_own_updates)} of their own updates"
+    )
+
+    # Verify enriched profile data in user's own updates
+    for update in user1_own_updates:
+        assert "username" in update, "Update missing username field"
+        assert "name" in update, "Update missing name field"
+        assert "avatar" in update, "Update missing avatar field"
+        assert (
+            update["username"] == users[0]["email"].split("@")[0]
+        ), "Incorrect username in update"
+        assert update["name"] == users[0]["name"], "Incorrect name in update"
+        assert (
+            update["avatar"]
+            == f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg"
+        ), "Incorrect avatar in update"
+    logger.info("✓ User's own updates contain correct enriched profile data")
+
+    # Verify that friend's updates appear in the feed
+    user2_updates = [
+        update
+        for update in user1_feeds["updates"]
+        if update["created_by"] == api.user_ids[users[1]["email"]]
+    ]
+    assert len(user2_updates) > 0, "Friend's updates not found in the feed"
+    logger.info(
+        f"✓ User 1's feed contains {len(user2_updates)} updates from their friend"
+    )
+
+    # Verify enriched profile data in friend's updates
+    for update in user2_updates:
+        assert "username" in update, "Update missing username field"
+        assert "name" in update, "Update missing name field"
+        assert "avatar" in update, "Update missing avatar field"
+        assert (
+            update["username"] == users[1]["email"].split("@")[0]
+        ), "Incorrect username in update"
+        assert update["name"] == users[1]["name"], "Incorrect name in update"
+        assert (
+            update["avatar"]
+            == f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg"
+        ), "Incorrect avatar in update"
+    logger.info("✓ Friend's updates contain correct enriched profile data")
+
+    logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
 
     # Step 9: Test pagination for updates
-    # Reuse existing updates instead of creating new ones if possible
-    logger.info("Step 9: Testing pagination for updates")
+    logger.info("Step 9: Testing pagination for all update endpoints")
 
-    # Only create additional updates if we need more for pagination testing
+    # Create enough updates for pagination testing if needed
     total_user1_updates = len(my_updates["updates"])
     if total_user1_updates < TEST_CONFIG["pagination_limit"] + 1:
         # Create just enough updates to test pagination
@@ -212,36 +264,100 @@ def run_updates_tests():
             api.create_update(users[0]["email"], update_data)
             logger.info(f"Created additional update for pagination testing")
 
-    # Get updates with small limit to test pagination
+    # Test pagination for /me/updates
+    logger.info("Testing pagination for /me/updates")
     first_page = api.get_my_updates(
         users[0]["email"], limit=TEST_CONFIG["pagination_limit"]
     )
-    logger.info(f"Retrieved first page of updates: {json.dumps(first_page, indent=2)}")
-
-    # Check if the response contains the next_timestamp field for pagination
+    logger.info(
+        f"Retrieved first page of /me/updates: {json.dumps(first_page, indent=2)}"
+    )
     assert (
         "next_timestamp" in first_page
     ), "Response does not contain next_timestamp field for pagination"
 
-    # If there's a next_timestamp, try to get the second page
     if first_page["next_timestamp"]:
-        # Ensure the timestamp is in ISO format (2025-01-01T12:00:00Z)
-        # The API returns timestamps in ISO format but we need to ensure it's properly passed
-        next_timestamp = first_page["next_timestamp"]
-        logger.info(f"Using next_timestamp for pagination: {next_timestamp}")
-
         second_page = api.get_my_updates(
             users[0]["email"],
             limit=TEST_CONFIG["pagination_limit"],
-            after_timestamp=next_timestamp,
+            after_timestamp=first_page["next_timestamp"],
         )
         logger.info(
-            f"Retrieved second page of updates: {json.dumps(second_page, indent=2)}"
+            f"Retrieved second page of /me/updates: {json.dumps(second_page, indent=2)}"
         )
-        assert len(second_page["updates"]) > 0, "No updates found in second page"
-        logger.info(f"✓ Second page contains {len(second_page['updates'])} updates")
+        assert (
+            len(second_page["updates"]) > 0
+        ), "No updates found in second page of /me/updates"
+        logger.info(f"✓ /me/updates pagination test passed")
 
-    logger.info("✓ Update pagination test passed")
+    # Test pagination for /me/feed
+    logger.info("Testing pagination for /me/feed")
+
+    # First verify we have enough updates for pagination
+    first_page_feed = api.get_my_feed(users[0]["email"])
+    total_updates = len(first_page_feed["updates"])
+    logger.info(f"Total updates in feed: {total_updates}")
+
+    # Test with a limit that should definitely produce a next_timestamp
+    test_limit = min(2, total_updates - 1)  # Use 2 or total-1, whichever is smaller
+    first_page_feed = api.get_my_feed(users[0]["email"], limit=test_limit)
+    logger.info(
+        f"Retrieved first page of /me/feed with limit {test_limit}: {json.dumps(first_page_feed, indent=2)}"
+    )
+    assert (
+        "next_timestamp" in first_page_feed
+    ), "Response does not contain next_timestamp field for feed pagination"
+    assert (
+        len(first_page_feed["updates"]) == test_limit
+    ), f"Expected {test_limit} updates in first page, got {len(first_page_feed['updates'])}"
+    assert (
+        first_page_feed["next_timestamp"] is not None
+    ), "next_timestamp should not be null when we have more updates than the limit"
+
+    if first_page_feed["next_timestamp"]:
+        second_page_feed = api.get_my_feed(
+            users[0]["email"],
+            limit=test_limit,
+            after_timestamp=first_page_feed["next_timestamp"],
+        )
+        logger.info(
+            f"Retrieved second page of /me/feed: {json.dumps(second_page_feed, indent=2)}"
+        )
+        assert (
+            len(second_page_feed["updates"]) > 0
+        ), "No updates found in second page of /me/feed"
+        logger.info(f"✓ /me/feed pagination test passed")
+
+    # Test pagination for /users/{user_id}/updates
+    logger.info("Testing pagination for /users/{user_id}/updates")
+    first_page_user = api.get_user_updates(
+        users[0]["email"],
+        api.user_ids[users[1]["email"]],
+        limit=TEST_CONFIG["pagination_limit"],
+    )
+    logger.info(
+        f"Retrieved first page of user updates: {json.dumps(first_page_user, indent=2)}"
+    )
+    assert (
+        "next_timestamp" in first_page_user
+    ), "Response does not contain next_timestamp field for user updates pagination"
+
+    if first_page_user["next_timestamp"]:
+        second_page_user = api.get_user_updates(
+            users[0]["email"],
+            api.user_ids[users[1]["email"]],
+            limit=TEST_CONFIG["pagination_limit"],
+            after_timestamp=first_page_user["next_timestamp"],
+        )
+        logger.info(
+            f"Retrieved second page of user updates: {json.dumps(second_page_user, indent=2)}"
+        )
+        assert (
+            len(second_page_user["updates"]) > 0
+        ), "No updates found in second page of user updates"
+        logger.info("✓ /users/{user_id}/updates pagination test passed")
+
+    logger.info("✓ All pagination tests completed successfully")
 
     # ============ NEGATIVE PATH TESTS ============
     logger.info("========== STARTING NEGATIVE PATH TESTS ==========")

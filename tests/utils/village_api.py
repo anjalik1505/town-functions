@@ -156,17 +156,26 @@ class VillageAPI:
         return response.json()
 
     # Friend Methods
-    def get_friends(self, email: str) -> Dict[str, Any]:
+    def get_friends(
+        self, email: str, limit: int = 10, after_timestamp: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get user's friends"""
         logger.info(f"Getting friends for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        response = requests.get(f"{API_BASE_URL}/me/friends", headers=headers)
+        url = f"{API_BASE_URL}/me/friends?limit={limit}"
+        if after_timestamp:
+            # Ensure timestamp is properly URL encoded
+            encoded_timestamp = urllib.parse.quote(after_timestamp)
+            url += f"&after_timestamp={encoded_timestamp}"
+
+        response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get friends: {response.text}")
             response.raise_for_status()
 
+        logger.info(f"Successfully retrieved friends for user: {email}")
         return response.json()
 
     # Feed and Update Methods
@@ -310,7 +319,7 @@ class VillageAPI:
         return response.json()
 
     # Invitation Methods
-    def create_invitation(self, email: str) -> Dict[str, Any]:
+    def create_invitation(self, email: str, receiver_name: str) -> Dict[str, Any]:
         """Create a new invitation"""
         logger.info(f"User {email} creating invitation")
 
@@ -319,8 +328,8 @@ class VillageAPI:
             "Authorization": f"Bearer {self.tokens[email]}",
         }
 
-        # Send an empty JSON payload
-        payload = {}
+        # Send invitation data with receiver_name
+        payload = {"receiver_name": receiver_name}
         response = requests.post(
             f"{API_BASE_URL}/invitations", headers=headers, json=payload
         )
@@ -336,17 +345,26 @@ class VillageAPI:
 
         return data
 
-    def get_invitations(self, email: str) -> Dict[str, Any]:
+    def get_invitations(
+        self, email: str, limit: int = 10, after_timestamp: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get user's invitations"""
         logger.info(f"Getting invitations for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        response = requests.get(f"{API_BASE_URL}/invitations", headers=headers)
+        url = f"{API_BASE_URL}/invitations?limit={limit}"
+        if after_timestamp:
+            # Ensure timestamp is properly URL encoded
+            encoded_timestamp = urllib.parse.quote(after_timestamp)
+            url += f"&after_timestamp={encoded_timestamp}"
+
+        response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get invitations: {response.text}")
             response.raise_for_status()
 
+        logger.info(f"Successfully retrieved invitations for user: {email}")
         return response.json()
 
     def resend_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:

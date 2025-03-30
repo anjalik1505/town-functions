@@ -69,6 +69,7 @@ export const getProfile = async (req: Request, res: Response) => {
     location: profileData[ProfileFields.LOCATION] || "",
     birthday: profileData[ProfileFields.BIRTHDAY] || "",
     notification_settings: profileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
+    gender: profileData[ProfileFields.GENDER] || "",
     summary: profileData[ProfileFields.SUMMARY] || "",
     suggestions: profileData[ProfileFields.SUGGESTIONS] || "",
     updated_at: updatedAt,
