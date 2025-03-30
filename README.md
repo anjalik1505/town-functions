@@ -162,6 +162,22 @@ This repository contains the backend functions for the Village application.
 - 404: Profile not found
 - 500: Internal server error
 
+#### GET /me/question
+**Purpose**: Get a personalized question to encourage the user to share an update. The question is generated based on the user's profile data, insights, and sharing history.
+
+**Input**: (None, uses auth token)
+
+**Output**:
+```json
+{
+  "question": "How has your recent work on the project been going? I noticed you mentioned some challenges last time."
+}
+```
+
+**Errors**:
+- 404: Profile not found
+- 500: Internal server error
+
 #### GET /me/feed
 **Purpose**: Get all updates from the authenticated user's feed, paginated.
 

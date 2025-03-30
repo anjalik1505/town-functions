@@ -17,6 +17,7 @@ import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
 import { getProfile } from "./own_profile/get-my-profile";
 import { getUpdates } from "./own_profile/get-my-updates";
+import { getQuestion } from "./own_profile/get-question";
 import { updateProfile } from "./own_profile/update-my-profile";
 import { testNotification } from "./test/test-notification";
 import { testPrompt } from "./test/test-prompt";
@@ -131,6 +132,10 @@ const handle_errors = (validate_request: boolean = false): RequestHandler => {
 // Routes with error handling
 app.get("/me/profile", handle_errors(false), async (req, res) => {
     await getProfile(req, res);
+});
+
+app.get("/me/question", handle_errors(false), async (req, res) => {
+    await getQuestion(req, res);
 });
 
 app.post("/me/profile", handle_errors(true), validateRequest(createProfileSchema), async (req, res) => {

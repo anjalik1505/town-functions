@@ -150,3 +150,7 @@ export interface NotificationResponse {
   message: string;
   messageId: string;
 }
+
+export interface QuestionResponse {
+  question: string;
+}

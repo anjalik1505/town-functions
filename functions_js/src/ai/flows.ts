@@ -65,7 +65,14 @@ export async function generateCreatorProfileFlow(params: {
                 return output;
             }
         } catch (error) {
-            logger.error(`Error generating creator profile insights (attempt ${retryCount + 1}): ${error}`);
+            logger.error(`Error generating creator profile insights (attempt ${retryCount + 1}):`, {
+                error: error instanceof Error ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                } : error,
+                params: params
+            });
         }
 
         retryCount++;
@@ -132,7 +139,14 @@ export async function generateFriendProfileFlow(params: {
                 return output;
             }
         } catch (error) {
-            logger.error(`Error generating friend profile insights (attempt ${retryCount + 1}): ${error}`);
+            logger.error(`Error generating friend profile insights (attempt ${retryCount + 1}):`, {
+                error: error instanceof Error ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                } : error,
+                params: params
+            });
         }
 
         retryCount++;
@@ -149,6 +163,75 @@ export async function generateFriendProfileFlow(params: {
         return {
             summary: params.existingSummary || "",
             suggestions: params.existingSuggestions || ""
+        };
+    }
+
+    // This should never be reached due to the return in the success case and the default return above
+    throw new Error("Unexpected flow execution path");
+}
+
+/**
+ * Generate a personalized question to encourage user sharing
+ */
+export async function generateQuestionFlow(params: {
+    existingSummary: string;
+    existingSuggestions: string;
+    existingEmotionalOverview: string;
+    existingKeyMoments: string;
+    existingRecurringThemes: string;
+    existingProgressAndGrowth: string;
+    gender: string;
+    location: string;
+}) {
+    logger.info(`Generating personalized question: ${JSON.stringify(params, null, 2)}`);
+    let success = false;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    // Configure with the actual API key at runtime
+    const config = {
+        apiKey: process.env.GEMINI_API_KEY,
+        ...globalConfig
+    };
+
+    while (!success && retryCount < maxRetries) {
+        try {
+            // Load the prompt file
+            const generateQuestionPrompt = ai.prompt('generate_question');
+
+            // Call the prompt with parameters
+            const { output } = await generateQuestionPrompt(params, { config });
+
+            if (output) {
+                logger.info(`Generated personalized question: ${JSON.stringify(output, null, 2)}`);
+                success = true;
+                logger.info(`Successfully generated personalized question`);
+                return output;
+            }
+        } catch (error) {
+            logger.error(`Error generating personalized question (attempt ${retryCount + 1}):`, {
+                error: error instanceof Error ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                } : error,
+                params: params
+            });
+        }
+
+        retryCount++;
+
+        // Add a small delay between retries
+        if (!success && retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+
+    if (!success) {
+        logger.error(`Failed to generate personalized question after ${maxRetries} attempts.`);
+        // Return a default question if all retries fail
+        return {
+            question: "What's on your mind today?"
         };
     }
 

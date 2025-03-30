@@ -412,6 +412,20 @@ class VillageAPI:
 
         return response.json()
 
+    def get_question(self, email: str) -> Dict[str, Any]:
+        """Get a personalized question for the user"""
+        logger.info(f"Getting personalized question for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(f"{API_BASE_URL}/me/question", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get question: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved question for user: {email}")
+        return response.json()
+
     # Utility Methods
     def make_request_expecting_error(
         self,
