@@ -11,7 +11,7 @@
 - **Standardized Organization**  
   - Follow this project structure:
     ```
-    functions_js/
+    functions/
     ├── src/
     │   ├── app.ts                 # Express app, authentication, Zod validation
     │   ├── functions/             # Directory for all function implementations

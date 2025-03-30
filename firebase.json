@@ -1,7 +1,7 @@
 {
   "functions": [
     {
-      "source": "functions_js",
+      "source": "functions",
       "runtime": "nodejs22",
       "codebase": "default",
       "ignore": [

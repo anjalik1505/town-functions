@@ -24,7 +24,7 @@ You can test and refine prompts using the GenKit developer UI:
 
 ```bash
 cd d:\Village\village_functions
-npx genkit start -- tsx --watch functions_js/src/ai/flows.ts
+npx genkit start -- tsx --watch functions/src/ai/flows.ts
 ```
 
 ## Environment Variables
