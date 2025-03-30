@@ -1,0 +1,73 @@
+name: Firebase Deploy
+
+# This workflow deploys the Firebase application (functions and hosting)
+# Prerequisites:
+# Add the following secrets to your GitHub repository's staging environment:
+# - FIREBASE_TOKEN (generate using firebase login:ci)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'function_js/**'
+      - 'web/**'
+      - '.firebaserc'
+      - '.firebase.json'
+      - '.github/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check for Functions Changes
+        id: functions-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            function_js/**
+            .firebaserc
+            .firebase.json
+            .github/**
+
+      - name: Check for Web Changes
+        id: web-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            web/**
+            .firebaserc
+            .firebase.json
+            .github/**
+
+      - name: Build Functions
+        if: steps.functions-changes.outputs.any_changed == 'true'
+        run: |
+          cd function_js
+          npm install
+          npm run build
+          cd ..
+
+      - name: Deploy Functions
+        if: steps.functions-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@14
+        with:
+          args: deploy --only functions
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy Web
+        if: steps.web-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@14
+        with:
+          args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }} 
