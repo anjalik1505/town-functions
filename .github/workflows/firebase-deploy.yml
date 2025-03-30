@@ -51,7 +51,7 @@ jobs:
       - name: Build Functions
         if: steps.functions-changes.outputs.any_changed == 'true'
         run: |
-          cd function_js
+          cd functions_js
           npm install
           npm run build
           cd ..
