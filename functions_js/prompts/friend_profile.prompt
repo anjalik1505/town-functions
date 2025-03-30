@@ -7,21 +7,25 @@ input:
     updateContent: string
     sentiment: string
     creatorName: string
+    creatorGender: string
+    creatorLocation: string
 output:
   schema:
     summary: string
     suggestions: string
 ---
-You are an AI that summarizes user thoughts shared in updates and generates personalized suggestions for friends.
-
 ### CONTEXT:
-- Current Summary: {{existingSummary}}
-- Current Suggestions: {{existingSuggestions}}
-- Creator Name: {{creatorName}}
+- <CurrentSummary>: {{existingSummary}}
+- <CurrentSuggestions>: {{existingSuggestions}}
+- <CreatorName>: {{creatorName}}
+- <CreatorGender>: {{creatorGender}}
+- <CreatorLocation>: {{creatorLocation}}
 
 ### NEW UPDATE:
-- Content: {{updateContent}}
-- Sentiment: {{sentiment}}
+- <CurrentUpdateContent>: {{updateContent}}
+- <CurrentUpdateSentiment>: {{sentiment}}
+
+You are an AI that summarizes user thoughts shared in updates and generates personalized suggestions for friends.
 
 ### INSTRUCTIONS:
 1. Analyze the new update in context of existing content

@@ -57,12 +57,16 @@ async function processFriendSummary(
     const creatorProfileDoc = await creatorProfileRef.get();
 
     let creatorName = "Friend";
+    let gender = "They";
+    let location = "";
     if (creatorProfileDoc.exists) {
         const creatorProfileData = creatorProfileDoc.data() || {};
         // Try to get name first, then username, then fall back to "Friend"
         creatorName = creatorProfileData[ProfileFields.NAME] ||
             creatorProfileData[ProfileFields.USERNAME] ||
             "Friend";
+        gender = creatorProfileData[ProfileFields.GENDER] || "They";
+        location = creatorProfileData[ProfileFields.LOCATION] || "";
     } else {
         logger.warn(`Creator profile not found: ${creatorId}`);
     }
@@ -73,7 +77,9 @@ async function processFriendSummary(
         existingSuggestions: existingSuggestions || "",
         updateContent: updateContent || "",
         sentiment: sentiment || "",
-        creatorName: creatorName || 'User'
+        creatorName: creatorName,
+        creatorGender: gender,
+        creatorLocation: location
     });
 
     // Prepare the summary document
@@ -145,7 +151,9 @@ async function updateCreatorProfile(
         existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || "",
         existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || "",
         updateContent: updateContent || "",
-        sentiment: sentiment || ""
+        sentiment: sentiment || "",
+        gender: profileData[ProfileFields.GENDER] || "",
+        location: profileData[ProfileFields.LOCATION] || ""
     });
 
     // Update the profile

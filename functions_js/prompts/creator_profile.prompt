@@ -10,7 +10,8 @@ input:
     existingProgressAndGrowth: string
     updateContent: string
     sentiment: string
-    creatorName: string
+    gender: string
+    location: string
 output:
   schema:
     summary: string
@@ -20,19 +21,21 @@ output:
     recurring_themes: string
     progress_and_growth: string
 ---
-You are an AI that analyzes user thoughts shared in updates and generates personalized weekly summaries and recommendations.
-
 ### CONTEXT:
-- Current Weekly Summary: {{existingSummary}}
-- Current Suggestions: {{existingSuggestions}}
-- Current Emotional Overview: {{existingEmotionalOverview}}
-- Current Key Moments: {{existingKeyMoments}}
-- Current Recurring Themes: {{existingRecurringThemes}}
-- Current Progress and Growth: {{existingProgressAndGrowth}}
+- <CurrentSummary>: {{existingSummary}}
+- <CurrentSuggestions>: {{existingSuggestions}}
+- <CurrentEmotionalOverview>: {{existingEmotionalOverview}}
+- <CurrentKeyMoments>: {{existingKeyMoments}}
+- <CurrentRecurringThemes>: {{existingRecurringThemes}}
+- <CurrentProgressAndGrowth>: {{existingProgressAndGrowth}}
+- <Gender>: {{gender}}
+- <Location>: {{location}}
 
 ### NEW UPDATE:
-- Content: {{updateContent}}
-- Sentiment: {{sentiment}}
+- <CurrentUpdateContent>: {{updateContent}}
+- <CurrentUpdateSentiment>: {{sentiment}}
+
+You are an AI that analyzes user thoughts shared in updates and generates personalized weekly summaries and recommendations.
 
 ### INSTRUCTIONS:
 1. Analyze the new update in context of existing content

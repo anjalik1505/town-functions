@@ -35,6 +35,8 @@ export async function generateCreatorProfileFlow(params: {
     existingProgressAndGrowth: string;
     updateContent: string;
     sentiment: string;
+    gender: string;
+    location: string;
 }) {
     logger.info(`Generating creator profile insights for update: ${JSON.stringify(params, null, 2)}`);
     // Initialize with existing data as default values
@@ -100,6 +102,8 @@ export async function generateFriendProfileFlow(params: {
     updateContent: string;
     sentiment: string;
     creatorName: string;
+    creatorGender: string;
+    creatorLocation: string;
 }) {
     logger.info(`Generating friend profile insights for update: ${JSON.stringify(params, null, 2)}`);
     // Initialize with existing data as default values
