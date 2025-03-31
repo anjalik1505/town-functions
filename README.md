@@ -135,7 +135,7 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
@@ -183,7 +183,7 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
@@ -218,7 +218,7 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
@@ -391,7 +391,7 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 
@@ -493,7 +493,7 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12:00:00.000+00:00
+?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
 ```
 *Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
 

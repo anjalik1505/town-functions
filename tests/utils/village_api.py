@@ -164,12 +164,14 @@ class VillageAPI:
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        url = f"{API_BASE_URL}/me/friends?limit={limit}"
+        encoded_limit = urllib.parse.quote(str(limit))
+        url = f"{API_BASE_URL}/me/friends?limit={encoded_limit}"
         if after_timestamp:
             # Ensure timestamp is properly URL encoded
             encoded_timestamp = urllib.parse.quote(after_timestamp)
             url += f"&after_timestamp={encoded_timestamp}"
 
+        logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get friends: {response.text}")
@@ -187,12 +189,14 @@ class VillageAPI:
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        url = f"{API_BASE_URL}/me/feed?limit={limit}"
+        encoded_limit = urllib.parse.quote(str(limit))
+        url = f"{API_BASE_URL}/me/feed?limit={encoded_limit}"
         if after_timestamp:
             # Ensure timestamp is properly URL encoded
             encoded_timestamp = urllib.parse.quote(after_timestamp)
             url += f"&after_timestamp={encoded_timestamp}"
 
+        logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get feeds: {response.text}")
@@ -209,12 +213,14 @@ class VillageAPI:
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        url = f"{API_BASE_URL}/me/updates?limit={limit}"
+        encoded_limit = urllib.parse.quote(str(limit))
+        url = f"{API_BASE_URL}/me/updates?limit={encoded_limit}"
         if after_timestamp:
             # Ensure timestamp is properly URL encoded
             encoded_timestamp = urllib.parse.quote(after_timestamp)
             url += f"&after_timestamp={encoded_timestamp}"
 
+        logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get updates: {response.text}")
@@ -270,12 +276,14 @@ class VillageAPI:
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        url = f"{API_BASE_URL}/users/{target_user_id}/updates?limit={limit}"
+        encoded_limit = urllib.parse.quote(str(limit))
+        url = f"{API_BASE_URL}/users/{target_user_id}/updates?limit={encoded_limit}"
         if after_timestamp:
             # Ensure timestamp is properly URL encoded
             encoded_timestamp = urllib.parse.quote(after_timestamp)
             url += f"&after_timestamp={encoded_timestamp}"
 
+        logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get user updates: {response.text}")
@@ -353,12 +361,14 @@ class VillageAPI:
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        url = f"{API_BASE_URL}/invitations?limit={limit}"
+        encoded_limit = urllib.parse.quote(str(limit))
+        url = f"{API_BASE_URL}/invitations?limit={encoded_limit}"
         if after_timestamp:
             # Ensure timestamp is properly URL encoded
             encoded_timestamp = urllib.parse.quote(after_timestamp)
             url += f"&after_timestamp={encoded_timestamp}"
 
+        logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Failed to get invitations: {response.text}")
