@@ -10,7 +10,7 @@ on:
     branches:
       - main
     paths:
-      - 'function_js/**'
+      - 'functions/**'
       - 'web/**'
       - '.firebaserc'
       - '.firebase.json'
@@ -33,7 +33,7 @@ jobs:
         uses: tj-actions/changed-files@v46
         with:
           files: |
-            function_js/**
+            functions/**
             .firebaserc
             .firebase.json
             .github/**
