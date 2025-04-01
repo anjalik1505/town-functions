@@ -11,7 +11,8 @@ export const Collections = {
   CHATS: 'chats',
   INSIGHTS: 'insights',
   INVITATIONS: 'invitations',
-  DEVICES: 'devices'
+  DEVICES: 'devices',
+  COMMENTS: 'comments'
 } as const;
 
 // Document names
@@ -137,4 +138,13 @@ export const UserSummaryFields = {
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
   UPDATE_COUNT: 'update_count'
+} as const;
+
+export const CommentFields = {
+  ID: "id",
+  CREATED_BY: "created_by",
+  CONTENT: "content",
+  CREATED_AT: "created_at",
+  UPDATED_AT: "updated_at",
+  PARENT_ID: "parent_id"
 } as const; 

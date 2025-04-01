@@ -12,7 +12,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
-import { createInvitationSchema, createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateProfileSchema } from "./models/validation-schemas";
+import { createCommentSchema, createInvitationSchema, createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
@@ -22,7 +22,11 @@ import { getQuestion } from "./own_profile/get-question";
 import { updateProfile } from "./own_profile/update-my-profile";
 import { testNotification } from "./test/test-notification";
 import { testPrompt } from "./test/test-prompt";
+import { createComment } from "./updates/create-comment";
 import { createUpdate } from "./updates/create-update";
+import { deleteComment } from "./updates/delete-comment";
+import { getComments } from "./updates/get-comments";
+import { updateComment } from "./updates/update-comment";
 import { getUserProfile } from "./user_profile/get-user-profile";
 import { getUserUpdates } from "./user_profile/get-user-updates";
 
@@ -205,6 +209,23 @@ app.put("/device", handle_errors(true), validateRequest(deviceSchema), async (re
 // Update routes
 app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), async (req, res) => {
     await createUpdate(req, res);
+});
+
+// Comment routes
+app.get("/updates/:update_id/comments", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
+    await getComments(req, res);
+});
+
+app.post("/updates/:update_id/comments", handle_errors(true), validateRequest(createCommentSchema), async (req, res) => {
+    await createComment(req, res);
+});
+
+app.put("/updates/:update_id/comments/:comment_id", handle_errors(true), validateRequest(updateCommentSchema), async (req, res) => {
+    await updateComment(req, res);
+});
+
+app.delete("/updates/:update_id/comments/:comment_id", handle_errors(false), async (req, res) => {
+    await deleteComment(req, res);
 });
 
 // // Group routes
