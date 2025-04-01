@@ -24,7 +24,7 @@ const logger = getLogger(__filename);
  * 
  * @returns An InvitationsResponse object containing all invitations and pagination info
  */
-export const getInvitations = async (req: Request, res: Response) => {
+export const getInvitations = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Getting invitations for user ${currentUserId}`);
 
@@ -131,5 +131,5 @@ export const getInvitations = async (req: Request, res: Response) => {
 
     // Return the invitations response with pagination info
     const response: InvitationsResponse = { invitations, next_timestamp: nextTimestamp };
-    return res.json(response);
+    res.json(response);
 }; 

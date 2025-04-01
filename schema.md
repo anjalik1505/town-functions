@@ -59,7 +59,21 @@ Firestore Schema
        ├── content: string           # text or processed speech-to-text
        ├── sentiment: string         # "happy", "sad", "neutral", "angry", "surprised"
        ├── created_at: timestamp
-       └── ...
+       ├── comment_count: number     # Number of comments on this update
+       ├── reaction_count: number    # Number of reactions on this update
+       └── subcollections:
+           ├── comments (collection)
+           │    └── {commentId} (document)
+           │         ├── created_by: string (userId)
+           │         ├── content: string
+           │         ├── created_at: timestamp
+           │         ├── updated_at: timestamp
+           │         └── parent_id: string (commentId)
+           └── reactions (collection)
+                └── {reactionId} (document)
+                     ├── created_by: string (userId)
+                     ├── type: string    # e.g., "like", "love", "laugh", etc.
+                     └── created_at: timestamp
        # Possibly location, attachments, etc.
 
 6) user_summaries (collection)

@@ -30,7 +30,7 @@ const logger = getLogger(__filename);
  * @throws 404: Member profile not found
  * @throws 500: Internal server error
  */
-export const createGroup = async (req: Request, res: Response) => {
+export const createGroup = async (req: Request, res: Response): Promise<void> => {
     logger.info(`Creating new group with name: ${req.validated_params.name}`);
 
     // Get the current user ID from the request (set by authentication middleware)
@@ -97,7 +97,7 @@ export const createGroup = async (req: Request, res: Response) => {
         if (missingMembers.length > 0) {
             const missingMembersStr = missingMembers.join(", ");
             logger.warn(`Member profiles not found: ${missingMembersStr}`);
-            return res.status(404).json({
+            res.status(404).json({
                 code: 404,
                 name: "Not Found",
                 description: `Member profiles not found: ${missingMembersStr}`
@@ -170,7 +170,7 @@ export const createGroup = async (req: Request, res: Response) => {
             // Format the error message
             const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(", ");
             logger.warn(`Members are not friends: ${notFriendsStr}`);
-            return res.status(400).json({
+            res.status(400).json({
                 code: 400,
                 name: "Bad Request",
                 description: "All members must be friends with each other to be in the same group"
@@ -230,5 +230,5 @@ export const createGroup = async (req: Request, res: Response) => {
         created_at: formatTimestamp(currentTime)
     };
 
-    return res.json(response);
+    res.json(response);
 }; 

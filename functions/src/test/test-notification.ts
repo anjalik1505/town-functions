@@ -21,7 +21,7 @@ const logger = getLogger(__filename);
  * 
  * @throws {404} Device not found
  */
-export const testNotification = async (req: Request, res: Response) => {
+export const testNotification = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Sending test notification to user ${currentUserId}`);
 
@@ -37,7 +37,7 @@ export const testNotification = async (req: Request, res: Response) => {
 
     if (!deviceDoc.exists) {
         logger.warn(`Device not found for user ${currentUserId}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Device not found. Please register a device first."
@@ -49,7 +49,7 @@ export const testNotification = async (req: Request, res: Response) => {
 
     if (!deviceToken) {
         logger.warn(`No device token found for user ${currentUserId}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Device token not found. Please register a device first."
@@ -77,5 +77,5 @@ export const testNotification = async (req: Request, res: Response) => {
         messageId: response
     };
 
-    return res.json(notificationResponse);
+    res.json(notificationResponse);
 }; 

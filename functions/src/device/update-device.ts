@@ -18,7 +18,7 @@ const logger = getLogger(__filename);
  * 
  * @returns A Device object containing the updated device information
  */
-export const updateDevice = async (req: Request, res: Response) => {
+export const updateDevice = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Updating device for user ${currentUserId}`);
 
@@ -47,5 +47,5 @@ export const updateDevice = async (req: Request, res: Response) => {
         updated_at: formatTimestamp(currentTime)
     };
 
-    return res.json(device);
+    res.json(device);
 }; 

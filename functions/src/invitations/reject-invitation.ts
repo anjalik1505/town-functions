@@ -22,7 +22,7 @@ const logger = getLogger(__filename);
  * @throws {400} You cannot reject your own invitation
  * @throws {404} Invitation not found
  */
-export const rejectInvitation = async (req: Request, res: Response) => {
+export const rejectInvitation = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const invitationId = req.params.invitation_id;
     logger.info(`User ${currentUserId} rejecting invitation ${invitationId}`);
@@ -37,7 +37,7 @@ export const rejectInvitation = async (req: Request, res: Response) => {
     // Check if the invitation exists
     if (!invitationDoc.exists) {
         logger.warn(`Invitation ${invitationId} not found`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Invitation not found"
@@ -50,7 +50,7 @@ export const rejectInvitation = async (req: Request, res: Response) => {
     const status = invitationData?.[InvitationFields.STATUS];
     if (status !== Status.PENDING) {
         logger.warn(`Invitation ${invitationId} has status ${status}, not pending`);
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: `Invitation cannot be rejected (status: ${status})`
@@ -63,7 +63,7 @@ export const rejectInvitation = async (req: Request, res: Response) => {
         logger.warn(
             `User ${currentUserId} attempted to reject their own invitation ${invitationId}`
         );
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "You cannot reject your own invitation"
@@ -95,5 +95,5 @@ export const rejectInvitation = async (req: Request, res: Response) => {
         receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || ""
     };
 
-    return res.json(invitation);
+    res.json(invitation);
 }; 

@@ -28,7 +28,7 @@ const logger = getLogger(__filename);
  * @throws 400: User has reached the maximum number of friends and active invitations
  * @throws 404: User profile not found
  */
-export const createInvitation = async (req: Request, res: Response) => {
+export const createInvitation = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Creating invitation for user ${currentUserId}`);
 
@@ -36,7 +36,7 @@ export const createInvitation = async (req: Request, res: Response) => {
     const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
     if (hasReachedLimit) {
         logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "You have reached the maximum number of friends and active invitations"
@@ -52,7 +52,7 @@ export const createInvitation = async (req: Request, res: Response) => {
 
     if (!currentUserProfileDoc.exists) {
         logger.warn(`Current user profile ${currentUserId} not found`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "User profile not found"
@@ -102,5 +102,5 @@ export const createInvitation = async (req: Request, res: Response) => {
         receiver_name: validatedParams.receiver_name
     };
 
-    return res.status(201).json(invitation);
+    res.status(201).json(invitation);
 }; 

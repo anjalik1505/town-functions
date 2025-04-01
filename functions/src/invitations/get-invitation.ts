@@ -26,7 +26,7 @@ const logger = getLogger(__filename);
  * @throws 403: You can only view your own invitations
  * @throws 404: Invitation not found
  */
-export const getInvitation = async (req: Request, res: Response) => {
+export const getInvitation = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const invitationId = req.params.invitation_id;
     logger.info(`Getting invitation ${invitationId} for user ${currentUserId}`);
@@ -82,5 +82,5 @@ export const getInvitation = async (req: Request, res: Response) => {
     };
 
     logger.info(`Successfully retrieved invitation ${invitationId} for user ${currentUserId}`);
-    return res.json(invitation);
+    res.json(invitation);
 }; 

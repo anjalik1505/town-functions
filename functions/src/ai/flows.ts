@@ -26,7 +26,7 @@ const globalConfig = {
 /**
  * Generate creator profile insights based on updates
  */
-export async function generateCreatorProfileFlow(params: {
+export const generateCreatorProfileFlow = async (params: {
     existingSummary: string;
     existingSuggestions: string;
     existingEmotionalOverview: string;
@@ -37,7 +37,7 @@ export async function generateCreatorProfileFlow(params: {
     sentiment: string;
     gender: string;
     location: string;
-}) {
+}) => {
     logger.info(`Generating creator profile insights for update: ${JSON.stringify(params, null, 2)}`);
     // Initialize with existing data as default values
     let success = false;
@@ -103,7 +103,7 @@ export async function generateCreatorProfileFlow(params: {
 /**
  * Generate friend profile summaries based on updates
  */
-export async function generateFriendProfileFlow(params: {
+export const generateFriendProfileFlow = async (params: {
     existingSummary: string;
     existingSuggestions: string;
     updateContent: string;
@@ -111,7 +111,7 @@ export async function generateFriendProfileFlow(params: {
     creatorName: string;
     creatorGender: string;
     creatorLocation: string;
-}) {
+}) => {
     logger.info(`Generating friend profile insights for update: ${JSON.stringify(params, null, 2)}`);
     // Initialize with existing data as default values
     let success = false;
@@ -173,7 +173,7 @@ export async function generateFriendProfileFlow(params: {
 /**
  * Generate a personalized question to encourage user sharing
  */
-export async function generateQuestionFlow(params: {
+export const generateQuestionFlow = async (params: {
     existingSummary: string;
     existingSuggestions: string;
     existingEmotionalOverview: string;
@@ -182,7 +182,7 @@ export async function generateQuestionFlow(params: {
     existingProgressAndGrowth: string;
     gender: string;
     location: string;
-}) {
+}) => {
     logger.info(`Generating personalized question: ${JSON.stringify(params, null, 2)}`);
     let success = false;
     let retryCount = 0;

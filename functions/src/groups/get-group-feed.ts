@@ -33,7 +33,7 @@ const logger = getLogger(__filename);
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupFeed = async (req: Request, res: Response, groupId: string) => {
+export const getGroupFeed = async (req: Request, res: Response, groupId: string): Promise<void> => {
     logger.info(`Retrieving feed for group: ${groupId}`);
 
     // Get the authenticated user ID from the request
@@ -57,7 +57,7 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Group not found"
@@ -70,7 +70,7 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
     // Check if the current user is a member of the group
     if (!members.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        return res.status(403).json({
+        res.status(403).json({
             code: 403,
             name: "Forbidden",
             description: "You must be a member of the group to view its feed"
@@ -114,7 +114,10 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
             group_ids: docData[UpdateFields.GROUP_IDS] || [],
             friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
             sentiment: docData[UpdateFields.SENTIMENT] || 0,
-            created_at: createdAt
+            created_at: createdAt,
+            comment_count: docData[UpdateFields.COMMENT_COUNT] || 0,
+            reaction_count: docData[UpdateFields.REACTION_COUNT] || 0,
+            reactions: [] // Empty array since reactions are fetched separately
         };
         updates.push(update);
     }
@@ -167,5 +170,5 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
         next_timestamp: nextTimestamp
     };
 
-    return res.json(response);
+    res.json(response);
 }; 

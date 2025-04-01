@@ -33,7 +33,7 @@ const logger = getLogger(__filename);
  * 
  * @throws 404: Profile not found
  */
-export const updateProfile = async (req: Request, res: Response) => {
+export const updateProfile = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Starting update_profile operation for user ID: ${currentUserId}`);
 
@@ -46,7 +46,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     if (!profileDoc.exists) {
         logger.warn(`Profile not found for user ${currentUserId}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Profile not found"
@@ -252,5 +252,5 @@ export const updateProfile = async (req: Request, res: Response) => {
         }
     };
 
-    return res.json(response);
+    res.json(response);
 }; 

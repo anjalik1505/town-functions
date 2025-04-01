@@ -30,7 +30,7 @@ const logger = getLogger(__filename);
  * @param res - The Express response object
  * @returns A Promise that resolves to the created Update object
  */
-export async function createUpdate(req: Request, res: Response): Promise<void> {
+export const createUpdate = async (req: Request, res: Response): Promise<void> => {
     logger.info(`Creating update for user: ${req.userId}`);
 
     // Get the authenticated user ID from the request
@@ -79,6 +79,8 @@ export async function createUpdate(req: Request, res: Response): Promise<void> {
         [UpdateFields.GROUP_IDS]: groupIds,
         [UpdateFields.FRIEND_IDS]: friendIds,
         [UpdateFields.VISIBLE_TO]: visibleTo,
+        comment_count: 0,
+        reaction_count: 0
     };
 
     // Save the update to Firestore
@@ -94,6 +96,9 @@ export async function createUpdate(req: Request, res: Response): Promise<void> {
         created_at: formatTimestamp(createdAt),
         group_ids: groupIds,
         friend_ids: friendIds,
+        comment_count: 0,
+        reaction_count: 0,
+        reactions: []
     };
 
     res.json(response);

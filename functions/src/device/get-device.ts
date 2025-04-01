@@ -18,7 +18,7 @@ const logger = getLogger(__filename);
  * 
  * @throws {404} Device not found
  */
-export const getDevice = async (req: Request, res: Response) => {
+export const getDevice = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Getting device for user ${currentUserId}`);
 
@@ -30,7 +30,7 @@ export const getDevice = async (req: Request, res: Response) => {
     const deviceDoc = await deviceRef.get();
     if (!deviceDoc.exists) {
         logger.warn(`Device not found for user ${currentUserId}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Device not found"
@@ -50,5 +50,5 @@ export const getDevice = async (req: Request, res: Response) => {
         updated_at: updatedAtIso
     };
 
-    return res.json(device);
+    res.json(device);
 }; 

@@ -24,7 +24,7 @@ const logger = getLogger(__filename);
  * - A list of Friend objects with the friend's profile information and friendship status
  * - A next_timestamp for pagination (if more results are available)
  */
-export const getMyFriends = async (req: Request, res: Response) => {
+export const getMyFriends = async (req: Request, res: Response): Promise<void> => {
     const db = getFirestore();
     const currentUserId = req.userId;
 
@@ -115,5 +115,5 @@ export const getMyFriends = async (req: Request, res: Response) => {
 
     // Return the list of friends with pagination info
     const response: FriendsResponse = { friends, next_timestamp: nextTimestamp };
-    return res.json(response);
+    res.json(response);
 }; 
