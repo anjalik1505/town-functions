@@ -154,3 +154,19 @@ export interface NotificationResponse {
 export interface QuestionResponse {
   question: string;
 }
+
+export interface Comment {
+  comment_id: string;
+  created_by: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  username: string;
+  name: string;
+  avatar: string;
+}
+
+export interface CommentsResponse {
+  comments: Comment[];
+  next_timestamp: string | null;
+}
