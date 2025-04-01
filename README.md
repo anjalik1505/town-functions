@@ -419,6 +419,30 @@ This repository contains the backend functions for the Village application.
 - 400: Invalid query parameters
 - 500: Internal server error
 
+#### GET /invitations/{invitation_id}
+**Purpose**: Get a single invitation by ID. The authenticated user must be the sender of the invitation.
+
+**Input**: (None, uses auth token)
+
+**Output**:
+```json
+{
+  "invitation_id": "abc123",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "expires_at": "2025-01-02T00:00:00.000+00:00",
+  "sender_id": "user123",
+  "status": "pending",
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg",
+  "receiver_name": "John Doe"
+}
+```
+
+**Errors**:
+- 403: You can only view your own invitations
+- 404: Invitation not found
+
 ### Device Management
 
 #### PUT /device
