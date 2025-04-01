@@ -136,6 +136,31 @@ def run_invitation_demo():
         )
         logger.info(f"Second page of invitations: {json.dumps(second_page, indent=2)}")
 
+    # Step 9.2: Test getting single invitation
+    logger.info("Step 9.2: Testing get single invitation")
+    # Get the first invitation from the list
+    if invitations2["invitations"]:
+        first_invitation = invitations2["invitations"][0]
+        invitation_id = first_invitation["invitation_id"]
+
+        # Get the invitation by ID
+        single_invitation = api.get_invitation(users[1]["email"], invitation_id)
+        logger.info(
+            f"Retrieved single invitation: {json.dumps(single_invitation, indent=2)}"
+        )
+
+        # Verify the invitation data matches
+        assert (
+            single_invitation["invitation_id"] == first_invitation["invitation_id"]
+        ), "Invitation IDs do not match"
+        assert (
+            single_invitation["status"] == first_invitation["status"]
+        ), "Invitation statuses do not match"
+        assert (
+            single_invitation["receiver_name"] == first_invitation["receiver_name"]
+        ), "Receiver names do not match"
+        logger.info("✓ Single invitation retrieval test passed")
+
     # Test invalid pagination parameters
     logger.info("Testing invalid pagination parameters")
     api.make_request_expecting_error(
@@ -498,6 +523,50 @@ def run_invitation_demo():
         expected_error_message="You have reached the maximum number of friends and active invitations",
     )
     logger.info("✓ Combined limit accept test passed")
+
+    # Test 12: Test get-invitation negative cases
+    logger.info("Test 12: Testing get-invitation negative cases")
+
+    # Test 12.1: Attempt to get non-existent invitation
+    logger.info("Test 12.1: Attempting to get non-existent invitation")
+    api.make_request_expecting_error(
+        "get",
+        f"{API_BASE_URL}/invitations/non-existent-invitation-id",
+        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
+        expected_status_code=404,
+        expected_error_message="Invitation not found",
+    )
+    logger.info("✓ Get non-existent invitation test passed")
+
+    # Test 12.2: Attempt to get someone else's invitation
+    logger.info("Test 12.2: Attempting to get someone else's invitation")
+    # Get an invitation ID from the fourth user (we know they have invitations from Test 9)
+    fourth_user_invitations = api.get_invitations(users[3]["email"])
+    if not fourth_user_invitations["invitations"]:
+        raise Exception("No invitations found for fourth user")
+    fourth_user_invitation_id = fourth_user_invitations["invitations"][0][
+        "invitation_id"
+    ]
+
+    # Try to get it with the second user's token
+    api.make_request_expecting_error(
+        "get",
+        f"{API_BASE_URL}/invitations/{fourth_user_invitation_id}",
+        headers={"Authorization": f"Bearer {api.tokens[users[1]['email']]}"},
+        expected_status_code=403,
+        expected_error_message="You can only view your own invitations",
+    )
+    logger.info("✓ Get someone else's invitation test passed")
+
+    # Test 12.3: Attempt to get invitation without authentication
+    logger.info("Test 12.3: Attempting to get invitation without authentication")
+    api.make_request_expecting_error(
+        "get",
+        f"{API_BASE_URL}/invitations/{fourth_user_invitation_id}",
+        headers={},
+        expected_status_code=401,
+    )
+    logger.info("✓ Get invitation without authentication test passed")
 
     logger.info("========== NEGATIVE PATH TESTS COMPLETED ==========")
 

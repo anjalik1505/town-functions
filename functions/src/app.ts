@@ -7,6 +7,7 @@ import { getDevice } from "./device/get-device";
 import { updateDevice } from "./device/update-device";
 import { acceptInvitation } from "./invitations/accept-invitation";
 import { createInvitation } from "./invitations/create-invitation";
+import { getInvitation } from "./invitations/get-invitation";
 import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
@@ -170,6 +171,10 @@ app.get("/users/:target_user_id/updates", handle_errors(true), validateQueryPara
 // Invitation routes
 app.get("/invitations", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
     await getInvitations(req, res);
+});
+
+app.get("/invitations/:invitation_id", handle_errors(false), async (req, res) => {
+    await getInvitation(req, res);
 });
 
 app.post("/invitations", handle_errors(true), validateRequest(createInvitationSchema), async (req, res) => {

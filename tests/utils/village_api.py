@@ -377,6 +377,24 @@ class VillageAPI:
         logger.info(f"Successfully retrieved invitations for user: {email}")
         return response.json()
 
+    def get_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:
+        """Get a single invitation by ID"""
+        logger.info(f"Getting invitation {invitation_id} for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(
+            f"{API_BASE_URL}/invitations/{invitation_id}", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to get invitation: {response.text}")
+            response.raise_for_status()
+
+        logger.info(
+            f"Successfully retrieved invitation {invitation_id} for user: {email}"
+        )
+        return response.json()
+
     def resend_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:
         """Resend an invitation"""
         logger.info(f"User {email} resending invitation with ID: {invitation_id}")
