@@ -13,8 +13,9 @@ const logger = getLogger(__filename);
  * 
  * This function:
  * 1. Verifies the user has access to the update
- * 2. Creates a new reaction in the reactions subcollection
- * 3. Updates the reaction count on the update document
+ * 2. Checks if the user has already reacted with this type
+ * 3. Creates a new reaction in the reactions subcollection
+ * 4. Updates the reaction count on the update document
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -26,8 +27,9 @@ const logger = getLogger(__filename);
  * 
  * @returns A ReactionGroup containing the reaction type and updated count
  * 
- * @throws 404: Update not found
+ * @throws 400: You have already reacted with this type
  * @throws 403: You don't have access to this update
+ * @throws 404: Update not found
  */
 export const createReaction = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
@@ -59,6 +61,21 @@ export const createReaction = async (req: Request, res: Response): Promise<void>
             code: 403,
             name: "Forbidden",
             description: "You don't have access to this update"
+        });
+    }
+
+    // Check if user has already reacted with this type
+    const existingReactionSnapshot = await updateRef.collection(Collections.REACTIONS)
+        .where(ReactionFields.CREATED_BY, "==", currentUserId)
+        .where(ReactionFields.TYPE, "==", reactionType)
+        .get();
+
+    if (!existingReactionSnapshot.empty) {
+        logger.warn(`User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`);
+        res.status(400).json({
+            code: 400,
+            name: "Bad Request",
+            description: "You have already reacted with this type"
         });
     }
 
