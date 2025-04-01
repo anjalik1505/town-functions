@@ -588,6 +588,30 @@ class VillageAPI:
 
         logger.info(f"Successfully deleted reaction {reaction_id}")
 
+    # Feedback Methods
+    def create_feedback(self, email: str, content: str) -> Dict[str, Any]:
+        """Create a new feedback entry"""
+        logger.info(f"Creating feedback for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+        response = requests.post(
+            f"{API_BASE_URL}/feedback",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to create feedback: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully created feedback for user: {email}")
+        return data
+
     # Utility Methods
     def make_request_expecting_error(
         self,

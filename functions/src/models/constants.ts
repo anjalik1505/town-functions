@@ -13,7 +13,8 @@ export const Collections = {
   INVITATIONS: 'invitations',
   DEVICES: 'devices',
   COMMENTS: 'comments',
-  REACTIONS: 'reactions'
+  REACTIONS: 'reactions',
+  FEEDBACK: 'feedback'
 } as const;
 
 // Document names

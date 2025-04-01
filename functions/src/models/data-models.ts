@@ -179,3 +179,10 @@ export interface CommentsResponse {
   comments: Comment[];
   next_timestamp: string | null;
 }
+
+export interface Feedback {
+  feedback_id: string;
+  created_by: string;
+  content: string;
+  created_at: string;
+}
