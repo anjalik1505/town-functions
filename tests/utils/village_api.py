@@ -454,6 +454,98 @@ class VillageAPI:
         logger.info(f"Successfully retrieved question for user: {email}")
         return response.json()
 
+    # Comment Methods
+    def get_comments(
+        self,
+        email: str,
+        update_id: str,
+        limit: int = 10,
+        after_timestamp: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get comments for an update"""
+        logger.info(f"Getting comments for update {update_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        encoded_limit = urllib.parse.quote(str(limit))
+        url = f"{API_BASE_URL}/updates/{update_id}/comments?limit={encoded_limit}"
+        if after_timestamp:
+            encoded_timestamp = urllib.parse.quote(after_timestamp)
+            url += f"&after_timestamp={encoded_timestamp}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get comments: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved comments for update {update_id}")
+        return response.json()
+
+    def create_comment(
+        self, email: str, update_id: str, content: str
+    ) -> Dict[str, Any]:
+        """Create a new comment on an update"""
+        logger.info(f"Creating comment on update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+        response = requests.post(
+            f"{API_BASE_URL}/updates/{update_id}/comments",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to create comment: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully created comment on update {update_id}")
+        return data
+
+    def update_comment(
+        self, email: str, update_id: str, comment_id: str, content: str
+    ) -> Dict[str, Any]:
+        """Update an existing comment"""
+        logger.info(f"Updating comment {comment_id} on update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+        response = requests.put(
+            f"{API_BASE_URL}/updates/{update_id}/comments/{comment_id}",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update comment: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully updated comment {comment_id}")
+        return response.json()
+
+    def delete_comment(self, email: str, update_id: str, comment_id: str) -> None:
+        """Delete a comment"""
+        logger.info(f"Deleting comment {comment_id} from update {update_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(
+            f"{API_BASE_URL}/updates/{update_id}/comments/{comment_id}", headers=headers
+        )
+        if response.status_code != 204:
+            logger.error(f"Failed to delete comment: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully deleted comment {comment_id}")
+
     # Utility Methods
     def make_request_expecting_error(
         self,
@@ -476,6 +568,8 @@ class VillageAPI:
                 response = requests.post(url, headers=headers, json=json_data)
             elif method.lower() == "put":
                 response = requests.put(url, headers=headers, json=json_data)
+            elif method.lower() == "delete":
+                response = requests.delete(url, headers=headers)
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
