@@ -26,12 +26,13 @@ const logger = getLogger(__filename);
  *                - update_id: The ID of the update to get comments for
  * @param res - The Express response object
  * 
- * @returns A CommentsResponse containing:
+ * @returns 200 OK with CommentsResponse containing:
  * - A list of comments with profile data
  * - A next_timestamp for pagination (if more results are available)
  * 
+ * @throws 400: Invalid query parameters
+ * @throws 403: You don't have access to this update
  * @throws 404: Update not found
- * @throws 403: User doesn't have access to this update
  */
 export const getComments = async (req: Request, res: Response): Promise<void> => {
     const updateId = req.params.update_id;

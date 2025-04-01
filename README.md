@@ -275,6 +275,124 @@ This repository contains the backend functions for the Village application.
 - 400: Invalid request parameters
 - 500: Internal server error
 
+### Comments
+
+#### GET /updates/{update_id}/comments
+**Purpose**: Get all comments for a specific update, paginated.
+
+**Input**: Query Parameters
+```
+?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+```
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+
+**Output**:
+```json
+{
+  "comments": [
+    {
+      "comment_id": "comment123",
+      "created_by": "user123",
+      "content": "Great update!",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "updated_at": "2025-01-01T00:00:00.000+00:00",
+      "username": "johndoe",
+      "name": "John Doe",
+      "avatar": "https://example.com/avatar.jpg"
+    }
+  ],
+  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+}
+```
+
+**Status Code**: 200 (OK)
+
+**Errors**:
+- 400: Invalid query parameters
+- 403: You don't have access to this update
+- 404: Update not found
+- 500: Internal server error
+
+#### POST /updates/{update_id}/comments
+**Purpose**: Create a new comment on an update.
+
+**Input**:
+```json
+{
+  "content": "Great update!"
+}
+```
+
+**Output**:
+```json
+{
+  "comment_id": "comment123",
+  "created_by": "user123",
+  "content": "Great update!",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "updated_at": "2025-01-01T00:00:00.000+00:00",
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Status Code**: 201 (Created)
+
+**Errors**:
+- 400: Invalid request parameters
+- 403: You don't have access to this update
+- 404: Update not found
+- 500: Internal server error
+
+#### PUT /updates/{update_id}/comments/{comment_id}
+**Purpose**: Update an existing comment.
+
+**Input**:
+```json
+{
+  "content": "Updated comment content"
+}
+```
+
+**Output**:
+```json
+{
+  "comment_id": "comment123",
+  "created_by": "user123",
+  "content": "Updated comment content",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "updated_at": "2025-01-01T00:00:00.000+00:00",
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Status Code**: 200 (OK)
+
+**Errors**:
+- 400: Invalid request parameters
+- 403: You can only update your own comments
+- 404: Update not found
+- 404: Comment not found
+- 500: Internal server error
+
+#### DELETE /updates/{update_id}/comments/{comment_id}
+**Purpose**: Delete a comment.
+
+**Input**: (None, uses auth token)
+
+**Output**: No content
+
+**Status Code**: 204 (No Content)
+
+**Errors**:
+- 403: You can only delete your own comments
+- 404: Update not found
+- 404: Comment not found
+- 500: Internal server error
+
 ### Invitations
 
 #### POST /invitations

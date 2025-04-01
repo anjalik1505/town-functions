@@ -24,10 +24,20 @@ const logger = getLogger(__filename);
  *                - comment_id: The ID of the comment to update
  * @param res - The Express response object
  * 
- * @returns The updated comment with profile data
+ * @returns 200 OK with Comment object containing:
+ * - comment_id: The ID of the updated comment
+ * - created_by: The ID of the user who created the comment
+ * - content: The updated comment text
+ * - created_at: ISO timestamp of creation
+ * - updated_at: ISO timestamp of last update
+ * - username: The username of the comment creator
+ * - name: The display name of the comment creator
+ * - avatar: The avatar URL of the comment creator
  * 
- * @throws 404: Update or comment not found
- * @throws 403: User is not the comment creator
+ * @throws 400: Invalid request parameters
+ * @throws 403: You can only update your own comments
+ * @throws 404: Update not found
+ * @throws 404: Comment not found
  */
 export const updateComment = async (req: Request, res: Response): Promise<void> => {
     const updateId = req.params.update_id;

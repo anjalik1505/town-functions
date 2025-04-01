@@ -20,10 +20,11 @@ const logger = getLogger(__filename);
  *                - comment_id: The ID of the comment to delete
  * @param res - The Express response object
  * 
- * @returns A success message
+ * @returns 204 No Content on success
  * 
- * @throws 404: Update or comment not found
- * @throws 403: User is not the comment creator
+ * @throws 404: Update not found
+ * @throws 404: Comment not found
+ * @throws 403: You can only delete your own comments
  */
 export const deleteComment = async (req: Request, res: Response): Promise<void> => {
     const updateId = req.params.update_id;
