@@ -104,3 +104,7 @@ export const updateCommentSchema = z.object({
 export const createReactionSchema = z.object({
     type: z.string().min(1).max(50)
 });
+
+export const createFeedbackSchema = z.object({
+    content: z.string().min(1, "Feedback content is required")
+});

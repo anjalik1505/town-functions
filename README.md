@@ -654,6 +654,33 @@ This repository contains the backend functions for the Village application.
 - 404: Device not found
 - 500: Internal server error
 
+### Feedback
+
+#### POST /feedback
+**Purpose**: Create a new feedback entry from the authenticated user.
+
+**Input**:
+```json
+{
+  "content": "This is my feedback about the app"
+}
+```
+
+**Output**:
+```json
+{
+  "feedback_id": "feedback123",
+  "created_by": "user123",
+  "content": "This is my feedback about the app",
+  "created_at": "2025-01-01T00:00:00.000+00:00"
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
+- 401: Authentication required
+- 500: Internal server error
+
 ### User Profile
 
 #### GET /users/{user_id}/profile

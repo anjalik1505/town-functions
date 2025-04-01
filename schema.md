@@ -141,3 +141,9 @@ Firestore Schema
                       ├── suggestions: array<string> or map
                       ├── updated_at: timestamp
                       └── ...
+
+9) feedback (collection)
+   └── {feedbackId} (document)
+       ├── created_by: string (userId)
+       ├── content: string
+       └── created_at: timestamp

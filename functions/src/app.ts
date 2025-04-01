@@ -5,6 +5,7 @@ import { getAuth } from "firebase-admin/auth";
 import { ZodError } from "zod";
 import { getDevice } from "./device/get-device";
 import { updateDevice } from "./device/update-device";
+import { createFeedback } from "./feedback/create-feedback";
 import { acceptInvitation } from "./invitations/accept-invitation";
 import { createInvitation } from "./invitations/create-invitation";
 import { getInvitation } from "./invitations/get-invitation";
@@ -12,7 +13,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
-import { createCommentSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
+import { createCommentSchema, createFeedbackSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
@@ -276,6 +277,11 @@ app.post("/test/prompt", handle_errors(true), validateRequest(testPromptSchema),
 // Test notification endpoint
 app.post("/test/notification", handle_errors(true), validateRequest(testNotificationSchema), async (req, res) => {
     await testNotification(req, res);
+});
+
+// Feedback endpoint
+app.post("/feedback", handle_errors(true), validateRequest(createFeedbackSchema), async (req, res) => {
+    await createFeedback(req, res);
 });
 
 // Catch-all route handler for unmatched routes
