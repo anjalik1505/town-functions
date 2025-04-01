@@ -14,7 +14,7 @@ const ai = genkit({
     model: gemini20FlashLite,
 });
 
-export const testPrompt = async (req: Request, res: Response) => {
+export const testPrompt = async (req: Request, res: Response): Promise<void> => {
     try {
         const data = req.validated_params;
         const summary = data.summary;
@@ -65,7 +65,7 @@ export const testPrompt = async (req: Request, res: Response) => {
                 if (output) {
                     success = true;
                     logger.info("Generated output:", JSON.stringify(output, null, 2));
-                    return res.json(output);
+                    res.json(output);
                 }
             } catch (error) {
                 logger.error(`Error generating creator profile insights (attempt ${retryCount + 1}): ${error}`);
@@ -80,14 +80,14 @@ export const testPrompt = async (req: Request, res: Response) => {
         }
 
         // Return error if all retries failed
-        return res.status(500).json({
+        res.status(500).json({
             code: 500,
             name: "Internal Server Error",
             description: "Failed to generate response after all retries"
         });
     } catch (error) {
         console.error("Error in test/prompt:", error);
-        return res.status(500).json({
+        res.status(500).json({
             code: 500,
             name: "Internal Server Error",
             description: "Failed to generate response"

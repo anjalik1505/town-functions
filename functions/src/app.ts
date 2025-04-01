@@ -12,7 +12,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
-import { createCommentSchema, createInvitationSchema, createProfileSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
+import { createCommentSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
@@ -23,8 +23,10 @@ import { updateProfile } from "./own_profile/update-my-profile";
 import { testNotification } from "./test/test-notification";
 import { testPrompt } from "./test/test-prompt";
 import { createComment } from "./updates/create-comment";
+import { createReaction } from "./updates/create-reaction";
 import { createUpdate } from "./updates/create-update";
 import { deleteComment } from "./updates/delete-comment";
+import { deleteReaction } from "./updates/delete-reaction";
 import { getComments } from "./updates/get-comments";
 import { updateComment } from "./updates/update-comment";
 import { getUserProfile } from "./user_profile/get-user-profile";
@@ -226,6 +228,15 @@ app.put("/updates/:update_id/comments/:comment_id", handle_errors(true), validat
 
 app.delete("/updates/:update_id/comments/:comment_id", handle_errors(false), async (req, res) => {
     await deleteComment(req, res);
+});
+
+// Reaction routes
+app.post("/updates/:update_id/reactions", handle_errors(true), validateRequest(createReactionSchema), async (req, res) => {
+    await createReaction(req, res);
+});
+
+app.delete("/updates/:update_id/reactions/:reaction_id", handle_errors(false), async (req, res) => {
+    await deleteReaction(req, res);
 });
 
 // // Group routes

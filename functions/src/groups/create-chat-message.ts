@@ -27,7 +27,7 @@ const logger = getLogger(__filename);
  * @throws 400: Invalid request data (missing text)
  * @throws 500: Internal server error
  */
-export const createGroupChatMessage = async (req: Request, res: Response, groupId: string) => {
+export const createGroupChatMessage = async (req: Request, res: Response, groupId: string): Promise<void> => {
     logger.info(`Creating new chat message in group: ${groupId}`);
 
     // Get the authenticated user ID from the request
@@ -47,7 +47,7 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Group not found"
@@ -60,7 +60,7 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
     // Check if the current user is a member of the group
     if (!members.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        return res.status(403).json({
+        res.status(403).json({
             code: 403,
             name: "Forbidden",
             description: "You must be a member of the group to post messages"
@@ -95,5 +95,5 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
         attachments
     };
 
-    return res.json(response);
+    res.json(response);
 }; 

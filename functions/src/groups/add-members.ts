@@ -29,7 +29,7 @@ const logger = getLogger(__filename);
  * @throws 404: Group not found or member profile not found
  * @throws 500: Internal server error
  */
-export const addMembersToGroup = async (req: Request, res: Response, groupId: string) => {
+export const addMembersToGroup = async (req: Request, res: Response, groupId: string): Promise<void> => {
     logger.info(`Adding members to group: ${groupId}`);
 
     // Get the current user ID from the request (set by authentication middleware)
@@ -43,7 +43,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!newMembers.length) {
         logger.warn("No members provided to add to the group");
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "No members provided to add to the group"
@@ -58,7 +58,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Group not found"
@@ -70,7 +70,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!currentMembers.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        return res.status(403).json({
+        res.status(403).json({
             code: 403,
             name: "Forbidden",
             description: "You must be a member of the group to add new members"
@@ -82,7 +82,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!newMembersToAdd.length) {
         logger.warn("All provided members are already in the group");
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "All provided members are already in the group"
@@ -103,7 +103,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
     if (missingMembers.length) {
         const missingMembersStr = missingMembers.join(", ");
         logger.warn(`Member profiles not found: ${missingMembersStr}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: `Member profiles not found: ${missingMembersStr}`
@@ -178,7 +178,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
         // Format the error message
         const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(", ");
         logger.warn(`Members are not friends: ${notFriendsStr}`);
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "All members must be friends with each other to be in the same group"
@@ -248,5 +248,5 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
         created_at: updatedGroupData[GroupFields.CREATED_AT] || ""
     };
 
-    return res.json(response);
+    res.json(response);
 };

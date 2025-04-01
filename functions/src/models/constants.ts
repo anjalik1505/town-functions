@@ -12,7 +12,8 @@ export const Collections = {
   INSIGHTS: 'insights',
   INVITATIONS: 'invitations',
   DEVICES: 'devices',
-  COMMENTS: 'comments'
+  COMMENTS: 'comments',
+  REACTIONS: 'reactions'
 } as const;
 
 // Document names
@@ -86,7 +87,9 @@ export const UpdateFields = {
   SENTIMENT: 'sentiment',
   CREATED_AT: 'created_at',
   VISIBLE_TO: 'visible_to',
-  ID: 'id'
+  ID: 'id',
+  COMMENT_COUNT: 'comment_count',
+  REACTION_COUNT: 'reaction_count'
 } as const;
 
 // Field names for Group documents
@@ -147,4 +150,10 @@ export const CommentFields = {
   CREATED_AT: "created_at",
   UPDATED_AT: "updated_at",
   PARENT_ID: "parent_id"
+} as const;
+
+export const ReactionFields = {
+  CREATED_BY: "created_by",
+  TYPE: "type",
+  CREATED_AT: "created_at"
 } as const; 

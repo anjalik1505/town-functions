@@ -36,6 +36,12 @@ export interface FriendProfileResponse {
   updated_at: string;
 }
 
+export interface ReactionGroup {
+  type: string;
+  count: number;
+  reaction_id: string;
+}
+
 export interface Update {
   update_id: string;
   created_by: string;
@@ -44,6 +50,9 @@ export interface Update {
   friend_ids: string[];
   sentiment: string;
   created_at: string;
+  comment_count: number;
+  reaction_count: number;
+  reactions: ReactionGroup[];
 }
 
 export interface EnrichedUpdate extends Update {

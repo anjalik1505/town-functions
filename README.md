@@ -393,6 +393,58 @@ This repository contains the backend functions for the Village application.
 - 404: Comment not found
 - 500: Internal server error
 
+### Reactions
+
+#### POST /updates/{update_id}/reactions
+**Purpose**: Create a new reaction on an update.
+
+**Input**:
+```json
+{
+  "type": "like"
+}
+```
+*Note: type is required and should be a valid reaction type (e.g., "like", "love", "laugh").*
+
+**Output**:
+```json
+{
+  "type": "like",
+  "count": 1,
+  "reaction_id": "reaction123"
+}
+```
+
+**Status Code**: 201 (Created)
+
+**Errors**:
+- 400: Invalid request parameters
+- 403: You don't have access to this update
+- 404: Update not found
+- 500: Internal server error
+
+#### DELETE /updates/{update_id}/reactions/{reaction_id}
+**Purpose**: Delete a reaction from an update. The authenticated user must be the creator of the reaction.
+
+**Input**: (None, uses auth token)
+
+**Output**:
+```json
+{
+  "type": "like",
+  "count": 0,
+  "reaction_id": "reaction123"
+}
+```
+
+**Status Code**: 200 (OK)
+
+**Errors**:
+- 400: You have already reacted with this type
+- 403: You don't have access to this update
+- 404: Update not found
+- 500: Internal server error
+
 ### Invitations
 
 #### POST /invitations

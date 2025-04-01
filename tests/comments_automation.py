@@ -266,6 +266,89 @@ def run_comments_tests():
     )
     logger.info("✓ Unauthenticated comment access test passed")
 
+    # ============ REACTION TESTS ============
+    logger.info("========== STARTING REACTION TESTS ==========")
+
+    # Step 1: Create reactions from both users
+    logger.info("Step 1: Creating reactions from both users")
+    reactions = []
+
+    # User 1 reactions
+    reaction1 = api.create_reaction(users[0]["email"], update_id, "like")
+    reactions.append(reaction1)
+    logger.info(f"Created reaction from user 1: {json.dumps(reaction1, indent=2)}")
+    time.sleep(TEST_CONFIG["wait_time"])
+
+    # User 2 reactions
+    reaction2 = api.create_reaction(users[1]["email"], update_id, "love")
+    reactions.append(reaction2)
+    logger.info(f"Created reaction from user 2: {json.dumps(reaction2, indent=2)}")
+    time.sleep(TEST_CONFIG["wait_time"])
+
+    # Verify reactions in update response
+    update_response = api.get_my_updates(users[0]["email"])
+    update = next(u for u in update_response["updates"] if u["update_id"] == update_id)
+    assert len(update["reactions"]) == 2, "Incorrect number of reactions"
+    assert update["reaction_count"] == 2, "Incorrect reaction count"
+    logger.info("✓ Reactions verified in update response")
+
+    # ============ REACTION NEGATIVE PATH TESTS ============
+    logger.info("========== STARTING REACTION NEGATIVE PATH TESTS ==========")
+
+    # Test 1: Try to create an empty reaction type
+    logger.info("Test 1: Attempting to create an empty reaction type")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/updates/{update_id}/reactions",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={"type": ""},
+        expected_status_code=400,
+        expected_error_message="validation error",
+    )
+    logger.info("✓ Empty reaction type test passed")
+
+    # Test 2: Try to delete another user's reaction
+    logger.info("Test 2: Attempting to delete another user's reaction")
+    # Use the reaction ID from when user2 created their reaction
+    user2_reaction_id = reaction2["reaction_id"]
+    api.make_request_expecting_error(
+        "delete",
+        f"{API_BASE_URL}/updates/{update_id}/reactions/{user2_reaction_id}",
+        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
+        expected_status_code=403,
+        expected_error_message="You can only delete your own reactions",
+    )
+    logger.info("✓ Delete other user's reaction test passed")
+
+    # Test 3: Try to create a reaction without authentication
+    logger.info("Test 3: Attempting to create a reaction without authentication")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/updates/{update_id}/reactions",
+        headers={},
+        json_data={"type": "like"},
+        expected_status_code=401,
+    )
+    logger.info("✓ Unauthenticated reaction creation test passed")
+
+    # Test 4: Try to create a duplicate reaction
+    logger.info("Test 4: Attempting to create a duplicate reaction")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/updates/{update_id}/reactions",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={"type": "like"},
+        expected_status_code=400,
+        expected_error_message="You have already reacted to this update",
+    )
+    logger.info("✓ Duplicate reaction test passed")
+
     logger.info("========== ALL TESTS COMPLETED ==========")
 
 

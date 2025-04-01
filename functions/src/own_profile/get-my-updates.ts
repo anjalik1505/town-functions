@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, QueryOperators, UpdateFields } from "../models/constants";
-import { Update, UpdatesResponse } from "../models/data-models";
+import { ReactionGroup, Update, UpdatesResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -26,7 +26,7 @@ const logger = getLogger(__filename);
  * - A list of updates belonging to the current user
  * - A next_timestamp for pagination (if more results are available)
  */
-export const getUpdates = async (req: Request, res: Response) => {
+export const getUpdates = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving updates for user: ${currentUserId}`);
 
@@ -76,6 +76,30 @@ export const getUpdates = async (req: Request, res: Response) => {
         // Convert Firestore datetime to ISO format string
         const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
 
+        // Fetch reactions for this update
+        let reactions: ReactionGroup[] = [];
+        try {
+            const reactionsSnapshot = await db.collection(Collections.UPDATES)
+                .doc(updateDoc.id)
+                .collection(Collections.REACTIONS)
+                .get();
+
+            const reactionsByType = new Map<string, { count: number; id: string }>();
+
+            reactionsSnapshot.docs.forEach(doc => {
+                const reactionData = doc.data();
+                const type = reactionData.type;
+                const current = reactionsByType.get(type) || { count: 0, id: doc.id };
+                reactionsByType.set(type, { count: current.count + 1, id: doc.id });
+            });
+
+            reactionsByType.forEach((data, type) => {
+                reactions.push({ type, count: data.count, reaction_id: data.id });
+            });
+        } catch (error) {
+            logger.error(`Error fetching reactions for update ${updateDoc.id}: ${error}`);
+        }
+
         // Convert Firestore document to Update model
         const update: Update = {
             update_id: updateDoc.id,
@@ -84,7 +108,10 @@ export const getUpdates = async (req: Request, res: Response) => {
             group_ids: docData[UpdateFields.GROUP_IDS] || [],
             friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
             sentiment: docData[UpdateFields.SENTIMENT] || "",
-            created_at: createdAtIso
+            created_at: createdAtIso,
+            comment_count: docData.comment_count || 0,
+            reaction_count: docData.reaction_count || 0,
+            reactions
         };
 
         updates.push(update);
@@ -100,5 +127,5 @@ export const getUpdates = async (req: Request, res: Response) => {
 
     logger.info(`Retrieved ${updates.length} updates for user: ${currentUserId}`);
     const response: UpdatesResponse = { updates, next_timestamp: nextTimestamp };
-    return res.json(response);
+    res.json(response);
 }; 

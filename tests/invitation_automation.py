@@ -252,9 +252,10 @@ def run_invitation_demo():
     logger.info("Test 4: User attempting to accept their own invitation")
     # Fourth user creates an invitation
     invitation4 = api.create_invitation(users[3]["email"], "Test Receiver Five")
+    invitation4_id = api.invitation_ids[users[3]["email"]]
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/accept",
+        f"{API_BASE_URL}/invitations/{invitation4_id}/accept",
         headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
         expected_status_code=400,
         expected_error_message="Cannot accept your own invitation",
@@ -263,9 +264,12 @@ def run_invitation_demo():
 
     # Test 5: User attempts to reject their own invitation
     logger.info("Test 5: User attempting to reject their own invitation")
+    # Create a new invitation specifically for this test
+    invitation5 = api.create_invitation(users[3]["email"], "Test Receiver Six")
+    invitation5_id = api.invitation_ids[users[3]["email"]]
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/reject",
+        f"{API_BASE_URL}/invitations/{invitation5_id}/reject",
         headers={"Authorization": f"Bearer {api.tokens[users[3]['email']]}"},
         expected_status_code=400,
         expected_error_message="Cannot reject your own invitation",
@@ -276,7 +280,7 @@ def run_invitation_demo():
     logger.info("Test 6: User attempting to resend someone else's invitation")
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/invitations/{api.invitation_ids[users[3]['email']]}/resend",
+        f"{API_BASE_URL}/invitations/{invitation5_id}/resend",
         headers={"Authorization": f"Bearer {api.tokens[users[2]['email']]}"},
         expected_status_code=403,
         expected_error_message="Not authorized",
@@ -338,36 +342,51 @@ def run_invitation_demo():
     # Test 9: Test combined limit (5 friends + active invitations)
     logger.info("Test 9: Testing combined limit (5 friends + active invitations)")
 
-    # First, get current invitations for the fourth user
+    # Get current state
     current_invitations = api.get_invitations(users[3]["email"])
-    logger.info(
-        f"Current invitations for fourth user: {json.dumps(current_invitations, indent=2)}"
-    )
+    current_friends = api.get_friends(users[3]["email"])
 
-    # Calculate how many more invitations we need to create
-    active_count = len(
+    # Calculate current counts
+    active_invitations = len(
         [
             inv
             for inv in current_invitations["invitations"]
             if inv["status"] == "pending"
         ]
     )
-    invitations_to_create = 5 - active_count
+    friend_count = len(current_friends.get("friends", []))
+    total_count = active_invitations + friend_count
 
-    # Create additional invitations to reach exactly 5
-    for i in range(invitations_to_create):
-        invitation = api.create_invitation(users[3]["email"], "Test Receiver Six")
-        logger.info(
-            f"Created invitation {i+1}/{invitations_to_create}: {json.dumps(invitation, indent=2)}"
-        )
+    logger.info(
+        f"Current state - Friends: {friend_count}, Active Invitations: {active_invitations}, Total: {total_count}"
+    )
 
-    # Verify we have exactly 5 active invitations
+    # Calculate how many more invitations we need to reach exactly 5
+    invitations_to_create = 5 - total_count
+
+    if invitations_to_create > 0:
+        # Create additional invitations to reach exactly 5
+        for i in range(invitations_to_create):
+            invitation = api.create_invitation(
+                users[3]["email"], f"Test Receiver {i+7}"
+            )
+            logger.info(
+                f"Created invitation {i+1}/{invitations_to_create}: {json.dumps(invitation, indent=2)}"
+            )
+
+    # Verify we have exactly 5 total (friends + active invitations)
     final_invitations = api.get_invitations(users[3]["email"])
-    active_count = len(
+    final_friends = api.get_friends(users[3]["email"])
+    final_active_invitations = len(
         [inv for inv in final_invitations["invitations"] if inv["status"] == "pending"]
     )
-    if active_count != 5:
-        raise Exception(f"Expected 5 active invitations, got {active_count}")
+    final_friend_count = len(final_friends.get("friends", []))
+    final_total = final_active_invitations + final_friend_count
+
+    if final_total != 5:
+        raise Exception(
+            f"Expected total of 5 (friends + active invitations), got {final_total}"
+        )
 
     # Attempt to create a 6th invitation
     api.make_request_expecting_error(

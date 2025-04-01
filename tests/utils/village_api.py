@@ -546,6 +546,48 @@ class VillageAPI:
 
         logger.info(f"Successfully deleted comment {comment_id}")
 
+    # Reaction Methods
+    def create_reaction(
+        self, email: str, update_id: str, reaction_type: str
+    ) -> Dict[str, Any]:
+        """Create a new reaction on an update"""
+        logger.info(f"Creating reaction on update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"type": reaction_type}
+        response = requests.post(
+            f"{API_BASE_URL}/updates/{update_id}/reactions",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create reaction: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully created reaction on update {update_id}")
+        return data
+
+    def delete_reaction(self, email: str, update_id: str, reaction_id: str) -> None:
+        """Delete a reaction"""
+        logger.info(f"Deleting reaction {reaction_id} from update {update_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(
+            f"{API_BASE_URL}/updates/{update_id}/reactions/{reaction_id}",
+            headers=headers,
+        )
+        if response.status_code != 204:
+            logger.error(f"Failed to delete reaction: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully deleted reaction {reaction_id}")
+
     # Utility Methods
     def make_request_expecting_error(
         self,

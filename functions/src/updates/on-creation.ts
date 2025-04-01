@@ -16,13 +16,13 @@ const logger = getLogger(__filename);
  * @param friendId - The ID of the friend to process the summary for
  * @param batch - Firestore write batch for atomic operations
  */
-async function processFriendSummary(
+const processFriendSummary = async (
     db: FirebaseFirestore.Firestore,
     updateData: Record<string, any>,
     creatorId: string,
     friendId: string,
     batch: FirebaseFirestore.WriteBatch
-): Promise<void> {
+): Promise<void> => {
     // Create a consistent relationship ID using the utility function
     const relationshipId = createFriendshipId(creatorId, friendId);
 
@@ -112,12 +112,12 @@ async function processFriendSummary(
  * @param creatorId - The ID of the user who created the update
  * @param batch - Firestore write batch for atomic operations
  */
-async function updateCreatorProfile(
+const updateCreatorProfile = async (
     db: FirebaseFirestore.Firestore,
     updateData: Record<string, any>,
     creatorId: string,
     batch: FirebaseFirestore.WriteBatch
-): Promise<void> {
+): Promise<void> => {
     // Get the profile document
     const profileRef = db.collection(Collections.PROFILES).doc(creatorId);
     const profileDoc = await profileRef.get();
@@ -191,10 +191,10 @@ async function updateCreatorProfile(
  * @param db - Firestore client
  * @param updateData - The update document data
  */
-async function processAllSummaries(
+const processAllSummaries = async (
     db: FirebaseFirestore.Firestore,
     updateData: Record<string, any>
-): Promise<void> {
+): Promise<void> => {
     // Get the creator ID and friend IDs
     const creatorId = updateData[UpdateFields.CREATED_BY];
     const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
@@ -233,7 +233,7 @@ async function processAllSummaries(
  * 
  * @param event - The Firestore event object containing the document data
  */
-export async function onUpdateCreated(event: FirestoreEvent<QueryDocumentSnapshot | undefined, { id: string }>): Promise<void> {
+export const onUpdateCreated = async (event: FirestoreEvent<QueryDocumentSnapshot | undefined, { id: string }>): Promise<void> => {
     if (!event.data) {
         logger.error("No data in update event");
         return;

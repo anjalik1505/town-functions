@@ -25,7 +25,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 500: Error generating question or accessing data
  */
-export async function getQuestion(req: Request, res: Response): Promise<void> {
+export const getQuestion = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Generating personalized question for user: ${currentUserId}`);
 
@@ -42,7 +42,6 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
             name: "Not Found",
             description: "Profile not found"
         });
-        return;
     }
 
     // Extract data from the profile

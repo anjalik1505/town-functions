@@ -26,7 +26,7 @@ const logger = getLogger(__filename);
  * @throws {403} You can only resend your own invitations
  * @throws {404} Invitation not found
  */
-export const resendInvitation = async (req: Request, res: Response) => {
+export const resendInvitation = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const invitationId = req.params.invitation_id;
     logger.info(`User ${currentUserId} resending invitation ${invitationId}`);
@@ -41,7 +41,7 @@ export const resendInvitation = async (req: Request, res: Response) => {
     // Check if the invitation exists
     if (!invitationDoc.exists) {
         logger.warn(`Invitation ${invitationId} not found`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Invitation not found"
@@ -56,7 +56,7 @@ export const resendInvitation = async (req: Request, res: Response) => {
         logger.warn(
             `User ${currentUserId} is not the sender of invitation ${invitationId}`
         );
-        return res.status(403).json({
+        res.status(403).json({
             code: 403,
             name: "Forbidden",
             description: "You can only resend your own invitations"
@@ -67,7 +67,7 @@ export const resendInvitation = async (req: Request, res: Response) => {
     const hasReachedLimit = await hasReachedCombinedLimit(currentUserId, invitationId);
     if (hasReachedLimit) {
         logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "You have reached the maximum number of friends and active invitations"
@@ -103,5 +103,5 @@ export const resendInvitation = async (req: Request, res: Response) => {
         receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || ""
     };
 
-    return res.json(invitation);
+    res.json(invitation);
 }; 

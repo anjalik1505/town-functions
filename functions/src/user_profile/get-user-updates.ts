@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, ProfileFields, QueryOperators, Status, UpdateFields } from "../models/constants";
-import { Update, UpdatesResponse } from "../models/data-models";
+import { ReactionGroup, Update, UpdatesResponse } from "../models/data-models";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -36,7 +36,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (req: Request, res: Response) => {
+export const getUserUpdates = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
@@ -51,7 +51,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
         logger.warn(
             `User ${currentUserId} attempted to view their own updates through /user endpoint`
         );
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "Use /me/updates endpoint to view your own updates"
@@ -74,7 +74,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
     // Check if the target profile exists
     if (!targetUserProfileDoc.exists) {
         logger.warn(`Profile not found for user ${targetUserId}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Profile not found"
@@ -87,7 +87,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
 
     if (!currentUserProfileDoc.exists) {
         logger.warn(`Profile not found for current user ${currentUserId}`);
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Profile not found"
@@ -119,7 +119,7 @@ export const getUserUpdates = async (req: Request, res: Response) => {
         logger.warn(
             `User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`
         );
-        return res.status(403).json({
+        res.status(403).json({
             code: 403,
             name: "Forbidden",
             description: "You must be friends with this user to view their updates"
@@ -168,6 +168,30 @@ export const getUserUpdates = async (req: Request, res: Response) => {
 
             // Only include the update if it's in a shared group or the current user is a friend
             if (isInSharedGroup || isFriend) {
+                // Fetch reactions for this update
+                let reactions: ReactionGroup[] = [];
+                try {
+                    const reactionsSnapshot = await db.collection(Collections.UPDATES)
+                        .doc(updateDoc.id)
+                        .collection(Collections.REACTIONS)
+                        .get();
+
+                    const reactionsByType = new Map<string, { count: number; id: string }>();
+
+                    reactionsSnapshot.docs.forEach(doc => {
+                        const reactionData = doc.data();
+                        const type = reactionData.type;
+                        const current = reactionsByType.get(type) || { count: 0, id: doc.id };
+                        reactionsByType.set(type, { count: current.count + 1, id: doc.id });
+                    });
+
+                    reactionsByType.forEach((data, type) => {
+                        reactions.push({ type, count: data.count, reaction_id: data.id });
+                    });
+                } catch (error) {
+                    logger.error(`Error fetching reactions for update ${updateDoc.id}: ${error}`);
+                }
+
                 // Convert Firestore document to Update model
                 userUpdates.push({
                     update_id: updateDoc.id,
@@ -176,7 +200,10 @@ export const getUserUpdates = async (req: Request, res: Response) => {
                     group_ids: updateGroupIds,
                     friend_ids: friendIds,
                     sentiment: docData[UpdateFields.SENTIMENT] || "",
-                    created_at: createdAtIso
+                    created_at: createdAtIso,
+                    comment_count: docData.comment_count || 0,
+                    reaction_count: docData.reaction_count || 0,
+                    reactions
                 });
 
                 // If we have enough items, break the loop
@@ -207,5 +234,5 @@ export const getUserUpdates = async (req: Request, res: Response) => {
 
     logger.info(`Retrieved ${limitedUpdates.length} updates for user ${targetUserId}`);
     const response: UpdatesResponse = { updates: limitedUpdates, next_timestamp: nextTimestamp };
-    return res.json(response);
+    res.json(response);
 }; 

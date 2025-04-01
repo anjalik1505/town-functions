@@ -34,7 +34,7 @@ const logger = getLogger(__filename);
  * 
  * @throws 400: Profile already exists for user {user_id}
  */
-export const createProfile = async (req: Request, res: Response) => {
+export const createProfile = async (req: Request, res: Response): Promise<void> => {
   const currentUserId = req.userId;
   logger.info(`Starting add_user operation for user ID: ${currentUserId}`);
 
@@ -47,7 +47,7 @@ export const createProfile = async (req: Request, res: Response) => {
 
   if (profileDoc.exists) {
     logger.warn(`Profile already exists for user ${currentUserId}`);
-    return res.status(400).json({
+    res.status(400).json({
       code: 400,
       name: "Bad Request",
       description: `Profile already exists for user ${currentUserId}`
@@ -105,5 +105,5 @@ export const createProfile = async (req: Request, res: Response) => {
   };
 
   logger.info(`User profile creation completed successfully for user ${currentUserId}`);
-  return res.status(201).json(response);
+  res.status(201).json(response);
 }; 

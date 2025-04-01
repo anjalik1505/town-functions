@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { FieldPath, getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
 import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
-import { EnrichedUpdate, FeedResponse, Update } from "../models/data-models";
+import { EnrichedUpdate, FeedResponse, ReactionGroup, Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 import {
@@ -32,7 +32,7 @@ const logger = getLogger(__filename);
  * - A list of updates from all friends and all groups the user is in
  * - A next_timestamp for pagination (if more results are available)
  */
-export const getFeeds = async (req: Request, res: Response) => {
+export const getFeeds = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving feed for user: ${currentUserId}`);
 
@@ -54,7 +54,7 @@ export const getFeeds = async (req: Request, res: Response) => {
     // Return empty response if user profile doesn't exist
     if (!userDoc.exists) {
         logger.warn(`User profile not found for user: ${currentUserId}`);
-        return res.json({ updates: [], next_timestamp: null });
+        res.json({ updates: [], next_timestamp: null });
     }
 
     // Extract group IDs from the user's profile
@@ -78,7 +78,7 @@ export const getFeeds = async (req: Request, res: Response) => {
     // Return empty response if user has no visibility (should not happen with friend visibility)
     if (!allVisibilities.length) {
         logger.info(`User ${currentUserId} has no visibility to any updates`);
-        return res.json({ updates: [], next_timestamp: null });
+        res.json({ updates: [], next_timestamp: null });
     }
 
     // Initialize results tracking
@@ -134,7 +134,10 @@ export const getFeeds = async (req: Request, res: Response) => {
                 group_ids: docData[UpdateFields.GROUP_IDS] || [],
                 friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
                 sentiment: docData[UpdateFields.SENTIMENT] || "",
-                created_at: createdAtIso
+                created_at: createdAtIso,
+                comment_count: docData.comment_count || 0,
+                reaction_count: docData.reaction_count || 0,
+                reactions: [] // Will be populated later
             };
 
             allBatchUpdates.push(update);
@@ -200,19 +203,59 @@ export const getFeeds = async (req: Request, res: Response) => {
             logger.warn(`Missing profiles for users: ${missingProfiles.join(', ')}`);
         }
 
+        // Fetch reaction groups for all updates
+        const updateReactionsMap = new Map<string, ReactionGroup[]>();
+        for (const update of sortedUpdates) {
+            try {
+                const reactionsSnapshot = await db.collection(Collections.UPDATES)
+                    .doc(update.update_id)
+                    .collection(Collections.REACTIONS)
+                    .get();
+
+                const reactions: ReactionGroup[] = [];
+                const reactionsByType = new Map<string, { count: number; id: string }>();
+
+                reactionsSnapshot.docs.forEach(doc => {
+                    const reactionData = doc.data();
+                    const type = reactionData.type;
+                    const current = reactionsByType.get(type) || { count: 0, id: doc.id };
+                    reactionsByType.set(type, { count: current.count + 1, id: doc.id });
+                });
+
+                reactionsByType.forEach((data, type) => {
+                    reactions.push({ type, count: data.count, reaction_id: data.id });
+                });
+
+                updateReactionsMap.set(update.update_id, reactions);
+            } catch (error) {
+                logger.error(`Error fetching reactions for update ${update.update_id}: ${error}`);
+                updateReactionsMap.set(update.update_id, []);
+            }
+        }
+
+        // Add reactions to updates
+        sortedUpdates.forEach(update => {
+            update.reactions = updateReactionsMap.get(update.update_id) || [];
+        });
+
         // Enrich updates with profile data
         const enrichedUpdates: EnrichedUpdate[] = sortedUpdates.map(update => {
             const profile = userProfilesMap.get(update.created_by);
             if (!profile) {
                 logger.warn(`Missing profile data for update ${update.update_id} created by ${update.created_by}`);
+                return {
+                    ...update,
+                    username: "Unknown",
+                    name: "Unknown User",
+                    avatar: ""
+                };
             }
 
-            // Always include the enriched fields, even if profile is missing
             return {
                 ...update,
-                username: profile?.[ProfileFields.USERNAME] || "",
-                name: profile?.[ProfileFields.NAME] || "",
-                avatar: profile?.[ProfileFields.AVATAR] || ""
+                username: profile.username,
+                name: profile.name || profile.username,
+                avatar: profile.avatar || ""
             };
         });
 
@@ -226,11 +269,11 @@ export const getFeeds = async (req: Request, res: Response) => {
 
         logger.info(`Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`);
         const response: FeedResponse = { updates: enrichedUpdates, next_timestamp: nextTimestamp };
-        return res.json(response);
+        res.json(response);
     } else {
         // No updates found
         logger.info(`No updates found for user ${currentUserId}`);
         const response: FeedResponse = { updates: [], next_timestamp: null };
-        return res.json(response);
+        res.json(response);
     }
 }; 

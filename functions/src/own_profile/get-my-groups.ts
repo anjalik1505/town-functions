@@ -21,7 +21,7 @@ const logger = getLogger(__filename);
  * @returns A GroupsResponse containing:
  * - A list of Group objects with basic information for each group
  */
-export const getMyGroups = async (req: Request, res: Response) => {
+export const getMyGroups = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving groups for user: ${currentUserId}`);
 
@@ -58,5 +58,5 @@ export const getMyGroups = async (req: Request, res: Response) => {
 
     // Return the list of groups
     const response: GroupsResponse = { groups };
-    return res.json(response);
+    res.json(response);
 }; 

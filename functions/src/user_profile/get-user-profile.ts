@@ -32,7 +32,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their profile
  */
-export const getUserProfile = async (req: Request, res: Response) => {
+export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
@@ -47,7 +47,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
         logger.warn(
             `User ${currentUserId} attempted to view their own profile through /user endpoint`
         );
-        return res.status(400).json({
+        res.status(400).json({
             code: 400,
             name: "Bad Request",
             description: "Use /me/profile endpoint to view your own profile"
@@ -61,7 +61,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
     // Check if the target profile exists
     if (!targetUserProfileDoc.exists) {
         logger.warn("Profile not found");
-        return res.status(404).json({
+        res.status(404).json({
             code: 404,
             name: "Not Found",
             description: "Profile not found"
@@ -84,7 +84,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
         logger.warn(
             `User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`
         );
-        return res.status(403).json({
+        res.status(403).json({
             code: 403,
             name: "Forbidden",
             description: "You must be friends with this user to view their profile"
@@ -132,5 +132,5 @@ export const getUserProfile = async (req: Request, res: Response) => {
         updated_at: updatedAt
     };
 
-    return res.json(response);
+    res.json(response);
 }; 
