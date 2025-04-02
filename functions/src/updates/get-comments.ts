@@ -92,7 +92,7 @@ export const getComments = async (req: Request, res: Response, next: NextFunctio
     }
 
     // Process comments using streaming
-    const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+    const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     // Process comments and collect user IDs
     const comments: Comment[] = [];

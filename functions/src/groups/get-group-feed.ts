@@ -95,7 +95,7 @@ export const getGroupFeed = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Process updates using streaming
-    const { items: updateDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+    const { items: updateDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     // Convert Firestore documents to Update models
     const updates: Update[] = updateDocs.map(updateDoc => {

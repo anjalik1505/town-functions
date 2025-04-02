@@ -17,10 +17,10 @@ const logger = getLogger(__filename);
 export const applyPagination = async (
     query: Query,
     afterCursor: string | undefined,
-    limit?: number
+    limit: number
 ): Promise<Query> => {
     if (!afterCursor) {
-        return limit ? query.limit(limit) : query;
+        return limit ? query.limit(limit + 1) : query;
     }
 
     try {
@@ -29,9 +29,9 @@ export const applyPagination = async (
         const doc = await docRef.get();
         if (doc.exists) {
             const paginatedQuery = query.startAfter(doc);
-            return limit ? paginatedQuery.limit(limit) : paginatedQuery;
+            return limit ? paginatedQuery.limit(limit + 1) : paginatedQuery;
         }
-        return limit ? query.limit(limit) : query;
+        return limit ? query.limit(limit + 1) : query;
     } catch (error) {
         logger.error(`Error decoding cursor: ${error}`);
         throw new BadRequestError("Invalid request parameters");
@@ -69,15 +69,23 @@ export const generateNextCursor = (
  */
 export const processQueryStream = async <T>(
     query: Query,
-    processDoc: (doc: QueryDocumentSnapshot) => T
+    processDoc: (doc: QueryDocumentSnapshot) => T,
+    limit: number,
 ): Promise<{ items: T[]; lastDoc: QueryDocumentSnapshot | null }> => {
-    const items: T[] = [];
+    let items: T[] = [];
+    let docs: QueryDocumentSnapshot[] = [];
     let lastDoc: QueryDocumentSnapshot | null = null;
 
     for await (const doc of query.stream()) {
         const queryDoc = doc as unknown as QueryDocumentSnapshot;
-        lastDoc = queryDoc;
         items.push(processDoc(queryDoc));
+        docs.push(queryDoc);
+    }
+
+    if (limit && items.length > limit) {
+        items = items.slice(0, limit);
+        docs = docs.slice(0, limit);
+        lastDoc = docs[docs.length - 1];
     }
 
     return { items, lastDoc };

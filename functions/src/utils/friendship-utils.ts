@@ -1,5 +1,5 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, FriendshipFields, InvitationFields, Status } from "../models/constants";
+import { Collections, FriendshipFields, InvitationFields, QueryOperators, Status } from "../models/constants";
 import { getLogger } from "../utils/logging-utils";
 
 const MAX_COMBINED = 5;
@@ -31,14 +31,14 @@ export const hasReachedCombinedLimit = async (userId: string, excludeInvitationI
 
     // Get all friendships where the user is either the sender or receiver
     const friendshipsQuery = await db.collection(Collections.FRIENDSHIPS)
-        .where(FriendshipFields.MEMBERS, "array-contains", userId)
+        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId)
         .get();
 
     const friendCount = friendshipsQuery.size;
 
     // Get all active invitations for the user
     const invitationsQuery = await db.collection(Collections.INVITATIONS)
-        .where(InvitationFields.SENDER_ID, "==", userId)
+        .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId)
         .get();
 
     let activeInvitationCount = 0;

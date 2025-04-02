@@ -61,7 +61,7 @@ export const getMyFriends = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Process friendships using streaming
-    const { items: friendshipDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+    const { items: friendshipDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     const friends: Friend[] = [];
 

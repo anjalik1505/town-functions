@@ -57,7 +57,7 @@ export const getInvitations = async (req: Request, res: Response, next: NextFunc
     }
 
     // Process invitations using streaming
-    const { items: invitationDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+    const { items: invitationDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     const invitations: Invitation[] = [];
     const batch = db.batch();

@@ -68,7 +68,7 @@ export const getUpdates = async (req: Request, res: Response, next: NextFunction
     }
 
     // Process feed items using streaming
-    const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+    const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     if (feedDocs.length === 0) {
         logger.info(`No updates found for user ${currentUserId}`);

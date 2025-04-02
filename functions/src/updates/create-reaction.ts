@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
-import { Collections, ReactionFields, UpdateFields } from "../models/constants";
+import { Collections, QueryOperators, ReactionFields, UpdateFields } from "../models/constants";
 import { ReactionGroup } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { createFriendVisibilityIdentifier } from "../utils/visibility-utils";
@@ -66,8 +66,8 @@ export const createReaction = async (req: Request, res: Response): Promise<void>
 
     // Check if user has already reacted with this type
     const existingReactionSnapshot = await updateRef.collection(Collections.REACTIONS)
-        .where(ReactionFields.CREATED_BY, "==", currentUserId)
-        .where(ReactionFields.TYPE, "==", reactionType)
+        .where(ReactionFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
+        .where(ReactionFields.TYPE, QueryOperators.EQUALS, reactionType)
         .get();
 
     if (!existingReactionSnapshot.empty) {

@@ -96,7 +96,7 @@ export const getGroupChats = async (req: Request, res: Response, next: NextFunct
     }
 
     // Process chat messages using streaming
-    const { items: chatDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+    const { items: chatDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     // Convert Firestore documents to ChatMessage models
     const messages: ChatMessage[] = chatDocs.map(chatDoc => {
