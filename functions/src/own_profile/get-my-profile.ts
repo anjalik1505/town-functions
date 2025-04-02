@@ -57,9 +57,6 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
   const insightsData = insightsDoc?.data() || {};
   logger.info(`Retrieved insights data for user: ${currentUserId}`);
 
-  // Format updated_at timestamp if it exists
-  const updatedAt = profileData[ProfileFields.UPDATED_AT] ? formatTimestamp(profileData[ProfileFields.UPDATED_AT]) : "";
-
   // Construct and return the profile response
   const response: ProfileResponse = {
     user_id: currentUserId,
@@ -72,7 +69,7 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
     gender: profileData[ProfileFields.GENDER] || "",
     summary: profileData[ProfileFields.SUMMARY] || "",
     suggestions: profileData[ProfileFields.SUGGESTIONS] || "",
-    updated_at: updatedAt,
+    updated_at: profileData[ProfileFields.UPDATED_AT] ? formatTimestamp(profileData[ProfileFields.UPDATED_AT]) : "",
     insights: {
       emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || "",
       key_moments: insightsData[InsightsFields.KEY_MOMENTS] || "",

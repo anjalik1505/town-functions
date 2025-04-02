@@ -154,16 +154,16 @@ app.put("/me/profile", handle_errors(true), validateRequest(updateProfileSchema)
     await updateProfile(req, res);
 });
 
-app.get("/me/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-    await getUpdates(req, res);
+app.get("/me/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+    await getUpdates(req, res, next);
 });
 
-app.get("/me/feed", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-    await getFeeds(req, res);
+app.get("/me/feed", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+    await getFeeds(req, res, next);
 });
 
-app.get("/me/friends", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-    await getMyFriends(req, res);
+app.get("/me/friends", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+    await getMyFriends(req, res, next);
 });
 
 // User profile routes
@@ -171,13 +171,13 @@ app.get("/users/:target_user_id/profile", handle_errors(false), async (req, res)
     await getUserProfile(req, res);
 });
 
-app.get("/users/:target_user_id/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-    await getUserUpdates(req, res);
+app.get("/users/:target_user_id/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+    await getUserUpdates(req, res, next);
 });
 
 // Invitation routes
-app.get("/invitations", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-    await getInvitations(req, res);
+app.get("/invitations", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+    await getInvitations(req, res, next);
 });
 
 app.get("/invitations/:invitation_id", handle_errors(false), async (req, res) => {
@@ -215,8 +215,8 @@ app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), a
 });
 
 // Comment routes
-app.get("/updates/:update_id/comments", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-    await getComments(req, res);
+app.get("/updates/:update_id/comments", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+    await getComments(req, res, next);
 });
 
 app.post("/updates/:update_id/comments", handle_errors(true), validateRequest(createCommentSchema), async (req, res) => {

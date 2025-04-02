@@ -135,9 +135,9 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request.*
 
 **Output**:
 ```json
@@ -153,7 +153,7 @@ This repository contains the backend functions for the Village application.
       "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
 }
 ```
 
@@ -183,9 +183,9 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request.*
 
 **Output**:
 ```json
@@ -204,7 +204,7 @@ This repository contains the backend functions for the Village application.
       "avatar": "https://example.com/avatar.jpg"
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
 }
 ```
 
@@ -218,9 +218,9 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request.*
 
 **Output**:
 ```json
@@ -233,7 +233,7 @@ This repository contains the backend functions for the Village application.
       "avatar": "https://example.com/avatar.jpg"
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
 }
 ```
 
@@ -282,9 +282,9 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request.*
 
 **Output**:
 ```json
@@ -301,7 +301,7 @@ This repository contains the backend functions for the Village application.
       "avatar": "https://example.com/avatar.jpg"
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
 }
 ```
 
@@ -561,9 +561,9 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request.*
 
 **Output**:
 ```json
@@ -581,7 +581,7 @@ This repository contains the backend functions for the Village application.
       "receiver_name": "John Doe"
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
 }
 ```
 
@@ -714,9 +714,9 @@ This repository contains the backend functions for the Village application.
 
 **Input**: Query Parameters
 ```
-?limit=20&after_timestamp=2025-01-01T12%3A00%3A00.000000%2B00%3A00
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
 ```
-*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_timestamp must be in ISO 8601 format with milliseconds and timezone offset.*
+*Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request.*
 
 **Output**:
 ```json
@@ -732,7 +732,7 @@ This repository contains the backend functions for the Village application.
       "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],
-  "next_timestamp": "2025-01-01T00:00:00.000+00:00"
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
 }
 ```
 

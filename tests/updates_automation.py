@@ -273,21 +273,55 @@ def run_updates_tests():
         f"Retrieved first page of /me/updates: {json.dumps(first_page, indent=2)}"
     )
     assert (
-        "next_timestamp" in first_page
-    ), "Response does not contain next_timestamp field for pagination"
+        "next_cursor" in first_page
+    ), "Response does not contain next_cursor field for pagination"
 
-    if first_page["next_timestamp"]:
+    if first_page["next_cursor"]:
+        # Store first page updates for comparison
+        first_page_updates = first_page["updates"]
+        first_page_timestamps = [update["created_at"] for update in first_page_updates]
+
+        # Verify first page timestamps are in descending order
+        assert first_page_timestamps == sorted(
+            first_page_timestamps, reverse=True
+        ), "First page updates are not in descending order by timestamp"
+
+        # Get second page
         second_page = api.get_my_updates(
             users[0]["email"],
             limit=TEST_CONFIG["pagination_limit"],
-            after_timestamp=first_page["next_timestamp"],
+            after_cursor=first_page["next_cursor"],
         )
         logger.info(
             f"Retrieved second page of /me/updates: {json.dumps(second_page, indent=2)}"
         )
-        assert (
-            len(second_page["updates"]) > 0
-        ), "No updates found in second page of /me/updates"
+
+        # Store second page updates for comparison
+        second_page_updates = second_page["updates"]
+        second_page_timestamps = [
+            update["created_at"] for update in second_page_updates
+        ]
+
+        # Verify second page timestamps are in descending order
+        assert second_page_timestamps == sorted(
+            second_page_timestamps, reverse=True
+        ), "Second page updates are not in descending order by timestamp"
+
+        # Verify no duplicates between pages
+        first_page_ids = {update["update_id"] for update in first_page_updates}
+        second_page_ids = {update["update_id"] for update in second_page_updates}
+        assert not (
+            first_page_ids & second_page_ids
+        ), "Found duplicate updates between pages"
+
+        # Verify second page updates are older than first page updates
+        if second_page_timestamps and first_page_timestamps:
+            newest_second_page = second_page_timestamps[0]
+            oldest_first_page = first_page_timestamps[-1]
+            assert (
+                newest_second_page < oldest_first_page
+            ), "Second page updates are not older than first page updates"
+
         logger.info(f"✓ /me/updates pagination test passed")
 
     # Test pagination for /me/feed
@@ -298,34 +332,68 @@ def run_updates_tests():
     total_updates = len(first_page_feed["updates"])
     logger.info(f"Total updates in feed: {total_updates}")
 
-    # Test with a limit that should definitely produce a next_timestamp
+    # Test with a limit that should definitely produce a next_cursor
     test_limit = min(2, total_updates - 1)  # Use 2 or total-1, whichever is smaller
     first_page_feed = api.get_my_feed(users[0]["email"], limit=test_limit)
     logger.info(
         f"Retrieved first page of /me/feed with limit {test_limit}: {json.dumps(first_page_feed, indent=2)}"
     )
     assert (
-        "next_timestamp" in first_page_feed
-    ), "Response does not contain next_timestamp field for feed pagination"
+        "next_cursor" in first_page_feed
+    ), "Response does not contain next_cursor field for feed pagination"
     assert (
         len(first_page_feed["updates"]) == test_limit
     ), f"Expected {test_limit} updates in first page, got {len(first_page_feed['updates'])}"
     assert (
-        first_page_feed["next_timestamp"] is not None
-    ), "next_timestamp should not be null when we have more updates than the limit"
+        first_page_feed["next_cursor"] is not None
+    ), "next_cursor should not be null when we have more updates than the limit"
 
-    if first_page_feed["next_timestamp"]:
+    if first_page_feed["next_cursor"]:
+        # Store first page updates for comparison
+        first_page_updates = first_page_feed["updates"]
+        first_page_timestamps = [update["created_at"] for update in first_page_updates]
+
+        # Verify first page timestamps are in descending order
+        assert first_page_timestamps == sorted(
+            first_page_timestamps, reverse=True
+        ), "First page feed updates are not in descending order by timestamp"
+
+        # Get second page
         second_page_feed = api.get_my_feed(
             users[0]["email"],
             limit=test_limit,
-            after_timestamp=first_page_feed["next_timestamp"],
+            after_cursor=first_page_feed["next_cursor"],
         )
         logger.info(
             f"Retrieved second page of /me/feed: {json.dumps(second_page_feed, indent=2)}"
         )
-        assert (
-            len(second_page_feed["updates"]) > 0
-        ), "No updates found in second page of /me/feed"
+
+        # Store second page updates for comparison
+        second_page_updates = second_page_feed["updates"]
+        second_page_timestamps = [
+            update["created_at"] for update in second_page_updates
+        ]
+
+        # Verify second page timestamps are in descending order
+        assert second_page_timestamps == sorted(
+            second_page_timestamps, reverse=True
+        ), "Second page feed updates are not in descending order by timestamp"
+
+        # Verify no duplicates between pages
+        first_page_ids = {update["update_id"] for update in first_page_updates}
+        second_page_ids = {update["update_id"] for update in second_page_updates}
+        assert not (
+            first_page_ids & second_page_ids
+        ), "Found duplicate updates between feed pages"
+
+        # Verify second page updates are older than first page updates
+        if second_page_timestamps and first_page_timestamps:
+            newest_second_page = second_page_timestamps[0]
+            oldest_first_page = first_page_timestamps[-1]
+            assert (
+                newest_second_page < oldest_first_page
+            ), "Second page feed updates are not older than first page updates"
+
         logger.info(f"✓ /me/feed pagination test passed")
 
     # Test pagination for /users/{user_id}/updates
@@ -339,22 +407,56 @@ def run_updates_tests():
         f"Retrieved first page of user updates: {json.dumps(first_page_user, indent=2)}"
     )
     assert (
-        "next_timestamp" in first_page_user
-    ), "Response does not contain next_timestamp field for user updates pagination"
+        "next_cursor" in first_page_user
+    ), "Response does not contain next_cursor field for user updates pagination"
 
-    if first_page_user["next_timestamp"]:
+    if first_page_user["next_cursor"]:
+        # Store first page updates for comparison
+        first_page_updates = first_page_user["updates"]
+        first_page_timestamps = [update["created_at"] for update in first_page_updates]
+
+        # Verify first page timestamps are in descending order
+        assert first_page_timestamps == sorted(
+            first_page_timestamps, reverse=True
+        ), "First page user updates are not in descending order by timestamp"
+
+        # Get second page
         second_page_user = api.get_user_updates(
             users[0]["email"],
             api.user_ids[users[1]["email"]],
             limit=TEST_CONFIG["pagination_limit"],
-            after_timestamp=first_page_user["next_timestamp"],
+            after_cursor=first_page_user["next_cursor"],
         )
         logger.info(
             f"Retrieved second page of user updates: {json.dumps(second_page_user, indent=2)}"
         )
-        assert (
-            len(second_page_user["updates"]) > 0
-        ), "No updates found in second page of user updates"
+
+        # Store second page updates for comparison
+        second_page_updates = second_page_user["updates"]
+        second_page_timestamps = [
+            update["created_at"] for update in second_page_updates
+        ]
+
+        # Verify second page timestamps are in descending order
+        assert second_page_timestamps == sorted(
+            second_page_timestamps, reverse=True
+        ), "Second page user updates are not in descending order by timestamp"
+
+        # Verify no duplicates between pages
+        first_page_ids = {update["update_id"] for update in first_page_updates}
+        second_page_ids = {update["update_id"] for update in second_page_updates}
+        assert not (
+            first_page_ids & second_page_ids
+        ), "Found duplicate updates between user update pages"
+
+        # Verify second page updates are older than first page updates
+        if second_page_timestamps and first_page_timestamps:
+            newest_second_page = second_page_timestamps[0]
+            oldest_first_page = first_page_timestamps[-1]
+            assert (
+                newest_second_page < oldest_first_page
+            ), "Second page user updates are not older than first page updates"
+
         logger.info("✓ /users/{user_id}/updates pagination test passed")
 
     logger.info("✓ All pagination tests completed successfully")

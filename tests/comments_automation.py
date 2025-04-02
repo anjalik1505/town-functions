@@ -167,17 +167,17 @@ def run_comments_tests():
     )
     logger.info(f"First page of comments: {json.dumps(first_page, indent=2)}")
 
-    assert "next_timestamp" in first_page, "Response missing next_timestamp"
+    assert "next_cursor" in first_page, "Response missing next_cursor"
     assert (
         len(first_page["comments"]) == TEST_CONFIG["pagination_limit"]
     ), "Incorrect number of comments in first page"
 
-    if first_page["next_timestamp"]:
+    if first_page["next_cursor"]:
         second_page = api.get_comments(
             users[0]["email"],
             update_id,
             limit=TEST_CONFIG["pagination_limit"],
-            after_timestamp=first_page["next_timestamp"],
+            after_cursor=first_page["next_cursor"],
         )
         logger.info(f"Second page of comments: {json.dumps(second_page, indent=2)}")
         assert len(second_page["comments"]) > 0, "No comments in second page"

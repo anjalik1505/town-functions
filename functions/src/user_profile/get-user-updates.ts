@@ -1,42 +1,38 @@
-import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
-import { Collections, FriendshipFields, ProfileFields, QueryOperators, Status, UpdateFields } from "../models/constants";
-import { ReactionGroup, Update, UpdatesResponse } from "../models/data-models";
+import { NextFunction, Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
+import { Update, UpdatesResponse } from "../models/data-models";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { fetchUpdatesReactions } from "../utils/reaction-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 
 /**
  * Retrieves paginated updates for a specific user.
- * 
- * This function fetches:
- * 1. Updates created by the target user that has the current user as a friend
- * 2. Updates from groups shared between the current user and target user
- * 
- * The updates are ordered by creation time (newest first) and supports pagination
- * for efficient data loading. The function enforces friendship checks to ensure
- * only friends can view each other's updates.
+ * Uses the same approach as get-my-feeds.ts but filters for updates from the target user.
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of updates to return
- *                - after_timestamp: Timestamp for pagination
+ *                - after_cursor: Cursor for pagination (base64 encoded document path)
  *              - params: Route parameters containing:
  *                - target_user_id: The ID of the user whose updates are being requested
  * @param res - The Express response object
+ * @param next - The Express next function for error handling
  * 
  * @returns An UpdatesResponse containing:
- * - A list of updates created by the specified user and from shared groups
- * - A next_timestamp for pagination (if more results are available)
+ * - A list of updates created by the specified user
+ * - A next_cursor for pagination (if more results are available)
  * 
  * @throws 400: Use /me/updates endpoint to view your own updates
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (req: Request, res: Response): Promise<void> => {
+export const getUserUpdates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
@@ -61,10 +57,10 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
     // Get pagination parameters from the validated request
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
-    const afterTimestamp = validatedParams?.after_timestamp;
+    const afterCursor = validatedParams?.after_cursor;
 
     logger.info(
-        `Pagination parameters - limit: ${limit}, after_timestamp: ${afterTimestamp}`
+        `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
     );
 
     // Get the target user's profile
@@ -94,20 +90,8 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
         });
     }
 
-    // Get the group IDs for both users to find shared groups
-    const targetUserData = targetUserProfileDoc.data() || {};
-    const currentUserData = currentUserProfileDoc.data() || {};
-
-    const targetGroupIds = targetUserData[ProfileFields.GROUP_IDS] || [];
-    const currentGroupIds = currentUserData[ProfileFields.GROUP_IDS] || [];
-
-    // Find shared groups
-    const sharedGroupIds = targetGroupIds.filter((id: string) => currentGroupIds.includes(id));
-    logger.info(`Found ${sharedGroupIds.length} shared groups between users`);
-
     // Check if users are friends using the unified friendships collection
     const friendshipId = createFriendshipId(currentUserId, targetUserId);
-
     const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
     const friendshipDoc = await friendshipRef.get();
 
@@ -128,111 +112,83 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
 
     logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
 
-    // Get updates from the target user with pagination to ensure we get enough items
-    const userUpdates: Update[] = [];
-    let lastDoc: QueryDocumentSnapshot | null = null;
-    const batchSize = limit * 2; // Fetch more items than needed to account for filtering
+    // Initialize the feed query
+    let feedQuery = db
+        .collection(Collections.USER_FEEDS)
+        .doc(currentUserId)
+        .collection(Collections.FEED)
+        .where(FeedFields.CREATED_BY, QueryOperators.EQUALS, targetUserId)
+        .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
 
-    // Continue fetching until we have enough items or there are no more to fetch
-    while (userUpdates.length < limit) {
-        // Build the query
-        let userQuery = db.collection(Collections.UPDATES)
-            .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, targetUserId)
-            .orderBy(UpdateFields.CREATED_AT, "desc");
-
-        // Apply pagination from the last document or after_timestamp
-        if (lastDoc) {
-            userQuery = userQuery.startAfter(lastDoc);
-        } else if (afterTimestamp) {
-            userQuery = userQuery.startAfter({ [UpdateFields.CREATED_AT]: afterTimestamp });
-        }
-
-        userQuery = userQuery.limit(batchSize);
-
-        // Process updates as they stream in
-        let currentLastDoc: QueryDocumentSnapshot | null = null;
-        for await (const doc of userQuery.stream()) {
-            const updateDoc = doc as unknown as QueryDocumentSnapshot;
-            currentLastDoc = updateDoc;
-            const docData = updateDoc.data();
-            const createdAt = docData[UpdateFields.CREATED_AT] as Timestamp;
-            const updateGroupIds = docData[UpdateFields.GROUP_IDS] || [];
-
-            // Convert Firestore datetime to ISO format string for the Update model
-            const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-
-            // Check if the update is in a shared group or if the current user is a friend
-            const isInSharedGroup = updateGroupIds.some((groupId: string) => sharedGroupIds.includes(groupId));
-            const friendIds = docData[UpdateFields.FRIEND_IDS] || [];
-            const isFriend = friendIds.includes(currentUserId);
-
-            // Only include the update if it's in a shared group or the current user is a friend
-            if (isInSharedGroup || isFriend) {
-                // Fetch reactions for this update
-                let reactions: ReactionGroup[] = [];
-                try {
-                    const reactionsSnapshot = await db.collection(Collections.UPDATES)
-                        .doc(updateDoc.id)
-                        .collection(Collections.REACTIONS)
-                        .get();
-
-                    const reactionsByType = new Map<string, { count: number; id: string }>();
-
-                    reactionsSnapshot.docs.forEach(doc => {
-                        const reactionData = doc.data();
-                        const type = reactionData.type;
-                        const current = reactionsByType.get(type) || { count: 0, id: doc.id };
-                        reactionsByType.set(type, { count: current.count + 1, id: doc.id });
-                    });
-
-                    reactionsByType.forEach((data, type) => {
-                        reactions.push({ type, count: data.count, reaction_id: data.id });
-                    });
-                } catch (error) {
-                    logger.error(`Error fetching reactions for update ${updateDoc.id}: ${error}`);
-                }
-
-                // Convert Firestore document to Update model
-                userUpdates.push({
-                    update_id: updateDoc.id,
-                    created_by: docData[UpdateFields.CREATED_BY] || "",
-                    content: docData[UpdateFields.CONTENT] || "",
-                    group_ids: updateGroupIds,
-                    friend_ids: friendIds,
-                    sentiment: docData[UpdateFields.SENTIMENT] || "",
-                    created_at: createdAtIso,
-                    comment_count: docData.comment_count || 0,
-                    reaction_count: docData.reaction_count || 0,
-                    reactions
-                });
-
-                // If we have enough items, break the loop
-                if (userUpdates.length >= limit) {
-                    break;
-                }
-            }
-        }
-
-        // If no more documents, break the loop
-        if (userUpdates.length < limit) {
-            break;
-        }
-
-        // Keep track of the last document for pagination
-        lastDoc = currentLastDoc;
+    // Apply cursor-based pagination
+    let paginatedQuery;
+    try {
+        paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
+    } catch (err) {
+        next(err);
+        return; // Return after error to prevent further execution
     }
 
-    // Limit to exactly the requested number
-    const limitedUpdates = userUpdates.slice(0, limit);
+    // Process feed items using streaming
+    const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+
+    if (feedDocs.length === 0) {
+        logger.info(`No updates found for user ${targetUserId}`);
+        res.json({ updates: [], next_cursor: null });
+    }
+
+    // Get all update IDs from feed items
+    const updateIds = feedDocs.map(doc => doc.data()[FeedFields.UPDATE_ID]);
+
+    // Fetch all updates in parallel
+    const updatePromises = updateIds.map(updateId =>
+        db.collection(Collections.UPDATES).doc(updateId).get()
+    );
+    const updateSnapshots = await Promise.all(updatePromises);
+
+    // Create a map of update data for easy lookup
+    const updateMap = new Map(
+        updateSnapshots
+            .filter(doc => doc.exists)
+            .map(doc => [doc.id, doc.data()])
+    );
+
+    // Fetch reactions for all updates
+    const updateReactionsMap = await fetchUpdatesReactions(updateIds);
+
+    // Process feed items and create updates
+    const updates: Update[] = feedDocs
+        .map(feedItem => {
+            const feedData = feedItem.data();
+            const updateId = feedData[FeedFields.UPDATE_ID];
+            const updateData = updateMap.get(updateId);
+
+            if (!updateData) {
+                logger.warn(`Missing update data for feed item ${feedItem.id}`);
+                return null;
+            }
+
+            const update: Update = {
+                update_id: updateId,
+                created_by: targetUserId,
+                content: updateData.content || "",
+                group_ids: updateData.group_ids || [],
+                friend_ids: updateData.friend_ids || [],
+                sentiment: updateData.sentiment || "",
+                created_at: formatTimestamp(updateData.created_at),
+                comment_count: updateData.comment_count || 0,
+                reaction_count: updateData.reaction_count || 0,
+                reactions: updateReactionsMap.get(updateId) || []
+            };
+
+            return update;
+        })
+        .filter((update): update is Update => update !== null);
 
     // Set up pagination for the next request
-    let nextTimestamp: string | null = null;
-    if (limitedUpdates.length === limit) {
-        nextTimestamp = limitedUpdates[limitedUpdates.length - 1].created_at;
-        logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
-    }
+    const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
 
-    logger.info(`Retrieved ${limitedUpdates.length} updates for user ${targetUserId}`);
-    const response: UpdatesResponse = { updates: limitedUpdates, next_timestamp: nextTimestamp };
+    logger.info(`Retrieved ${updates.length} updates for user ${targetUserId}`);
+    const response: UpdatesResponse = { updates, next_cursor: nextCursor };
     res.json(response);
 }; 

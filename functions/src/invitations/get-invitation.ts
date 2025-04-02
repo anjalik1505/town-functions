@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields } from "../models/constants";
 import { Invitation } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -63,16 +63,14 @@ export const getInvitation = async (req: Request, res: Response): Promise<void> 
     }
 
     // Format timestamps for consistent API response
-    const createdAt = invitationData[InvitationFields.CREATED_AT];
-    const expiresAt = invitationData[InvitationFields.EXPIRES_AT];
-    const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-    const expiresAtIso = expiresAt ? formatTimestamp(expiresAt) : "";
+    const createdAt = invitationData?.[InvitationFields.CREATED_AT] as Timestamp;
+    const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
 
     // Create Invitation object
     const invitation: Invitation = {
         invitation_id: invitationId,
-        created_at: createdAtIso,
-        expires_at: expiresAtIso,
+        created_at: createdAt ? formatTimestamp(createdAt) : "",
+        expires_at: expiresAt ? formatTimestamp(expiresAt) : "",
         sender_id: senderId,
         status: invitationData[InvitationFields.STATUS] || "",
         username: invitationData[InvitationFields.USERNAME] || "",

@@ -1,32 +1,31 @@
-import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
-import { Collections, QueryOperators, UpdateFields } from "../models/constants";
-import { ReactionGroup, Update, UpdatesResponse } from "../models/data-models";
+import { NextFunction, Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, FeedFields, QueryOperators } from "../models/constants";
+import { Update, UpdatesResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { fetchUpdatesReactions } from "../utils/reaction-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 
 /**
  * Retrieves the current user's updates in a paginated format.
- * 
- * This function:
- * 1. Fetches updates created by the authenticated user from Firestore
- * 2. Returns updates in descending order by creation time (newest first)
- * 3. Supports pagination for efficient data loading
+ * Uses the same approach as get-my-feeds.ts but filters for updates created by the current user.
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
- *                - after_timestamp: Timestamp for pagination in ISO format
+ *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
+ * @param next - The Express next function for error handling
  * 
  * @returns An UpdatesResponse containing:
  * - A list of updates belonging to the current user
- * - A next_timestamp for pagination (if more results are available)
+ * - A next_cursor for pagination (if more results are available)
  */
-export const getUpdates = async (req: Request, res: Response): Promise<void> => {
+export const getUpdates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving updates for user: ${currentUserId}`);
 
@@ -35,97 +34,99 @@ export const getUpdates = async (req: Request, res: Response): Promise<void> => 
     // Get pagination parameters from the validated request
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
-    const afterTimestamp = validatedParams?.after_timestamp;
+    const afterCursor = validatedParams?.after_cursor;
 
     logger.info(
-        `Pagination parameters - limit: ${limit}, after_timestamp: ${afterTimestamp}`
+        `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
     );
 
-    // Build the query
-    let query = db.collection(Collections.UPDATES)
-        .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
-        .orderBy(UpdateFields.CREATED_AT, "desc");
+    // Get the user's profile first to verify existence
+    const userRef = db.collection(Collections.PROFILES).doc(currentUserId);
+    const userDoc = await userRef.get();
 
-    // Apply pagination if an after_timestamp is provided
-    if (afterTimestamp) {
-        query = query.startAfter({ [UpdateFields.CREATED_AT]: afterTimestamp });
-        logger.info(`Applying pagination with timestamp: ${afterTimestamp}`);
+    // Return empty response if user profile doesn't exist
+    if (!userDoc.exists) {
+        logger.warn(`User profile not found for user: ${currentUserId}`);
+        res.json({ updates: [], next_cursor: null });
     }
 
-    // Apply limit last
-    query = query.limit(limit);
+    // Initialize the feed query
+    let feedQuery = db
+        .collection(Collections.USER_FEEDS)
+        .doc(currentUserId)
+        .collection(Collections.FEED)
+        .where(FeedFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
+        .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
 
-    // Execute the query
-    const docs = query.stream();
-    logger.info("Query executed successfully");
-
-    const updates: Update[] = [];
-    let lastTimestamp: Timestamp | null = null;
-
-    // Process the query results
-    for await (const doc of docs) {
-        const updateDoc = doc as unknown as QueryDocumentSnapshot;
-        const docData = updateDoc.data();
-        const createdAt = docData[UpdateFields.CREATED_AT] as Timestamp;
-
-        // Track the last timestamp for pagination
-        if (createdAt) {
-            lastTimestamp = createdAt;
-        }
-
-        // Convert Firestore datetime to ISO format string
-        const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-
-        // Fetch reactions for this update
-        let reactions: ReactionGroup[] = [];
-        try {
-            const reactionsSnapshot = await db.collection(Collections.UPDATES)
-                .doc(updateDoc.id)
-                .collection(Collections.REACTIONS)
-                .get();
-
-            const reactionsByType = new Map<string, { count: number; id: string }>();
-
-            reactionsSnapshot.docs.forEach(doc => {
-                const reactionData = doc.data();
-                const type = reactionData.type;
-                const current = reactionsByType.get(type) || { count: 0, id: doc.id };
-                reactionsByType.set(type, { count: current.count + 1, id: doc.id });
-            });
-
-            reactionsByType.forEach((data, type) => {
-                reactions.push({ type, count: data.count, reaction_id: data.id });
-            });
-        } catch (error) {
-            logger.error(`Error fetching reactions for update ${updateDoc.id}: ${error}`);
-        }
-
-        // Convert Firestore document to Update model
-        const update: Update = {
-            update_id: updateDoc.id,
-            created_by: docData[UpdateFields.CREATED_BY] || currentUserId,
-            content: docData[UpdateFields.CONTENT] || "",
-            group_ids: docData[UpdateFields.GROUP_IDS] || [],
-            friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
-            sentiment: docData[UpdateFields.SENTIMENT] || "",
-            created_at: createdAtIso,
-            comment_count: docData.comment_count || 0,
-            reaction_count: docData.reaction_count || 0,
-            reactions
-        };
-
-        updates.push(update);
+    // Apply cursor-based pagination
+    let paginatedQuery;
+    try {
+        paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
+    } catch (err) {
+        next(err);
+        return; // Return after error to prevent further execution
     }
+
+    // Process feed items using streaming
+    const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
+
+    if (feedDocs.length === 0) {
+        logger.info(`No updates found for user ${currentUserId}`);
+        res.json({ updates: [], next_cursor: null });
+    }
+
+    // Get all update IDs from feed items
+    const updateIds = feedDocs.map(doc => doc.data()[FeedFields.UPDATE_ID]);
+
+    // Fetch all updates in parallel
+    const updatePromises = updateIds.map(updateId =>
+        db.collection(Collections.UPDATES).doc(updateId).get()
+    );
+    const updateSnapshots = await Promise.all(updatePromises);
+
+    // Create a map of update data for easy lookup
+    const updateMap = new Map(
+        updateSnapshots
+            .filter(doc => doc.exists)
+            .map(doc => [doc.id, doc.data()])
+    );
+
+    // Fetch reactions for all updates
+    const updateReactionsMap = await fetchUpdatesReactions(updateIds);
+
+    // Process feed items and create updates
+    const updates: Update[] = feedDocs
+        .map(feedItem => {
+            const feedData = feedItem.data();
+            const updateId = feedData[FeedFields.UPDATE_ID];
+            const updateData = updateMap.get(updateId);
+
+            if (!updateData) {
+                logger.warn(`Missing update data for feed item ${feedItem.id}`);
+                return null;
+            }
+
+            const update: Update = {
+                update_id: updateId,
+                created_by: currentUserId,
+                content: updateData.content || "",
+                group_ids: updateData.group_ids || [],
+                friend_ids: updateData.friend_ids || [],
+                sentiment: updateData.sentiment || "",
+                created_at: formatTimestamp(updateData.created_at),
+                comment_count: updateData.comment_count || 0,
+                reaction_count: updateData.reaction_count || 0,
+                reactions: updateReactionsMap.get(updateId) || []
+            };
+
+            return update;
+        })
+        .filter((update): update is Update => update !== null);
 
     // Set up pagination for the next request
-    let nextTimestamp: string | null = null;
-    if (lastTimestamp && updates.length === limit) {
-        // Convert the timestamp to ISO format for pagination
-        nextTimestamp = formatTimestamp(lastTimestamp);
-        logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
-    }
+    const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
 
-    logger.info(`Retrieved ${updates.length} updates for user: ${currentUserId}`);
-    const response: UpdatesResponse = { updates, next_timestamp: nextTimestamp };
+    logger.info(`Retrieved ${updates.length} updates for user ${currentUserId}`);
+    const response: UpdatesResponse = { updates, next_cursor: nextCursor };
     res.json(response);
 }; 

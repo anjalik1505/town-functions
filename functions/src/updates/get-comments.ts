@@ -1,8 +1,10 @@
-import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
-import { Collections, CommentFields, ProfileFields, UpdateFields } from "../models/constants";
+import { NextFunction, Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, CommentFields, QueryOperators, UpdateFields } from "../models/constants";
 import { Comment, CommentsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { enrichWithProfile, fetchUsersProfiles } from "../utils/profile-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 import { createFriendVisibilityIdentifier } from "../utils/visibility-utils";
 
@@ -21,20 +23,21 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of comments to return (default: 20, min: 1, max: 100)
- *                - after_timestamp: Timestamp for pagination in ISO format
+ *                - after_cursor: Cursor for pagination (base64 encoded document path)
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update to get comments for
  * @param res - The Express response object
+ * @param next - The Express next function for error handling
  * 
  * @returns 200 OK with CommentsResponse containing:
  * - A list of comments with profile data
- * - A next_timestamp for pagination (if more results are available)
+ * - A next_cursor for pagination (if more results are available)
  * 
  * @throws 400: Invalid query parameters
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const getComments = async (req: Request, res: Response): Promise<void> => {
+export const getComments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const updateId = req.params.update_id;
     const currentUserId = req.userId;
     logger.info(`Retrieving comments for update: ${updateId}`);
@@ -44,7 +47,7 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
     // Get pagination parameters
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
-    const afterTimestamp = validatedParams?.after_timestamp;
+    const afterCursor = validatedParams?.after_cursor;
 
     // Get the update document to check access
     const updateRef = db.collection(Collections.UPDATES).doc(updateId);
@@ -77,30 +80,33 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
 
     // Build the query
     let query = updateRef.collection(Collections.COMMENTS)
-        .orderBy(CommentFields.CREATED_AT, "desc");
+        .orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply pagination
-    if (afterTimestamp) {
-        query = query.startAfter({ [CommentFields.CREATED_AT]: afterTimestamp });
+    // Apply cursor-based pagination
+    let paginatedQuery;
+    try {
+        paginatedQuery = await applyPagination(query, afterCursor, limit);
+    } catch (err) {
+        next(err);
+        return; // Return after error to prevent further execution
     }
 
-    // Apply limit
-    query = query.limit(limit);
+    // Process comments using streaming
+    const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc);
 
-    // Get comments
+    // Process comments and collect user IDs
     const comments: Comment[] = [];
     const uniqueUserIds = new Set<string>();
 
-    for await (const doc of query.stream()) {
-        const commentDoc = doc as unknown as QueryDocumentSnapshot;
+    for (const commentDoc of commentDocs) {
         const docData = commentDoc.data();
-        const createdAt = docData[CommentFields.CREATED_AT] as Timestamp;
+        const createdBy = docData[CommentFields.CREATED_BY] || "";
 
         const comment: Comment = {
             comment_id: commentDoc.id,
-            created_by: docData[CommentFields.CREATED_BY] || "",
+            created_by: createdBy,
             content: docData[CommentFields.CONTENT] || "",
-            created_at: createdAt ? formatTimestamp(createdAt) : "",
+            created_at: docData[CommentFields.CREATED_AT] ? formatTimestamp(docData[CommentFields.CREATED_AT]) : "",
             updated_at: docData[CommentFields.UPDATED_AT] ? formatTimestamp(docData[CommentFields.UPDATED_AT]) : "",
             username: "",  // Will be populated from profile
             name: "",     // Will be populated from profile
@@ -108,24 +114,11 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
         };
 
         comments.push(comment);
-        uniqueUserIds.add(comment.created_by);
+        uniqueUserIds.add(createdBy);
     }
 
     // Get profiles for all users who commented
-    const profiles = new Map<string, { username: string; name: string; avatar: string }>();
-    const profilePromises = Array.from(uniqueUserIds).map(async (userId) => {
-        const profileDoc = await db.collection(Collections.PROFILES).doc(userId).get();
-        if (profileDoc.exists) {
-            const profileData = profileDoc.data() || {};
-            profiles.set(userId, {
-                username: profileData[ProfileFields.USERNAME] || "",
-                name: profileData[ProfileFields.NAME] || "",
-                avatar: profileData[ProfileFields.AVATAR] || ""
-            });
-        }
-    });
-
-    await Promise.all(profilePromises);
+    const profiles = await fetchUsersProfiles(Array.from(uniqueUserIds));
 
     // Enrich comments with profile data
     const enrichedComments = comments.map(comment => {
@@ -133,22 +126,15 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
         if (!profile) {
             logger.warn(`Missing profile data for user ${comment.created_by}`);
         }
-        return {
-            ...comment,
-            ...profile
-        };
+        return enrichWithProfile(comment, profile || null);
     });
 
     // Set up pagination for the next request
-    let nextTimestamp: string | null = null;
-    if (enrichedComments.length === limit) {
-        const lastComment = enrichedComments[limit - 1];
-        nextTimestamp = lastComment.created_at;
-    }
+    const nextCursor = generateNextCursor(lastDoc, enrichedComments.length, limit);
 
     const response: CommentsResponse = {
         comments: enrichedComments.slice(0, limit),
-        next_timestamp: nextTimestamp
+        next_cursor: nextCursor
     };
 
     res.status(200).json(response);
