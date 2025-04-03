@@ -77,16 +77,13 @@ export const rejectInvitation = async (req: Request, res: Response): Promise<voi
 
     // Format timestamps for consistent API response
     const createdAt = invitationData?.[InvitationFields.CREATED_AT] as Timestamp;
-    const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-
     const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
-    const expiresAtIso = expiresAt ? formatTimestamp(expiresAt) : "";
 
     // Return the updated invitation
     const invitation: Invitation = {
         invitation_id: invitationId,
-        created_at: createdAtIso,
-        expires_at: expiresAtIso,
+        created_at: createdAt ? formatTimestamp(createdAt) : "",
+        expires_at: expiresAt ? formatTimestamp(expiresAt) : "",
         sender_id: invitationData?.[InvitationFields.SENDER_ID] || "",
         status: Status.REJECTED,
         username: invitationData?.[InvitationFields.USERNAME] || "",

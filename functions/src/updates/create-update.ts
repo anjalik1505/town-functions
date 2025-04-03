@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
-import { Collections, UpdateFields } from "../models/constants";
+import { Collections, FeedFields, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -14,11 +14,12 @@ import {
 const logger = getLogger(__filename);
 
 /**
- * Creates a new update for the current user.
+ * Creates a new update for the current user and creates feed items for all users who should see it.
  * 
- * This function creates a new update in the Firestore database with the content,
- * sentiment, and visibility settings (friend_ids and group_ids) provided in the request.
- * It also generates a combined visibility array for efficient querying.
+ * This function:
+ * 1. Creates a new update in the Firestore database
+ * 2. Creates feed items for all users who should see the update (friends and group members)
+ * 3. Handles cases where a user might see the update through multiple channels
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -83,9 +84,74 @@ export const createUpdate = async (req: Request, res: Response): Promise<void> =
         reaction_count: 0
     };
 
-    // Save the update to Firestore
-    await db.collection(Collections.UPDATES).doc(updateId).set(updateData);
-    logger.info(`Successfully created update with ID: ${updateId}`);
+    // Run everything in a batch
+    const batch = db.batch();
+
+    // 1. Create the update document
+    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+    batch.set(updateRef, updateData);
+
+    // 2. Get all users who should see this update
+    const usersToNotify = new Set<string>();
+
+    // Add creator to the set
+    usersToNotify.add(currentUserId);
+
+    // Add all friends
+    friendIds.forEach((friendId: string) => usersToNotify.add(friendId));
+
+    // Create a map of group members for efficient lookup
+    const groupMembersMap = new Map<string, Set<string>>();
+
+    // Get all group members if there are groups
+    if (groupIds.length > 0) {
+        const groupDocs = await Promise.all(
+            groupIds.map((groupId: string) =>
+                db.collection(Collections.GROUPS).doc(groupId).get()
+            )
+        );
+
+        groupDocs.forEach(groupDoc => {
+            if (groupDoc.exists) {
+                const groupData = groupDoc.data();
+                if (groupData && groupData.members) {
+                    groupMembersMap.set(groupDoc.id, new Set(groupData.members));
+                    groupData.members.forEach((memberId: string) => usersToNotify.add(memberId));
+                }
+            }
+        });
+    }
+
+    // 3. Create feed items for each user
+    Array.from(usersToNotify).forEach((userId) => {
+        const feedItemRef = db
+            .collection(Collections.USER_FEEDS)
+            .doc(userId)
+            .collection(Collections.FEED)
+            .doc(updateId);
+
+        // Determine how this user can see the update
+        const isDirectFriend = userId === currentUserId || friendIds.includes(userId);
+        const userGroups = groupIds.filter((groupId: string) =>
+            groupMembersMap.get(groupId)?.has(userId)
+        );
+
+        const feedItemData = {
+            [FeedFields.UPDATE_ID]: updateId,
+            [FeedFields.CREATED_AT]: createdAt,
+            [FeedFields.DIRECT_VISIBLE]: isDirectFriend,
+            [FeedFields.FRIEND_ID]: isDirectFriend ? currentUserId : null,
+            [FeedFields.GROUP_IDS]: userGroups,
+            [FeedFields.CREATED_BY]: currentUserId
+        };
+
+        batch.set(feedItemRef, feedItemData);
+    });
+
+    // Commit the batch
+    await batch.commit();
+
+    logger.info(`Successfully created update with ID: ${updateId} and feed items for all users`);
 
     // Return the created update (without the internal visible_to field)
     const response: Update = {

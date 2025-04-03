@@ -227,10 +227,6 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     const insightsDoc = insightsSnapshot.docs[0];
     const insightsData = insightsDoc?.data() || {};
 
-    // Format updated_at timestamp - Firestore Timestamp to ISO string
-    // This matches the Python datetime.isoformat() behavior
-    const updatedAt = updatedProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(updatedProfileData[ProfileFields.UPDATED_AT]) : "";
-
     // Construct and return the profile response
     const response: ProfileResponse = {
         user_id: currentUserId,
@@ -243,7 +239,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
         gender: updatedProfileData[ProfileFields.GENDER] || "",
         summary: updatedProfileData[ProfileFields.SUMMARY] || "",
         suggestions: updatedProfileData[ProfileFields.SUGGESTIONS] || "",
-        updated_at: updatedAt,
+        updated_at: updatedProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(updatedProfileData[ProfileFields.UPDATED_AT]) : "",
         insights: {
             emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || "",
             key_moments: insightsData[InsightsFields.KEY_MOMENTS] || "",

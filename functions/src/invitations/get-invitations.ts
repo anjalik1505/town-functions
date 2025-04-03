@@ -1,8 +1,9 @@
-import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { NextFunction, Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, QueryOperators, Status } from "../models/constants";
 import { Invitation, InvitationsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
@@ -19,12 +20,13 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of invitations to return (default: 20, min: 1, max: 100)
- *                - after_timestamp: Timestamp for pagination in ISO format
+ *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
+ * @param next - The Express next function for error handling
  * 
  * @returns An InvitationsResponse object containing all invitations and pagination info
  */
-export const getInvitations = async (req: Request, res: Response): Promise<void> => {
+export const getInvitations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Getting invitations for user ${currentUserId}`);
 
@@ -34,50 +36,43 @@ export const getInvitations = async (req: Request, res: Response): Promise<void>
     // Get pagination parameters from the validated request
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
-    const afterTimestamp = validatedParams?.after_timestamp;
+    const afterCursor = validatedParams?.after_cursor;
 
     logger.info(
-        `Pagination parameters - limit: ${limit}, after_timestamp: ${afterTimestamp}`
+        `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
     );
 
     // Build the query
     let query = db.collection(Collections.INVITATIONS)
         .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, currentUserId)
-        .orderBy(InvitationFields.CREATED_AT, "desc");
+        .orderBy(InvitationFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply pagination if an after_timestamp is provided
-    if (afterTimestamp) {
-        query = query.startAfter({ [InvitationFields.CREATED_AT]: afterTimestamp });
-        logger.info(`Applying pagination with timestamp: ${afterTimestamp}`);
+    // Apply cursor-based pagination
+    let paginatedQuery;
+    try {
+        paginatedQuery = await applyPagination(query, afterCursor, limit);
+    } catch (err) {
+        next(err);
+        return; // Return after error to prevent further execution
     }
 
-    // Apply limit last
-    query = query.limit(limit);
-
-    // Get all invitations where the current user is the sender
-    const invitationsQuery = await query.get();
+    // Process invitations using streaming
+    const { items: invitationDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     const invitations: Invitation[] = [];
     const batch = db.batch();
     let batchUpdated = false;
-    let lastTimestamp: Timestamp | null = null;
-
     const currentTime = Timestamp.now();
 
     // Process each invitation
-    for (const doc of invitationsQuery.docs) {
+    for (const doc of invitationDocs) {
         const invitationData = doc.data();
         const invitationId = doc.id;
 
         // Check if pending invitation has expired
         const status = invitationData[InvitationFields.STATUS];
-        const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
-        const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
-
-        // Track the last timestamp for pagination
-        if (createdAt) {
-            lastTimestamp = createdAt;
-        }
+        const createdAt = invitationData?.[InvitationFields.CREATED_AT] as Timestamp;
+        const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
 
         // Only update if the invitation is pending and has expired
         if (
@@ -93,15 +88,11 @@ export const getInvitations = async (req: Request, res: Response): Promise<void>
             invitationData[InvitationFields.STATUS] = Status.EXPIRED;
         }
 
-        // Format timestamps for consistent API response
-        const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-        const expiresAtIso = expiresAt ? formatTimestamp(expiresAt) : "";
-
         // Create Invitation object
         const invitation: Invitation = {
             invitation_id: invitationId,
-            created_at: createdAtIso,
-            expires_at: expiresAtIso,
+            created_at: createdAt ? formatTimestamp(createdAt) : "",
+            expires_at: expiresAt ? formatTimestamp(expiresAt) : "",
             sender_id: invitationData[InvitationFields.SENDER_ID] || "",
             status: invitationData[InvitationFields.STATUS] || "",
             username: invitationData[InvitationFields.USERNAME] || "",
@@ -120,16 +111,11 @@ export const getInvitations = async (req: Request, res: Response): Promise<void>
     }
 
     // Set up pagination for the next request
-    let nextTimestamp: string | null = null;
-    if (lastTimestamp && invitations.length === limit) {
-        // Convert the timestamp to ISO format for pagination
-        nextTimestamp = formatTimestamp(lastTimestamp);
-        logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
-    }
+    const nextCursor = generateNextCursor(lastDoc, invitations.length, limit);
 
     logger.info(`Retrieved ${invitations.length} invitations for user ${currentUserId}`);
 
     // Return the invitations response with pagination info
-    const response: InvitationsResponse = { invitations, next_timestamp: nextTimestamp };
+    const response: InvitationsResponse = { invitations, next_cursor: nextCursor };
     res.json(response);
 }; 

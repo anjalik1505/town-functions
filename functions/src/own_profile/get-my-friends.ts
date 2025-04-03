@@ -1,9 +1,9 @@
-import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
+import { NextFunction, Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { Friend, FriendsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
 
 const logger = getLogger(__filename);
 
@@ -17,14 +17,15 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of friends to return (default: 20, min: 1, max: 100)
- *                - after_timestamp: Timestamp for pagination in ISO format
+ *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
+ * @param next - The Express next function for error handling
  * 
  * @returns A FriendsResponse containing:
  * - A list of Friend objects with the friend's profile information and friendship status
- * - A next_timestamp for pagination (if more results are available)
+ * - A next_cursor for pagination (if more results are available)
  */
-export const getMyFriends = async (req: Request, res: Response): Promise<void> => {
+export const getMyFriends = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const db = getFirestore();
     const currentUserId = req.userId;
 
@@ -33,10 +34,10 @@ export const getMyFriends = async (req: Request, res: Response): Promise<void> =
     // Get pagination parameters from the validated request
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
-    const afterTimestamp = validatedParams?.after_timestamp;
+    const afterCursor = validatedParams?.after_cursor;
 
     logger.info(
-        `Pagination parameters - limit: ${limit}, after_timestamp: ${afterTimestamp}`
+        `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
     );
 
     // Use a single efficient query with array_contains and in operator for multiple statuses
@@ -48,33 +49,26 @@ export const getMyFriends = async (req: Request, res: Response): Promise<void> =
             QueryOperators.IN,
             [Status.ACCEPTED, Status.PENDING]
         )
-        .orderBy(FriendshipFields.CREATED_AT, "desc");
+        .orderBy(FriendshipFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply pagination if an after_timestamp is provided
-    if (afterTimestamp) {
-        query = query.startAfter({ [FriendshipFields.CREATED_AT]: afterTimestamp });
-        logger.info(`Applying pagination with timestamp: ${afterTimestamp}`);
+    // Apply cursor-based pagination
+    let paginatedQuery;
+    try {
+        paginatedQuery = await applyPagination(query, afterCursor, limit);
+    } catch (err) {
+        next(err);
+        return; // Return after error to prevent further execution
     }
 
-    // Apply limit last
-    query = query.limit(limit);
-
-    logger.info(`Querying friendships for user: ${currentUserId}`);
+    // Process friendships using streaming
+    const { items: friendshipDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
     const friends: Friend[] = [];
-    let lastTimestamp: Timestamp | null = null;
 
-    // Process friendships as they stream in
-    for await (const doc of query.stream()) {
-        const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
+    // Process friendships
+    for (const friendshipDoc of friendshipDocs) {
         const friendshipData = friendshipDoc.data();
         const friendshipStatus = friendshipData[FriendshipFields.STATUS];
-        const createdAt = friendshipData[FriendshipFields.CREATED_AT] as Timestamp;
-
-        // Track the last timestamp for pagination
-        if (createdAt) {
-            lastTimestamp = createdAt;
-        }
 
         // Determine if the current user is the sender or receiver
         const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
@@ -102,18 +96,13 @@ export const getMyFriends = async (req: Request, res: Response): Promise<void> =
     }
 
     // Set up pagination for the next request
-    let nextTimestamp: string | null = null;
-    if (lastTimestamp && friends.length === limit) {
-        // Convert the timestamp to ISO format for pagination
-        nextTimestamp = formatTimestamp(lastTimestamp);
-        logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
-    }
+    const nextCursor = generateNextCursor(lastDoc, friends.length, limit);
 
     logger.info(
         `Retrieved ${friends.length} friends and pending requests for user: ${currentUserId}`
     );
 
     // Return the list of friends with pagination info
-    const response: FriendsResponse = { friends, next_timestamp: nextTimestamp };
+    const response: FriendsResponse = { friends, next_cursor: nextCursor };
     res.json(response);
 }; 

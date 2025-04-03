@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, GroupFields, MAX_BATCH_SIZE, ProfileFields, QueryOperators, Status } from "../models/constants";
 import { Group } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 
@@ -245,7 +246,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
         icon: updatedGroupData[GroupFields.ICON] || "",
         members: updatedGroupData[GroupFields.MEMBERS] || [],
         member_profiles: updatedGroupData[GroupFields.MEMBER_PROFILES] || [],
-        created_at: updatedGroupData[GroupFields.CREATED_AT] || ""
+        created_at: updatedGroupData[GroupFields.CREATED_AT] ? formatTimestamp(updatedGroupData[GroupFields.CREATED_AT]) : ""
     };
 
     res.json(response);

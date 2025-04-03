@@ -129,10 +129,10 @@ def run_invitation_demo():
     first_page = api.get_invitations(users[1]["email"], limit=2)
     logger.info(f"First page of invitations: {json.dumps(first_page, indent=2)}")
 
-    # Get second page using next_timestamp
-    if first_page.get("next_timestamp"):
+    # Get second page using next_cursor
+    if first_page.get("next_cursor"):
         second_page = api.get_invitations(
-            users[1]["email"], limit=2, after_timestamp=first_page["next_timestamp"]
+            users[1]["email"], limit=2, after_cursor=first_page["next_cursor"]
         )
         logger.info(f"Second page of invitations: {json.dumps(second_page, indent=2)}")
 

@@ -115,9 +115,6 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
         logger.info(`No user summary found for relationship ${friendshipId}`);
     }
 
-    // Format updated_at timestamp - Firestore Timestamp to ISO string
-    const updatedAt = targetUserProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(targetUserProfileData[ProfileFields.UPDATED_AT]) : "";
-
     // Return a FriendProfileResponse with the user's profile information and summary/suggestions if available
     const response: FriendProfileResponse = {
         user_id: targetUserId,
@@ -129,7 +126,7 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
         gender: targetUserProfileData[ProfileFields.GENDER] || "",
         summary,
         suggestions,
-        updated_at: updatedAt
+        updated_at: targetUserProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(targetUserProfileData[ProfileFields.UPDATED_AT]) : ""
     };
 
     res.json(response);

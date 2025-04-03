@@ -147,3 +147,14 @@ Firestore Schema
        ├── created_by: string (userId)
        ├── content: string
        └── created_at: timestamp
+
+10) user_feeds (collection)
+   └── {userId} (document)
+       └── feed (collection)
+           └── {feedItemId} (document)
+               ├── update_id: string        # Reference to the update
+               ├── created_at: timestamp    # For sorting
+               ├── direct_visible: boolean  # Whether visible through direct friendship
+               ├── friend_id: string        # ID of the friend who shared the update (if direct_visible is true)
+               ├── group_ids: array<string> # Array of group IDs this update is visible through
+               └── created_by: string       # ID of the user who created the update

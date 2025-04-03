@@ -14,7 +14,9 @@ export const Collections = {
   DEVICES: 'devices',
   COMMENTS: 'comments',
   REACTIONS: 'reactions',
-  FEEDBACK: 'feedback'
+  FEEDBACK: 'feedback',
+  USER_FEEDS: 'user_feeds',
+  FEED: 'feed'
 } as const;
 
 // Document names
@@ -129,7 +131,9 @@ export const QueryOperators = {
   ARRAY_CONTAINS: 'array-contains',
   ARRAY_CONTAINS_ANY: 'array-contains-any',
   IN: 'in',
-  EQUALS: '=='
+  EQUALS: '==',
+  DESC: 'desc',
+  ASC: 'asc'
 } as const;
 
 // Field names for UserSummary documents
@@ -157,4 +161,14 @@ export const ReactionFields = {
   CREATED_BY: "created_by",
   TYPE: "type",
   CREATED_AT: "created_at"
+} as const;
+
+// Field names for Feed documents
+export const FeedFields = {
+  UPDATE_ID: 'update_id',
+  CREATED_AT: 'created_at',
+  DIRECT_VISIBLE: 'direct_visible',
+  FRIEND_ID: 'friend_id',
+  GROUP_IDS: 'group_ids',
+  CREATED_BY: 'created_by'
 } as const; 

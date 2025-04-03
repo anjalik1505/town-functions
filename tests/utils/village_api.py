@@ -157,19 +157,17 @@ class VillageAPI:
 
     # Friend Methods
     def get_friends(
-        self, email: str, limit: int = 10, after_timestamp: Optional[str] = None
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get user's friends"""
         logger.info(f"Getting friends for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        encoded_limit = urllib.parse.quote(str(limit))
-        url = f"{API_BASE_URL}/me/friends?limit={encoded_limit}"
-        if after_timestamp:
+        url = f"{API_BASE_URL}/me/friends?limit={limit}"
+        if after_cursor:
             # Ensure timestamp is properly URL encoded
-            encoded_timestamp = urllib.parse.quote(after_timestamp)
-            url += f"&after_timestamp={encoded_timestamp}"
+            url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
@@ -182,19 +180,17 @@ class VillageAPI:
 
     # Feed and Update Methods
     def get_my_feed(
-        self, email: str, limit: int = 10, after_timestamp: Optional[str] = None
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get the user's feed (updates from friends and groups)"""
         logger.info(f"Getting feeds for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        encoded_limit = urllib.parse.quote(str(limit))
-        url = f"{API_BASE_URL}/me/feed?limit={encoded_limit}"
-        if after_timestamp:
+        url = f"{API_BASE_URL}/me/feed?limit={limit}"
+        if after_cursor:
             # Ensure timestamp is properly URL encoded
-            encoded_timestamp = urllib.parse.quote(after_timestamp)
-            url += f"&after_timestamp={encoded_timestamp}"
+            url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
@@ -206,19 +202,17 @@ class VillageAPI:
         return response.json()
 
     def get_my_updates(
-        self, email: str, limit: int = 10, after_timestamp: Optional[str] = None
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get updates created by the current user"""
         logger.info(f"Getting updates for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        encoded_limit = urllib.parse.quote(str(limit))
-        url = f"{API_BASE_URL}/me/updates?limit={encoded_limit}"
-        if after_timestamp:
+        url = f"{API_BASE_URL}/me/updates?limit={limit}"
+        if after_cursor:
             # Ensure timestamp is properly URL encoded
-            encoded_timestamp = urllib.parse.quote(after_timestamp)
-            url += f"&after_timestamp={encoded_timestamp}"
+            url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
@@ -269,19 +263,17 @@ class VillageAPI:
         email: str,
         target_user_id: str,
         limit: int = 10,
-        after_timestamp: Optional[str] = None,
+        after_cursor: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get updates created by another user"""
         logger.info(f"User {email} getting updates for user ID: {target_user_id}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        encoded_limit = urllib.parse.quote(str(limit))
-        url = f"{API_BASE_URL}/users/{target_user_id}/updates?limit={encoded_limit}"
-        if after_timestamp:
+        url = f"{API_BASE_URL}/users/{target_user_id}/updates?limit={limit}"
+        if after_cursor:
             # Ensure timestamp is properly URL encoded
-            encoded_timestamp = urllib.parse.quote(after_timestamp)
-            url += f"&after_timestamp={encoded_timestamp}"
+            url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
@@ -354,19 +346,17 @@ class VillageAPI:
         return data
 
     def get_invitations(
-        self, email: str, limit: int = 10, after_timestamp: Optional[str] = None
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get user's invitations"""
         logger.info(f"Getting invitations for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        encoded_limit = urllib.parse.quote(str(limit))
-        url = f"{API_BASE_URL}/invitations?limit={encoded_limit}"
-        if after_timestamp:
+        url = f"{API_BASE_URL}/invitations?limit={limit}"
+        if after_cursor:
             # Ensure timestamp is properly URL encoded
-            encoded_timestamp = urllib.parse.quote(after_timestamp)
-            url += f"&after_timestamp={encoded_timestamp}"
+            url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
@@ -460,18 +450,16 @@ class VillageAPI:
         email: str,
         update_id: str,
         limit: int = 10,
-        after_timestamp: Optional[str] = None,
+        after_cursor: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get comments for an update"""
         logger.info(f"Getting comments for update {update_id}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        encoded_limit = urllib.parse.quote(str(limit))
-        url = f"{API_BASE_URL}/updates/{update_id}/comments?limit={encoded_limit}"
-        if after_timestamp:
-            encoded_timestamp = urllib.parse.quote(after_timestamp)
-            url += f"&after_timestamp={encoded_timestamp}"
+        url = f"{API_BASE_URL}/updates/{update_id}/comments?limit={limit}"
+        if after_cursor:
+            url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)

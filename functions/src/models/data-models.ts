@@ -63,12 +63,20 @@ export interface EnrichedUpdate extends Update {
 
 export interface UpdatesResponse {
   updates: Update[];
-  next_timestamp: string | null;
+  next_cursor: string | null;
+}
+
+export interface FeedItem {
+  update_id: string;
+  created_at: string;
+  direct_visible: boolean;
+  friend_id: string;
+  group_ids: string[];
 }
 
 export interface FeedResponse {
   updates: EnrichedUpdate[];
-  next_timestamp: string | null;
+  next_cursor: string | null;
 }
 
 export interface Invitation {
@@ -92,12 +100,12 @@ export interface Friend {
 
 export interface FriendsResponse {
   friends: Friend[];
-  next_timestamp: string | null;
+  next_cursor: string | null;
 }
 
 export interface InvitationsResponse {
   invitations: Invitation[];
-  next_timestamp: string | null;
+  next_cursor: string | null;
 }
 
 export interface Device {
@@ -136,7 +144,7 @@ export interface ChatMessage {
 
 export interface ChatResponse {
   messages: ChatMessage[];
-  next_timestamp?: string | null;
+  next_cursor: string | null;
 }
 
 // Define types for AI generation results
@@ -177,7 +185,7 @@ export interface Comment {
 
 export interface CommentsResponse {
   comments: Comment[];
-  next_timestamp: string | null;
+  next_cursor: string | null;
 }
 
 export interface Feedback {

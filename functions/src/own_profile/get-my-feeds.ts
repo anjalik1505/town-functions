@@ -1,38 +1,36 @@
-import { Request, Response } from "express";
-import { FieldPath, getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
-import { Collections, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
-import { EnrichedUpdate, FeedResponse, ReactionGroup, Update } from "../models/data-models";
+import { NextFunction, Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, FeedFields, QueryOperators } from "../models/constants";
+import { EnrichedUpdate, FeedResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { enrichWithProfile, fetchUsersProfiles } from "../utils/profile-utils";
+import { fetchUpdatesReactions } from "../utils/reaction-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
-import {
-    createFriendVisibilityIdentifier,
-    createGroupVisibilityIdentifiers
-} from "../utils/visibility-utils";
 
 const logger = getLogger(__filename);
 
 /**
- * Aggregates feed of all updates from the user's friends and all groups the current user is in, paginated.
+ * Retrieves the user's feed of updates, paginated using cursor-based pagination.
  * 
- * This function retrieves:
- * 1. Updates from all friends of the authenticated user
- * 2. Updates from all groups that the authenticated user is a member of
- * 
- * The updates are returned in descending order by creation time (newest first) and
- * support pagination for efficient data loading.
+ * This function:
+ * 1. Queries the user's feed collection directly
+ * 2. Uses cursor-based pagination for efficient data loading
+ * 3. Fetches the full update content for each feed item
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
- *                - after_timestamp: Timestamp for pagination in ISO format
+ *                - after_cursor: Cursor for pagination (Base64 encoded document reference)
  * @param res - The Express response object
+ * @param next - The Express next function for error handling
  * 
  * @returns A FeedResponse containing:
- * - A list of updates from all friends and all groups the user is in
- * - A next_timestamp for pagination (if more results are available)
+ * - A list of enriched updates from the user's feed
+ * - A next_cursor for pagination (if more results are available)
  */
-export const getFeeds = async (req: Request, res: Response): Promise<void> => {
+export const getFeeds = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving feed for user: ${currentUserId}`);
 
@@ -41,239 +39,113 @@ export const getFeeds = async (req: Request, res: Response): Promise<void> => {
     // Get pagination parameters from the validated request
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
-    const afterTimestamp = validatedParams?.after_timestamp;
+    const afterCursor = validatedParams?.after_cursor;
 
     logger.info(
-        `Pagination parameters - limit: ${limit}, after_timestamp: ${afterTimestamp}`
+        `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
     );
 
-    // Get the user's profile
+    // Get the user's profile first to verify existence
     const userRef = db.collection(Collections.PROFILES).doc(currentUserId);
     const userDoc = await userRef.get();
 
     // Return empty response if user profile doesn't exist
     if (!userDoc.exists) {
         logger.warn(`User profile not found for user: ${currentUserId}`);
-        res.json({ updates: [], next_timestamp: null });
+        res.json({ updates: [], next_cursor: null });
     }
 
-    // Extract group IDs from the user's profile
-    const userData = userDoc.data() || {};
-    const groupIds = userData[ProfileFields.GROUP_IDS] || [];
+    // Initialize the feed query
+    let feedQuery = db
+        .collection(Collections.USER_FEEDS)
+        .doc(currentUserId)
+        .collection(Collections.FEED)
+        .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
 
-    // Prepare visibility identifiers
-    // Direct visibility as a friend
-    const friendVisibility = createFriendVisibilityIdentifier(currentUserId);
+    // Apply cursor-based pagination
+    let paginatedQuery;
+    try {
+        paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
+    } catch (err) {
+        next(err);
+        return; // Return after error to prevent further execution
+    }
 
-    // Group visibility for all groups the user is in
-    const groupVisibilities = createGroupVisibilityIdentifiers(groupIds);
+    // Process feed items using streaming
+    const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
-    // Combine all visibility identifiers
-    const allVisibilities = [friendVisibility, ...groupVisibilities];
+    if (feedDocs.length === 0) {
+        logger.info(`No feed items found for user ${currentUserId}`);
+        res.json({ updates: [], next_cursor: null });
+    }
 
-    logger.info(
-        `User ${currentUserId} has visibility to ${allVisibilities.length} audiences (1 friend + ${groupIds.length} groups)`
+    // Get all update IDs from feed items
+    const updateIds = feedDocs.map(doc => doc.data()[FeedFields.UPDATE_ID]);
+
+    // Fetch all updates in parallel
+    const updatePromises = updateIds.map(updateId =>
+        db.collection(Collections.UPDATES).doc(updateId).get()
+    );
+    const updateSnapshots = await Promise.all(updatePromises);
+
+    // Create a map of update data for easy lookup
+    const updateMap = new Map(
+        updateSnapshots
+            .filter(doc => doc.exists)
+            .map(doc => [doc.id, doc.data()])
     );
 
-    // Return empty response if user has no visibility (should not happen with friend visibility)
-    if (!allVisibilities.length) {
-        logger.info(`User ${currentUserId} has no visibility to any updates`);
-        res.json({ updates: [], next_timestamp: null });
-    }
+    // Get unique user IDs from the updates
+    const uniqueUserIds = Array.from(new Set(
+        updateSnapshots
+            .filter(doc => doc.exists)
+            .map(doc => doc.data()?.[FeedFields.CREATED_BY])
+            .filter(Boolean)
+    ));
 
-    // Initialize results tracking
-    const processedUpdateIds = new Set<string>(); // Track processed update IDs to avoid duplicates
-    const allBatchUpdates: Update[] = []; // Collect all updates from all batches
+    // Fetch all user profiles in parallel
+    const profiles = await fetchUsersProfiles(uniqueUserIds);
 
-    // Firestore has a limit of 10 values for array-contains-any
-    // Split visibility identifiers into batches of 10 if needed
-    const MAX_ARRAY_CONTAINS = 10;
-    const visibilityBatches = [];
-    for (let i = 0; i < allVisibilities.length; i += MAX_ARRAY_CONTAINS) {
-        visibilityBatches.push(allVisibilities.slice(i, i + MAX_ARRAY_CONTAINS));
-    }
+    // Fetch reactions for all updates
+    const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
-    logger.info(
-        `Split ${allVisibilities.length} visibility identifiers into ${visibilityBatches.length} batches for querying`
-    );
+    // Process feed items and create enriched updates
+    const enrichedUpdates: EnrichedUpdate[] = feedDocs
+        .map(feedItem => {
+            const feedData = feedItem.data();
+            const updateId = feedData[FeedFields.UPDATE_ID];
+            const updateData = updateMap.get(updateId);
+            const createdBy = feedData[FeedFields.CREATED_BY];
 
-    // Process all visibility batches to get updates
-    for (const visibilityBatch of visibilityBatches) {
-        // Query for updates visible to any identifier in this batch
-        let visibilityQuery = db.collection(Collections.UPDATES)
-            .where(UpdateFields.VISIBLE_TO, QueryOperators.ARRAY_CONTAINS_ANY as WhereFilterOp, visibilityBatch)
-            .orderBy(UpdateFields.CREATED_AT, "desc");
-
-        // Apply pagination
-        if (afterTimestamp) {
-            visibilityQuery = visibilityQuery.startAfter({ [UpdateFields.CREATED_AT]: afterTimestamp });
-        }
-
-        // Process updates as they stream in
-        for await (const doc of visibilityQuery.limit(limit).stream()) {
-            const updateDoc = doc as unknown as QueryDocumentSnapshot;
-
-            // Skip if we've already processed this update
-            if (processedUpdateIds.has(updateDoc.id)) {
-                continue;
+            if (!updateData) {
+                logger.warn(`Missing update data for feed item ${feedItem.id}`);
+                return null;
             }
 
-            processedUpdateIds.add(updateDoc.id);
-            const docData = updateDoc.data();
-            const createdAt = docData[UpdateFields.CREATED_AT] as Timestamp;
-            const createdBy = docData[UpdateFields.CREATED_BY] || "";
-
-            // Convert Firestore datetime to ISO format string
-            const createdAtIso = createdAt ? formatTimestamp(createdAt) : "";
-
-            // Convert Firestore document to Update model
-            const update: Update = {
-                update_id: updateDoc.id,
+            const update: EnrichedUpdate = {
+                update_id: updateId,
                 created_by: createdBy,
-                content: docData[UpdateFields.CONTENT] || "",
-                group_ids: docData[UpdateFields.GROUP_IDS] || [],
-                friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
-                sentiment: docData[UpdateFields.SENTIMENT] || "",
-                created_at: createdAtIso,
-                comment_count: docData.comment_count || 0,
-                reaction_count: docData.reaction_count || 0,
-                reactions: [] // Will be populated later
+                content: updateData.content || "",
+                group_ids: updateData.group_ids || [],
+                friend_ids: updateData.friend_ids || [],
+                sentiment: updateData.sentiment || "",
+                created_at: formatTimestamp(updateData.created_at),
+                comment_count: updateData.comment_count || 0,
+                reaction_count: updateData.reaction_count || 0,
+                reactions: updateReactionsMap.get(updateId) || [],
+                username: "",  // Will be populated by enrichWithProfile
+                name: "",     // Will be populated by enrichWithProfile
+                avatar: ""    // Will be populated by enrichWithProfile
             };
 
-            allBatchUpdates.push(update);
-        }
-    }
+            return enrichWithProfile(update, profiles.get(createdBy) || null);
+        })
+        .filter((update): update is EnrichedUpdate => update !== null);
 
-    // If we have updates, sort them by created_at
-    if (allBatchUpdates.length) {
-        // Sort all updates by created_at (newest first)
-        allBatchUpdates.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    // Set up pagination for the next request
+    const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
 
-        // Take only up to the limit
-        const sortedUpdates = allBatchUpdates.slice(0, limit);
-
-        // Get unique user IDs from the updates
-        const uniqueUserIds = Array.from(new Set(sortedUpdates.map(update => update.created_by)));
-
-        // Create batches of user IDs (max 10 per batch)
-        const userIdBatches = [];
-        for (let i = 0; i < uniqueUserIds.length; i += MAX_ARRAY_CONTAINS) {
-            userIdBatches.push(uniqueUserIds.slice(i, i + MAX_ARRAY_CONTAINS));
-        }
-
-        logger.info(
-            `Split ${uniqueUserIds.length} unique user IDs into ${userIdBatches.length} batches for profile lookup`
-        );
-
-        // Get all profiles in batches
-        const userProfilesMap = new Map();
-        let missingProfiles: string[] = [];
-
-        for (const batch of userIdBatches) {
-            try {
-                const userProfilesSnapshot = await db.collection(Collections.PROFILES)
-                    .where(FieldPath.documentId(), QueryOperators.IN, batch)
-                    .get();
-
-                // Add profiles to map
-                userProfilesSnapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    if (!data) {
-                        missingProfiles.push(doc.id);
-                        return;
-                    }
-                    userProfilesMap.set(doc.id, data);
-                });
-
-                // Check for missing profiles in this batch
-                const foundIds = new Set(userProfilesSnapshot.docs.map(doc => doc.id));
-                batch.forEach(id => {
-                    if (!foundIds.has(id)) {
-                        missingProfiles.push(id);
-                    }
-                });
-            } catch (error) {
-                logger.error(`Error fetching profiles for batch: ${error}`);
-                // Continue with other batches even if one fails
-            }
-        }
-
-        // Log any missing profiles
-        if (missingProfiles.length > 0) {
-            logger.warn(`Missing profiles for users: ${missingProfiles.join(', ')}`);
-        }
-
-        // Fetch reaction groups for all updates
-        const updateReactionsMap = new Map<string, ReactionGroup[]>();
-        for (const update of sortedUpdates) {
-            try {
-                const reactionsSnapshot = await db.collection(Collections.UPDATES)
-                    .doc(update.update_id)
-                    .collection(Collections.REACTIONS)
-                    .get();
-
-                const reactions: ReactionGroup[] = [];
-                const reactionsByType = new Map<string, { count: number; id: string }>();
-
-                reactionsSnapshot.docs.forEach(doc => {
-                    const reactionData = doc.data();
-                    const type = reactionData.type;
-                    const current = reactionsByType.get(type) || { count: 0, id: doc.id };
-                    reactionsByType.set(type, { count: current.count + 1, id: doc.id });
-                });
-
-                reactionsByType.forEach((data, type) => {
-                    reactions.push({ type, count: data.count, reaction_id: data.id });
-                });
-
-                updateReactionsMap.set(update.update_id, reactions);
-            } catch (error) {
-                logger.error(`Error fetching reactions for update ${update.update_id}: ${error}`);
-                updateReactionsMap.set(update.update_id, []);
-            }
-        }
-
-        // Add reactions to updates
-        sortedUpdates.forEach(update => {
-            update.reactions = updateReactionsMap.get(update.update_id) || [];
-        });
-
-        // Enrich updates with profile data
-        const enrichedUpdates: EnrichedUpdate[] = sortedUpdates.map(update => {
-            const profile = userProfilesMap.get(update.created_by);
-            if (!profile) {
-                logger.warn(`Missing profile data for update ${update.update_id} created by ${update.created_by}`);
-                return {
-                    ...update,
-                    username: "Unknown",
-                    name: "Unknown User",
-                    avatar: ""
-                };
-            }
-
-            return {
-                ...update,
-                username: profile.username,
-                name: profile.name || profile.username,
-                avatar: profile.avatar || ""
-            };
-        });
-
-        // Set up pagination for the next request
-        let nextTimestamp: string | null = null;
-        if (enrichedUpdates.length === limit) {
-            const lastUpdate = enrichedUpdates[enrichedUpdates.length - 1];
-            nextTimestamp = lastUpdate.created_at;
-            logger.info(`More results available, next_timestamp: ${nextTimestamp}`);
-        }
-
-        logger.info(`Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`);
-        const response: FeedResponse = { updates: enrichedUpdates, next_timestamp: nextTimestamp };
-        res.json(response);
-    } else {
-        // No updates found
-        logger.info(`No updates found for user ${currentUserId}`);
-        const response: FeedResponse = { updates: [], next_timestamp: null };
-        res.json(response);
-    }
+    logger.info(`Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`);
+    const response: FeedResponse = { updates: enrichedUpdates, next_cursor: nextCursor };
+    res.json(response);
 }; 

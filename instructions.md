@@ -296,9 +296,9 @@
 - **Pagination**
   - For paginated queries, use the `startAfter` method:
     ```typescript
-    // Apply pagination if an after_timestamp is provided
-    if (after_timestamp) {
-        query = query.startAfter({ [UpdateFields.CREATED_AT]: after_timestamp });
+    // Apply pagination if an after_cursor is provided
+    if (after_cursor) {
+        query = query.startAfter({ [UpdateFields.CREATED_AT]: after_cursor });
     }
     
     // Track the last timestamp for next page
@@ -314,7 +314,7 @@
     }
     
     // Set up pagination for the next request
-    const next_timestamp = last_timestamp && results.docs.length === limit
+    const next_cursor = last_timestamp && results.docs.length === limit
         ? last_timestamp
         : null;
     ```
@@ -371,7 +371,7 @@
   - Use `formatTimestamp` for pagination tokens:
     ```typescript
     // When setting up pagination
-    const next_timestamp = last_timestamp && updates.length === limit
+    const next_cursor = last_timestamp && updates.length === limit
         ? formatTimestamp(last_timestamp)
         : null;
     ```
@@ -387,7 +387,7 @@
     
     export const paginationSchema = z.object({
         limit: z.number().min(1).max(100).default(20),
-        after_timestamp: z.string().optional()
+        after_cursor: z.string().optional()
     });
     
     export const addFriendSchema = z.object({
@@ -610,7 +610,7 @@
     - Always include user IDs in log messages for easier troubleshooting
     - For pagination, include pagination parameters:
       ```typescript
-      logger.info(`Pagination parameters - limit: ${limit}, after_timestamp: ${after_timestamp}`);
+      logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${after_cursor}`);
       ```
     - Include operation outcomes:
       ```typescript
@@ -696,10 +696,10 @@
       // Get pagination parameters from the validated request
       const validated_params = req.validated_params;
       const limit = validated_params?.limit ?? 20;
-      const after_timestamp = validated_params?.after_timestamp;
+      const after_cursor = validated_params?.after_cursor;
       
       // Log pagination parameters
-      logger.info(`Pagination parameters - limit: ${limit}, after_timestamp: ${after_timestamp}`);
+      logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${after_cursor}`);
       
       // Build base query
       const query = db.collection(Collections.UPDATES)
@@ -707,9 +707,9 @@
           .orderBy(UpdateFields.CREATED_AT, "desc")
           .limit(limit);
       
-      // Apply pagination if an after_timestamp is provided
-      if (after_timestamp) {
-          query = query.startAfter({ [UpdateFields.CREATED_AT]: after_timestamp });
+      // Apply pagination if an after_cursor is provided
+      if (after_cursor) {
+          query = query.startAfter({ [UpdateFields.CREATED_AT]: after_cursor });
       }
       
       // Execute query and process results
@@ -729,7 +729,7 @@
       }
       
       // Set up pagination for the next request
-      const next_timestamp = last_timestamp && updates.length === limit
+      const next_cursor = last_timestamp && updates.length === limit
           ? last_timestamp
           : null;
       
@@ -738,7 +738,7 @@
       // Return response with pagination token
       return res.json({
           updates,
-          next_timestamp
+          next_cursor
       });
       ```
 
