@@ -148,6 +148,7 @@ export const UserSummaryFields = {
   UPDATE_COUNT: 'update_count'
 } as const;
 
+// Field names for Comment documents
 export const CommentFields = {
   ID: "id",
   CREATED_BY: "created_by",
@@ -157,6 +158,7 @@ export const CommentFields = {
   PARENT_ID: "parent_id"
 } as const;
 
+// Field names for Reaction documents
 export const ReactionFields = {
   CREATED_BY: "created_by",
   TYPE: "type",
@@ -171,4 +173,10 @@ export const FeedFields = {
   FRIEND_ID: 'friend_id',
   GROUP_IDS: 'group_ids',
   CREATED_BY: 'created_by'
-} as const; 
+} as const;
+
+// Options for notification settings
+export const NotificationFields = {
+  ALL: 'all',
+  URGENT: 'urgent'
+} as const;
