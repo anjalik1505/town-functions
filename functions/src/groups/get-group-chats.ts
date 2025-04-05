@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { ChatFields, Collections, GroupFields, QueryOperators } from "../models/constants";
 import { ChatMessage, ChatResponse } from "../models/data-models";
@@ -20,7 +20,6 @@ const logger = getLogger(__filename);
  *                - limit: Maximum number of messages to return
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * @param groupId - The ID of the group to retrieve chat messages for
  * 
  * Query Parameters:
@@ -35,7 +34,7 @@ const logger = getLogger(__filename);
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupChats = async (req: Request, res: Response, next: NextFunction, groupId: string): Promise<void> => {
+export const getGroupChats = async (req: Request, res: Response, groupId: string): Promise<void> => {
     logger.info(`Retrieving chat messages for group: ${groupId}`);
 
     // Get the authenticated user ID from the request

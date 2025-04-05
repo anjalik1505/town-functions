@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FeedFields, QueryOperators } from "../models/constants";
 import { EnrichedUpdate, FeedResponse } from "../models/data-models";
@@ -24,13 +24,12 @@ const logger = getLogger(__filename);
  *                - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (Base64 encoded document reference)
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * 
  * @returns A FeedResponse containing:
  * - A list of enriched updates from the user's feed
  * - A next_cursor for pagination (if more results are available)
  */
-export const getFeeds = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getFeeds = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving feed for user: ${currentUserId}`);
 

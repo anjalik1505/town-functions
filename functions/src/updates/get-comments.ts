@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, CommentFields, QueryOperators, UpdateFields } from "../models/constants";
 import { Comment, CommentsResponse } from "../models/data-models";
@@ -27,7 +27,6 @@ const logger = getLogger(__filename);
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update to get comments for
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * 
  * @returns 200 OK with CommentsResponse containing:
  * - A list of comments with profile data
@@ -37,7 +36,7 @@ const logger = getLogger(__filename);
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const getComments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getComments = async (req: Request, res: Response): Promise<void> => {
     const updateId = req.params.update_id;
     const currentUserId = req.userId;
     logger.info(`Retrieving comments for update: ${updateId}`);

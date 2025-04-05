@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FeedFields, QueryOperators } from "../models/constants";
 import { Update, UpdatesResponse } from "../models/data-models";
@@ -19,13 +19,12 @@ const logger = getLogger(__filename);
  *                - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * 
  * @returns An UpdatesResponse containing:
  * - A list of updates belonging to the current user
  * - A next_cursor for pagination (if more results are available)
  */
-export const getUpdates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getUpdates = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving updates for user: ${currentUserId}`);
 

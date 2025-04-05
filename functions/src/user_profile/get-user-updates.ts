@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { Update, UpdatesResponse } from "../models/data-models";
@@ -22,7 +22,6 @@ const logger = getLogger(__filename);
  *              - params: Route parameters containing:
  *                - target_user_id: The ID of the user whose updates are being requested
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * 
  * @returns An UpdatesResponse containing:
  * - A list of updates created by the specified user
@@ -32,7 +31,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getUserUpdates = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
