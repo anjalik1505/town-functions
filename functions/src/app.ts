@@ -32,6 +32,7 @@ import { getComments } from "./updates/get-comments";
 import { updateComment } from "./updates/update-comment";
 import { getUserProfile } from "./user_profile/get-user-profile";
 import { getUserUpdates } from "./user_profile/get-user-updates";
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "./utils/errors";
 
 // Initialize Firebase Admin
 initializeApp();
@@ -58,12 +59,7 @@ const authenticate_request: RequestHandler = async (req, res, next) => {
     try {
         const auth_header = req.headers.authorization;
         if (!auth_header) {
-            res.status(401).json({
-                code: 401,
-                name: "Unauthorized",
-                description: "Authentication required: valid Firebase ID token needed"
-            });
-            return;
+            throw new UnauthorizedError("Authentication required: valid Firebase ID token needed");
         }
 
         const token = auth_header.startsWith("Bearer ")
@@ -74,169 +70,120 @@ const authenticate_request: RequestHandler = async (req, res, next) => {
         const user_id = decoded_token.uid;
 
         if (!user_id) {
-            res.status(401).json({
-                code: 401,
-                name: "Unauthorized",
-                description: "Invalid token: no user ID found"
-            });
-            return;
+            throw new UnauthorizedError("Invalid token: no user ID found");
         }
 
         // Attach userId to request
         req.userId = user_id;
         next();
     } catch (error: unknown) {
-        const error_message = error instanceof Error ? error.message : "Unknown error";
-        res.status(401).json({
-            code: 401,
-            name: "Unauthorized",
-            description: `Authentication failed: ${error_message}`
-        });
+        next(error);
     }
 };
 
 // Apply authentication to all routes
 app.use(authenticate_request);
 
-// Error handling middleware
-const handle_errors = (validate_request: boolean = false): RequestHandler => {
-    return (req, res, next) => {
-        try {
-            next();
-        } catch (error: unknown) {
-            if (error instanceof ZodError) {
-                if (validate_request) {
-                    res.status(400).json({
-                        code: 400,
-                        name: "Bad Request",
-                        description: "Invalid request parameters"
-                    });
-                    return;
-                }
-                throw error;
-            }
-
-            const error_message = error instanceof Error ? error.message : "Unknown error";
-            console.error(`Error in ${req.path}: ${error_message}`);
-
-            if (error && typeof error === 'object' && 'status' in error && typeof (error as any).status === 'number') {
-                res.status((error as any).status).json({
-                    code: (error as any).status,
-                    name: (error as any).name || "Error",
-                    description: error_message
-                });
-                return;
-            }
-
-            res.status(500).json({
-                code: 500,
-                name: "Internal Server Error",
-                description: "An unexpected error occurred"
-            });
-        }
-    };
-};
-
-// Routes with error handling
-app.get("/me/profile", handle_errors(false), async (req, res) => {
+// Routes - leveraging Express 5+'s automatic error handling for async handlers
+app.get("/me/profile", async (req, res) => {
     await getProfile(req, res);
 });
 
-app.get("/me/question", handle_errors(false), async (req, res) => {
+app.get("/me/question", async (req, res) => {
     await getQuestion(req, res);
 });
 
-app.post("/me/profile", handle_errors(true), validateRequest(createProfileSchema), async (req, res) => {
+app.post("/me/profile", validateRequest(createProfileSchema), async (req, res) => {
     await createProfile(req, res);
 });
 
-app.put("/me/profile", handle_errors(true), validateRequest(updateProfileSchema), async (req, res) => {
+app.put("/me/profile", validateRequest(updateProfileSchema), async (req, res) => {
     await updateProfile(req, res);
 });
 
-app.get("/me/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res, next) => {
     await getUpdates(req, res, next);
 });
 
-app.get("/me/feed", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+app.get("/me/feed", validateQueryParams(paginationSchema), async (req, res, next) => {
     await getFeeds(req, res, next);
 });
 
-app.get("/me/friends", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res, next) => {
     await getMyFriends(req, res, next);
 });
 
 // User profile routes
-app.get("/users/:target_user_id/profile", handle_errors(false), async (req, res) => {
+app.get("/users/:target_user_id/profile", async (req, res) => {
     await getUserProfile(req, res);
 });
 
-app.get("/users/:target_user_id/updates", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema), async (req, res, next) => {
     await getUserUpdates(req, res, next);
 });
 
 // Invitation routes
-app.get("/invitations", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+app.get("/invitations", validateQueryParams(paginationSchema), async (req, res, next) => {
     await getInvitations(req, res, next);
 });
 
-app.get("/invitations/:invitation_id", handle_errors(false), async (req, res) => {
+app.get("/invitations/:invitation_id", async (req, res) => {
     await getInvitation(req, res);
 });
 
-app.post("/invitations", handle_errors(true), validateRequest(createInvitationSchema), async (req, res) => {
+app.post("/invitations", validateRequest(createInvitationSchema), async (req, res) => {
     await createInvitation(req, res);
 });
 
-app.post("/invitations/:invitation_id/accept", handle_errors(false), async (req, res) => {
+app.post("/invitations/:invitation_id/accept", async (req, res) => {
     await acceptInvitation(req, res);
 });
 
-app.post("/invitations/:invitation_id/reject", handle_errors(false), async (req, res) => {
+app.post("/invitations/:invitation_id/reject", async (req, res) => {
     await rejectInvitation(req, res);
 });
 
-app.post("/invitations/:invitation_id/resend", handle_errors(false), async (req, res) => {
+app.post("/invitations/:invitation_id/resend", async (req, res) => {
     await resendInvitation(req, res);
 });
 
 // Device routes
-app.get("/device", handle_errors(false), async (req, res) => {
+app.get("/device", async (req, res) => {
     await getDevice(req, res);
 });
 
-app.put("/device", handle_errors(true), validateRequest(deviceSchema), async (req, res) => {
+app.put("/device", validateRequest(deviceSchema), async (req, res) => {
     await updateDevice(req, res);
 });
 
 // Update routes
-app.post("/updates", handle_errors(true), validateRequest(createUpdateSchema), async (req, res) => {
+app.post("/updates", validateRequest(createUpdateSchema), async (req, res) => {
     await createUpdate(req, res);
 });
 
 // Comment routes
-app.get("/updates/:update_id/comments", handle_errors(true), validateQueryParams(paginationSchema), async (req, res, next) => {
+app.get("/updates/:update_id/comments", validateQueryParams(paginationSchema), async (req, res, next) => {
     await getComments(req, res, next);
 });
 
-app.post("/updates/:update_id/comments", handle_errors(true), validateRequest(createCommentSchema), async (req, res) => {
+app.post("/updates/:update_id/comments", validateRequest(createCommentSchema), async (req, res) => {
     await createComment(req, res);
 });
 
-app.put("/updates/:update_id/comments/:comment_id", handle_errors(true), validateRequest(updateCommentSchema), async (req, res) => {
+app.put("/updates/:update_id/comments/:comment_id", validateRequest(updateCommentSchema), async (req, res) => {
     await updateComment(req, res);
 });
 
-app.delete("/updates/:update_id/comments/:comment_id", handle_errors(false), async (req, res) => {
+app.delete("/updates/:update_id/comments/:comment_id", async (req, res) => {
     await deleteComment(req, res);
 });
 
 // Reaction routes
-app.post("/updates/:update_id/reactions", handle_errors(true), validateRequest(createReactionSchema), async (req, res) => {
+app.post("/updates/:update_id/reactions", validateRequest(createReactionSchema), async (req, res) => {
     await createReaction(req, res);
 });
 
-app.delete("/updates/:update_id/reactions/:reaction_id", handle_errors(false), async (req, res) => {
+app.delete("/updates/:update_id/reactions/:reaction_id", async (req, res) => {
     await deleteReaction(req, res);
 });
 
@@ -270,17 +217,17 @@ app.delete("/updates/:update_id/reactions/:reaction_id", handle_errors(false), a
 // });
 
 // Test prompt endpoint
-app.post("/test/prompt", handle_errors(true), validateRequest(testPromptSchema), async (req, res) => {
+app.post("/test/prompt", validateRequest(testPromptSchema), async (req, res) => {
     await testPrompt(req, res);
 });
 
 // Test notification endpoint
-app.post("/test/notification", handle_errors(true), validateRequest(testNotificationSchema), async (req, res) => {
+app.post("/test/notification", validateRequest(testNotificationSchema), async (req, res) => {
     await testNotification(req, res);
 });
 
 // Feedback endpoint
-app.post("/feedback", handle_errors(true), validateRequest(createFeedbackSchema), async (req, res) => {
+app.post("/feedback", validateRequest(createFeedbackSchema), async (req, res) => {
     await createFeedback(req, res);
 });
 
@@ -295,14 +242,51 @@ app.use((req, res) => {
 
 // Global error handler
 const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
-    console.error(`Error in ${req.path}: ${err.message}`);
-    res.status(500).json({
-        code: 500,
-        name: "Internal Server Error",
-        description: "An unexpected error occurred"
+    // Log the error with request context
+    console.error(`Error during ${req.method} ${req.path}:`, err);
+
+    let statusCode = 500;
+    let errorName = "Internal Server Error";
+    let errorDescription = "An unexpected error occurred.";
+
+    // Handle specific known errors
+    if (err instanceof ZodError) {
+        statusCode = 400;
+        errorName = "Bad Request";
+        errorDescription = "Invalid request parameters.";
+    } else if (err instanceof BadRequestError) {
+        statusCode = err.statusCode;
+        errorName = err.name;
+        errorDescription = err.message;
+    } else if (err instanceof UnauthorizedError) {
+        statusCode = err.statusCode;
+        errorName = err.name;
+        errorDescription = err.message;
+    } else if (err instanceof ForbiddenError) {
+        statusCode = err.statusCode;
+        errorName = err.name;
+        errorDescription = err.message;
+    } else if (err instanceof NotFoundError) {
+        statusCode = err.statusCode;
+        errorName = err.name;
+        errorDescription = err.message;
+    } else if (err && typeof err === 'object' && 'status' in err && typeof (err as any).status === 'number') {
+        // Handle generic errors that might have a status attached
+        statusCode = (err as any).status;
+        errorName = (err as any).name || "Error";
+        errorDescription = (err as any).message || "An error occurred.";
+    }
+    // For any other unknown error, we use the default 500 Internal Server Error
+
+    // Send standardized error response
+    res.status(statusCode).json({
+        code: statusCode,
+        name: errorName,
+        description: errorDescription,
     });
 };
 
+// Register the global error handler last
 app.use(global_error_handler);
 
 export { app };

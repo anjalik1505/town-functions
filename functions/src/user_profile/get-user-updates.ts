@@ -120,14 +120,8 @@ export const getUserUpdates = async (req: Request, res: Response, next: NextFunc
         .where(FeedFields.CREATED_BY, QueryOperators.EQUALS, targetUserId)
         .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
     // Process feed items using streaming
     const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);

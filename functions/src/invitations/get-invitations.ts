@@ -47,14 +47,8 @@ export const getInvitations = async (req: Request, res: Response, next: NextFunc
         .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, currentUserId)
         .orderBy(InvitationFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process invitations using streaming
     const { items: invitationDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);

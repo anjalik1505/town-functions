@@ -82,14 +82,8 @@ export const getComments = async (req: Request, res: Response, next: NextFunctio
     let query = updateRef.collection(Collections.COMMENTS)
         .orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process comments using streaming
     const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);

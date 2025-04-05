@@ -85,14 +85,8 @@ export const getGroupFeed = async (req: Request, res: Response, next: NextFuncti
         .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS, groupId)
         .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination and limit
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process updates using streaming
     const { items: updateDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);

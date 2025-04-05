@@ -8,14 +8,7 @@ export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler 
             req.validated_params = schema.parse(req.body) as z.infer<T>;
             next();
         } catch (error) {
-            if (error instanceof z.ZodError) {
-                res.status(400).json({
-                    code: 400,
-                    name: "Bad Request",
-                    description: "Invalid request parameters"
-                });
-                return;
-            }
+            // Pass the error to the next error handler instead of handling it here
             next(error);
         }
     };
@@ -28,14 +21,7 @@ export const validateQueryParams = <T extends z.ZodType>(schema: T): RequestHand
             req.validated_params = schema.parse(req.query) as z.infer<T>;
             next();
         } catch (error) {
-            if (error instanceof z.ZodError) {
-                res.status(400).json({
-                    code: 400,
-                    name: "Bad Request",
-                    description: "Invalid query parameters"
-                });
-                return;
-            }
+            // Pass the error to the next error handler instead of handling it here
             next(error);
         }
     };

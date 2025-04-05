@@ -86,14 +86,8 @@ export const getGroupChats = async (req: Request, res: Response, next: NextFunct
     let query = chatsRef
         .orderBy(ChatFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process chat messages using streaming
     const { items: chatDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
