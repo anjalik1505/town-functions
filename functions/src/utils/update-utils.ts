@@ -29,6 +29,8 @@ export const formatUpdate = (
         group_ids: updateData[UpdateFields.GROUP_IDS] || [],
         friend_ids: updateData[UpdateFields.FRIEND_IDS] || [],
         sentiment: updateData[UpdateFields.SENTIMENT] || "",
+        score: updateData[UpdateFields.SCORE] || "3",
+        emoji: updateData[UpdateFields.EMOJI] || "😐",
         created_at: formatTimestamp(updateData[UpdateFields.CREATED_AT]),
         comment_count: updateData.comment_count || 0,
         reaction_count: updateData.reaction_count || 0,

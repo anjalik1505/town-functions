@@ -88,6 +88,8 @@ export const UpdateFields = {
   GROUP_IDS: 'group_ids',
   FRIEND_IDS: 'friend_ids',
   SENTIMENT: 'sentiment',
+  SCORE: 'score',
+  EMOJI: 'emoji',
   CREATED_AT: 'created_at',
   VISIBLE_TO: 'visible_to',
   ID: 'id',
