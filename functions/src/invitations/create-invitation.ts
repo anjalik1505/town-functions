@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, ProfileFields, Status } from "../models/constants";
-import { Invitation } from "../models/data-models";
+import { BadRequestError, NotFoundError } from "../utils/errors";
 import { hasReachedCombinedLimit } from "../utils/friendship-utils";
+import { formatInvitation } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 
@@ -36,11 +36,7 @@ export const createInvitation = async (req: Request, res: Response): Promise<voi
     const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
     if (hasReachedLimit) {
         logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "You have reached the maximum number of friends and active invitations"
-        });
+        throw new BadRequestError("You have reached the maximum number of friends and active invitations");
     }
 
     // Initialize Firestore client
@@ -52,11 +48,7 @@ export const createInvitation = async (req: Request, res: Response): Promise<voi
 
     if (!currentUserProfileDoc.exists) {
         logger.warn(`Current user profile ${currentUserId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "User profile not found"
-        });
+        throw new NotFoundError("User profile not found");
     }
 
     const currentUserProfile = currentUserProfileDoc.data() || {};
@@ -90,17 +82,7 @@ export const createInvitation = async (req: Request, res: Response): Promise<voi
     logger.info(`Created invitation with ID ${invitationRef.id}`);
 
     // Return the invitation object
-    const invitation: Invitation = {
-        invitation_id: invitationRef.id,
-        created_at: formatTimestamp(currentTime),
-        expires_at: formatTimestamp(expiresAt),
-        sender_id: currentUserId,
-        status: Status.PENDING,
-        username: currentUserProfile[ProfileFields.USERNAME] || "",
-        name: currentUserProfile[ProfileFields.NAME] || "",
-        avatar: currentUserProfile[ProfileFields.AVATAR] || "",
-        receiver_name: validatedParams.receiver_name
-    };
+    const invitation = formatInvitation(invitationRef.id, invitationData);
 
     res.status(201).json(invitation);
 }; 

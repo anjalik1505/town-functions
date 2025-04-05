@@ -2,7 +2,9 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
 import { createFriendshipId, hasReachedCombinedLimit } from "../utils/friendship-utils";
+import { canActOnInvitation, getInvitationDoc, hasInvitationPermission, isInvitationExpired, updateInvitationStatus } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -46,81 +48,36 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     const db = getFirestore();
 
     // Get the invitation document
-    const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
-    const invitationDoc = await invitationRef.get();
-
-    // Check if the invitation exists
-    if (!invitationDoc.exists) {
-        logger.warn(`Invitation ${invitationId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Invitation not found"
-        });
-    }
-
-    const invitationData = invitationDoc.data() || {};
+    const { ref: invitationRef, data: invitationData } = await getInvitationDoc(invitationId);
 
     // Check invitation status
     const status = invitationData[InvitationFields.STATUS];
-    if (status !== Status.PENDING) {
-        logger.warn(`Invitation ${invitationId} has status ${status}, not pending`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: `Invitation cannot be accepted (status: ${status})`
-        });
-    }
+    canActOnInvitation(status, "accept");
 
     // Check if invitation has expired
-    const currentTime = Timestamp.now();
     const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
-    if (expiresAt && expiresAt.toDate() < currentTime.toDate()) {
+    if (isInvitationExpired(expiresAt)) {
         // Update invitation status to expired
-        await invitationRef.update({ [InvitationFields.STATUS]: Status.EXPIRED });
-        logger.warn(`Invitation ${invitationId} has expired`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "Invitation has expired"
-        });
+        await updateInvitationStatus(invitationRef, Status.EXPIRED);
+        throw new ForbiddenError("Invitation has expired");
     }
 
     // Get the sender's user ID
     const senderId = invitationData[InvitationFields.SENDER_ID];
 
     // Ensure the current user is not the sender (can't accept your own invitation)
-    if (senderId === currentUserId) {
-        logger.warn(
-            `User ${currentUserId} attempted to accept their own invitation ${invitationId}`
-        );
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "You cannot accept your own invitation"
-        });
-    }
+    hasInvitationPermission(senderId, currentUserId, "accept");
 
     // Check combined limit for the accepting user
     const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
     if (hasReachedLimit) {
-        logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "You have reached the maximum number of friends and active invitations"
-        });
+        throw new BadRequestError("You have reached the maximum number of friends and active invitations");
     }
 
     // Check combined limit for the sender (excluding this invitation)
     const hasReachedSenderLimit = await hasReachedCombinedLimit(senderId, invitationId);
     if (hasReachedSenderLimit) {
-        logger.warn(`Sender ${senderId} has reached the maximum number of friends and active invitations`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "Sender has reached the maximum number of friends and active invitations"
-        });
+        throw new BadRequestError("Sender has reached the maximum number of friends and active invitations");
     }
 
     // Get current user's profile
@@ -128,12 +85,7 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     const currentUserProfileDoc = await currentUserProfileRef.get();
 
     if (!currentUserProfileDoc.exists) {
-        logger.warn(`Current user profile ${currentUserId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "User profile not found"
-        });
+        throw new NotFoundError("User profile not found");
     }
 
     const currentUserProfile = currentUserProfileDoc.data() || {};
@@ -143,12 +95,7 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     const senderProfileDoc = await senderProfileRef.get();
 
     if (!senderProfileDoc.exists) {
-        logger.warn(`Sender profile ${senderId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Sender profile not found"
-        });
+        throw new NotFoundError("Sender profile not found");
     }
 
     const senderProfile = senderProfileDoc.data() || {};
@@ -168,9 +115,7 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
         const friendshipStatus = friendshipData[FriendshipFields.STATUS];
 
         if (friendshipStatus === Status.ACCEPTED) {
-            logger.warn(
-                `Users ${currentUserId} and ${senderId} are already friends`
-            );
+            logger.warn(`Users ${currentUserId} and ${senderId} are already friends`);
             // Delete the invitation since they're already friends
             batch.delete(invitationRef);
             await batch.commit();
@@ -202,6 +147,7 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     }
 
     // Create the friendship document using profile data directly
+    const currentTime = Timestamp.now();
     const friendshipData = {
         [FriendshipFields.SENDER_ID]: senderId,
         [FriendshipFields.SENDER_NAME]: senderProfile[ProfileFields.NAME] || "",
@@ -224,9 +170,7 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     // Commit the batch
     await batch.commit();
 
-    logger.info(
-        `User ${currentUserId} accepted invitation ${invitationId} from ${senderId}`
-    );
+    logger.info(`User ${currentUserId} accepted invitation ${invitationId} from ${senderId}`);
 
     // Return the friend object using sender's profile data
     const friend: Friend = {

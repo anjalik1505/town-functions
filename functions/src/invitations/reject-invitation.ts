@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, InvitationFields, Status } from "../models/constants";
-import { Invitation } from "../models/data-models";
+import { InvitationFields, Status } from "../models/constants";
+import { canActOnInvitation, formatInvitation, getInvitationDoc, hasInvitationPermission, updateInvitationStatus } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 
@@ -27,70 +25,27 @@ export const rejectInvitation = async (req: Request, res: Response): Promise<voi
     const invitationId = req.params.invitation_id;
     logger.info(`User ${currentUserId} rejecting invitation ${invitationId}`);
 
-    // Initialize Firestore client
-    const db = getFirestore();
-
     // Get the invitation document
-    const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
-    const invitationDoc = await invitationRef.get();
-
-    // Check if the invitation exists
-    if (!invitationDoc.exists) {
-        logger.warn(`Invitation ${invitationId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Invitation not found"
-        });
-    }
-
-    const invitationData = invitationDoc.data();
+    const { ref: invitationRef, data: invitationData } = await getInvitationDoc(invitationId);
 
     // Check invitation status
-    const status = invitationData?.[InvitationFields.STATUS];
-    if (status !== Status.PENDING) {
-        logger.warn(`Invitation ${invitationId} has status ${status}, not pending`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: `Invitation cannot be rejected (status: ${status})`
-        });
-    }
+    const status = invitationData[InvitationFields.STATUS];
+    canActOnInvitation(status, "reject");
 
     // Get the sender's user ID and ensure current user is not the sender
-    const senderId = invitationData?.[InvitationFields.SENDER_ID];
-    if (senderId === currentUserId) {
-        logger.warn(
-            `User ${currentUserId} attempted to reject their own invitation ${invitationId}`
-        );
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "You cannot reject your own invitation"
-        });
-    }
+    const senderId = invitationData[InvitationFields.SENDER_ID];
+    hasInvitationPermission(senderId, currentUserId, "reject");
 
     // Update the invitation status to rejected
-    await invitationRef.update({ [InvitationFields.STATUS]: Status.REJECTED });
+    await updateInvitationStatus(invitationRef, Status.REJECTED);
 
     logger.info(`User ${currentUserId} rejected invitation ${invitationId}`);
 
-    // Format timestamps for consistent API response
-    const createdAt = invitationData?.[InvitationFields.CREATED_AT] as Timestamp;
-    const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
-
     // Return the updated invitation
-    const invitation: Invitation = {
-        invitation_id: invitationId,
-        created_at: createdAt ? formatTimestamp(createdAt) : "",
-        expires_at: expiresAt ? formatTimestamp(expiresAt) : "",
-        sender_id: invitationData?.[InvitationFields.SENDER_ID] || "",
-        status: Status.REJECTED,
-        username: invitationData?.[InvitationFields.USERNAME] || "",
-        name: invitationData?.[InvitationFields.NAME] || "",
-        avatar: invitationData?.[InvitationFields.AVATAR] || "",
-        receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || ""
-    };
+    const invitation = formatInvitation(invitationId, {
+        ...invitationData,
+        [InvitationFields.STATUS]: Status.REJECTED
+    });
 
     res.json(invitation);
 }; 
