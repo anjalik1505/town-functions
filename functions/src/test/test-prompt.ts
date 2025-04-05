@@ -45,18 +45,18 @@ export const testPrompt = async (req: Request, res: Response): Promise<void> => 
 
                 const { output } = await ai.generate({
                     prompt: `### CONTEXT:
-                    - <CurrentSummary>: ${summary}
-                    - <CurrentSuggestions>: ${suggestions}${data.is_own_profile ? `
-                    - <CurrentEmotionalOverview>: ${existingEmotionalOverview}
-                    - <CurrentKeyMoments>: ${existingKeyMoments}
-                    - <CurrentRecurringThemes>: ${existingRecurringThemes}
-                    - <CurrentProgressAndGrowth>: ${existingProgressAndGrowth}` : ''}
-                    - <Gender>: ${gender}
-                    - <Location>: ${location}
+                    - <SUMMARY>: ${summary}
+                    - <SUGGESTIONS>: ${suggestions}${data.is_own_profile ? `
+                    - <EMOTIONAL_OVERVIEW>: ${existingEmotionalOverview}
+                    - <KEY_MOMENTS>: ${existingKeyMoments}
+                    - <RECURRING_THEMES>: ${existingRecurringThemes}
+                    - <PROGRESS_AND_GROWTH>: ${existingProgressAndGrowth}` : ''}
+                    - <GENDER>: ${gender}
+                    - <LOCATION>: ${location}
                     
                     ### NEW UPDATE:
-                    - <CurrentUpdateContent>: ${updateContent}
-                    - <CurrentUpdateSentiment>: ${updateSentiment}
+                    - <UPDATE>: ${updateContent}
+                    - <SENTIMENT>: ${updateSentiment}
                     
                     ${data.prompt}`,
                     output: { schema: data.is_own_profile ? ownProfileSchema : friendProfileSchema },

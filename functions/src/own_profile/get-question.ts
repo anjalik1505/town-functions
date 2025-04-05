@@ -3,7 +3,7 @@ import { generateQuestionFlow } from "../ai/flows";
 import { Collections, InsightsFields, ProfileFields } from "../models/constants";
 import { QuestionResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
-import { getProfileDoc } from "../utils/profile-utils";
+import { calculateAge, getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -52,8 +52,9 @@ export const getQuestion = async (req: Request, res: Response): Promise<void> =>
         existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || "",
         existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || "",
         existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || "",
-        gender: profileData[ProfileFields.GENDER] || "",
-        location: profileData[ProfileFields.LOCATION] || ""
+        gender: profileData[ProfileFields.GENDER] || "unknown",
+        location: profileData[ProfileFields.LOCATION] || "unknown",
+        age: calculateAge(profileData[ProfileFields.BIRTHDAY] || "")
     });
     logger.info(`Generated question for user: ${currentUserId}`);
 

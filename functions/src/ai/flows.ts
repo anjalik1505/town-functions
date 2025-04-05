@@ -106,6 +106,7 @@ export const generateCreatorProfileFlow = async (params: {
     sentiment: string;
     gender: string;
     location: string;
+    age: string;
 }) => {
     const defaultOutput = {
         summary: params.existingSummary || "",
@@ -113,7 +114,8 @@ export const generateCreatorProfileFlow = async (params: {
         emotional_overview: params.existingEmotionalOverview || "",
         key_moments: params.existingKeyMoments || "",
         recurring_themes: params.existingRecurringThemes || "",
-        progress_and_growth: params.existingProgressAndGrowth || ""
+        progress_and_growth: params.existingProgressAndGrowth || "",
+        age: params.age || ""
     };
 
     return executeAIFlow(
@@ -132,9 +134,14 @@ export const generateFriendProfileFlow = async (params: {
     existingSuggestions: string;
     updateContent: string;
     sentiment: string;
-    creatorName: string;
-    creatorGender: string;
-    creatorLocation: string;
+    friendName: string;
+    friendGender: string;
+    friendLocation: string;
+    friendAge: string;
+    userName: string;
+    userGender: string;
+    userLocation: string;
+    userAge: string;
 }) => {
     const defaultOutput = {
         summary: params.existingSummary || "",
@@ -161,6 +168,7 @@ export const generateQuestionFlow = async (params: {
     existingProgressAndGrowth: string;
     gender: string;
     location: string;
+    age: string;
 }) => {
     const defaultOutput = {
         question: "What's on your mind today?"
@@ -180,12 +188,14 @@ export const generateQuestionFlow = async (params: {
 export const generateNotificationMessageFlow = async (params: {
     updateContent: string;
     sentiment: string;
-    creatorName: string;
-    creatorGender: string;
-    creatorLocation: string;
+    score: string;
+    friendName: string;
+    friendGender: string;
+    friendLocation: string;
+    friendAge: string;
 }) => {
     const defaultOutput = {
-        message: `${params.creatorName} shared an update with you.`
+        message: `${params.friendName} shared an update with you.`
     };
 
     return executeAIFlow(

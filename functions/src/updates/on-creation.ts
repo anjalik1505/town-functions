@@ -4,6 +4,7 @@ import { generateCreatorProfileFlow, generateFriendProfileFlow } from "../ai/flo
 import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, UserSummaryFields } from "../models/constants";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
+import { calculateAge } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -56,19 +57,42 @@ const processFriendSummary = async (
     const creatorProfileRef = db.collection(Collections.PROFILES).doc(creatorId);
     const creatorProfileDoc = await creatorProfileRef.get();
 
-    let creatorName = "Friend";
-    let gender = "They";
-    let location = "";
+    let userName = "Friend";
+    let userGender = "unknown";
+    let userLocation = "unknown";
+    let userAge = "unknown";
     if (creatorProfileDoc.exists) {
         const creatorProfileData = creatorProfileDoc.data() || {};
         // Try to get name first, then username, then fall back to "Friend"
-        creatorName = creatorProfileData[ProfileFields.NAME] ||
+        userName = creatorProfileData[ProfileFields.NAME] ||
             creatorProfileData[ProfileFields.USERNAME] ||
             "Friend";
-        gender = creatorProfileData[ProfileFields.GENDER] || "They";
-        location = creatorProfileData[ProfileFields.LOCATION] || "";
+        userGender = creatorProfileData[ProfileFields.GENDER] || "unknown";
+        userLocation = creatorProfileData[ProfileFields.LOCATION] || "unknown";
+        userAge = calculateAge(creatorProfileData[ProfileFields.BIRTHDAY] || "");
     } else {
         logger.warn(`Creator profile not found: ${creatorId}`);
+    }
+
+    // Get the friend's profile data
+    const friendProfileRef = db.collection(Collections.PROFILES).doc(friendId);
+    const friendProfileDoc = await friendProfileRef.get();
+
+    let friendName = "Friend";
+    let friendGender = "unknown";
+    let friendLocation = "unknown";
+    let friendAge = "unknown";
+
+    if (friendProfileDoc.exists) {
+        const friendProfileData = friendProfileDoc.data() || {};
+        friendName = friendProfileData[ProfileFields.NAME] ||
+            friendProfileData[ProfileFields.USERNAME] ||
+            "Friend";
+        friendGender = friendProfileData[ProfileFields.GENDER] || "unknown";
+        friendLocation = friendProfileData[ProfileFields.LOCATION] || "unknown";
+        friendAge = calculateAge(friendProfileData[ProfileFields.BIRTHDAY] || "");
+    } else {
+        logger.warn(`Friend profile not found: ${friendId}`);
     }
 
     // Use the friend profile flow to generate summary and suggestions
@@ -77,9 +101,14 @@ const processFriendSummary = async (
         existingSuggestions: existingSuggestions || "",
         updateContent: updateContent || "",
         sentiment: sentiment || "",
-        creatorName: creatorName,
-        creatorGender: gender,
-        creatorLocation: location
+        friendName: friendName,
+        friendGender: friendGender,
+        friendLocation: friendLocation,
+        friendAge: friendAge,
+        userName: userName,
+        userGender: userGender,
+        userLocation: userLocation,
+        userAge: userAge
     });
 
     // Prepare the summary document
@@ -142,6 +171,9 @@ const updateCreatorProfile = async (
     const insightsDoc = insightsSnapshot.docs[0];
     const existingInsights = insightsDoc?.data() || {};
 
+    // Calculate age from birthday
+    const age = calculateAge(profileData[ProfileFields.BIRTHDAY] || "");
+
     // Use the creator profile flow to generate insights
     const result = await generateCreatorProfileFlow({
         existingSummary: existingSummary || "",
@@ -152,8 +184,9 @@ const updateCreatorProfile = async (
         existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || "",
         updateContent: updateContent || "",
         sentiment: sentiment || "",
-        gender: profileData[ProfileFields.GENDER] || "",
-        location: profileData[ProfileFields.LOCATION] || ""
+        gender: profileData[ProfileFields.GENDER] || "unknown",
+        location: profileData[ProfileFields.LOCATION] || "unknown",
+        age: age
     });
 
     // Update the profile
