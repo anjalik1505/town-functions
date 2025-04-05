@@ -1,8 +1,10 @@
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FeedFields, UpdateFields } from "../models/constants";
 import { EnrichedUpdate, Update } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "./errors";
 import { getLogger } from "./logging-utils";
 import { formatTimestamp } from "./timestamp-utils";
+import { createFriendVisibilityIdentifier } from "./visibility-utils";
 
 const logger = getLogger(__filename);
 
@@ -155,4 +157,45 @@ export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string
             .filter(doc => doc.exists)
             .map(doc => [doc.id, doc.data() as FirebaseFirestore.DocumentData])
     );
+};
+
+/**
+ * Get an update document by ID
+ * @param updateId The ID of the update
+ * @returns The update document and data, or null if not found
+ * @throws NotFoundError if the update doesn't exist
+ */
+export const getUpdateDoc = async (
+    updateId: string
+): Promise<{ ref: FirebaseFirestore.DocumentReference; data: FirebaseFirestore.DocumentData }> => {
+    const db = getFirestore();
+    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+    const updateDoc = await updateRef.get();
+
+    if (!updateDoc.exists) {
+        logger.warn(`Update not found: ${updateId}`);
+        throw new NotFoundError("Update not found");
+    }
+
+    return {
+        ref: updateRef,
+        data: updateDoc.data() || {}
+    };
+};
+
+/**
+ * Check if a user has access to an update
+ * @param updateData The update document data
+ * @param userId The ID of the user to check access for
+ * @throws ForbiddenError if the user doesn't have access to the update
+ */
+export const hasUpdateAccess = (
+    updateData: FirebaseFirestore.DocumentData,
+    userId: string
+): void => {
+    const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
+    const friendVisibility = createFriendVisibilityIdentifier(userId);
+    if (!visibleTo.includes(friendVisibility)) {
+        throw new ForbiddenError("You don't have access to this update");
+    }
 };

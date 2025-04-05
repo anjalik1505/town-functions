@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { Collections, CommentFields, QueryOperators, UpdateFields } from "../models/constants";
-import { Comment, CommentsResponse } from "../models/data-models";
+import { QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, CommentFields, QueryOperators } from "../models/constants";
+import { CommentsResponse } from "../models/data-models";
+import { processEnrichedComments } from "../utils/comment-utils";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
-import { enrichWithProfile, fetchUsersProfiles } from "../utils/profile-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
-import { createFriendVisibilityIdentifier } from "../utils/visibility-utils";
+import { fetchUsersProfiles } from "../utils/profile-utils";
+import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 
@@ -41,44 +41,17 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
     const currentUserId = req.userId;
     logger.info(`Retrieving comments for update: ${updateId}`);
 
-    const db = getFirestore();
-
     // Get pagination parameters
     const validatedParams = req.validated_params;
     const limit = validatedParams?.limit || 20;
     const afterCursor = validatedParams?.after_cursor;
 
     // Get the update document to check access
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const updateDoc = await updateRef.get();
-
-    if (!updateDoc.exists) {
-        logger.warn(`Update not found: ${updateId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Update not found"
-        });
-        return;
-    }
-
-    const updateData = updateDoc.data() || {};
-    const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
-    const friendVisibility = createFriendVisibilityIdentifier(currentUserId);
-
-    // Check if user has access to this update
-    if (!visibleTo.includes(friendVisibility)) {
-        logger.warn(`User ${currentUserId} attempted to view comments on update ${updateId} without access`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You don't have access to this update"
-        });
-        return;
-    }
+    const updateResult = await getUpdateDoc(updateId);
+    hasUpdateAccess(updateResult.data, currentUserId);
 
     // Build the query
-    let query = updateRef.collection(Collections.COMMENTS)
+    let query = updateResult.ref.collection(Collections.COMMENTS)
         .orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
 
     // Apply cursor-based pagination - errors will be automatically caught by Express
@@ -87,40 +60,20 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
     // Process comments using streaming
     const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
-    // Process comments and collect user IDs
-    const comments: Comment[] = [];
+    // Collect user IDs from comments
     const uniqueUserIds = new Set<string>();
-
-    for (const commentDoc of commentDocs) {
-        const docData = commentDoc.data();
-        const createdBy = docData[CommentFields.CREATED_BY] || "";
-
-        const comment: Comment = {
-            comment_id: commentDoc.id,
-            created_by: createdBy,
-            content: docData[CommentFields.CONTENT] || "",
-            created_at: docData[CommentFields.CREATED_AT] ? formatTimestamp(docData[CommentFields.CREATED_AT]) : "",
-            updated_at: docData[CommentFields.UPDATED_AT] ? formatTimestamp(docData[CommentFields.UPDATED_AT]) : "",
-            username: "",  // Will be populated from profile
-            name: "",     // Will be populated from profile
-            avatar: ""    // Will be populated from profile
-        };
-
-        comments.push(comment);
-        uniqueUserIds.add(createdBy);
-    }
+    commentDocs.forEach(doc => {
+        const createdBy = doc.data()[CommentFields.CREATED_BY] || "";
+        if (createdBy) {
+            uniqueUserIds.add(createdBy);
+        }
+    });
 
     // Get profiles for all users who commented
     const profiles = await fetchUsersProfiles(Array.from(uniqueUserIds));
 
-    // Enrich comments with profile data
-    const enrichedComments = comments.map(comment => {
-        const profile = profiles.get(comment.created_by);
-        if (!profile) {
-            logger.warn(`Missing profile data for user ${comment.created_by}`);
-        }
-        return enrichWithProfile(comment, profile || null);
-    });
+    // Process comments and create enriched comment objects
+    const enrichedComments = processEnrichedComments(commentDocs, profiles);
 
     // Set up pagination for the next request
     const nextCursor = generateNextCursor(lastDoc, enrichedComments.length, limit);
