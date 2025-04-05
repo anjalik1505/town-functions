@@ -227,3 +227,23 @@ export const determineUrgencyFlow = async (params: {
         'Determining update urgency'
     );
 };
+
+/**
+ * Analyze sentiment, score, and generate an emoji for text input
+ */
+export const analyzeSentimentFlow = async (params: {
+    content: string;
+}) => {
+    const defaultOutput = {
+        sentiment: "unknown",
+        score: "3",
+        emoji: "😐"
+    };
+
+    return executeAIFlow(
+        'analyze_sentiment',
+        params,
+        defaultOutput,
+        'Analyzing text sentiment'
+    );
+};

@@ -96,7 +96,9 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
             created_at: docData[UpdateFields.CREATED_AT] ? formatTimestamp(docData[UpdateFields.CREATED_AT]) : "",
             comment_count: docData[UpdateFields.COMMENT_COUNT] || 0,
             reaction_count: docData[UpdateFields.REACTION_COUNT] || 0,
-            reactions: [] // Empty array since reactions are fetched separately
+            reactions: [], // Empty array since reactions are fetched separately
+            score: docData[UpdateFields.SCORE] || "3",
+            emoji: docData[UpdateFields.EMOJI] || "😐"
         };
         return update;
     });

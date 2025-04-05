@@ -1,3 +1,4 @@
+import emojiRegex from "emoji-regex";
 import { z } from "zod";
 import { NotificationFields } from "./constants";
 
@@ -47,6 +48,12 @@ export const deviceSchema = z.object({
 export const createUpdateSchema = z.object({
     content: z.string().min(1, "Content is required"),
     sentiment: z.string().min(1, "Sentiment is required"),
+    score: z.string().min(1, "Sentiment score is required"),
+    emoji: z.string().min(1, "Sentiment emoji is required")
+        .refine((val) => {
+            const regex = emojiRegex();
+            return regex.test(val);
+        }, "Must be a valid emoji"),
     group_ids: z.array(z.string()).optional(),
     friend_ids: z.array(z.string()).optional()
 });
@@ -120,4 +127,8 @@ export const createReactionSchema = z.object({
 
 export const createFeedbackSchema = z.object({
     content: z.string().min(1, "Feedback content is required")
+});
+
+export const analyzeSentimentSchema = z.object({
+    content: z.string().min(1, "Content is required")
 });

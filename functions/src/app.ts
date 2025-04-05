@@ -13,7 +13,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
-import { createCommentSchema, createFeedbackSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
+import { analyzeSentimentSchema, createCommentSchema, createFeedbackSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
@@ -23,6 +23,7 @@ import { getQuestion } from "./own_profile/get-question";
 import { updateProfile } from "./own_profile/update-my-profile";
 import { testNotification } from "./test/test-notification";
 import { testPrompt } from "./test/test-prompt";
+import { analyzeSentiment } from "./updates/analyze-sentiment";
 import { createComment } from "./updates/create-comment";
 import { createReaction } from "./updates/create-reaction";
 import { createUpdate } from "./updates/create-update";
@@ -192,6 +193,11 @@ app.post("/updates/:update_id/reactions", validateRequest(createReactionSchema),
 
 app.delete("/updates/:update_id/reactions/:reaction_id", async (req, res) => {
     await deleteReaction(req, res);
+});
+
+// Sentiment analysis endpoint
+app.post("/updates/sentiment", validateRequest(analyzeSentimentSchema), async (req, res) => {
+    await analyzeSentiment(req, res);
 });
 
 // // Group routes
