@@ -1,13 +1,25 @@
 import { z } from "zod";
 import { NotificationFields } from "./constants";
 
+// Reusable schema for birthday validation
+const birthdaySchema = z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Birthday must be in yyyy-mm-dd format")
+    .refine((val) => {
+        const [year, month, day] = val.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year &&
+            date.getMonth() === month - 1 &&
+            date.getDate() === day;
+    }, "Birthday must be a valid date")
+    .optional();
+
 // Profile schemas
 export const createProfileSchema = z.object({
     username: z.string().min(1),
     name: z.string().optional(),
     avatar: z.string().optional(),
     location: z.string().optional(),
-    birthday: z.string().optional(),
+    birthday: birthdaySchema,
     notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
     gender: z.string().optional()
 });
@@ -17,7 +29,7 @@ export const updateProfileSchema = z.object({
     name: z.string().optional(),
     avatar: z.string().optional(),
     location: z.string().optional(),
-    birthday: z.string().optional(),
+    birthday: birthdaySchema,
     notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
     gender: z.string().optional()
 });
