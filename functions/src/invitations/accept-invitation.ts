@@ -2,10 +2,11 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId, hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { canActOnInvitation, getInvitationDoc, hasInvitationPermission, isInvitationExpired, updateInvitationStatus } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -81,24 +82,10 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     }
 
     // Get current user's profile
-    const currentUserProfileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const currentUserProfileDoc = await currentUserProfileRef.get();
-
-    if (!currentUserProfileDoc.exists) {
-        throw new NotFoundError("User profile not found");
-    }
-
-    const currentUserProfile = currentUserProfileDoc.data() || {};
+    const { data: currentUserProfile } = await getProfileDoc(currentUserId);
 
     // Get sender's profile
-    const senderProfileRef = db.collection(Collections.PROFILES).doc(senderId);
-    const senderProfileDoc = await senderProfileRef.get();
-
-    if (!senderProfileDoc.exists) {
-        throw new NotFoundError("Sender profile not found");
-    }
-
-    const senderProfile = senderProfileDoc.data() || {};
+    const { data: senderProfile } = await getProfileDoc(senderId);
 
     // Create a batch operation for atomicity
     const batch = db.batch();

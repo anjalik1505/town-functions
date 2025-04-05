@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, ProfileFields, Status } from "../models/constants";
-import { BadRequestError, NotFoundError } from "../utils/errors";
+import { BadRequestError } from "../utils/errors";
 import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { formatInvitation } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -43,15 +44,8 @@ export const createInvitation = async (req: Request, res: Response): Promise<voi
     const db = getFirestore();
 
     // Get current user's profile for name and avatar
-    const currentUserProfileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const currentUserProfileDoc = await currentUserProfileRef.get();
+    const { data: currentUserProfile } = await getProfileDoc(currentUserId);
 
-    if (!currentUserProfileDoc.exists) {
-        logger.warn(`Current user profile ${currentUserId} not found`);
-        throw new NotFoundError("User profile not found");
-    }
-
-    const currentUserProfile = currentUserProfileDoc.data() || {};
     const validatedParams = req.validated_params;
 
     // Create a new invitation document

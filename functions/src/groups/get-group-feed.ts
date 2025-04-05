@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
 import { EnrichedUpdate, FeedResponse, GroupMember, Update } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -59,11 +60,7 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Group not found"
-        });
+        throw new NotFoundError("Group not found");
     }
 
     const groupData = groupDoc.data() || {};
@@ -72,11 +69,7 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
     // Check if the current user is a member of the group
     if (!members.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be a member of the group to view its feed"
-        });
+        throw new ForbiddenError("You must be a member of the group to view its feed");
     }
 
     // Build the query for updates from this group

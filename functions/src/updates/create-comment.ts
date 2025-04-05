@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, CommentFields, ProfileFields } from "../models/constants";
 import { formatComment } from "../utils/comment-utils";
 import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
@@ -73,8 +74,7 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
     const commentDocData = commentDoc.data() || {};
 
     // Get the creator's profile
-    const profileDoc = await db.collection(Collections.PROFILES).doc(currentUserId).get();
-    const profileData = profileDoc.data() || {};
+    const { data: profileData } = await getProfileDoc(currentUserId);
 
     const comment = formatComment(commentRef.id, commentDocData, currentUserId);
     comment.username = profileData[ProfileFields.USERNAME] || "";

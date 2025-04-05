@@ -2,9 +2,11 @@ import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { UpdatesResponse } from "../models/data-models";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 import { fetchUpdatesReactions } from "../utils/reaction-utils";
 import { fetchUpdatesByIds, processFeedItems } from "../utils/update-utils";
 
@@ -46,11 +48,7 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
         logger.warn(
             `User ${currentUserId} attempted to view their own updates through /user endpoint`
         );
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "Use /me/updates endpoint to view your own updates"
-        });
+        throw new BadRequestError("Use /me/updates endpoint to view your own updates");
     }
 
     // Get pagination parameters from the validated request
@@ -63,31 +61,10 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
     );
 
     // Get the target user's profile
-    const targetUserProfileRef = db.collection(Collections.PROFILES).doc(targetUserId);
-    const targetUserProfileDoc = await targetUserProfileRef.get();
-
-    // Check if the target profile exists
-    if (!targetUserProfileDoc.exists) {
-        logger.warn(`Profile not found for user ${targetUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
+    await getProfileDoc(targetUserId);
 
     // Get the current user's profile
-    const currentUserProfileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const currentUserProfileDoc = await currentUserProfileRef.get();
-
-    if (!currentUserProfileDoc.exists) {
-        logger.warn(`Profile not found for current user ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
+    await getProfileDoc(currentUserId);
 
     // Check if users are friends using the unified friendships collection
     const friendshipId = createFriendshipId(currentUserId, targetUserId);
@@ -102,11 +79,7 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
         logger.warn(
             `User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`
         );
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be friends with this user to view their updates"
-        });
+        throw new ForbiddenError("You must be friends with this user to view their updates");
     }
 
     logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);

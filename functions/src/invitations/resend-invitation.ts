@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, InvitationFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
 import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -41,11 +42,7 @@ export const resendInvitation = async (req: Request, res: Response): Promise<voi
     // Check if the invitation exists
     if (!invitationDoc.exists) {
         logger.warn(`Invitation ${invitationId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Invitation not found"
-        });
+        throw new NotFoundError("Invitation not found");
     }
 
     const invitationData = invitationDoc.data();
@@ -56,22 +53,14 @@ export const resendInvitation = async (req: Request, res: Response): Promise<voi
         logger.warn(
             `User ${currentUserId} is not the sender of invitation ${invitationId}`
         );
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You can only resend your own invitations"
-        });
+        throw new ForbiddenError("You can only resend your own invitations");
     }
 
     // Check combined limit (excluding the current invitation)
     const hasReachedLimit = await hasReachedCombinedLimit(currentUserId, invitationId);
     if (hasReachedLimit) {
         logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "You have reached the maximum number of friends and active invitations"
-        });
+        throw new BadRequestError("You have reached the maximum number of friends and active invitations");
     }
 
     // Set new timestamps

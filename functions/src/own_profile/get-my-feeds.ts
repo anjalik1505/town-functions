@@ -4,7 +4,7 @@ import { Collections, FeedFields, QueryOperators } from "../models/constants";
 import { FeedResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
-import { fetchUsersProfiles } from "../utils/profile-utils";
+import { fetchUsersProfiles, getProfileDoc } from "../utils/profile-utils";
 import { fetchUpdatesReactions } from "../utils/reaction-utils";
 import { fetchUpdatesByIds, processEnrichedFeedItems } from "../utils/update-utils";
 
@@ -45,14 +45,7 @@ export const getFeeds = async (req: Request, res: Response): Promise<void> => {
     );
 
     // Get the user's profile first to verify existence
-    const userRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const userDoc = await userRef.get();
-
-    // Return empty response if user profile doesn't exist
-    if (!userDoc.exists) {
-        logger.warn(`User profile not found for user: ${currentUserId}`);
-        res.json({ updates: [], next_cursor: null });
-    }
+    await getProfileDoc(currentUserId);
 
     // Initialize the feed query
     let feedQuery = db

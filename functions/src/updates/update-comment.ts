@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, CommentFields, ProfileFields } from "../models/constants";
+import { Timestamp } from "firebase-admin/firestore";
+import { CommentFields, ProfileFields } from "../models/constants";
 import { formatComment, getCommentDoc } from "../utils/comment-utils";
 import { ForbiddenError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -45,8 +46,6 @@ export const updateComment = async (req: Request, res: Response): Promise<void> 
     const currentUserId = req.userId;
     logger.info(`Updating comment ${commentId} on update: ${updateId}`);
 
-    const db = getFirestore();
-
     // Get the update document to check if it exists
     const commentResult = await getCommentDoc(updateId, commentId);
     const commentData = commentResult.data;
@@ -70,8 +69,7 @@ export const updateComment = async (req: Request, res: Response): Promise<void> 
     const updatedCommentData = updatedCommentDoc.data() || {};
 
     // Get the creator's profile
-    const profileDoc = await db.collection(Collections.PROFILES).doc(currentUserId).get();
-    const profileData = profileDoc.data() || {};
+    const { data: profileData } = await getProfileDoc(currentUserId);
 
     const comment = formatComment(commentResult.ref.id, updatedCommentData, currentUserId);
     comment.username = profileData[ProfileFields.USERNAME] || "";

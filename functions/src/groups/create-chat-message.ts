@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { ChatFields, Collections, GroupFields } from "../models/constants";
 import { ChatMessage } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -47,11 +48,7 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Group not found"
-        });
+        throw new NotFoundError("Group not found");
     }
 
     const groupData = groupDoc.data() || {};
@@ -60,11 +57,7 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
     // Check if the current user is a member of the group
     if (!members.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be a member of the group to post messages"
-        });
+        throw new ForbiddenError("You must be a member of the group to post messages");
     }
 
     // Create the chat message
