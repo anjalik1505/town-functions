@@ -1,9 +1,10 @@
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { FirestoreEvent } from "firebase-functions/v2/firestore";
-import { determineUrgencyFlow, generateNotificationMessageFlow } from "../ai/flows";
+import { generateNotificationMessageFlow } from "../ai/flows";
 import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields } from "../models/constants";
 import { getLogger } from "../utils/logging-utils";
+import { calculateAge } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -73,6 +74,8 @@ const processUserNotification = async (
     const updateContent = updateData[UpdateFields.CONTENT];
     const sentiment = updateData[UpdateFields.SENTIMENT];
     const updateId = updateData[UpdateFields.ID];
+    // const score = updateData[UpdateFields.SCORE]; // TODO: Add score to the update
+    const score = 5;
 
     // Determine if we should send a notification based on user settings
     let shouldSendNotification = false;
@@ -81,35 +84,31 @@ const processUserNotification = async (
         // User wants all notifications
         shouldSendNotification = true;
         logger.info(`User ${targetUserId} has 'all' notification setting, will send notification`);
-    } else if (notificationSettings.includes(NotificationFields.URGENT)) {
+    } else if (notificationSettings.includes(NotificationFields.URGENT) && (score === 5 || score === 1)) {
         // User only wants urgent notifications, check if this update is urgent
-        const urgencyResult = await determineUrgencyFlow({
-            updateContent: updateContent || "",
-            sentiment: sentiment || "",
-            creatorName: creatorName,
-            creatorGender: creatorGender,
-            creatorLocation: creatorLocation
-        });
-
-        if (urgencyResult.is_urgent) {
-            shouldSendNotification = true;
-            logger.info(`Update ${updateId} is urgent for user ${targetUserId}, will send notification`);
-        } else {
-            logger.info(`Update ${updateId} is not urgent for user ${targetUserId}, skipping notification`);
-        }
+        shouldSendNotification = true;
+        logger.info(`User ${targetUserId} has 'urgent' notification setting, will send notification`);
     } else {
         logger.info(`User ${targetUserId} has notification settings that don't include 'all' or 'urgent', skipping notification`);
     }
 
     // If we should send a notification, generate the message and send it
     if (shouldSendNotification) {
+
+        const friendName = profileData[ProfileFields.NAME] || profileData[ProfileFields.USERNAME] || "Friend";
+        const friendGender = profileData[ProfileFields.GENDER] || "unknown";
+        const friendLocation = profileData[ProfileFields.LOCATION] || "unknown";
+        const friendAge = calculateAge(profileData[ProfileFields.BIRTHDAY] || "");
+
         // Generate notification message
         const result = await generateNotificationMessageFlow({
             updateContent: updateContent || "",
             sentiment: sentiment || "",
-            creatorName: creatorName,
-            creatorGender: creatorGender,
-            creatorLocation: creatorLocation
+            score: score.toString(),
+            friendName: friendName,
+            friendGender: friendGender,
+            friendLocation: friendLocation,
+            friendAge: friendAge
         });
 
         // Send the notification

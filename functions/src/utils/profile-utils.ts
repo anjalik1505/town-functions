@@ -220,4 +220,33 @@ export const formatFriendProfileResponse = (
         summary,
         suggestions
     };
+};
+
+/**
+ * Calculates a person's age based on their birthday string in yyyy-mm-dd format
+ * @param birthdayString The birthday string in yyyy-mm-dd format (already validated)
+ * @returns The calculated age as a string, or "unknown" if the birthday string is empty
+ */
+export const calculateAge = (birthdayString: string): string => {
+    // Return "unknown" if the birthday string is empty
+    if (!birthdayString) {
+        return "unknown";
+    }
+
+    // Parse the birthday string into a Date object
+    const birthday = new Date(birthdayString);
+
+    // Get current date
+    const today = new Date();
+
+    // Calculate age
+    let age = today.getFullYear() - birthday.getFullYear();
+    const monthDiff = today.getMonth() - birthday.getMonth();
+
+    // Adjust age if birthday hasn't occurred this year
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
+        age--;
+    }
+
+    return age.toString();
 }; 
