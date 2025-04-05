@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, CommentFields, ProfileFields, UpdateFields } from "../models/constants";
-import { Comment } from "../models/data-models";
+import { Collections, CommentFields, ProfileFields } from "../models/constants";
+import { formatComment } from "../utils/comment-utils";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
-import { createFriendVisibilityIdentifier } from "../utils/visibility-utils";
+import { getProfileDoc } from "../utils/profile-utils";
+import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 
@@ -47,33 +47,9 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
     const db = getFirestore();
 
     // Get the update document to check access
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const updateDoc = await updateRef.get();
-
-    if (!updateDoc.exists) {
-        logger.warn(`Update not found: ${updateId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Update not found"
-        });
-        return;
-    }
-
-    const updateData = updateDoc.data() || {};
-    const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
-    const friendVisibility = createFriendVisibilityIdentifier(currentUserId);
-
-    // Check if user has access to this update
-    if (!visibleTo.includes(friendVisibility)) {
-        logger.warn(`User ${currentUserId} attempted to comment on update ${updateId} without access`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You don't have access to this update"
-        });
-        return;
-    }
+    const updateResult = await getUpdateDoc(updateId);
+    const updateData = updateResult.data;
+    hasUpdateAccess(updateData, currentUserId);
 
     // Create the comment
     const commentData = {
@@ -85,9 +61,9 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
 
     // Create comment and update comment count in a batch
     const batch = db.batch();
-    const commentRef = updateRef.collection(Collections.COMMENTS).doc();
+    const commentRef = updateResult.ref.collection(Collections.COMMENTS).doc();
     batch.set(commentRef, commentData);
-    batch.update(updateRef, {
+    batch.update(updateResult.ref, {
         comment_count: (updateData.comment_count || 0) + 1
     });
 
@@ -98,19 +74,12 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
     const commentDocData = commentDoc.data() || {};
 
     // Get the creator's profile
-    const profileDoc = await db.collection(Collections.PROFILES).doc(currentUserId).get();
-    const profileData = profileDoc.data() || {};
+    const { data: profileData } = await getProfileDoc(currentUserId);
 
-    const comment: Comment = {
-        comment_id: commentRef.id,
-        created_by: currentUserId,
-        content: commentDocData[CommentFields.CONTENT] || "",
-        created_at: formatTimestamp(commentDocData[CommentFields.CREATED_AT]),
-        updated_at: formatTimestamp(commentDocData[CommentFields.UPDATED_AT]),
-        username: profileData[ProfileFields.USERNAME] || "",
-        name: profileData[ProfileFields.NAME] || "",
-        avatar: profileData[ProfileFields.AVATAR] || ""
-    };
+    const comment = formatComment(commentRef.id, commentDocData, currentUserId);
+    comment.username = profileData[ProfileFields.USERNAME] || "";
+    comment.name = profileData[ProfileFields.NAME] || "";
+    comment.avatar = profileData[ProfileFields.AVATAR] || "";
 
     res.status(201).json(comment);
 }; 

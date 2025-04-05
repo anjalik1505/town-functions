@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, InvitationFields } from "../models/constants";
-import { Invitation } from "../models/data-models";
+import { InvitationFields } from "../models/constants";
+import { formatInvitation, getInvitationDoc, hasInvitationViewingPermission } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 
@@ -29,55 +27,18 @@ const logger = getLogger(__filename);
 export const getInvitation = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const invitationId = req.params.invitation_id;
+
     logger.info(`Getting invitation ${invitationId} for user ${currentUserId}`);
 
-    // Initialize Firestore client
-    const db = getFirestore();
-
     // Get the invitation document
-    const invitationDoc = await db.collection(Collections.INVITATIONS).doc(invitationId).get();
-
-    // Check if invitation exists
-    if (!invitationDoc.exists) {
-        logger.warn(`Invitation ${invitationId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Invitation not found"
-        });
-        return;
-    }
-
-    const invitationData = invitationDoc.data() || {};
+    const { data: invitationData } = await getInvitationDoc(invitationId);
 
     // Verify the user has permission to view this invitation
     const senderId = invitationData[InvitationFields.SENDER_ID];
-    if (senderId !== currentUserId) {
-        logger.warn(`User ${currentUserId} attempted to view invitation ${invitationId} created by user ${senderId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You can only view your own invitations"
-        });
-        return;
-    }
+    hasInvitationViewingPermission(senderId, currentUserId);
 
-    // Format timestamps for consistent API response
-    const createdAt = invitationData?.[InvitationFields.CREATED_AT] as Timestamp;
-    const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
-
-    // Create Invitation object
-    const invitation: Invitation = {
-        invitation_id: invitationId,
-        created_at: createdAt ? formatTimestamp(createdAt) : "",
-        expires_at: expiresAt ? formatTimestamp(expiresAt) : "",
-        sender_id: senderId,
-        status: invitationData[InvitationFields.STATUS] || "",
-        username: invitationData[InvitationFields.USERNAME] || "",
-        name: invitationData[InvitationFields.NAME] || "",
-        avatar: invitationData[InvitationFields.AVATAR] || "",
-        receiver_name: invitationData[InvitationFields.RECEIVER_NAME] || ""
-    };
+    // Format and return the invitation
+    const invitation = formatInvitation(invitationId, invitationData);
 
     logger.info(`Successfully retrieved invitation ${invitationId} for user ${currentUserId}`);
     res.json(invitation);

@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { Friend, FriendsResponse } from "../models/data-models";
@@ -19,13 +19,12 @@ const logger = getLogger(__filename);
  *                - limit: Maximum number of friends to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * 
  * @returns A FriendsResponse containing:
  * - A list of Friend objects with the friend's profile information and friendship status
  * - A next_cursor for pagination (if more results are available)
  */
-export const getMyFriends = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getMyFriends = async (req: Request, res: Response): Promise<void> => {
     const db = getFirestore();
     const currentUserId = req.userId;
 
@@ -51,14 +50,8 @@ export const getMyFriends = async (req: Request, res: Response, next: NextFuncti
         )
         .orderBy(FriendshipFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process friendships using streaming
     const { items: friendshipDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);

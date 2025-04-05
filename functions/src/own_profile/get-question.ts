@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { getFirestore } from "firebase-admin/firestore";
 import { generateQuestionFlow } from "../ai/flows";
 import { Collections, InsightsFields, ProfileFields } from "../models/constants";
 import { QuestionResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -29,23 +29,10 @@ export const getQuestion = async (req: Request, res: Response): Promise<void> =>
     const currentUserId = req.userId;
     logger.info(`Generating personalized question for user: ${currentUserId}`);
 
-    const db = getFirestore();
-
     // Get the profile document
-    const profileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const profileDoc = await profileRef.get();
-
-    if (!profileDoc.exists) {
-        logger.warn(`Profile not found for user: ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
+    const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
     // Extract data from the profile
-    const profileData = profileDoc.data() || {};
     const existingSummary = profileData[ProfileFields.SUMMARY];
     const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
     logger.info(`Retrieved profile data for user: ${currentUserId}`);

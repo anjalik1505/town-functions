@@ -3,6 +3,7 @@ import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { Collections, FriendshipFields, GroupFields, MAX_BATCH_SIZE, ProfileFields, QueryOperators, Status } from "../models/constants";
 import { Group } from "../models/data-models";
+import { BadRequestError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -97,11 +98,7 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
         if (missingMembers.length > 0) {
             const missingMembersStr = missingMembers.join(", ");
             logger.warn(`Member profiles not found: ${missingMembersStr}`);
-            res.status(404).json({
-                code: 404,
-                name: "Not Found",
-                description: `Member profiles not found: ${missingMembersStr}`
-            });
+            throw new NotFoundError(`Member profiles not found: ${missingMembersStr}`);
         }
 
         // 2. Optimized friendship check using batch fetching
@@ -170,11 +167,7 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
             // Format the error message
             const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(", ");
             logger.warn(`Members are not friends: ${notFriendsStr}`);
-            res.status(400).json({
-                code: 400,
-                name: "Bad Request",
-                description: "All members must be friends with each other to be in the same group"
-            });
+            throw new BadRequestError("All members must be friends with each other to be in the same group");
         }
     }
 

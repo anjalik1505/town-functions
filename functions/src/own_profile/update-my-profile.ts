@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
-import { Collections, FriendshipFields, GroupFields, InsightsFields, InvitationFields, ProfileFields, QueryOperators } from "../models/constants";
-import { ProfileResponse } from "../models/data-models";
+import { Collections, FriendshipFields, GroupFields, InvitationFields, ProfileFields, QueryOperators } from "../models/constants";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { formatProfileResponse, getProfileDoc, getProfileInsights } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -40,21 +39,8 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     const db = getFirestore();
     const profileData = req.validated_params;
 
-    // Check if profile exists
-    const profileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const profileDoc = await profileRef.get();
-
-    if (!profileDoc.exists) {
-        logger.warn(`Profile not found for user ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
-
-    // Get current profile data
-    const currentProfileData = profileDoc.data() || {};
+    // Get the profile document using the utility function
+    const { ref: profileRef, data: currentProfileData } = await getProfileDoc(currentUserId);
     logger.info(`Retrieved current profile data for user ${currentUserId}`);
 
     // Check if username, name, or avatar has changed
@@ -223,30 +209,10 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     const updatedProfileData = updatedProfileDoc.data() || {};
 
     // Get insights data
-    const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
-    const insightsDoc = insightsSnapshot.docs[0];
-    const insightsData = insightsDoc?.data() || {};
+    const insightsData = await getProfileInsights(profileRef);
 
-    // Construct and return the profile response
-    const response: ProfileResponse = {
-        user_id: currentUserId,
-        username: updatedProfileData[ProfileFields.USERNAME] || "",
-        name: updatedProfileData[ProfileFields.NAME] || "",
-        avatar: updatedProfileData[ProfileFields.AVATAR] || "",
-        location: updatedProfileData[ProfileFields.LOCATION] || "",
-        birthday: updatedProfileData[ProfileFields.BIRTHDAY] || "",
-        notification_settings: updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
-        gender: updatedProfileData[ProfileFields.GENDER] || "",
-        summary: updatedProfileData[ProfileFields.SUMMARY] || "",
-        suggestions: updatedProfileData[ProfileFields.SUGGESTIONS] || "",
-        updated_at: updatedProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(updatedProfileData[ProfileFields.UPDATED_AT]) : "",
-        insights: {
-            emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || "",
-            key_moments: insightsData[InsightsFields.KEY_MOMENTS] || "",
-            recurring_themes: insightsData[InsightsFields.RECURRING_THEMES] || "",
-            progress_and_growth: insightsData[InsightsFields.PROGRESS_AND_GROWTH] || ""
-        }
-    };
+    // Format and return the response
+    const response = formatProfileResponse(currentUserId, updatedProfileData, insightsData);
 
     res.json(response);
 }; 

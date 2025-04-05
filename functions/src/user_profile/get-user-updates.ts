@@ -1,12 +1,14 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
-import { Update, UpdatesResponse } from "../models/data-models";
+import { UpdatesResponse } from "../models/data-models";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 import { fetchUpdatesReactions } from "../utils/reaction-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { fetchUpdatesByIds, processFeedItems } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 
@@ -22,7 +24,6 @@ const logger = getLogger(__filename);
  *              - params: Route parameters containing:
  *                - target_user_id: The ID of the user whose updates are being requested
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * 
  * @returns An UpdatesResponse containing:
  * - A list of updates created by the specified user
@@ -32,7 +33,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getUserUpdates = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
@@ -47,11 +48,7 @@ export const getUserUpdates = async (req: Request, res: Response, next: NextFunc
         logger.warn(
             `User ${currentUserId} attempted to view their own updates through /user endpoint`
         );
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "Use /me/updates endpoint to view your own updates"
-        });
+        throw new BadRequestError("Use /me/updates endpoint to view your own updates");
     }
 
     // Get pagination parameters from the validated request
@@ -64,31 +61,10 @@ export const getUserUpdates = async (req: Request, res: Response, next: NextFunc
     );
 
     // Get the target user's profile
-    const targetUserProfileRef = db.collection(Collections.PROFILES).doc(targetUserId);
-    const targetUserProfileDoc = await targetUserProfileRef.get();
-
-    // Check if the target profile exists
-    if (!targetUserProfileDoc.exists) {
-        logger.warn(`Profile not found for user ${targetUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
+    await getProfileDoc(targetUserId);
 
     // Get the current user's profile
-    const currentUserProfileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-    const currentUserProfileDoc = await currentUserProfileRef.get();
-
-    if (!currentUserProfileDoc.exists) {
-        logger.warn(`Profile not found for current user ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
+    await getProfileDoc(currentUserId);
 
     // Check if users are friends using the unified friendships collection
     const friendshipId = createFriendshipId(currentUserId, targetUserId);
@@ -103,11 +79,7 @@ export const getUserUpdates = async (req: Request, res: Response, next: NextFunc
         logger.warn(
             `User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`
         );
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be friends with this user to view their updates"
-        });
+        throw new ForbiddenError("You must be friends with this user to view their updates");
     }
 
     logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
@@ -120,14 +92,8 @@ export const getUserUpdates = async (req: Request, res: Response, next: NextFunc
         .where(FeedFields.CREATED_BY, QueryOperators.EQUALS, targetUserId)
         .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
     // Process feed items using streaming
     const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
@@ -141,49 +107,13 @@ export const getUserUpdates = async (req: Request, res: Response, next: NextFunc
     const updateIds = feedDocs.map(doc => doc.data()[FeedFields.UPDATE_ID]);
 
     // Fetch all updates in parallel
-    const updatePromises = updateIds.map(updateId =>
-        db.collection(Collections.UPDATES).doc(updateId).get()
-    );
-    const updateSnapshots = await Promise.all(updatePromises);
-
-    // Create a map of update data for easy lookup
-    const updateMap = new Map(
-        updateSnapshots
-            .filter(doc => doc.exists)
-            .map(doc => [doc.id, doc.data()])
-    );
+    const updateMap = await fetchUpdatesByIds(updateIds);
 
     // Fetch reactions for all updates
     const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
     // Process feed items and create updates
-    const updates: Update[] = feedDocs
-        .map(feedItem => {
-            const feedData = feedItem.data();
-            const updateId = feedData[FeedFields.UPDATE_ID];
-            const updateData = updateMap.get(updateId);
-
-            if (!updateData) {
-                logger.warn(`Missing update data for feed item ${feedItem.id}`);
-                return null;
-            }
-
-            const update: Update = {
-                update_id: updateId,
-                created_by: targetUserId,
-                content: updateData.content || "",
-                group_ids: updateData.group_ids || [],
-                friend_ids: updateData.friend_ids || [],
-                sentiment: updateData.sentiment || "",
-                created_at: formatTimestamp(updateData.created_at),
-                comment_count: updateData.comment_count || 0,
-                reaction_count: updateData.reaction_count || 0,
-                reactions: updateReactionsMap.get(updateId) || []
-            };
-
-            return update;
-        })
-        .filter((update): update is Update => update !== null);
+    const updates = processFeedItems(feedDocs, updateMap, updateReactionsMap, targetUserId);
 
     // Set up pagination for the next request
     const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);

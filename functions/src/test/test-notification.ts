@@ -3,6 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { Collections, DeviceFields } from "../models/constants";
 import { NotificationResponse } from "../models/data-models";
+import { NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -37,11 +38,7 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
 
     if (!deviceDoc.exists) {
         logger.warn(`Device not found for user ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Device not found. Please register a device first."
-        });
+        throw new NotFoundError("Device not found. Please register a device first.");
     }
 
     const deviceData = deviceDoc.data();
@@ -49,11 +46,7 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
 
     if (!deviceToken) {
         logger.warn(`No device token found for user ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Device token not found. Please register a device first."
-        });
+        throw new NotFoundError("Device token not found. Please register a device first.");
     }
 
     // Initialize Firebase Messaging

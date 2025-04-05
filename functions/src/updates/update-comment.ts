@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, CommentFields, ProfileFields } from "../models/constants";
-import { Comment } from "../models/data-models";
+import { Timestamp } from "firebase-admin/firestore";
+import { CommentFields, ProfileFields } from "../models/constants";
+import { formatComment, getCommentDoc } from "../utils/comment-utils";
+import { ForbiddenError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -45,47 +46,14 @@ export const updateComment = async (req: Request, res: Response): Promise<void> 
     const currentUserId = req.userId;
     logger.info(`Updating comment ${commentId} on update: ${updateId}`);
 
-    const db = getFirestore();
-
     // Get the update document to check if it exists
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const updateDoc = await updateRef.get();
-
-    if (!updateDoc.exists) {
-        logger.warn(`Update not found: ${updateId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Update not found"
-        });
-        return;
-    }
-
-    // Get the comment document
-    const commentRef = updateRef.collection(Collections.COMMENTS).doc(commentId);
-    const commentDoc = await commentRef.get();
-
-    if (!commentDoc.exists) {
-        logger.warn(`Comment not found: ${commentId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Comment not found"
-        });
-        return;
-    }
-
-    const commentData = commentDoc.data() || {};
+    const commentResult = await getCommentDoc(updateId, commentId);
+    const commentData = commentResult.data;
 
     // Check if user is the comment creator
     if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
         logger.warn(`User ${currentUserId} attempted to update comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You can only update your own comments"
-        });
-        return;
+        throw new ForbiddenError("You can only update your own comments");
     }
 
     // Update the comment
@@ -94,26 +62,19 @@ export const updateComment = async (req: Request, res: Response): Promise<void> 
         [CommentFields.UPDATED_AT]: Timestamp.now()
     };
 
-    await commentRef.update(updatedData);
+    await commentResult.ref.update(updatedData);
 
     // Get the updated comment
-    const updatedCommentDoc = await commentRef.get();
+    const updatedCommentDoc = await commentResult.ref.get();
     const updatedCommentData = updatedCommentDoc.data() || {};
 
     // Get the creator's profile
-    const profileDoc = await db.collection(Collections.PROFILES).doc(currentUserId).get();
-    const profileData = profileDoc.data() || {};
+    const { data: profileData } = await getProfileDoc(currentUserId);
 
-    const comment: Comment = {
-        comment_id: commentRef.id,
-        created_by: currentUserId,
-        content: updatedCommentData[CommentFields.CONTENT] || "",
-        created_at: formatTimestamp(updatedCommentData[CommentFields.CREATED_AT]),
-        updated_at: formatTimestamp(updatedCommentData[CommentFields.UPDATED_AT]),
-        username: profileData[ProfileFields.USERNAME] || "",
-        name: profileData[ProfileFields.NAME] || "",
-        avatar: profileData[ProfileFields.AVATAR] || ""
-    };
+    const comment = formatComment(commentResult.ref.id, updatedCommentData, currentUserId);
+    comment.username = profileData[ProfileFields.USERNAME] || "";
+    comment.name = profileData[ProfileFields.NAME] || "";
+    comment.avatar = profileData[ProfileFields.AVATAR] || "";
 
     res.status(200).json(comment);
 }; 

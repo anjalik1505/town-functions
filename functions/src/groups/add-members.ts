@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { Collections, FriendshipFields, GroupFields, MAX_BATCH_SIZE, ProfileFields, QueryOperators, Status } from "../models/constants";
 import { Group } from "../models/data-models";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -44,11 +45,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!newMembers.length) {
         logger.warn("No members provided to add to the group");
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "No members provided to add to the group"
-        });
+        throw new BadRequestError("No members provided to add to the group");
     }
 
     const db = getFirestore();
@@ -59,11 +56,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Group not found"
-        });
+        throw new NotFoundError("Group not found");
     }
 
     const groupData = groupDoc.data() || {};
@@ -71,11 +64,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!currentMembers.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be a member of the group to add new members"
-        });
+        throw new ForbiddenError("You must be a member of the group to add new members");
     }
 
     // 2. Filter out members who are already in the group
@@ -83,11 +72,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
     if (!newMembersToAdd.length) {
         logger.warn("All provided members are already in the group");
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "All provided members are already in the group"
-        });
+        throw new BadRequestError("All provided members are already in the group");
     }
 
     // 3. Verify new members exist
@@ -104,11 +89,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
     if (missingMembers.length) {
         const missingMembersStr = missingMembers.join(", ");
         logger.warn(`Member profiles not found: ${missingMembersStr}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: `Member profiles not found: ${missingMembersStr}`
-        });
+        throw new NotFoundError(`Member profiles not found: ${missingMembersStr}`);
     }
 
     // 4. Optimized friendship check using batch fetching
@@ -179,11 +160,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
         // Format the error message
         const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(", ");
         logger.warn(`Members are not friends: ${notFriendsStr}`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "All members must be friends with each other to be in the same group"
-        });
+        throw new BadRequestError("All members must be friends with each other to be in the same group");
     }
 
     // All validations passed, now update the group

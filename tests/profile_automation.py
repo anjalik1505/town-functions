@@ -94,6 +94,7 @@ def run_profile_tests():
         "location": "San Francisco",
         "notification_settings": ["urgent"],
         "gender": "female",
+        "birthday": "1995-12-25",  # Valid date in yyyy-mm-dd format
     }
     updated_profile = api.update_profile(users[0]["email"], updated_profile_data)
     logger.info(f"Updated profile: {json.dumps(updated_profile, indent=2)}")
@@ -120,10 +121,10 @@ def run_profile_tests():
     assert (
         retrieved_updated_profile["gender"] == updated_profile_data["gender"]
     ), "Updated gender mismatch"
-    # Birthday should remain unchanged as it wasn't updated
+    # Birthday should be updated to the new value
     assert (
-        retrieved_updated_profile["birthday"] == initial_profile_data["birthday"]
-    ), "Birthday should be unchanged"
+        retrieved_updated_profile["birthday"] == updated_profile_data["birthday"]
+    ), "Birthday should be updated"
     logger.info("Updated profile verification successful - all fields match")
 
     # Step 5: Test partial update (only update name and gender)
@@ -194,8 +195,99 @@ def run_profile_tests():
     )
     logger.info("✓ Missing required field test passed")
 
-    # Test 3: Try to get profile for a user that doesn't have one
-    logger.info("Test 3: Attempting to get a non-existent profile")
+    # Test 3: Birthday validation tests
+    logger.info("Test 3: Birthday validation tests")
+
+    # Test 3.1: Invalid birthday format
+    logger.info("Test 3.1: Attempting to create a profile with invalid birthday format")
+    invalid_birthday_profile_data = {
+        "username": users[1]["email"].split("@")[0],
+        "name": users[1]["name"],
+        "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
+        "birthday": "01-01-1990",  # Invalid format (should be yyyy-mm-dd)
+    }
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/me/profile",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[1]['email']]}",
+        },
+        json_data=invalid_birthday_profile_data,
+        expected_status_code=400,
+        expected_error_message="Birthday must be in yyyy-mm-dd format",
+    )
+    logger.info("✓ Invalid birthday format test passed")
+
+    # Test 3.2: Invalid date (month > 12)
+    logger.info(
+        "Test 3.2: Attempting to create a profile with invalid date (month > 12)"
+    )
+    invalid_date_profile_data = {
+        "username": users[1]["email"].split("@")[0],
+        "name": users[1]["name"],
+        "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
+        "birthday": "1990-13-01",  # Invalid date (month 13 doesn't exist)
+    }
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/me/profile",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[1]['email']]}",
+        },
+        json_data=invalid_date_profile_data,
+        expected_status_code=400,
+        expected_error_message="Birthday must be a valid date",
+    )
+    logger.info("✓ Invalid date (month > 12) test passed")
+
+    # Test 3.3: Invalid date (day > 31)
+    logger.info("Test 3.3: Attempting to create a profile with invalid date (day > 31)")
+    invalid_day_profile_data = {
+        "username": users[1]["email"].split("@")[0],
+        "name": users[1]["name"],
+        "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
+        "birthday": "1990-01-32",  # Invalid date (day 32 doesn't exist)
+    }
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/me/profile",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[1]['email']]}",
+        },
+        json_data=invalid_day_profile_data,
+        expected_status_code=400,
+        expected_error_message="Birthday must be a valid date",
+    )
+    logger.info("✓ Invalid date (day > 31) test passed")
+
+    # Test 3.4: Invalid date (February 30)
+    logger.info(
+        "Test 3.4: Attempting to create a profile with invalid date (February 30)"
+    )
+    invalid_feb_profile_data = {
+        "username": users[1]["email"].split("@")[0],
+        "name": users[1]["name"],
+        "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
+        "birthday": "1990-02-30",  # Invalid date (February doesn't have 30 days)
+    }
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/me/profile",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[1]['email']]}",
+        },
+        json_data=invalid_feb_profile_data,
+        expected_status_code=400,
+        expected_error_message="Birthday must be a valid date",
+    )
+    logger.info("✓ Invalid date (February 30) test passed")
+
+    # Test 4: Try to get profile for a user that doesn't have one
+    logger.info("Test 4: Attempting to get a non-existent profile")
     # First create a new user without a profile
     no_profile_user = {
         "email": "no_profile@example.com",
@@ -221,8 +313,8 @@ def run_profile_tests():
     )
     logger.info("✓ Non-existent profile retrieval test passed")
 
-    # Test 4: Try to update a profile that doesn't exist
-    logger.info("Test 4: Attempting to update a non-existent profile")
+    # Test 5: Try to update a profile that doesn't exist
+    logger.info("Test 5: Attempting to update a non-existent profile")
     api.make_request_expecting_error(
         "put",
         f"{API_BASE_URL}/me/profile",
@@ -236,8 +328,8 @@ def run_profile_tests():
     )
     logger.info("✓ Update non-existent profile test passed")
 
-    # Test 5: Try to create a profile with invalid JSON
-    logger.info("Test 5: Attempting to create a profile with invalid JSON")
+    # Test 6: Try to create a profile with invalid JSON
+    logger.info("Test 6: Attempting to create a profile with invalid JSON")
     try:
         invalid_json_headers = {
             "Content-Type": "application/json",
@@ -257,8 +349,8 @@ def run_profile_tests():
         logger.error(f"Error during invalid JSON test: {str(e)}")
         raise
 
-    # Test 6: Try to update profile with invalid field values
-    logger.info("Test 6: Attempting to update profile with invalid field values")
+    # Test 7: Try to update profile with invalid field values
+    logger.info("Test 7: Attempting to update profile with invalid field values")
     invalid_update_data = {
         "username": "",  # Empty username
         "notification_settings": "not_a_list",  # Should be a list
@@ -276,9 +368,9 @@ def run_profile_tests():
     )
     logger.info("✓ Invalid field values test passed")
 
-    # Test 6.1: Try to update profile with invalid notification settings
+    # Test 8: Try to update profile with invalid notification settings
     logger.info(
-        "Test 6.1: Attempting to update profile with invalid notification settings"
+        "Test 8: Attempting to update profile with invalid notification settings"
     )
     invalid_notification_data = {
         "notification_settings": [
@@ -299,8 +391,26 @@ def run_profile_tests():
     )
     logger.info("✓ Invalid notification settings test passed")
 
-    # Test 7: Try to access profile without authentication
-    logger.info("Test 7: Attempting to access profile without authentication")
+    # Test 9: Try to update profile with invalid birthday format
+    logger.info("Test 9: Attempting to update profile with invalid birthday format")
+    invalid_birthday_data = {
+        "birthday": "01-01-1990",  # Invalid format (should be yyyy-mm-dd)
+    }
+    api.make_request_expecting_error(
+        "put",
+        f"{API_BASE_URL}/me/profile",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data=invalid_birthday_data,
+        expected_status_code=400,
+        expected_error_message="Birthday must be in yyyy-mm-dd format",
+    )
+    logger.info("✓ Invalid birthday format on update test passed")
+
+    # Test 10: Try to access profile without authentication
+    logger.info("Test 10: Attempting to access profile without authentication")
     api.make_request_expecting_error(
         "get", f"{API_BASE_URL}/me/profile", headers={}, expected_status_code=401
     )
@@ -321,9 +431,9 @@ def run_profile_tests():
     api.create_profile(users[1]["email"], second_user_profile_data)
     logger.info(f"Created profile for second user: {users[1]['email']}")
 
-    # Test 8: Try to view another user's profile before becoming friends
+    # Test 11: Try to view another user's profile before becoming friends
     logger.info(
-        "Test 8: Attempting to view another user's profile before becoming friends"
+        "Test 11: Attempting to view another user's profile before becoming friends"
     )
     api.make_request_expecting_error(
         "get",
@@ -357,8 +467,8 @@ def run_profile_tests():
 
     logger.info("Users are now friends")
 
-    # Test 9: Get user profile after becoming friends
-    logger.info("Test 9: Getting user profile after becoming friends")
+    # Test 12: Get user profile after becoming friends
+    logger.info("Test 12: Getting user profile after becoming friends")
     user2_profile = api.get_user_profile(
         users[0]["email"], api.user_ids[users[1]["email"]]
     )

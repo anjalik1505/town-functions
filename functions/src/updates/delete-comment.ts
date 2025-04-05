@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { getFirestore } from "firebase-admin/firestore";
-import { Collections, CommentFields } from "../models/constants";
+import { CommentFields } from "../models/constants";
+import { getCommentDoc } from "../utils/comment-utils";
+import { ForbiddenError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
+import { getUpdateDoc } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 
@@ -35,51 +38,21 @@ export const deleteComment = async (req: Request, res: Response): Promise<void> 
     const db = getFirestore();
 
     // Get the update document to check if it exists
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const updateDoc = await updateRef.get();
-
-    if (!updateDoc.exists) {
-        logger.warn(`Update not found: ${updateId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Update not found"
-        });
-        return;
-    }
-
-    // Get the comment document
-    const commentRef = updateRef.collection(Collections.COMMENTS).doc(commentId);
-    const commentDoc = await commentRef.get();
-
-    if (!commentDoc.exists) {
-        logger.warn(`Comment not found: ${commentId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Comment not found"
-        });
-        return;
-    }
-
-    const commentData = commentDoc.data() || {};
+    const updateResult = await getUpdateDoc(updateId);
+    const commentResult = await getCommentDoc(updateId, commentId);
+    const commentData = commentResult.data;
 
     // Check if user is the comment creator
     if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
         logger.warn(`User ${currentUserId} attempted to delete comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You can only delete your own comments"
-        });
-        return;
+        throw new ForbiddenError("You can only delete your own comments");
     }
 
     // Delete comment and update comment count in a batch
     const batch = db.batch();
-    batch.delete(commentRef);
-    batch.update(updateRef, {
-        comment_count: Math.max(0, (updateDoc.data()?.comment_count || 0) - 1)
+    batch.delete(commentResult.ref);
+    batch.update(updateResult.ref, {
+        comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1)
     });
 
     await batch.commit();

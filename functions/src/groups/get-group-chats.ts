@@ -1,7 +1,8 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { ChatFields, Collections, GroupFields, QueryOperators } from "../models/constants";
 import { ChatMessage, ChatResponse } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -20,7 +21,6 @@ const logger = getLogger(__filename);
  *                - limit: Maximum number of messages to return
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * @param groupId - The ID of the group to retrieve chat messages for
  * 
  * Query Parameters:
@@ -35,7 +35,7 @@ const logger = getLogger(__filename);
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupChats = async (req: Request, res: Response, next: NextFunction, groupId: string): Promise<void> => {
+export const getGroupChats = async (req: Request, res: Response, groupId: string): Promise<void> => {
     logger.info(`Retrieving chat messages for group: ${groupId}`);
 
     // Get the authenticated user ID from the request
@@ -59,11 +59,7 @@ export const getGroupChats = async (req: Request, res: Response, next: NextFunct
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Group not found"
-        });
+        throw new NotFoundError("Group not found");
     }
 
     const groupData = groupDoc.data() || {};
@@ -72,11 +68,7 @@ export const getGroupChats = async (req: Request, res: Response, next: NextFunct
     // Check if the current user is a member of the group
     if (!members.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be a member of the group to view its chat messages"
-        });
+        throw new ForbiddenError("You must be a member of the group to view its chat messages");
     }
 
     // Set up the query for chat messages
@@ -86,14 +78,8 @@ export const getGroupChats = async (req: Request, res: Response, next: NextFunct
     let query = chatsRef
         .orderBy(ChatFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process chat messages using streaming
     const { items: chatDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
