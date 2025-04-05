@@ -32,7 +32,14 @@ import { getComments } from "./updates/get-comments";
 import { updateComment } from "./updates/update-comment";
 import { getUserProfile } from "./user_profile/get-user-profile";
 import { getUserUpdates } from "./user_profile/get-user-updates";
-import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "./utils/errors";
+import {
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    InternalServerError,
+    NotFoundError,
+    UnauthorizedError
+} from "./utils/errors";
 
 // Initialize Firebase Admin
 initializeApp();
@@ -101,16 +108,16 @@ app.put("/me/profile", validateRequest(updateProfileSchema), async (req, res) =>
     await updateProfile(req, res);
 });
 
-app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res, next) => {
-    await getUpdates(req, res, next);
+app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res) => {
+    await getUpdates(req, res);
 });
 
-app.get("/me/feed", validateQueryParams(paginationSchema), async (req, res, next) => {
-    await getFeeds(req, res, next);
+app.get("/me/feed", validateQueryParams(paginationSchema), async (req, res) => {
+    await getFeeds(req, res);
 });
 
-app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res, next) => {
-    await getMyFriends(req, res, next);
+app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res) => {
+    await getMyFriends(req, res);
 });
 
 // User profile routes
@@ -118,13 +125,13 @@ app.get("/users/:target_user_id/profile", async (req, res) => {
     await getUserProfile(req, res);
 });
 
-app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema), async (req, res, next) => {
-    await getUserUpdates(req, res, next);
+app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema), async (req, res) => {
+    await getUserUpdates(req, res);
 });
 
 // Invitation routes
-app.get("/invitations", validateQueryParams(paginationSchema), async (req, res, next) => {
-    await getInvitations(req, res, next);
+app.get("/invitations", validateQueryParams(paginationSchema), async (req, res) => {
+    await getInvitations(req, res);
 });
 
 app.get("/invitations/:invitation_id", async (req, res) => {
@@ -162,8 +169,8 @@ app.post("/updates", validateRequest(createUpdateSchema), async (req, res) => {
 });
 
 // Comment routes
-app.get("/updates/:update_id/comments", validateQueryParams(paginationSchema), async (req, res, next) => {
-    await getComments(req, res, next);
+app.get("/updates/:update_id/comments", validateQueryParams(paginationSchema), async (req, res) => {
+    await getComments(req, res);
 });
 
 app.post("/updates/:update_id/comments", validateRequest(createCommentSchema), async (req, res) => {
@@ -270,9 +277,17 @@ const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
         statusCode = err.statusCode;
         errorName = err.name;
         errorDescription = err.message;
-    } else if (err && typeof err === 'object' && 'status' in err && typeof (err as any).status === 'number') {
-        // Handle generic errors that might have a status attached
-        statusCode = (err as any).status;
+    } else if (err instanceof ConflictError) {
+        statusCode = err.statusCode;
+        errorName = err.name;
+        errorDescription = err.message;
+    } else if (err instanceof InternalServerError) {
+        statusCode = err.statusCode;
+        errorName = err.name;
+        errorDescription = err.message;
+    } else if (err && typeof err === 'object' && 'statusCode' in err && typeof (err as any).statusCode === 'number') {
+        // Handle generic errors that might have a statusCode attached
+        statusCode = (err as any).statusCode;
         errorName = (err as any).name || "Error";
         errorDescription = (err as any).message || "An error occurred.";
     }

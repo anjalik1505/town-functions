@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
-import { Insights, ProfileResponse } from "../models/data-models";
+import { Insights } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { formatProfileResponse, getProfileInsights, profileExists } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -41,18 +41,8 @@ export const createProfile = async (req: Request, res: Response): Promise<void> 
   const db = getFirestore();
   const profileData = req.validated_params;
 
-  // Check if profile already exists
-  const profileRef = db.collection(Collections.PROFILES).doc(currentUserId);
-  const profileDoc = await profileRef.get();
-
-  if (profileDoc.exists) {
-    logger.warn(`Profile already exists for user ${currentUserId}`);
-    res.status(400).json({
-      code: 400,
-      name: "Bad Request",
-      description: `Profile already exists for user ${currentUserId}`
-    });
-  }
+  // Check if profile already exists using the utility function
+  await profileExists(currentUserId);
 
   logger.info(`Creating new profile for user ${currentUserId}`);
 
@@ -74,6 +64,7 @@ export const createProfile = async (req: Request, res: Response): Promise<void> 
   };
 
   // Create the profile document
+  const profileRef = db.collection(Collections.PROFILES).doc(currentUserId);
   await profileRef.set(profileDataToSave);
   logger.info(`Profile document created for user ${currentUserId}`);
 
@@ -88,21 +79,11 @@ export const createProfile = async (req: Request, res: Response): Promise<void> 
   await insightsRef.set(insightsData);
   logger.info(`Insights document created for user ${currentUserId}`);
 
-  // Create and return a properly typed response
-  const response: ProfileResponse = {
-    user_id: currentUserId,
-    username: profileDataToSave[ProfileFields.USERNAME],
-    name: profileDataToSave[ProfileFields.NAME],
-    avatar: profileDataToSave[ProfileFields.AVATAR],
-    location: profileDataToSave[ProfileFields.LOCATION],
-    birthday: profileDataToSave[ProfileFields.BIRTHDAY],
-    notification_settings: profileDataToSave[ProfileFields.NOTIFICATION_SETTINGS],
-    gender: profileDataToSave[ProfileFields.GENDER],
-    summary: profileDataToSave[ProfileFields.SUMMARY],
-    suggestions: profileDataToSave[ProfileFields.SUGGESTIONS],
-    updated_at: formatTimestamp(updatedAt),
-    insights: insightsData
-  };
+  // Get the insights data using the utility function
+  const insights = await getProfileInsights(profileRef);
+
+  // Format and return the response using the utility function
+  const response = formatProfileResponse(currentUserId, profileDataToSave, insights);
 
   logger.info(`User profile creation completed successfully for user ${currentUserId}`);
   res.status(201).json(response);
