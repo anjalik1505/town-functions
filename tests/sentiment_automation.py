@@ -54,7 +54,7 @@ def run_sentiment_tests():
     assert isinstance(
         sentiment_result["sentiment"], str
     ), "Sentiment should be a string"
-    assert isinstance(sentiment_result["score"], str), "Score should be a string"
+    assert isinstance(sentiment_result["score"], int), "Score should be a number"
     assert isinstance(sentiment_result["emoji"], str), "Emoji should be a string"
     logger.info("✓ Sentiment format verification passed")
 

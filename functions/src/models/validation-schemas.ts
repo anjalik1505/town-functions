@@ -48,7 +48,7 @@ export const deviceSchema = z.object({
 export const createUpdateSchema = z.object({
     content: z.string().min(1, "Content is required"),
     sentiment: z.string().min(1, "Sentiment is required"),
-    score: z.string().min(1, "Sentiment score is required"),
+    score: z.number().min(1).max(5, "Score must be between 1 and 5"),
     emoji: z.string().min(1, "Sentiment emoji is required")
         .refine((val) => {
             const regex = emojiRegex();

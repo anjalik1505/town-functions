@@ -199,6 +199,6 @@ export interface Feedback {
 
 export interface SentimentAnalysisResponse {
   sentiment: string;
-  score: string;
+  score: number;
   emoji: string;
 }

@@ -236,7 +236,7 @@ export const analyzeSentimentFlow = async (params: {
 }) => {
     const defaultOutput = {
         sentiment: "unknown",
-        score: "3",
+        score: 3,
         emoji: "😐"
     };
 

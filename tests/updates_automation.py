@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 SENTIMENTS = ["happy", "sad", "neutral", "angry", "surprised"]
 
 # Available scores and emojis for updates
-SCORES = ["1", "2", "3", "4", "5"]
+SCORES = [1, 2, 3, 4, 5]
 EMOJIS = ["😢", "😕", "😐", "🙂", "😊"]
 
 # Test configuration
@@ -114,7 +114,12 @@ def run_updates_tests():
     for update in my_updates["updates"]:
         assert "score" in update, "Update missing score field"
         assert "emoji" in update, "Update missing emoji field"
-        assert update["score"] in SCORES, f"Invalid score value: {update['score']}"
+        assert isinstance(
+            update["score"], int
+        ), f"Score should be a number, got {type(update['score'])}"
+        assert (
+            1 <= update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
     logger.info("✓ Updates contain valid score and emoji fields")
 
@@ -241,7 +246,12 @@ def run_updates_tests():
             update["avatar"]
             == f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg"
         ), "Incorrect avatar in update"
-        assert update["score"] in SCORES, f"Invalid score value: {update['score']}"
+        assert isinstance(
+            update["score"], int
+        ), f"Score should be a number, got {type(update['score'])}"
+        assert (
+            1 <= update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
     logger.info("✓ User's own updates contain correct enriched profile data")
 
@@ -271,7 +281,12 @@ def run_updates_tests():
             update["avatar"]
             == f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg"
         ), "Incorrect avatar in update"
-        assert update["score"] in SCORES, f"Invalid score value: {update['score']}"
+        assert isinstance(
+            update["score"], int
+        ), f"Score should be a number, got {type(update['score'])}"
+        assert (
+            1 <= update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
     logger.info("✓ Friend's updates contain correct enriched profile data")
 
@@ -505,7 +520,7 @@ def run_updates_tests():
     invalid_update_data = {
         "content": "This update has an empty sentiment",
         "sentiment": "",
-        "score": "3",
+        "score": 3,
         "emoji": "😐",
         "friend_ids": [],
         "group_ids": [],
@@ -528,7 +543,7 @@ def run_updates_tests():
     empty_content_data = {
         "content": "",
         "sentiment": "happy",
-        "score": "3",
+        "score": 3,
         "emoji": "😐",
         "friend_ids": [],
         "group_ids": [],
@@ -555,7 +570,7 @@ def run_updates_tests():
         json_data={
             "content": "This update should not be created",
             "sentiment": "happy",
-            "score": "3",
+            "score": 3,
             "emoji": "😐",
             "friend_ids": [],
             "group_ids": [],

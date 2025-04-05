@@ -74,8 +74,7 @@ const processUserNotification = async (
     const updateContent = updateData[UpdateFields.CONTENT];
     const sentiment = updateData[UpdateFields.SENTIMENT];
     const updateId = updateData[UpdateFields.ID];
-    // const score = updateData[UpdateFields.SCORE]; // TODO: Add score to the update
-    const score = 5;
+    const score = updateData[UpdateFields.SCORE] || 3;
 
     // Determine if we should send a notification based on user settings
     let shouldSendNotification = false;

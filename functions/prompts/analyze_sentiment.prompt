@@ -6,7 +6,7 @@ input:
 output:
   schema:
     sentiment: string
-    score: string
+    score: integer
     emoji: string
 ---
 ### CONTEXT:
@@ -32,11 +32,11 @@ For each update generate a Sentiment Emoji: A single emoji that best reflects th
 Provide your output in the following format:
 
 Example outputs:
-- For "I'm so happy today!": sentiment="happy", score="5", emoji="😊"
-- For "I'm feeling a bit down": sentiment="sad", score="2", emoji="😔"
-- For "I'm really angry about this": sentiment="angry", score="1", emoji="😠"
-- For "I'm a bit nervous about tomorrow": sentiment="anxious", score="2", emoji="😰"
-- For "I'm so excited for the weekend!": sentiment="excited", score="4", emoji="🎉"
-- For "I'm grateful for my friends": sentiment="grateful", score="3", emoji="🙏"
-- For "The weather is nice today": sentiment="neutral", score="3", emoji="😐"
-- For "": sentiment="unknown", score="5", emoji="😐" 
+- For "I'm so happy today!": sentiment="happy", score=5, emoji="😊"
+- For "I'm feeling a bit down": sentiment="sad", score=2, emoji="😔"
+- For "I'm really angry about this": sentiment="angry", score=1, emoji="😠"
+- For "I'm a bit nervous about tomorrow": sentiment="anxious", score=2, emoji="😰"
+- For "I'm so excited for the weekend!": sentiment="excited", score=4, emoji="🎉"
+- For "I'm grateful for my friends": sentiment="grateful", score=3, emoji="🙏"
+- For "The weather is nice today": sentiment="neutral", score=3, emoji="😐"
+- For "": sentiment="unknown", score=3, emoji="😐" 
