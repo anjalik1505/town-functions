@@ -15,6 +15,8 @@ on:
       - '.firebaserc'
       - '.firebase.json'
       - '.github/**'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
 
 jobs:
   deploy:
@@ -48,6 +50,16 @@ jobs:
             .firebase.json
             .github/**
 
+      - name: Check for Firestore Changes
+        id: firestore-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            firestore.rules
+            firestore.indexes.json
+            .firebaserc
+            .firebase.json
+
       - name: Build Functions
         if: steps.functions-changes.outputs.any_changed == 'true'
         run: |
@@ -69,5 +81,13 @@ jobs:
         uses: w9jds/firebase-action@v14.0.1
         with:
           args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy Firestore
+        if: steps.firestore-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@v14.0.1
+        with:
+          args: deploy --only firestore
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }} 
