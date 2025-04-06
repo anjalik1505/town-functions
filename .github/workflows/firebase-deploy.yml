@@ -36,8 +36,6 @@ jobs:
         with:
           files: |
             functions/**
-            .firebaserc
-            .firebase.json
             .github/**
 
       - name: Check for Web Changes
@@ -46,8 +44,6 @@ jobs:
         with:
           files: |
             web/**
-            .firebaserc
-            .firebase.json
             .github/**
 
       - name: Check for Firestore Changes
@@ -59,6 +55,7 @@ jobs:
             firestore.indexes.json
             .firebaserc
             .firebase.json
+            .github/**
 
       - name: Build Functions
         if: steps.functions-changes.outputs.any_changed == 'true'
