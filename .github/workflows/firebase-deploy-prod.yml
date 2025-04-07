@@ -1,34 +1,39 @@
-name: Firebase Deploy
-
-# This workflow deploys the Firebase application (functions and hosting)
-# Prerequisites:
-# Add the following secrets to your GitHub repository's staging environment:
-# - FIREBASE_TOKEN (generate using firebase login:ci)
+name: Firebase Production Deploy
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'functions/**'
-      - 'web/**'
-      - '.firebaserc'
-      - '.firebase.json'
-      - '.github/**'
-      - 'firestore.rules'
-      - 'firestore.indexes.json'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to deploy'
+        required: true
+        type: string
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: staging
+    environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.release_tag }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Verify Tag
+        run: |
+          git fetch --tags
+          if ! git rev-parse --verify "refs/tags/${{ github.event.inputs.release_tag }}" >/dev/null 2>&1; then
+            echo "Error: Tag ${{ github.event.inputs.release_tag }} does not exist"
+            exit 1
+          fi
+
+      - name: Set Firebase Project
+        run: firebase use production
 
       - name: Check for Functions Changes
         id: functions-changes
@@ -36,14 +41,6 @@ jobs:
         with:
           files: |
             functions/**
-            .github/**
-
-      - name: Check for Web Changes
-        id: web-changes
-        uses: tj-actions/changed-files@v46
-        with:
-          files: |
-            web/**
             .github/**
 
       - name: Check for Firestore Changes
@@ -71,15 +68,7 @@ jobs:
         with:
           args: deploy --only functions
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-
-      - name: Deploy Web
-        if: steps.web-changes.outputs.any_changed == 'true'
-        uses: w9jds/firebase-action@v14.0.1
-        with:
-          args: deploy --only hosting
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN_PROD }}
 
       - name: Deploy Firestore
         if: steps.firestore-changes.outputs.any_changed == 'true'
@@ -87,4 +76,4 @@ jobs:
         with:
           args: deploy --only firestore
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }} 
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN_PROD }}
