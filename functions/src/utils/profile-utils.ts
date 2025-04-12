@@ -1,3 +1,4 @@
+import { differenceInYears, parse } from "date-fns";
 import { getFirestore } from "firebase-admin/firestore";
 import { Collections, InsightsFields, ProfileFields } from "../models/constants";
 import { FriendProfileResponse, Insights, ProfileResponse } from "../models/data-models";
@@ -233,20 +234,11 @@ export const calculateAge = (birthdayString: string): string => {
         return "unknown";
     }
 
-    // Parse the birthday string into a Date object
-    const birthday = new Date(birthdayString);
+    // Parse the birthday string into a Date object using date-fns
+    const birthday = parse(birthdayString, 'yyyy-MM-dd', new Date());
 
-    // Get current date
-    const today = new Date();
-
-    // Calculate age
-    let age = today.getFullYear() - birthday.getFullYear();
-    const monthDiff = today.getMonth() - birthday.getMonth();
-
-    // Adjust age if birthday hasn't occurred this year
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
-        age--;
-    }
+    // Calculate age using date-fns differenceInYears function
+    const age = differenceInYears(new Date(), birthday);
 
     return age.toString();
-}; 
+};

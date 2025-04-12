@@ -1,3 +1,4 @@
+import { isValid, parse } from "date-fns";
 import emojiRegex from "emoji-regex";
 import { z } from "zod";
 import { NotificationFields } from "./constants";
@@ -6,11 +7,9 @@ import { NotificationFields } from "./constants";
 const birthdaySchema = z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Birthday must be in yyyy-mm-dd format")
     .refine((val) => {
-        const [year, month, day] = val.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        return date.getFullYear() === year &&
-            date.getMonth() === month - 1 &&
-            date.getDate() === day;
+        // Use date-fns to parse and validate the date
+        const parsedDate = parse(val, 'yyyy-MM-dd', new Date());
+        return isValid(parsedDate);
     }, "Birthday must be a valid date")
     .optional();
 
