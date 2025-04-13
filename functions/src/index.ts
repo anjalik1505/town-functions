@@ -35,6 +35,9 @@ export const process_update_notification = onDocumentCreated(
 );
 
 // Export the scheduled function for daily notifications
-export const process_daily_notifications = onSchedule("every day 14:00", async () => {
+export const process_daily_notifications = onSchedule({
+  schedule: "every day 14:00",
+  secrets: [geminiApiKey]
+}, async () => {
   await processDailyNotifications();
 });
