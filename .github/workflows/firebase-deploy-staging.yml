@@ -70,7 +70,8 @@ jobs:
         with:
           args: deploy --only functions
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
 
       - name: Deploy Web
         if: steps.web-changes.outputs.any_changed == 'true'
@@ -78,7 +79,8 @@ jobs:
         with:
           args: deploy --only hosting
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
 
       - name: Deploy Firestore
         if: steps.firestore-changes.outputs.any_changed == 'true'
@@ -86,4 +88,5 @@ jobs:
         with:
           args: deploy --only firestore
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }} 
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }} 
