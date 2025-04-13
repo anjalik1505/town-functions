@@ -52,6 +52,16 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Content type middleware to ensure JSON responses
+const ensureJsonResponse: RequestHandler = (req, res, next) => {
+    // Set content type for all responses
+    res.setHeader('Content-Type', 'application/json');
+    next();
+};
+
+// Apply content type middleware
+app.use(ensureJsonResponse);
+
 // Extend Express Request type to include userId and validated_params
 declare global {
     namespace Express {
@@ -246,6 +256,9 @@ app.post("/feedback", validateRequest(createFeedbackSchema), async (req, res) =>
 
 // Catch-all route handler for unmatched routes
 app.use((req, res) => {
+    // Ensure content type is set to application/json
+    res.setHeader('Content-Type', 'application/json');
+
     res.status(403).json({
         code: 403,
         name: "Forbidden",
@@ -257,6 +270,9 @@ app.use((req, res) => {
 const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
     // Log the error with request context
     console.error(`Error during ${req.method} ${req.path}:`, err);
+
+    // Ensure content type is set to application/json
+    res.setHeader('Content-Type', 'application/json');
 
     let statusCode = 500;
     let errorName = "Internal Server Error";

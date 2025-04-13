@@ -114,7 +114,7 @@ class VillageAPI:
         response = requests.post(
             f"{API_BASE_URL}/me/profile", headers=headers, json=profile_data
         )
-        if response.status_code != 200:
+        if response.status_code != 201:
             logger.error(f"Failed to create profile: {response.text}")
             response.raise_for_status()
 

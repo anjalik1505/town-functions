@@ -247,3 +247,31 @@ export const analyzeSentimentFlow = async (params: {
         'Analyzing text sentiment'
     );
 };
+
+/**
+ * Generate a daily notification message for a user
+ */
+export const generateDailyNotificationFlow = async (params: {
+    name: string
+    existingSummary: string
+    existingSuggestions: string
+    existingEmotionalOverview: string
+    existingKeyMoments: string
+    existingRecurringThemes: string
+    existingProgressAndGrowth: string
+    gender: string
+    location: string
+    age: string
+}) => {
+    const defaultOutput = {
+        title: "Daily Check-in",
+        message: `Hey ${params.name}, how are you doing today?`
+    };
+
+    return executeAIFlow(
+        'daily_notification',
+        params,
+        defaultOutput,
+        'Generating daily notification message'
+    );
+};
