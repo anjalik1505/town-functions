@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
-import { InvitationFields } from "../models/constants";
-import { formatInvitation, getInvitationDoc, hasInvitationViewingPermission } from "../utils/invitation-utils";
+import { formatInvitation, getInvitationDoc } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -10,8 +9,7 @@ const logger = getLogger(__filename);
  * 
  * This function:
  * 1. Retrieves the invitation document by ID
- * 2. Verifies the user has permission to view it
- * 3. Returns the invitation data
+ * 2. Returns the invitation data
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -21,7 +19,6 @@ const logger = getLogger(__filename);
  * 
  * @returns An Invitation object containing the invitation data
  * 
- * @throws 403: You can only view your own invitations
  * @throws 404: Invitation not found
  */
 export const getInvitation = async (req: Request, res: Response): Promise<void> => {
@@ -32,10 +29,6 @@ export const getInvitation = async (req: Request, res: Response): Promise<void> 
 
     // Get the invitation document
     const { data: invitationData } = await getInvitationDoc(invitationId);
-
-    // Verify the user has permission to view this invitation
-    const senderId = invitationData[InvitationFields.SENDER_ID];
-    hasInvitationViewingPermission(senderId, currentUserId);
 
     // Format and return the invitation
     const invitation = formatInvitation(invitationId, invitationData);

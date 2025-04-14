@@ -557,8 +557,8 @@ def run_invitation_demo():
     )
     logger.info("✓ Get non-existent invitation test passed")
 
-    # Test 12.2: Attempt to get someone else's invitation
-    logger.info("Test 12.2: Attempting to get someone else's invitation")
+    # Test 12.2: Attempt to get invitation without authentication
+    logger.info("Test 12.2: Attempting to get invitation without authentication")
     # Get an invitation ID from the fourth user (we know they have invitations from Test 9)
     fourth_user_invitations = api.get_invitations(users[3]["email"])
     if not fourth_user_invitations["invitations"]:
@@ -567,18 +567,6 @@ def run_invitation_demo():
         "invitation_id"
     ]
 
-    # Try to get it with the second user's token
-    api.make_request_expecting_error(
-        "get",
-        f"{API_BASE_URL}/invitations/{fourth_user_invitation_id}",
-        headers={"Authorization": f"Bearer {api.tokens[users[1]['email']]}"},
-        expected_status_code=403,
-        expected_error_message="You can only view your own invitations",
-    )
-    logger.info("✓ Get someone else's invitation test passed")
-
-    # Test 12.3: Attempt to get invitation without authentication
-    logger.info("Test 12.3: Attempting to get invitation without authentication")
     api.make_request_expecting_error(
         "get",
         f"{API_BASE_URL}/invitations/{fourth_user_invitation_id}",
