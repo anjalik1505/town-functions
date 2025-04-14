@@ -3,7 +3,6 @@ import { Collections, InvitationFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
 import {
     BadRequestError,
-    ForbiddenError,
     NotFoundError
 } from "./errors";
 import { getLogger } from "./logging-utils";
@@ -55,19 +54,6 @@ export const hasInvitationPermission = (senderId: string, currentUserId: string,
     if (senderId === currentUserId) {
         logger.warn(`User ${currentUserId} attempted to ${action} their own invitation`);
         throw new BadRequestError(`You cannot ${action} your own invitation`);
-    }
-};
-
-/**
- * Checks if a user has permission to view an invitation
- * @param senderId The ID of the user who sent the invitation
- * @param currentUserId The ID of the current user
- * @throws ForbiddenError if the user is trying to view someone else's invitation
- */
-export const hasInvitationViewingPermission = (senderId: string, currentUserId: string): void => {
-    if (senderId !== currentUserId) {
-        logger.warn(`User ${currentUserId} attempted to view invitation from ${senderId}`);
-        throw new ForbiddenError(`You can only view your own invitations`);
     }
 };
 
