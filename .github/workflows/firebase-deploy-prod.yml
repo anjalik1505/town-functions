@@ -32,9 +32,6 @@ jobs:
             exit 1
           fi
 
-      - name: Set Firebase Project
-        run: firebase use production
-
       - name: Check for Functions Changes
         id: functions-changes
         uses: tj-actions/changed-files@v46
