@@ -1,13 +1,13 @@
-import { defineSecret } from 'firebase-functions/params';
-import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
-import { onRequest } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import { app } from "./app";
-import { Collections } from "./models/constants";
-import { onProfileDeleted } from "./own_profile/on-deletion";
-import { onUpdateCreated } from "./updates/on-creation";
-import { onUpdateNotification } from "./updates/on-notification";
-import { processDailyNotifications } from "./updates/process-daily-notifications";
+import {defineSecret} from 'firebase-functions/params';
+import {onDocumentCreated, onDocumentDeleted} from "firebase-functions/v2/firestore";
+import {onRequest} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import {app} from "./app";
+import {Collections} from "./models/constants";
+import {onProfileDeleted} from "./own_profile/on-deletion";
+import {onUpdateCreated} from "./updates/on-creation";
+import {onUpdateNotification} from "./updates/on-notification";
+import {processDailyNotifications} from "./updates/process-daily-notifications";
 
 // Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");

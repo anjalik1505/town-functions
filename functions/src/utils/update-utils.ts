@@ -1,10 +1,10 @@
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { Collections, FeedFields, UpdateFields } from "../models/constants";
-import { EnrichedUpdate, Update } from "../models/data-models";
-import { ForbiddenError, NotFoundError } from "./errors";
-import { getLogger } from "./logging-utils";
-import { formatTimestamp } from "./timestamp-utils";
-import { createFriendVisibilityIdentifier } from "./visibility-utils";
+import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
+import {Collections, FeedFields, UpdateFields} from "../models/constants";
+import {EnrichedUpdate, Update} from "../models/data-models";
+import {ForbiddenError, NotFoundError} from "./errors";
+import {getLogger} from "./logging-utils";
+import {formatTimestamp} from "./timestamp-utils";
+import {createFriendVisibilityIdentifier} from "./visibility-utils";
 
 const logger = getLogger(__filename);
 
@@ -17,25 +17,25 @@ const logger = getLogger(__filename);
  * @returns A formatted Update object
  */
 export const formatUpdate = (
-    updateId: string,
-    updateData: FirebaseFirestore.DocumentData,
-    createdBy: string,
-    reactions: any[] = []
+  updateId: string,
+  updateData: FirebaseFirestore.DocumentData,
+  createdBy: string,
+  reactions: any[] = []
 ): Update => {
-    return {
-        update_id: updateId,
-        created_by: createdBy,
-        content: updateData[UpdateFields.CONTENT] || "",
-        group_ids: updateData[UpdateFields.GROUP_IDS] || [],
-        friend_ids: updateData[UpdateFields.FRIEND_IDS] || [],
-        sentiment: updateData[UpdateFields.SENTIMENT] || "",
-        score: updateData[UpdateFields.SCORE] || "3",
-        emoji: updateData[UpdateFields.EMOJI] || "😐",
-        created_at: formatTimestamp(updateData[UpdateFields.CREATED_AT]),
-        comment_count: updateData.comment_count || 0,
-        reaction_count: updateData.reaction_count || 0,
-        reactions: reactions
-    };
+  return {
+    update_id: updateId,
+    created_by: createdBy,
+    content: updateData[UpdateFields.CONTENT] || "",
+    group_ids: updateData[UpdateFields.GROUP_IDS] || [],
+    friend_ids: updateData[UpdateFields.FRIEND_IDS] || [],
+    sentiment: updateData[UpdateFields.SENTIMENT] || "",
+    score: updateData[UpdateFields.SCORE] || "3",
+    emoji: updateData[UpdateFields.EMOJI] || "😐",
+    created_at: formatTimestamp(updateData[UpdateFields.CREATED_AT]),
+    comment_count: updateData.comment_count || 0,
+    reaction_count: updateData.reaction_count || 0,
+    reactions: reactions
+  };
 };
 
 /**
@@ -48,23 +48,23 @@ export const formatUpdate = (
  * @returns A formatted EnrichedUpdate object
  */
 export const formatEnrichedUpdate = (
-    updateId: string,
-    updateData: FirebaseFirestore.DocumentData,
-    createdBy: string,
-    reactions: any[] = [],
-    profile: { username: string; name: string; avatar: string } | null = null
+  updateId: string,
+  updateData: FirebaseFirestore.DocumentData,
+  createdBy: string,
+  reactions: any[] = [],
+  profile: { username: string; name: string; avatar: string } | null = null
 ): EnrichedUpdate => {
-    const update = formatUpdate(updateId, updateData, createdBy, reactions);
+  const update = formatUpdate(updateId, updateData, createdBy, reactions);
 
-    // Create a base object with the update properties
-    const enrichedUpdate = {
-        ...update,
-        username: profile?.username || "",
-        name: profile?.name || "",
-        avatar: profile?.avatar || ""
-    };
+  // Create a base object with the update properties
+  const enrichedUpdate = {
+    ...update,
+    username: profile?.username || "",
+    name: profile?.name || "",
+    avatar: profile?.avatar || ""
+  };
 
-    return enrichedUpdate;
+  return enrichedUpdate;
 };
 
 /**
@@ -76,30 +76,30 @@ export const formatEnrichedUpdate = (
  * @returns Array of formatted Update objects
  */
 export const processFeedItems = (
-    feedDocs: QueryDocumentSnapshot[],
-    updateMap: Map<string, FirebaseFirestore.DocumentData>,
-    reactionsMap: Map<string, any[]>,
-    currentUserId: string
+  feedDocs: QueryDocumentSnapshot[],
+  updateMap: Map<string, FirebaseFirestore.DocumentData>,
+  reactionsMap: Map<string, any[]>,
+  currentUserId: string
 ): Update[] => {
-    return feedDocs
-        .map(feedItem => {
-            const feedData = feedItem.data();
-            const updateId = feedData[FeedFields.UPDATE_ID];
-            const updateData = updateMap.get(updateId);
+  return feedDocs
+    .map(feedItem => {
+      const feedData = feedItem.data();
+      const updateId = feedData[FeedFields.UPDATE_ID];
+      const updateData = updateMap.get(updateId);
 
-            if (!updateData) {
-                logger.warn(`Missing update data for feed item ${feedItem.id}`);
-                return null;
-            }
+      if (!updateData) {
+        logger.warn(`Missing update data for feed item ${feedItem.id}`);
+        return null;
+      }
 
-            return formatUpdate(
-                updateId,
-                updateData,
-                currentUserId,
-                reactionsMap.get(updateId) || []
-            );
-        })
-        .filter((update): update is Update => update !== null);
+      return formatUpdate(
+        updateId,
+        updateData,
+        currentUserId,
+        reactionsMap.get(updateId) || []
+      );
+    })
+    .filter((update): update is Update => update !== null);
 };
 
 /**
@@ -111,32 +111,32 @@ export const processFeedItems = (
  * @returns Array of formatted EnrichedUpdate objects
  */
 export const processEnrichedFeedItems = (
-    feedDocs: QueryDocumentSnapshot[],
-    updateMap: Map<string, FirebaseFirestore.DocumentData>,
-    reactionsMap: Map<string, any[]>,
-    profiles: Map<string, { username: string; name: string; avatar: string }>
+  feedDocs: QueryDocumentSnapshot[],
+  updateMap: Map<string, FirebaseFirestore.DocumentData>,
+  reactionsMap: Map<string, any[]>,
+  profiles: Map<string, { username: string; name: string; avatar: string }>
 ): EnrichedUpdate[] => {
-    return feedDocs
-        .map(feedItem => {
-            const feedData = feedItem.data();
-            const updateId = feedData[FeedFields.UPDATE_ID];
-            const updateData = updateMap.get(updateId);
-            const createdBy = feedData[FeedFields.CREATED_BY];
+  return feedDocs
+    .map(feedItem => {
+      const feedData = feedItem.data();
+      const updateId = feedData[FeedFields.UPDATE_ID];
+      const updateData = updateMap.get(updateId);
+      const createdBy = feedData[FeedFields.CREATED_BY];
 
-            if (!updateData) {
-                logger.warn(`Missing update data for feed item ${feedItem.id}`);
-                return null;
-            }
+      if (!updateData) {
+        logger.warn(`Missing update data for feed item ${feedItem.id}`);
+        return null;
+      }
 
-            return formatEnrichedUpdate(
-                updateId,
-                updateData,
-                createdBy,
-                reactionsMap.get(updateId) || [],
-                profiles.get(createdBy) || null
-            );
-        })
-        .filter((update): update is EnrichedUpdate => update !== null);
+      return formatEnrichedUpdate(
+        updateId,
+        updateData,
+        createdBy,
+        reactionsMap.get(updateId) || [],
+        profiles.get(createdBy) || null
+      );
+    })
+    .filter((update): update is EnrichedUpdate => update !== null);
 };
 
 /**
@@ -145,20 +145,20 @@ export const processEnrichedFeedItems = (
  * @returns Map of update IDs to update data
  */
 export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string, FirebaseFirestore.DocumentData>> => {
-    const db = getFirestore();
+  const db = getFirestore();
 
-    // Fetch all updates in parallel
-    const updatePromises = updateIds.map(updateId =>
-        db.collection(Collections.UPDATES).doc(updateId).get()
-    );
-    const updateSnapshots = await Promise.all(updatePromises);
+  // Fetch all updates in parallel
+  const updatePromises = updateIds.map(updateId =>
+    db.collection(Collections.UPDATES).doc(updateId).get()
+  );
+  const updateSnapshots = await Promise.all(updatePromises);
 
-    // Create a map of update data for easy lookup
-    return new Map(
-        updateSnapshots
-            .filter(doc => doc.exists)
-            .map(doc => [doc.id, doc.data() as FirebaseFirestore.DocumentData])
-    );
+  // Create a map of update data for easy lookup
+  return new Map(
+    updateSnapshots
+      .filter(doc => doc.exists)
+      .map(doc => [doc.id, doc.data() as FirebaseFirestore.DocumentData])
+  );
 };
 
 /**
@@ -168,21 +168,21 @@ export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string
  * @throws NotFoundError if the update doesn't exist
  */
 export const getUpdateDoc = async (
-    updateId: string
+  updateId: string
 ): Promise<{ ref: FirebaseFirestore.DocumentReference; data: FirebaseFirestore.DocumentData }> => {
-    const db = getFirestore();
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const updateDoc = await updateRef.get();
+  const db = getFirestore();
+  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  const updateDoc = await updateRef.get();
 
-    if (!updateDoc.exists) {
-        logger.warn(`Update not found: ${updateId}`);
-        throw new NotFoundError("Update not found");
-    }
+  if (!updateDoc.exists) {
+    logger.warn(`Update not found: ${updateId}`);
+    throw new NotFoundError("Update not found");
+  }
 
-    return {
-        ref: updateRef,
-        data: updateDoc.data() || {}
-    };
+  return {
+    ref: updateRef,
+    data: updateDoc.data() || {}
+  };
 };
 
 /**
@@ -192,12 +192,12 @@ export const getUpdateDoc = async (
  * @throws ForbiddenError if the user doesn't have access to the update
  */
 export const hasUpdateAccess = (
-    updateData: FirebaseFirestore.DocumentData,
-    userId: string
+  updateData: FirebaseFirestore.DocumentData,
+  userId: string
 ): void => {
-    const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
-    const friendVisibility = createFriendVisibilityIdentifier(userId);
-    if (!visibleTo.includes(friendVisibility)) {
-        throw new ForbiddenError("You don't have access to this update");
-    }
+  const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
+  const friendVisibility = createFriendVisibilityIdentifier(userId);
+  if (!visibleTo.includes(friendVisibility)) {
+    throw new ForbiddenError("You don't have access to this update");
+  }
 };

@@ -29,7 +29,12 @@ export enum EventName {
   REACTION_CREATED = 'reaction_created',
   REACTION_DELETED = 'reaction_deleted',
   SENTIMENT_ANALYZED = 'sentiment_analyzed',
-  FEEDBACK_CREATED = 'feedback_created'
+  FEEDBACK_CREATED = 'feedback_created',
+  NOTIFICATION_SENT = 'notification_sent',
+  DAILY_NOTIFICATIONS_SENT = 'daily_notifications_sent',
+  DAILY_NOTIFICATION_SENT = 'daily_notification_sent',
+  SUMMARY_CREATED = 'summary_created',
+  FRIEND_SUMMARY_CREATED = 'friend_summary_created'
 }
 
 // Base interface for all event parameters
@@ -123,6 +128,72 @@ export interface AnalyzeSentimentEventParams extends BaseEventParams {
 // Feedback event parameters
 export interface FeedbackEventParams extends BaseEventParams {
   feedback_length: number;
+}
+
+// Notifications event parameters
+export interface NotificationsEventParams extends BaseEventParams {
+  total_users_count: number;
+  notification_all_acount: number;
+  notification_urgent_count: number;
+  no_notification_count: number;
+  friend_count: number;
+  group_count: number;
+  no_device_count: number;
+  is_urgent: boolean;
+}
+
+// Notification event parameters
+export interface NotificationEventParams extends BaseEventParams {
+  notification_all: boolean;
+  notification_urgent: boolean;
+  no_notification: boolean;
+  no_device: boolean;
+  notification_length: number;
+  is_urgent: boolean;
+}
+
+// Daily notifications event parameters
+export interface DailyNotificationsEventParams extends BaseEventParams {
+  total_users_count: number;
+  notification_all_count: number;
+  notification_urgent_count: number;
+  no_notification_count: number;
+  no_device_count: number;
+}
+
+// Summary event parameters
+export interface SummaryEventParams extends BaseEventParams {
+  update_length: number;
+  update_sentiment: string;
+  summary_length: number;
+  suggestions_length: number;
+  emotional_overview_length: number;
+  key_moments_length: number;
+  recurring_themes_length: number;
+  progress_and_growth_length: number;
+  has_name: boolean;
+  has_avatar: boolean;
+  has_location: boolean;
+  has_birthday: boolean;
+  has_gender: boolean;
+  friend_summary_count: number;
+}
+
+// Friend summary event parameters
+export interface FriendSummaryEventParams extends BaseEventParams {
+  summary_length: number;
+  suggestions_length: number;
+}
+
+// Delete profile event parameters
+export interface DeleteProfileEventParams extends BaseEventParams {
+  update_count: number;
+  feed_count: number;
+  friend_count: number;
+  summary_count: number;
+  group_count: number;
+  device_count: number;
+  invitation_count: number;
 }
 
 // Response Types

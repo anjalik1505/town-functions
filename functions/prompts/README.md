@@ -1,10 +1,12 @@
 # Village AI Prompts
 
-This directory contains the prompt files used by the Village application for AI-powered content generation. These prompts are managed using Firebase GenKit's dotprompt format.
+This directory contains the prompt files used by the Village application for AI-powered content generation. These
+prompts are managed using Firebase GenKit's dotprompt format.
 
 ## Overview
 
-The Village application uses AI to analyze user updates and generate personalized summaries, suggestions, and insights. The prompts in this directory define the instructions and schemas for these AI generations.
+The Village application uses AI to analyze user updates and generate personalized summaries, suggestions, and insights.
+The prompts in this directory define the instructions and schemas for these AI generations.
 
 ## Prompt Files
 

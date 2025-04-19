@@ -1,21 +1,21 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
-import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
-import { Insights, ProfileResponse } from "../models/data-models";
-import { getLogger } from "../utils/logging-utils";
-import { formatProfileResponse, getProfileInsights, profileExists } from "../utils/profile-utils";
+import {Request} from "express";
+import {getFirestore, Timestamp} from "firebase-admin/firestore";
+import {ApiResponse, EventName, ProfileEventParams} from "../models/analytics-events";
+import {Collections, Documents, InsightsFields, ProfileFields} from "../models/constants";
+import {Insights, ProfileResponse} from "../models/data-models";
+import {getLogger} from "../utils/logging-utils";
+import {formatProfileResponse, getProfileInsights, profileExists} from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
 /**
  * Creates a new profile for the authenticated user.
- * 
+ *
  * This function:
  * 1. Checks if a profile already exists for the authenticated user
  * 2. If not, creates a new profile with the provided data
  * 3. Initializes related collections like insights
- * 
+ *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: Profile data including:
@@ -26,12 +26,12 @@ const logger = getLogger(__filename);
  *                - birthday: Optional birthday in ISO format
  *                - notification_settings: Optional list of notification preferences
  *                - gender: Optional gender information
- * 
+ *
  * @returns A ProfileResponse containing:
  * - Basic profile information (id, username, name, avatar)
  * - Optional profile fields (location, birthday, notification_settings, gender)
  * - Empty insights, summary, suggestions information
- * 
+ *
  * @throws 400: Profile already exists for user {user_id}
  */
 export const createProfile = async (req: Request): Promise<ApiResponse<ProfileResponse>> => {

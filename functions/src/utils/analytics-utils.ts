@@ -1,6 +1,6 @@
-import axios, { AxiosInstance } from 'axios';
-import { BaseEventParams, EventName } from '../models/analytics-events';
-import { getLogger } from './logging-utils';
+import axios, {AxiosInstance} from 'axios';
+import {BaseEventParams, EventName} from '../models/analytics-events';
+import {getLogger} from './logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -238,11 +238,34 @@ export function trackApiEvent(
     });
 
     const analytics = GA4MeasurementClient.getInstance();
-    analytics.sendEvents([{ name: eventName, params }], userId)
+    analytics.sendEvents([{name: eventName, params}], userId)
       .catch(error => {
         logger.error('Failed to send API event', error);
       });
   } catch (error) {
     logger.error('Error in trackApiEvent', error);
+  }
+}
+
+export function trackApiEvents(
+  events: { eventName: EventName; params: BaseEventParams }[],
+  userId: string
+): void {
+  try {
+    logger.info('Tracking multiple API events', {
+      eventCount: events.length,
+      userId,
+      events: events.map(e => e.eventName)
+    });
+
+    const analytics = GA4MeasurementClient.getInstance();
+    analytics.sendEvents(
+      events.map(({eventName, params}) => ({name: eventName, params})),
+      userId
+    ).catch(error => {
+      logger.error('Failed to send API events', error);
+    });
+  } catch (error) {
+    logger.error('Error in trackApiEvents', error);
   }
 }
