@@ -1,4 +1,17 @@
 /**
+ * Log levels in order of severity
+ */
+const LogLevel = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3
+} as const;
+
+// Set minimum log level here
+const MIN_LOG_LEVEL = LogLevel.WARN;
+
+/**
  * Creates and returns a logger with the specified name.
  *
  * This utility function provides a standardized way to create loggers
@@ -13,20 +26,28 @@ export const getLogger = (name: string) => {
 
   return {
     info: (message: string, ...args: any[]) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] [${formattedName}] [INFO] ${message}`, ...args);
+      if (MIN_LOG_LEVEL <= LogLevel.INFO) {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] [${formattedName}] [INFO] ${message}`, ...args);
+      }
     },
     warn: (message: string, ...args: any[]) => {
-      const timestamp = new Date().toISOString();
-      console.warn(`[${timestamp}] [${formattedName}] [WARN] ${message}`, ...args);
+      if (MIN_LOG_LEVEL <= LogLevel.WARN) {
+        const timestamp = new Date().toISOString();
+        console.warn(`[${timestamp}] [${formattedName}] [WARN] ${message}`, ...args);
+      }
     },
     error: (message: string, ...args: any[]) => {
-      const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}] [${formattedName}] [ERROR] ${message}`, ...args);
+      if (MIN_LOG_LEVEL <= LogLevel.ERROR) {
+        const timestamp = new Date().toISOString();
+        console.error(`[${timestamp}] [${formattedName}] [ERROR] ${message}`, ...args);
+      }
     },
     debug: (message: string, ...args: any[]) => {
-      const timestamp = new Date().toISOString();
-      console.debug(`[${timestamp}] [${formattedName}] [DEBUG] ${message}`, ...args);
+      if (MIN_LOG_LEVEL <= LogLevel.DEBUG) {
+        const timestamp = new Date().toISOString();
+        console.debug(`[${timestamp}] [${formattedName}] [DEBUG] ${message}`, ...args);
+      }
     }
   };
 }; 
