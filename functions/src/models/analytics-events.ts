@@ -13,7 +13,13 @@ export enum EventName {
   UPDATE_CREATED = 'update_created',
   UPDATES_VIEWED = 'updates_viewed',
   FRIEND_UPDATES_VIEWED = 'friend_updates_viewed',
-  FEED_VIEWED = 'feed_viewed'
+  FEED_VIEWED = 'feed_viewed',
+  INVITE_CREATED = 'invite_created',
+  INVITE_ACCEPTED = 'invite_accepted',
+  INVITE_REJECTED = 'invite_rejected',
+  INVITE_RESENT = 'invite_resent',
+  INVITE_VIEWED = 'invite_viewed',
+  INVITES_VIEWED = 'invites_viewed'
 }
 
 // Base interface for all event parameters
@@ -59,6 +65,12 @@ export interface UpdateViewEventParams extends BaseEventParams {
 export interface FeedViewEventParams extends BaseEventParams {
   updates: number;
   unique_creators: number;
+}
+
+// Invite event parameters
+export interface InviteEventParams extends BaseEventParams {
+  friends: number;
+  invitations: number;
 }
 
 // Response Types

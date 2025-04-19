@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
 import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
 import { Friend } from "../models/data-models";
 import { BadRequestError, ForbiddenError } from "../utils/errors";
@@ -26,9 +27,8 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - params: Route parameters containing:
  *                - invitation_id: The ID of the invitation to accept
- * @param res - The Express response object
  * 
- * @returns A Friend object representing the new friendship
+ * @returns An ApiResponse containing the new friend and analytics
  * 
  * @throws 400: Invitation cannot be accepted (status: {status})
  * @throws 400: Invitation has expired
@@ -39,7 +39,7 @@ const logger = getLogger(__filename);
  * @throws 404: User profile not found
  * @throws 404: Sender profile not found
  */
-export const acceptInvitation = async (req: Request, res: Response): Promise<void> => {
+export const acceptInvitation = async (req: Request): Promise<ApiResponse<Friend>> => {
     const currentUserId = req.userId;
     const invitationId = req.params.invitation_id;
 
@@ -70,14 +70,14 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
     hasInvitationPermission(senderId, currentUserId, "accept");
 
     // Check combined limit for the accepting user
-    const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
+    const { friendCount: currentUserFriendCount, activeInvitationCount: currentUserInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
     if (hasReachedLimit) {
         throw new BadRequestError("You have reached the maximum number of friends and active invitations");
     }
 
     // Check combined limit for the sender (excluding this invitation)
-    const hasReachedSenderLimit = await hasReachedCombinedLimit(senderId, invitationId);
-    if (hasReachedSenderLimit) {
+    const { hasReachedLimit: senderHasReachedLimit } = await hasReachedCombinedLimit(senderId, invitationId);
+    if (senderHasReachedLimit) {
         throw new BadRequestError("Sender has reached the maximum number of friends and active invitations");
     }
 
@@ -129,7 +129,21 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
                 avatar: friendAvatar
             };
 
-            res.json(friend);
+            // Create analytics event
+            const event: InviteEventParams = {
+                friends: currentUserFriendCount,
+                invitations: currentUserInvitationCount
+            };
+
+            return {
+                data: friend,
+                status: 200,
+                analytics: {
+                    event: EventName.INVITE_ACCEPTED,
+                    userId: currentUserId,
+                    params: event
+                }
+            };
         }
     }
 
@@ -167,5 +181,19 @@ export const acceptInvitation = async (req: Request, res: Response): Promise<voi
         avatar: senderProfile[ProfileFields.AVATAR] || ""
     };
 
-    res.json(friend);
+    // Create analytics event
+    const event: InviteEventParams = {
+        friends: currentUserFriendCount + 1, // Add 1 for the new friend
+        invitations: currentUserInvitationCount
+    };
+
+    return {
+        data: friend,
+        status: 200,
+        analytics: {
+            event: EventName.INVITE_ACCEPTED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

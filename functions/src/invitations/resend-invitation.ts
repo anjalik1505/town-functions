@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
 import { Collections, InvitationFields, Status } from "../models/constants";
 import { Invitation } from "../models/data-models";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
@@ -19,15 +20,14 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - params: The route parameters containing:
  *                - invitation_id: The ID of the invitation to resend
- * @param res - The Express response object
  * 
- * @returns The updated Invitation object with refreshed timestamps
+ * @returns An ApiResponse containing the updated invitation and analytics
  * 
  * @throws {400} User has reached the maximum number of friends and active invitations
  * @throws {403} You can only resend your own invitations
  * @throws {404} Invitation not found
  */
-export const resendInvitation = async (req: Request, res: Response): Promise<void> => {
+export const resendInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
     const currentUserId = req.userId;
     const invitationId = req.params.invitation_id;
     logger.info(`User ${currentUserId} resending invitation ${invitationId}`);
@@ -57,7 +57,7 @@ export const resendInvitation = async (req: Request, res: Response): Promise<voi
     }
 
     // Check combined limit (excluding the current invitation)
-    const hasReachedLimit = await hasReachedCombinedLimit(currentUserId, invitationId);
+    const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId, invitationId);
     if (hasReachedLimit) {
         logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
         throw new BadRequestError("You have reached the maximum number of friends and active invitations");
@@ -92,5 +92,19 @@ export const resendInvitation = async (req: Request, res: Response): Promise<voi
         receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || ""
     };
 
-    res.json(invitation);
+    // Create analytics event
+    const event: InviteEventParams = {
+        friends: friendCount,
+        invitations: activeInvitationCount + 1 // Add 1 for the resent invitation
+    };
+
+    return {
+        data: invitation,
+        status: 200,
+        analytics: {
+            event: EventName.INVITE_RESENT,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

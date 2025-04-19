@@ -23,9 +23,9 @@ export const createFriendshipId = (userId1: string, userId2: string): string => 
  * Checks if a user has reached the combined limit of friends and active invitations
  * @param userId The user ID to check
  * @param excludeInvitationId Optional invitation ID to exclude from the count (for resending)
- * @returns true if the user has reached the limit, false otherwise
+ * @returns An object containing the friend count, active invitation count, and whether the limit has been reached
  */
-export const hasReachedCombinedLimit = async (userId: string, excludeInvitationId?: string): Promise<boolean> => {
+export const hasReachedCombinedLimit = async (userId: string, excludeInvitationId?: string): Promise<{ friendCount: number; activeInvitationCount: number; hasReachedLimit: boolean }> => {
     const db = getFirestore();
     const currentTime = Timestamp.now();
 
@@ -59,5 +59,5 @@ export const hasReachedCombinedLimit = async (userId: string, excludeInvitationI
 
     const totalCount = friendCount + activeInvitationCount;
     logger.info(`User ${userId} has ${friendCount} friends and ${activeInvitationCount} active invitations (total: ${totalCount})`);
-    return totalCount >= MAX_COMBINED;
+    return { friendCount, activeInvitationCount, hasReachedLimit: totalCount >= MAX_COMBINED };
 };

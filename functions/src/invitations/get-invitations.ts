@@ -1,7 +1,9 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
 import { Collections, InvitationFields, QueryOperators, Status } from "../models/constants";
 import { Invitation, InvitationsResponse } from "../models/data-models";
+import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { formatInvitation, isInvitationExpired } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
@@ -21,11 +23,10 @@ const logger = getLogger(__filename);
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of invitations to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
- * @param res - The Express response object
  * 
- * @returns An InvitationsResponse object containing all invitations and pagination info
+ * @returns An ApiResponse containing the invitations response and analytics
  */
-export const getInvitations = async (req: Request, res: Response): Promise<void> => {
+export const getInvitations = async (req: Request): Promise<ApiResponse<InvitationsResponse>> => {
     const currentUserId = req.userId;
     logger.info(`Getting invitations for user ${currentUserId}`);
 
@@ -89,7 +90,25 @@ export const getInvitations = async (req: Request, res: Response): Promise<void>
 
     logger.info(`Retrieved ${invitations.length} invitations for user ${currentUserId}`);
 
+    // Get current friend and invitation counts for analytics
+    const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
+
+    // Create analytics event
+    const event: InviteEventParams = {
+        friends: friendCount,
+        invitations: activeInvitationCount
+    };
+
     // Return the invitations response with pagination info
     const response: InvitationsResponse = { invitations, next_cursor: nextCursor };
-    res.json(response);
+
+    return {
+        data: response,
+        status: 200,
+        analytics: {
+            event: EventName.INVITES_VIEWED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

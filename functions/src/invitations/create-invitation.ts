@@ -1,6 +1,8 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
 import { Collections, InvitationFields, ProfileFields, Status } from "../models/constants";
+import { Invitation } from "../models/data-models";
 import { BadRequestError } from "../utils/errors";
 import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { formatInvitation } from "../utils/invitation-utils";
@@ -22,19 +24,18 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: The validated request body containing:
  *                - receiver_name: The name of the person being invited
- * @param res - The Express response object
  * 
- * @returns An Invitation object representing the newly created invitation
+ * @returns An ApiResponse containing the invitation and analytics
  * 
  * @throws 400: User has reached the maximum number of friends and active invitations
  * @throws 404: User profile not found
  */
-export const createInvitation = async (req: Request, res: Response): Promise<void> => {
+export const createInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
     const currentUserId = req.userId;
     logger.info(`Creating invitation for user ${currentUserId}`);
 
     // Check combined limit
-    const hasReachedLimit = await hasReachedCombinedLimit(currentUserId);
+    const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
     if (hasReachedLimit) {
         logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
         throw new BadRequestError("You have reached the maximum number of friends and active invitations");
@@ -78,5 +79,19 @@ export const createInvitation = async (req: Request, res: Response): Promise<voi
     // Return the invitation object
     const invitation = formatInvitation(invitationRef.id, invitationData);
 
-    res.status(201).json(invitation);
+    // Create analytics event
+    const event: InviteEventParams = {
+        friends: friendCount,
+        invitations: activeInvitationCount + 1 // Add 1 for the new invitation
+    };
+
+    return {
+        data: invitation,
+        status: 201,
+        analytics: {
+            event: EventName.INVITE_CREATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

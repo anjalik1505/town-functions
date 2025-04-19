@@ -171,27 +171,33 @@ app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema),
 
 // Invitation routes
 app.get("/invitations", validateQueryParams(paginationSchema), async (req, res) => {
-    await getInvitations(req, res);
+    const result = await getInvitations(req);
+    sendResponse(res, result);
 });
 
 app.get("/invitations/:invitation_id", async (req, res) => {
-    await getInvitation(req, res);
+    const result = await getInvitation(req);
+    sendResponse(res, result);
 });
 
 app.post("/invitations", validateRequest(createInvitationSchema), async (req, res) => {
-    await createInvitation(req, res);
+    const result = await createInvitation(req);
+    sendResponse(res, result);
 });
 
 app.post("/invitations/:invitation_id/accept", async (req, res) => {
-    await acceptInvitation(req, res);
+    const result = await acceptInvitation(req);
+    sendResponse(res, result);
 });
 
 app.post("/invitations/:invitation_id/reject", async (req, res) => {
-    await rejectInvitation(req, res);
+    const result = await rejectInvitation(req);
+    sendResponse(res, result);
 });
 
 app.post("/invitations/:invitation_id/resend", async (req, res) => {
-    await resendInvitation(req, res);
+    const result = await resendInvitation(req);
+    sendResponse(res, result);
 });
 
 // Device routes
