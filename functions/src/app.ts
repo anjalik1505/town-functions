@@ -15,6 +15,7 @@ import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
 import { analyzeSentimentSchema, createCommentSchema, createFeedbackSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
+import { deleteProfile } from "./own_profile/delete-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
 import { getMyFriends } from "./own_profile/get-my-friends";
 import { getProfile } from "./own_profile/get-my-profile";
@@ -117,6 +118,10 @@ app.post("/me/profile", validateRequest(createProfileSchema), async (req, res) =
 
 app.put("/me/profile", validateRequest(updateProfileSchema), async (req, res) => {
     await updateProfile(req, res);
+});
+
+app.delete("/me/profile", async (req, res) => {
+    await deleteProfile(req, res);
 });
 
 app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res) => {
@@ -327,4 +332,3 @@ const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
 app.use(global_error_handler);
 
 export { app };
-
