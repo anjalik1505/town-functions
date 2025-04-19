@@ -19,7 +19,9 @@ export enum EventName {
   INVITE_REJECTED = 'invite_rejected',
   INVITE_RESENT = 'invite_resent',
   INVITE_VIEWED = 'invite_viewed',
-  INVITES_VIEWED = 'invites_viewed'
+  INVITES_VIEWED = 'invites_viewed',
+  QUESTION_GENERATED = 'question_generated',
+  FRIENDS_VIEWED = 'friends_viewed'
 }
 
 // Base interface for all event parameters
@@ -71,6 +73,16 @@ export interface FeedViewEventParams extends BaseEventParams {
 export interface InviteEventParams extends BaseEventParams {
   friends: number;
   invitations: number;
+}
+
+// Question event parameters
+export interface QuestionEventParams extends BaseEventParams {
+  question_length: number;
+}
+
+// Friend event parameters
+export interface FriendEventParams extends BaseEventParams {
+  friends: number;
 }
 
 // Response Types

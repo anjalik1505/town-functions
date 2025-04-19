@@ -126,7 +126,8 @@ app.get("/me/profile", async (req, res) => {
 });
 
 app.get("/me/question", async (req, res) => {
-    await getQuestion(req, res);
+    const result = await getQuestion(req);
+    sendResponse(res, result);
 });
 
 app.post("/me/profile", validateRequest(createProfileSchema), async (req, res) => {
@@ -155,7 +156,8 @@ app.get("/me/feed", validateQueryParams(paginationSchema), async (req, res) => {
 });
 
 app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res) => {
-    await getMyFriends(req, res);
+    const result = await getMyFriends(req);
+    sendResponse(res, result);
 });
 
 // User profile routes

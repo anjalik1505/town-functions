@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { generateQuestionFlow } from "../ai/flows";
+import { ApiResponse, EventName, QuestionEventParams } from "../models/analytics-events";
 import { Collections, InsightsFields, ProfileFields } from "../models/constants";
 import { QuestionResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -17,15 +18,13 @@ const logger = getLogger(__filename);
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
- * @param res - The Express response object
  * 
- * @returns A QuestionResponse containing:
- * - question: A personalized question to encourage sharing
+ * @returns An ApiResponse containing the question and analytics
  * 
  * @throws 404: Profile not found
  * @throws 500: Error generating question or accessing data
  */
-export const getQuestion = async (req: Request, res: Response): Promise<void> => {
+export const getQuestion = async (req: Request): Promise<ApiResponse<QuestionResponse>> => {
     const currentUserId = req.userId;
     logger.info(`Generating personalized question for user: ${currentUserId}`);
 
@@ -62,5 +61,18 @@ export const getQuestion = async (req: Request, res: Response): Promise<void> =>
         question: result.question
     };
 
-    res.json(response);
-} 
+    // Create analytics event
+    const event: QuestionEventParams = {
+        question_length: result.question.length
+    };
+
+    return {
+        data: response,
+        status: 200,
+        analytics: {
+            event: EventName.QUESTION_GENERATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
+}; 

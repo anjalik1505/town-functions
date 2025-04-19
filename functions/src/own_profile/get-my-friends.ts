@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { ApiResponse, EventName, FriendEventParams } from "../models/analytics-events";
 import { Collections, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { Friend, FriendsResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -18,13 +19,10 @@ const logger = getLogger(__filename);
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of friends to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
- * @param res - The Express response object
  * 
- * @returns A FriendsResponse containing:
- * - A list of Friend objects with the friend's profile information and friendship status
- * - A next_cursor for pagination (if more results are available)
+ * @returns An ApiResponse containing the friends response and analytics
  */
-export const getMyFriends = async (req: Request, res: Response): Promise<void> => {
+export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsResponse>> => {
     const db = getFirestore();
     const currentUserId = req.userId;
 
@@ -95,7 +93,21 @@ export const getMyFriends = async (req: Request, res: Response): Promise<void> =
         `Retrieved ${friends.length} friends and pending requests for user: ${currentUserId}`
     );
 
+    // Create analytics event
+    const event: FriendEventParams = {
+        friends: friends.length
+    };
+
     // Return the list of friends with pagination info
     const response: FriendsResponse = { friends, next_cursor: nextCursor };
-    res.json(response);
+
+    return {
+        data: response,
+        status: 200,
+        analytics: {
+            event: EventName.FRIENDS_VIEWED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 
