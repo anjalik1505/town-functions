@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { ApiResponse, EventName, ProfileCreatedEventParams } from "../models/analytics-events";
+import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
 import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
 import { Insights, ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -89,7 +89,8 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   logger.info(`User profile creation completed successfully for user ${currentUserId}`);
 
   // Track profile creation event
-  const profileEventParams: ProfileCreatedEventParams = {
+  const profileEventParams: ProfileEventParams = {
+    has_name: !!profileData.name,
     has_avatar: !!profileData.avatar,
     has_location: !!profileData.location,
     has_birthday: !!profileData.birthday,

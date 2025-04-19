@@ -1,6 +1,8 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
 import { Collections, FriendshipFields, GroupFields, InvitationFields, ProfileFields, QueryOperators } from "../models/constants";
+import { ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatProfileResponse, getProfileDoc, getProfileInsights } from "../utils/profile-utils";
 
@@ -32,7 +34,7 @@ const logger = getLogger(__filename);
  * 
  * @throws 404: Profile not found
  */
-export const updateProfile = async (req: Request, res: Response): Promise<void> => {
+export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileResponse>> => {
     const currentUserId = req.userId;
     logger.info(`Starting update_profile operation for user ID: ${currentUserId}`);
 
@@ -214,5 +216,24 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     // Format and return the response
     const response = formatProfileResponse(currentUserId, updatedProfileData, insightsData);
 
-    res.json(response);
+    // Track profile update event
+    const profileEventParams: ProfileEventParams = {
+        has_name: !!updatedProfileData[ProfileFields.NAME],
+        has_avatar: !!updatedProfileData[ProfileFields.AVATAR],
+        has_location: !!updatedProfileData[ProfileFields.LOCATION],
+        has_birthday: !!updatedProfileData[ProfileFields.BIRTHDAY],
+        has_notification_settings: Array.isArray(updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
+            updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+        has_gender: !!updatedProfileData[ProfileFields.GENDER]
+    };
+
+    return {
+        data: response,
+        status: 200,
+        analytics: {
+            event: EventName.PROFILE_UPDATED,
+            userId: currentUserId,
+            params: profileEventParams
+        }
+    };
 }; 

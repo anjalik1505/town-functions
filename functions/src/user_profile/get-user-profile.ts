@@ -1,6 +1,8 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore } from "firebase-admin/firestore";
-import { Collections, FriendshipFields, Status, UserSummaryFields } from "../models/constants";
+import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
+import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
+import { FriendProfileResponse } from "../models/data-models";
 import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
@@ -32,7 +34,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their profile
  */
-export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
+export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendProfileResponse>> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
@@ -102,5 +104,24 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
         suggestions
     );
 
-    res.json(response);
+    // Track friend profile view event
+    const profileEventParams: ProfileEventParams = {
+        has_name: !!targetUserProfileData[ProfileFields.NAME],
+        has_avatar: !!targetUserProfileData[ProfileFields.AVATAR],
+        has_location: !!targetUserProfileData[ProfileFields.LOCATION],
+        has_birthday: !!targetUserProfileData[ProfileFields.BIRTHDAY],
+        has_notification_settings: Array.isArray(targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
+            targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+        has_gender: !!targetUserProfileData[ProfileFields.GENDER]
+    };
+
+    return {
+        data: response,
+        status: 200,
+        analytics: {
+            event: EventName.FRIEND_PROFILE_VIEWED,
+            userId: currentUserId,
+            params: profileEventParams
+        }
+    };
 }; 

@@ -53,7 +53,10 @@ const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
             trackApiEvent(analytics.event, analytics.userId, analytics.params);
         });
     }
-    res.status(response.status).json(response.data);
+    res.status(response.status);
+    if (response.data !== null) {
+        res.json(response.data);
+    }
 };
 
 // Initialize Firebase Admin
@@ -118,7 +121,8 @@ app.use(authenticate_request);
 
 // Routes - leveraging Express 5+'s automatic error handling for async handlers
 app.get("/me/profile", async (req, res) => {
-    await getProfile(req, res);
+    const result = await getProfile(req);
+    sendResponse(res, result);
 });
 
 app.get("/me/question", async (req, res) => {
@@ -131,11 +135,13 @@ app.post("/me/profile", validateRequest(createProfileSchema), async (req, res) =
 });
 
 app.put("/me/profile", validateRequest(updateProfileSchema), async (req, res) => {
-    await updateProfile(req, res);
+    const result = await updateProfile(req);
+    sendResponse(res, result);
 });
 
 app.delete("/me/profile", async (req, res) => {
-    await deleteProfile(req, res);
+    const result = await deleteProfile(req);
+    sendResponse(res, result);
 });
 
 app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res) => {
@@ -152,7 +158,8 @@ app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res) =
 
 // User profile routes
 app.get("/users/:target_user_id/profile", async (req, res) => {
-    await getUserProfile(req, res);
+    const result = await getUserProfile(req);
+    sendResponse(res, result);
 });
 
 app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema), async (req, res) => {
