@@ -19,7 +19,6 @@ const logger = getLogger(__filename);
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
- * @param res - The Express response object
  * 
  * @returns 204 No Content on successful deletion
  * 
@@ -45,7 +44,7 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
   logger.info(`Profile document deleted for user ${currentUserId}`);
 
   // Track profile deletion event
-  const profileEventParams: ProfileEventParams = {
+  const event: ProfileEventParams = {
     has_name: !!profileData[ProfileFields.NAME],
     has_avatar: !!profileData[ProfileFields.AVATAR],
     has_location: !!profileData[ProfileFields.LOCATION],
@@ -61,7 +60,7 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
     analytics: {
       event: EventName.PROFILE_DELETED,
       userId: currentUserId,
-      params: profileEventParams
+      params: event
     }
   };
 };

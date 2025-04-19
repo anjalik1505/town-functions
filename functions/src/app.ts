@@ -145,11 +145,13 @@ app.delete("/me/profile", async (req, res) => {
 });
 
 app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res) => {
-    await getUpdates(req, res);
+    const result = await getUpdates(req);
+    sendResponse(res, result);
 });
 
 app.get("/me/feed", validateQueryParams(paginationSchema), async (req, res) => {
-    await getFeeds(req, res);
+    const result = await getFeeds(req);
+    sendResponse(res, result);
 });
 
 app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res) => {
@@ -163,7 +165,8 @@ app.get("/users/:target_user_id/profile", async (req, res) => {
 });
 
 app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema), async (req, res) => {
-    await getUserUpdates(req, res);
+    const result = await getUserUpdates(req);
+    sendResponse(res, result);
 });
 
 // Invitation routes
@@ -202,7 +205,8 @@ app.put("/device", validateRequest(deviceSchema), async (req, res) => {
 
 // Update routes
 app.post("/updates", validateRequest(createUpdateSchema), async (req, res) => {
-    await createUpdate(req, res);
+    const result = await createUpdate(req);
+    sendResponse(res, result);
 });
 
 // Comment routes

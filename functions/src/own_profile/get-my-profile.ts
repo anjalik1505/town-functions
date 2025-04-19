@@ -17,7 +17,6 @@ const logger = getLogger(__filename);
  * 
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
- * @param res - The Express response object
  * 
  * @returns A ProfileResponse containing:
  * - Basic profile information (id, username, name, avatar)
@@ -40,7 +39,7 @@ export const getProfile = async (req: Request): Promise<ApiResponse<ProfileRespo
   const response = formatProfileResponse(currentUserId, profileData, insightsData);
 
   // Track profile view event
-  const profileEventParams: ProfileEventParams = {
+  const event: ProfileEventParams = {
     has_name: !!profileData[ProfileFields.NAME],
     has_avatar: !!profileData[ProfileFields.AVATAR],
     has_location: !!profileData[ProfileFields.LOCATION],
@@ -56,7 +55,7 @@ export const getProfile = async (req: Request): Promise<ApiResponse<ProfileRespo
     analytics: {
       event: EventName.PROFILE_VIEWED,
       userId: currentUserId,
-      params: profileEventParams
+      params: event
     }
   };
 }; 

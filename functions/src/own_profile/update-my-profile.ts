@@ -28,7 +28,7 @@ const logger = getLogger(__filename);
  *                - location: Optional updated location information
  *                - birthday: Optional updated birthday in ISO format
  *                - notification_settings: Optional updated list of notification preferences
- * @param res - The Express response object
+ *                - gender: Optional updated gender information
  * 
  * @returns A ProfileResponse containing the updated profile information
  * 
@@ -217,7 +217,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     const response = formatProfileResponse(currentUserId, updatedProfileData, insightsData);
 
     // Track profile update event
-    const profileEventParams: ProfileEventParams = {
+    const event: ProfileEventParams = {
         has_name: !!updatedProfileData[ProfileFields.NAME],
         has_avatar: !!updatedProfileData[ProfileFields.AVATAR],
         has_location: !!updatedProfileData[ProfileFields.LOCATION],
@@ -233,7 +233,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
         analytics: {
             event: EventName.PROFILE_UPDATED,
             userId: currentUserId,
-            params: profileEventParams
+            params: event
         }
     };
 }; 

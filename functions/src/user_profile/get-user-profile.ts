@@ -22,7 +22,6 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - params: Route parameters containing:
  *                - target_user_id: The ID of the user whose profile is being requested
- * @param res - The Express response object
  * 
  * @returns A FriendProfileResponse containing:
  * - Basic profile information (id, name, avatar)
@@ -105,7 +104,7 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     );
 
     // Track friend profile view event
-    const profileEventParams: ProfileEventParams = {
+    const event: ProfileEventParams = {
         has_name: !!targetUserProfileData[ProfileFields.NAME],
         has_avatar: !!targetUserProfileData[ProfileFields.AVATAR],
         has_location: !!targetUserProfileData[ProfileFields.LOCATION],
@@ -121,7 +120,7 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
         analytics: {
             event: EventName.FRIEND_PROFILE_VIEWED,
             userId: currentUserId,
-            params: profileEventParams
+            params: event
         }
     };
 }; 

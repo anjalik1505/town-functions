@@ -6,6 +6,14 @@
 export enum EventName {
   API_ERROR = 'api_error',
   PROFILE_CREATED = 'profile_created',
+  PROFILE_UPDATED = 'profile_updated',
+  PROFILE_DELETED = 'profile_deleted',
+  PROFILE_VIEWED = 'profile_viewed',
+  FRIEND_PROFILE_VIEWED = 'friend_profile_viewed',
+  UPDATE_CREATED = 'update_created',
+  UPDATES_VIEWED = 'updates_viewed',
+  FRIEND_UPDATES_VIEWED = 'friend_updates_viewed',
+  FEED_VIEWED = 'feed_viewed'
 }
 
 // Base interface for all event parameters
@@ -23,12 +31,34 @@ export interface ApiErrorEventParams extends BaseEventParams {
 }
 
 // Profile Created event parameters
-export interface ProfileCreatedEventParams extends BaseEventParams {
+export interface ProfileEventParams extends BaseEventParams {
+  has_name: boolean;
   has_avatar: boolean;
   has_location: boolean;
   has_birthday: boolean;
   has_notification_settings: boolean;
   has_gender: boolean;
+}
+
+// Update event parameters
+export interface UpdateEventParams extends BaseEventParams {
+  content_length: number;
+  sentiment: string;
+  score: string;
+  friend_count: number;
+  group_count: number;
+}
+
+// Update event parameters
+export interface UpdateViewEventParams extends BaseEventParams {
+  updates: number;
+  user: string;
+}
+
+// Feed event parameters
+export interface FeedViewEventParams extends BaseEventParams {
+  updates: number;
+  unique_creators: number;
 }
 
 // Response Types

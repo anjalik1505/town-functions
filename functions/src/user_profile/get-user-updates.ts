@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { ApiResponse, EventName, UpdateViewEventParams } from "../models/analytics-events";
 import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
 import { UpdatesResponse } from "../models/data-models";
 import { BadRequestError, ForbiddenError } from "../utils/errors";
@@ -23,7 +24,6 @@ const logger = getLogger(__filename);
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  *              - params: Route parameters containing:
  *                - target_user_id: The ID of the user whose updates are being requested
- * @param res - The Express response object
  * 
  * @returns An UpdatesResponse containing:
  * - A list of updates created by the specified user
@@ -33,7 +33,7 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (req: Request, res: Response): Promise<void> => {
+export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesResponse>> => {
     const currentUserId = req.userId;
     const targetUserId = req.params.target_user_id;
 
@@ -100,7 +100,19 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
 
     if (feedDocs.length === 0) {
         logger.info(`No updates found for user ${targetUserId}`);
-        res.json({ updates: [], next_cursor: null });
+        const emptyEvent: UpdateViewEventParams = {
+            updates: 0,
+            user: targetUserId
+        };
+        return {
+            data: { updates: [], next_cursor: null },
+            status: 200,
+            analytics: {
+                event: EventName.FRIEND_UPDATES_VIEWED,
+                userId: currentUserId,
+                params: emptyEvent
+            }
+        };
     }
 
     // Get all update IDs from feed items
@@ -119,6 +131,17 @@ export const getUserUpdates = async (req: Request, res: Response): Promise<void>
     const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
 
     logger.info(`Retrieved ${updates.length} updates for user ${targetUserId}`);
-    const response: UpdatesResponse = { updates, next_cursor: nextCursor };
-    res.json(response);
+    const event: UpdateViewEventParams = {
+        updates: updates.length,
+        user: targetUserId
+    };
+    return {
+        data: { updates, next_cursor: nextCursor },
+        status: 200,
+        analytics: {
+            event: EventName.FRIEND_UPDATES_VIEWED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

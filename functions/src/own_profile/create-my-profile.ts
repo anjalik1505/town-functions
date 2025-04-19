@@ -26,7 +26,6 @@ const logger = getLogger(__filename);
  *                - birthday: Optional birthday in ISO format
  *                - notification_settings: Optional list of notification preferences
  *                - gender: Optional gender information
- * @param res - The Express response object
  * 
  * @returns A ProfileResponse containing:
  * - Basic profile information (id, username, name, avatar)
@@ -89,7 +88,7 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   logger.info(`User profile creation completed successfully for user ${currentUserId}`);
 
   // Track profile creation event
-  const profileEventParams: ProfileEventParams = {
+  const event: ProfileEventParams = {
     has_name: !!profileData.name,
     has_avatar: !!profileData.avatar,
     has_location: !!profileData.location,
@@ -104,7 +103,7 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     analytics: {
       event: EventName.PROFILE_CREATED,
       userId: currentUserId,
-      params: profileEventParams
+      params: event
     }
   };
 }; 

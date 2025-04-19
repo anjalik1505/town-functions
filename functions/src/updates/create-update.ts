@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
+import { ApiResponse, EventName, UpdateEventParams } from "../models/analytics-events";
 import { Collections, FeedFields, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -30,10 +31,10 @@ const logger = getLogger(__filename);
  *                - emoji: The emoji of the update
  *                - group_ids: Optional list of group IDs to share the update with
  *                - friend_ids: Optional list of friend IDs to share the update with
- * @param res - The Express response object
+ * 
  * @returns A Promise that resolves to the created Update object
  */
-export const createUpdate = async (req: Request, res: Response): Promise<void> => {
+export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> => {
     logger.info(`Creating update for user: ${req.userId}`);
 
     // Get the authenticated user ID from the request
@@ -175,5 +176,20 @@ export const createUpdate = async (req: Request, res: Response): Promise<void> =
         reactions: []
     };
 
-    res.json(response);
+    const event: UpdateEventParams = {
+        content_length: content.length,
+        sentiment: sentiment,
+        score: score,
+        friend_count: friendIds.length,
+        group_count: groupIds.length
+    };
+    return {
+        data: response,
+        status: 201,
+        analytics: {
+            event: EventName.UPDATE_CREATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 } 

@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { ApiResponse, EventName, UpdateViewEventParams } from "../models/analytics-events";
 import { Collections, FeedFields, QueryOperators } from "../models/constants";
 import { UpdatesResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -19,13 +20,12 @@ const logger = getLogger(__filename);
  *              - validated_params: Pagination parameters containing:
  *                - limit: Maximum number of updates to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
- * @param res - The Express response object
  * 
  * @returns An UpdatesResponse containing:
  * - A list of updates belonging to the current user
  * - A next_cursor for pagination (if more results are available)
  */
-export const getUpdates = async (req: Request, res: Response): Promise<void> => {
+export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesResponse>> => {
     const currentUserId = req.userId;
     logger.info(`Retrieving updates for user: ${currentUserId}`);
 
@@ -59,7 +59,19 @@ export const getUpdates = async (req: Request, res: Response): Promise<void> => 
 
     if (feedDocs.length === 0) {
         logger.info(`No updates found for user ${currentUserId}`);
-        res.json({ updates: [], next_cursor: null });
+        const emptyEvent: UpdateViewEventParams = {
+            updates: 0,
+            user: currentUserId
+        };
+        return {
+            data: { updates: [], next_cursor: null },
+            status: 200,
+            analytics: {
+                event: EventName.UPDATES_VIEWED,
+                userId: currentUserId,
+                params: emptyEvent
+            }
+        };
     }
 
     // Get all update IDs from feed items
@@ -78,6 +90,17 @@ export const getUpdates = async (req: Request, res: Response): Promise<void> => 
     const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
 
     logger.info(`Retrieved ${updates.length} updates for user ${currentUserId}`);
-    const response: UpdatesResponse = { updates, next_cursor: nextCursor };
-    res.json(response);
+    const event: UpdateViewEventParams = {
+        updates: updates.length,
+        user: currentUserId
+    };
+    return {
+        data: { updates, next_cursor: nextCursor },
+        status: 200,
+        analytics: {
+            event: EventName.UPDATES_VIEWED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 
