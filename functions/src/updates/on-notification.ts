@@ -18,6 +18,7 @@ const logger = getLogger(__filename);
  * @param creatorName - The name of the creator
  * @param creatorGender - The gender of the creator
  * @param creatorLocation - The location of the creator
+ * @param creatorBirthday - The birthday of the creator
  */
 const processUserNotification = async (
     db: FirebaseFirestore.Firestore,
@@ -26,7 +27,8 @@ const processUserNotification = async (
     targetUserId: string,
     creatorName: string,
     creatorGender: string,
-    creatorLocation: string
+    creatorLocation: string,
+    creatorBirthday: string
 ): Promise<void> => {
     // Skip if the target user is the creator
     if (targetUserId === creatorId) {
@@ -93,21 +95,18 @@ const processUserNotification = async (
 
     // If we should send a notification, generate the message and send it
     if (shouldSendNotification) {
+        // Calculate creator's age
+        const creatorAge = calculateAge(creatorBirthday || "");
 
-        const friendName = profileData[ProfileFields.NAME] || profileData[ProfileFields.USERNAME] || "Friend";
-        const friendGender = profileData[ProfileFields.GENDER] || "unknown";
-        const friendLocation = profileData[ProfileFields.LOCATION] || "unknown";
-        const friendAge = calculateAge(profileData[ProfileFields.BIRTHDAY] || "");
-
-        // Generate notification message
+        // Generate notification message using creator's information
         const result = await generateNotificationMessageFlow({
             updateContent: updateContent || "",
             sentiment: sentiment || "",
             score: score.toString(),
-            friendName: friendName,
-            friendGender: friendGender,
-            friendLocation: friendLocation,
-            friendAge: friendAge
+            friendName: creatorName,
+            friendGender: creatorGender,
+            friendLocation: creatorLocation,
+            friendAge: creatorAge
         });
 
         // Send the notification
@@ -177,6 +176,7 @@ const processAllNotifications = async (
     let creatorName = "Friend";
     let creatorGender = "They";
     let creatorLocation = "";
+    let creatorBirthday = "";
 
     if (creatorProfileDoc.exists) {
         const creatorProfileData = creatorProfileDoc.data() || {};
@@ -185,6 +185,7 @@ const processAllNotifications = async (
             "Friend";
         creatorGender = creatorProfileData[ProfileFields.GENDER] || "They";
         creatorLocation = creatorProfileData[ProfileFields.LOCATION] || "";
+        creatorBirthday = creatorProfileData[ProfileFields.BIRTHDAY] || "";
     } else {
         logger.warn(`Creator profile not found: ${creatorId}`);
     }
@@ -222,7 +223,8 @@ const processAllNotifications = async (
             userId,
             creatorName,
             creatorGender,
-            creatorLocation
+            creatorLocation,
+            creatorBirthday
         )
     );
 

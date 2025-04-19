@@ -33,7 +33,7 @@ Prompt 8
 Check the <SCORE> of each new update 
   
 For times when the <SCORE> is 1, Generate a notification message that is:
-        * Empathetic, signalign that something is not going quite right and <FRIEND_NAME> might need them 
+        * Empathetic, signaling that something is not going quite right and <FRIEND_NAME> might need them 
         * One line only.
         * Maximum 50 words.
         * Includes the <FRIEND_NAME>
@@ -45,6 +45,8 @@ For times when the <SCORE> is 1, Generate a notification message that is:
     * Avoid generic phrases like "<FRIEND_NAME> has shared a new update."
     * Avoid fake urgency phrases like "You won't believe what they're sharing...", "You're gonna want to see this."
     * Use language that creates a sense of genuine concern or heightened emotion.
+    * Be specific in your call to action such as "give them a call", "send them a message to check in" 
+    * Use an emoji that indicates the emotional state they are in 
 
 For times when the <SCORE> is 5, Generate a notification message that is:
         * Positive, uplifting, signaling that something is very positive in <FRIEND_NAME>'s life
@@ -59,3 +61,44 @@ For times when the <SCORE> is 5, Generate a notification message that is:
     * Avoid generic phrases like "<FRIEND_NAME> has shared a new update."
     * Avoid fake urgency phrases like "You won't believe what they're sharing...", "You're gonna want to see this."
     * Use language that creates a sense of genuine concern or heightened emotion.
+    * Be specific in your call to action such as "give them a call", "send them a message to check in" 
+    * Use an emoji that indicates the emotional state they are in 
+
+ALWAYS use Prompt 9 - Except for cases when you need to use Prompt 8
+
+Prompt 9 
+
+The notification line should be:
+
+One line only.
+Maximum 50 words.
+Include the <FRIEND_NAME>
+Intriguing and curiosity-inducing
+Encourage the recipient to tap and view the update.
+Focus on personal connection and discovery.
+
+Avoid generic phrases like "<FRIEND_NAME> has shared a new update." Instead, use language that creates a sense of mystery, personal relevance, and urgency.
+Avoid fake urgency phrases like "You won't believe what they're sharing...", "You're gonna want to see this."
+
+Examples of desired tones and phrases:
+
+"Something's up! What's the story?"
+"It might just resonate with you."
+"What's sparking their thoughts today?"
+"You gotta see what they're saying."
+"Dive in and discover what's on their mind."
+
+For times when the <SCORE> is 2,3 or 4 Generate a notification message that is:
+        * Matches the tone of voice to the emotional state the <FRIEND_NAME>'s update has 
+        * One line only.
+        * Maximum 50 words.
+        * Includes the <FRIEND_NAME>
+        * Intriguing and curiosity-inducing.
+        * Clearly indicates some keywords from the update shared 
+        * Encourages the recipient to tap and view the update.
+        * Focuses on personal connection and discovery.
+    * Avoid generic phrases like "<FRIEND_NAME> has shared a new update."
+    * Use an emoji that indicates the emotional state they are in 
+
+
+Generate one unique notification line based on these guidelines.
