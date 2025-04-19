@@ -92,6 +92,7 @@ export interface FriendEventParams extends BaseEventParams {
 // Comment event parameters
 export interface CommentEventParams extends BaseEventParams {
   comment_length: number;
+  comment_count: number;
 }
 
 // Comment view event parameters

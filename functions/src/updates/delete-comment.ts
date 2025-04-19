@@ -59,7 +59,8 @@ export const deleteComment = async (req: Request): Promise<ApiResponse<null>> =>
 
     // Create analytics event
     const event: CommentEventParams = {
-        comment_length: commentData[CommentFields.CONTENT].length
+        comment_length: commentData[CommentFields.CONTENT].length,
+        comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1)
     };
 
     return {
