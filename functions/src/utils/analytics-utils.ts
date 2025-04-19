@@ -78,7 +78,7 @@ export class GA4MeasurementClient {
       return;
     }
 
-    if (!process.env.GA4_MEASUREMENT_ID || !process.env.GA4_API_SECRET) {
+    if (!process.env.GA4_MEASUREMENT_ID || !process.env.GA4_API_SECRET || !process.env.GA4_SERVER_CLIENT_ID) {
       logger.warn('Missing GA4 credentials');
       return;
     }
@@ -90,15 +90,21 @@ export class GA4MeasurementClient {
     });
 
     try {
-      const batches = this.createBatches(events);
+      // Extend each event's params with engagement_time_msec
+      const eventsWithEngagement: GA4Event[] = events.map(event => ({
+        ...event,
+        params: { ...event.params, engagement_time_msec: 1 }
+      }));
+      const batches = this.createBatches(eventsWithEngagement);
       logger.info('Created event batches', {
         batchCount: batches.length,
-        totalEvents: events.length
+        totalEvents: eventsWithEngagement.length
       });
 
       for (const batch of batches) {
+        // Build the payload with the persistent server-side client_id
         const payload: GA4Payload = {
-          client_id: CONFIG.serverClientId,
+          client_id: process.env.GA4_SERVER_CLIENT_ID!,
           user_id: userId,
           events: batch,
         };
@@ -111,7 +117,7 @@ export class GA4MeasurementClient {
       }
 
       logger.info('Successfully sent all events', {
-        totalEvents: events.length,
+        totalEvents: eventsWithEngagement.length,
         userId
       });
     } catch (error) {
@@ -238,7 +244,7 @@ export function trackApiEvent(
     });
 
     const analytics = GA4MeasurementClient.getInstance();
-    analytics.sendEvents([{name: eventName, params}], userId)
+    analytics.sendEvents([{ name: eventName, params }], userId)
       .catch(error => {
         logger.error('Failed to send API event', error);
       });
@@ -260,7 +266,7 @@ export function trackApiEvents(
 
     const analytics = GA4MeasurementClient.getInstance();
     analytics.sendEvents(
-      events.map(({eventName, params}) => ({name: eventName, params})),
+      events.map(({ eventName, params }) => ({ name: eventName, params })),
       userId
     ).catch(error => {
       logger.error('Failed to send API events', error);
