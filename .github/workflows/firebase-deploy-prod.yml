@@ -1,0 +1,78 @@
+name: Firebase Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to deploy'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify Tag
+        run: |
+          git fetch --tags
+          if ! git rev-parse --verify "refs/tags/${{ github.event.inputs.release_tag }}" >/dev/null 2>&1; then
+            echo "Error: Tag ${{ github.event.inputs.release_tag }} does not exist"
+            exit 1
+          fi
+
+      - name: Check for Functions Changes
+        id: functions-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            functions/**
+            .github/**
+
+      - name: Check for Firestore Changes
+        id: firestore-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            firestore.rules
+            firestore.indexes.json
+            .firebaserc
+            .firebase.json
+            .github/**
+
+      - name: Build Functions
+        if: steps.functions-changes.outputs.any_changed == 'true'
+        run: |
+          cd functions
+          npm install
+          npm run build
+          cd ..
+
+      - name: Deploy Functions
+        if: steps.functions-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@v14.0.1
+        with:
+          args: deploy --only functions
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_PROD }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
+
+      - name: Deploy Firestore
+        if: steps.firestore-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@v14.0.1
+        with:
+          args: deploy --only firestore
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_PROD }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_PROD }}

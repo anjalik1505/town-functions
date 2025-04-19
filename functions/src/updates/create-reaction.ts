@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
-import { Collections, QueryOperators, ReactionFields, UpdateFields } from "../models/constants";
+import { Collections, QueryOperators, ReactionFields } from "../models/constants";
 import { ReactionGroup } from "../models/data-models";
+import { BadRequestError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
-import { createFriendVisibilityIdentifier } from "../utils/visibility-utils";
+import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 
@@ -39,44 +40,20 @@ export const createReaction = async (req: Request, res: Response): Promise<void>
     logger.info(`Creating ${reactionType} reaction on update ${updateId} by user ${currentUserId}`);
 
     const db = getFirestore();
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const updateDoc = await updateRef.get();
 
-    if (!updateDoc.exists) {
-        logger.warn(`Update ${updateId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Update not found"
-        });
-    }
-
-    const updateData = updateDoc.data();
-    const visibleTo = updateData?.[UpdateFields.VISIBLE_TO] || [];
-    const friendVisibility = createFriendVisibilityIdentifier(currentUserId);
-
-    if (!visibleTo.includes(friendVisibility)) {
-        logger.warn(`User ${currentUserId} attempted to react to update ${updateId} without access`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You don't have access to this update"
-        });
-    }
+    // Get the update document and verify access
+    const updateResult = await getUpdateDoc(updateId);
+    hasUpdateAccess(updateResult.data, currentUserId);
 
     // Check if user has already reacted with this type
-    const existingReactionSnapshot = await updateRef.collection(Collections.REACTIONS)
+    const existingReactionSnapshot = await updateResult.ref.collection(Collections.REACTIONS)
         .where(ReactionFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
         .where(ReactionFields.TYPE, QueryOperators.EQUALS, reactionType)
         .get();
 
     if (!existingReactionSnapshot.empty) {
         logger.warn(`User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`);
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "You have already reacted with this type"
-        });
+        throw new BadRequestError("You have already reacted with this type");
     }
 
     // Create the reaction document
@@ -93,11 +70,11 @@ export const createReaction = async (req: Request, res: Response): Promise<void>
     const batch = db.batch();
 
     // Add the reaction document
-    batch.set(updateRef.collection(Collections.REACTIONS).doc(reactionId), reactionData);
+    batch.set(updateResult.ref.collection(Collections.REACTIONS).doc(reactionId), reactionData);
 
     // Update the reaction count
-    batch.update(updateRef, {
-        reaction_count: (updateData?.reaction_count || 0) + 1
+    batch.update(updateResult.ref, {
+        reaction_count: (updateResult.data.reaction_count || 0) + 1
     });
 
     // Commit the batch
@@ -107,9 +84,9 @@ export const createReaction = async (req: Request, res: Response): Promise<void>
     // Return the reaction group with updated count
     const response: ReactionGroup = {
         type: reactionType,
-        count: (updateData?.reaction_count || 0) + 1,
+        count: (updateResult.data.reaction_count || 0) + 1,
         reaction_id: reactionId
     };
 
     res.status(201).json(response);
-} 
+}; 

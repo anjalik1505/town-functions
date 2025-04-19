@@ -1,9 +1,4 @@
-name: Firebase Deploy
-
-# This workflow deploys the Firebase application (functions and hosting)
-# Prerequisites:
-# Add the following secrets to your GitHub repository's staging environment:
-# - FIREBASE_TOKEN (generate using firebase login:ci)
+name: Firebase Staging Deploy
 
 on:
   push:
@@ -15,13 +10,19 @@ on:
       - '.firebaserc'
       - '.firebase.json'
       - '.github/**'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.release_tag }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,8 +35,6 @@ jobs:
         with:
           files: |
             functions/**
-            .firebaserc
-            .firebase.json
             .github/**
 
       - name: Check for Web Changes
@@ -44,6 +43,15 @@ jobs:
         with:
           files: |
             web/**
+            .github/**
+
+      - name: Check for Firestore Changes
+        id: firestore-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            firestore.rules
+            firestore.indexes.json
             .firebaserc
             .firebase.json
             .github/**
@@ -62,7 +70,8 @@ jobs:
         with:
           args: deploy --only functions
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
 
       - name: Deploy Web
         if: steps.web-changes.outputs.any_changed == 'true'
@@ -70,4 +79,14 @@ jobs:
         with:
           args: deploy --only hosting
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }} 
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
+
+      - name: Deploy Firestore
+        if: steps.firestore-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@v14.0.1
+        with:
+          args: deploy --only firestore
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }} 

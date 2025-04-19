@@ -1,6 +1,7 @@
 import { defineSecret } from 'firebase-functions/params';
 import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { app } from "./app";
 import { Collections } from "./models/constants";
 import { onProfileDeleted } from "./own_profile/on-deletion";
@@ -45,8 +46,7 @@ export const process_daily_notifications = onSchedule({
 // Export the Firestore trigger function for profile deletion
 export const process_profile_deletion = onDocumentDeleted(
   {
-    document: `${Collections.PROFILES}/{id}`,
-    secrets: [geminiApiKey],
+    document: `${Collections.PROFILES}/{id}`
   },
   (event) => onProfileDeleted(event)
 );

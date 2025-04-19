@@ -1,4 +1,17 @@
+import { isValid, parse } from "date-fns";
+import emojiRegex from "emoji-regex";
 import { z } from "zod";
+import { NotificationFields } from "./constants";
+
+// Reusable schema for birthday validation
+const birthdaySchema = z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Birthday must be in yyyy-mm-dd format")
+    .refine((val) => {
+        // Use date-fns to parse and validate the date
+        const parsedDate = parse(val, 'yyyy-MM-dd', new Date());
+        return isValid(parsedDate);
+    }, "Birthday must be a valid date")
+    .optional();
 
 // Profile schemas
 export const createProfileSchema = z.object({
@@ -6,8 +19,8 @@ export const createProfileSchema = z.object({
     name: z.string().optional(),
     avatar: z.string().optional(),
     location: z.string().optional(),
-    birthday: z.string().optional(),
-    notification_settings: z.array(z.enum(["all", "urgent"])).optional(),
+    birthday: birthdaySchema,
+    notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
     gender: z.string().optional()
 });
 
@@ -16,8 +29,8 @@ export const updateProfileSchema = z.object({
     name: z.string().optional(),
     avatar: z.string().optional(),
     location: z.string().optional(),
-    birthday: z.string().optional(),
-    notification_settings: z.array(z.enum(["all", "urgent"])).optional(),
+    birthday: birthdaySchema,
+    notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
     gender: z.string().optional()
 });
 
@@ -34,6 +47,12 @@ export const deviceSchema = z.object({
 export const createUpdateSchema = z.object({
     content: z.string().min(1, "Content is required"),
     sentiment: z.string().min(1, "Sentiment is required"),
+    score: z.number().min(1).max(5, "Score must be between 1 and 5"),
+    emoji: z.string().min(1, "Sentiment emoji is required")
+        .refine((val) => {
+            const regex = emojiRegex();
+            return regex.test(val);
+        }, "Must be a valid emoji"),
     group_ids: z.array(z.string()).optional(),
     friend_ids: z.array(z.string()).optional()
 });
@@ -107,4 +126,8 @@ export const createReactionSchema = z.object({
 
 export const createFeedbackSchema = z.object({
     content: z.string().min(1, "Feedback content is required")
+});
+
+export const analyzeSentimentSchema = z.object({
+    content: z.string().min(1, "Content is required")
 });

@@ -1,5 +1,8 @@
 import { RequestHandler } from "express";
 import { z } from "zod";
+import { getLogger } from "../utils/logging-utils";
+
+const logger = getLogger(__filename);
 
 export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler => {
     return (req, res, next) => {
@@ -8,14 +11,12 @@ export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler 
             req.validated_params = schema.parse(req.body) as z.infer<T>;
             next();
         } catch (error) {
-            if (error instanceof z.ZodError) {
-                res.status(400).json({
-                    code: 400,
-                    name: "Bad Request",
-                    description: "Invalid request parameters"
-                });
-                return;
-            }
+            // Log the input data that caused the validation error
+            logger.error(`Validation error for request body:`, {
+                body: req.body,
+                error: error
+            });
+            // Pass the error to the next error handler
             next(error);
         }
     };
@@ -28,14 +29,12 @@ export const validateQueryParams = <T extends z.ZodType>(schema: T): RequestHand
             req.validated_params = schema.parse(req.query) as z.infer<T>;
             next();
         } catch (error) {
-            if (error instanceof z.ZodError) {
-                res.status(400).json({
-                    code: 400,
-                    name: "Bad Request",
-                    description: "Invalid query parameters"
-                });
-                return;
-            }
+            // Log the input data that caused the validation error
+            logger.error(`Validation error for query params:`, {
+                query: req.query,
+                error: error
+            });
+            // Pass the error to the next error handler
             next(error);
         }
     };

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore } from "firebase-admin/firestore";
 import { Collections, GroupFields, ProfileFields } from "../models/constants";
 import { GroupMember, GroupMembersResponse } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
@@ -39,11 +40,7 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Group not found"
-        });
+        throw new NotFoundError("Group not found");
     }
 
     const groupData = groupDoc.data() || {};
@@ -52,11 +49,7 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
     // Check if the current user is a member of the group
     if (!membersIds.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be a member of the group to view its members"
-        });
+        throw new ForbiddenError("You must be a member of the group to view its members");
     }
 
     const members: GroupMember[] = [];

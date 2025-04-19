@@ -114,7 +114,7 @@ class VillageAPI:
         response = requests.post(
             f"{API_BASE_URL}/me/profile", headers=headers, json=profile_data
         )
-        if response.status_code != 200:
+        if response.status_code != 201:
             logger.error(f"Failed to create profile: {response.text}")
             response.raise_for_status()
 
@@ -455,6 +455,27 @@ class VillageAPI:
             response.raise_for_status()
 
         logger.info(f"Successfully retrieved question for user: {email}")
+        return response.json()
+
+    def analyze_sentiment(self, email: str, content: str) -> Dict[str, Any]:
+        """Analyze the sentiment of a text"""
+        logger.info(f"Analyzing sentiment for text: {content[:50]}...")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+
+        response = requests.post(
+            f"{API_BASE_URL}/updates/sentiment", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to analyze sentiment: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully analyzed sentiment")
         return response.json()
 
     # Comment Methods

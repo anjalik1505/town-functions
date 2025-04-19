@@ -1,7 +1,8 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
 import { EnrichedUpdate, FeedResponse, GroupMember, Update } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
@@ -21,7 +22,6 @@ const logger = getLogger(__filename);
  *                - limit: Maximum number of updates to return
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  * @param res - The Express response object
- * @param next - The Express next function for error handling
  * @param groupId - The ID of the group to retrieve updates for
  * 
  * Query Parameters:
@@ -36,7 +36,7 @@ const logger = getLogger(__filename);
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupFeed = async (req: Request, res: Response, next: NextFunction, groupId: string): Promise<void> => {
+export const getGroupFeed = async (req: Request, res: Response, groupId: string): Promise<void> => {
     logger.info(`Retrieving feed for group: ${groupId}`);
 
     // Get the authenticated user ID from the request
@@ -60,11 +60,7 @@ export const getGroupFeed = async (req: Request, res: Response, next: NextFuncti
 
     if (!groupDoc.exists) {
         logger.warn(`Group ${groupId} not found`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Group not found"
-        });
+        throw new NotFoundError("Group not found");
     }
 
     const groupData = groupDoc.data() || {};
@@ -73,11 +69,7 @@ export const getGroupFeed = async (req: Request, res: Response, next: NextFuncti
     // Check if the current user is a member of the group
     if (!members.includes(currentUserId)) {
         logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be a member of the group to view its feed"
-        });
+        throw new ForbiddenError("You must be a member of the group to view its feed");
     }
 
     // Build the query for updates from this group
@@ -85,14 +77,8 @@ export const getGroupFeed = async (req: Request, res: Response, next: NextFuncti
         .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS, groupId)
         .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC);
 
-    // Apply cursor-based pagination and limit
-    let paginatedQuery;
-    try {
-        paginatedQuery = await applyPagination(query, afterCursor, limit);
-    } catch (err) {
-        next(err);
-        return; // Return after error to prevent further execution
-    }
+    // Apply cursor-based pagination - errors will be automatically caught by Express
+    const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
     // Process updates using streaming
     const { items: updateDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
@@ -110,7 +96,9 @@ export const getGroupFeed = async (req: Request, res: Response, next: NextFuncti
             created_at: docData[UpdateFields.CREATED_AT] ? formatTimestamp(docData[UpdateFields.CREATED_AT]) : "",
             comment_count: docData[UpdateFields.COMMENT_COUNT] || 0,
             reaction_count: docData[UpdateFields.REACTION_COUNT] || 0,
-            reactions: [] // Empty array since reactions are fetched separately
+            reactions: [], // Empty array since reactions are fetched separately
+            score: docData[UpdateFields.SCORE] || "3",
+            emoji: docData[UpdateFields.EMOJI] || "😐"
         };
         return update;
     });

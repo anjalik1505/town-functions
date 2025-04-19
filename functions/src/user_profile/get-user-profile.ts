@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { getFirestore } from "firebase-admin/firestore";
-import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
-import { FriendProfileResponse } from "../models/data-models";
+import { Collections, FriendshipFields, Status, UserSummaryFields } from "../models/constants";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { formatFriendProfileResponse, getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -47,28 +47,11 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
         logger.warn(
             `User ${currentUserId} attempted to view their own profile through /user endpoint`
         );
-        res.status(400).json({
-            code: 400,
-            name: "Bad Request",
-            description: "Use /me/profile endpoint to view your own profile"
-        });
+        throw new BadRequestError("Use /me/profile endpoint to view your own profile");
     }
 
-    // Get the target user's profile
-    const targetUserProfileRef = db.collection(Collections.PROFILES).doc(targetUserId);
-    const targetUserProfileDoc = await targetUserProfileRef.get();
-
-    // Check if the target profile exists
-    if (!targetUserProfileDoc.exists) {
-        logger.warn("Profile not found");
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Profile not found"
-        });
-    }
-
-    const targetUserProfileData = targetUserProfileDoc.data() || {};
+    // Get the target user's profile using the utility function
+    const { data: targetUserProfileData } = await getProfileDoc(targetUserId);
 
     // Check if users are friends using the unified friendships collection
     const friendshipId = createFriendshipId(currentUserId, targetUserId);
@@ -84,11 +67,7 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
         logger.warn(
             `User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`
         );
-        res.status(403).json({
-            code: 403,
-            name: "Forbidden",
-            description: "You must be friends with this user to view their profile"
-        });
+        throw new ForbiddenError("You must be friends with this user to view their profile");
     }
 
     logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
@@ -115,19 +94,13 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
         logger.info(`No user summary found for relationship ${friendshipId}`);
     }
 
-    // Return a FriendProfileResponse with the user's profile information and summary/suggestions if available
-    const response: FriendProfileResponse = {
-        user_id: targetUserId,
-        username: targetUserProfileData[ProfileFields.USERNAME] || "",
-        name: targetUserProfileData[ProfileFields.NAME] || "",
-        avatar: targetUserProfileData[ProfileFields.AVATAR] || "",
-        location: targetUserProfileData[ProfileFields.LOCATION] || "",
-        birthday: targetUserProfileData[ProfileFields.BIRTHDAY] || "",
-        gender: targetUserProfileData[ProfileFields.GENDER] || "",
+    // Format and return the response
+    const response = formatFriendProfileResponse(
+        targetUserId,
+        targetUserProfileData,
         summary,
-        suggestions,
-        updated_at: targetUserProfileData[ProfileFields.UPDATED_AT] ? formatTimestamp(targetUserProfileData[ProfileFields.UPDATED_AT]) : ""
-    };
+        suggestions
+    );
 
     res.json(response);
 }; 

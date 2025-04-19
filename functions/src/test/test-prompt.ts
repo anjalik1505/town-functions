@@ -2,6 +2,7 @@ import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
 import { genkit } from 'genkit';
 import { friendProfileSchema, ownProfileSchema } from '../models/validation-schemas';
+import { InternalServerError } from '../utils/errors';
 import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
@@ -44,18 +45,18 @@ export const testPrompt = async (req: Request, res: Response): Promise<void> => 
 
                 const { output } = await ai.generate({
                     prompt: `### CONTEXT:
-                    - <CurrentSummary>: ${summary}
-                    - <CurrentSuggestions>: ${suggestions}${data.is_own_profile ? `
-                    - <CurrentEmotionalOverview>: ${existingEmotionalOverview}
-                    - <CurrentKeyMoments>: ${existingKeyMoments}
-                    - <CurrentRecurringThemes>: ${existingRecurringThemes}
-                    - <CurrentProgressAndGrowth>: ${existingProgressAndGrowth}` : ''}
-                    - <Gender>: ${gender}
-                    - <Location>: ${location}
+                    - <SUMMARY>: ${summary}
+                    - <SUGGESTIONS>: ${suggestions}${data.is_own_profile ? `
+                    - <EMOTIONAL_OVERVIEW>: ${existingEmotionalOverview}
+                    - <KEY_MOMENTS>: ${existingKeyMoments}
+                    - <RECURRING_THEMES>: ${existingRecurringThemes}
+                    - <PROGRESS_AND_GROWTH>: ${existingProgressAndGrowth}` : ''}
+                    - <GENDER>: ${gender}
+                    - <LOCATION>: ${location}
                     
                     ### NEW UPDATE:
-                    - <CurrentUpdateContent>: ${updateContent}
-                    - <CurrentUpdateSentiment>: ${updateSentiment}
+                    - <UPDATE>: ${updateContent}
+                    - <SENTIMENT>: ${updateSentiment}
                     
                     ${data.prompt}`,
                     output: { schema: data.is_own_profile ? ownProfileSchema : friendProfileSchema },
@@ -80,17 +81,9 @@ export const testPrompt = async (req: Request, res: Response): Promise<void> => 
         }
 
         // Return error if all retries failed
-        res.status(500).json({
-            code: 500,
-            name: "Internal Server Error",
-            description: "Failed to generate response after all retries"
-        });
+        throw new InternalServerError("Failed to generate response after all retries");
     } catch (error) {
         console.error("Error in test/prompt:", error);
-        res.status(500).json({
-            code: 500,
-            name: "Internal Server Error",
-            description: "Failed to generate response"
-        });
+        throw new InternalServerError("Failed to generate response");
     }
 } 

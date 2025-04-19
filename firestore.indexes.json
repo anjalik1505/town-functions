@@ -1,0 +1,79 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "friendships",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "members",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "status",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "invitations",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "sender_id",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "created_at",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "friendships",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "members",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "status",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "created_at",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "feed",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                {
+                    "fieldPath": "created_by",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "created_at",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "reactions",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                {
+                    "fieldPath": "created_by",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "type",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

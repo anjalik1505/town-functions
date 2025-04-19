@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "village-staging-9178d"
+    "default": "village-staging-9178d",
+    "staging": "village-staging-9178d",
+    "production": "village-production-db073"
   }
 }

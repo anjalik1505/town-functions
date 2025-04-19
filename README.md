@@ -163,6 +163,8 @@ This repository contains the backend functions for the Village application.
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
+      "score": "5",
+      "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],
@@ -211,6 +213,8 @@ This repository contains the backend functions for the Village application.
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
+      "score": "5",
+      "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00",
       "username": "johndoe",
       "name": "John Doe",
@@ -265,11 +269,13 @@ This repository contains the backend functions for the Village application.
 {
   "content": "Hello world!",
   "sentiment": "happy",
+  "score": "5",
+  "emoji": "😊",
   "group_ids": ["group123"],
   "friend_ids": ["friend123"]
 }
 ```
-*Note: group_ids and friend_ids are optional.*
+*Note: group_ids and friend_ids are optional. score and emoji are optional with default values of "3" and "😐" respectively.*
 
 **Output**:
 ```json
@@ -280,7 +286,32 @@ This repository contains the backend functions for the Village application.
   "group_ids": ["group123"],
   "friend_ids": ["friend123"],
   "sentiment": "happy",
+  "score": "5",
+  "emoji": "😊",
   "created_at": "2025-01-01T00:00:00.000+00:00"
+}
+```
+
+**Errors**:
+- 400: Invalid request parameters
+- 500: Internal server error
+
+#### POST /updates/sentiment
+**Purpose**: Analyze the sentiment of text content and return sentiment, score, and an emoji.
+
+**Input**:
+```json
+{
+  "content": "I'm so happy today!"
+}
+```
+
+**Output**:
+```json
+{
+  "sentiment": "happy",
+  "score": "5",
+  "emoji": "😊"
 }
 ```
 
@@ -742,6 +773,8 @@ This repository contains the backend functions for the Village application.
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
+      "score": "5",
+      "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00"
     }
   ],

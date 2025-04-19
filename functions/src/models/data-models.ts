@@ -14,7 +14,7 @@ export interface BaseUser {
 
 export interface ProfileResponse extends BaseUser {
   location: string;
-  birthday: string;
+  birthday: string; // Format: yyyy-mm-dd
   notification_settings: string[];
   gender: string;
   summary: string;
@@ -29,7 +29,7 @@ export interface FriendProfileResponse {
   name: string;
   avatar: string;
   location: string;
-  birthday: string;
+  birthday: string; // Format: yyyy-mm-dd
   gender: string;
   summary: string;
   suggestions: string;
@@ -49,6 +49,8 @@ export interface Update {
   group_ids: string[];
   friend_ids: string[];
   sentiment: string;
+  score: string;
+  emoji: string;
   created_at: string;
   comment_count: number;
   reaction_count: number;
@@ -193,4 +195,10 @@ export interface Feedback {
   created_by: string;
   content: string;
   created_at: string;
+}
+
+export interface SentimentAnalysisResponse {
+  sentiment: string;
+  score: number;
+  emoji: string;
 }

@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 # Available sentiments for updates
 SENTIMENTS = ["happy", "sad", "neutral", "angry", "surprised"]
 
+# Available scores and emojis for updates
+SCORES = [1, 2, 3, 4, 5]
+EMOJIS = ["😢", "😕", "😐", "🙂", "😊"]
+
 # Test configuration
 TEST_CONFIG = {
     "initial_updates_count": 2,  # Number of initial updates per user
@@ -80,9 +84,13 @@ def run_updates_tests():
     user1_updates = []
     for i in range(TEST_CONFIG["initial_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
+        score = random.choice(SCORES)
+        emoji = random.choice(EMOJIS)
         update_data = {
             "content": f"This is update #{i+1} from user 1 with {sentiment} sentiment",
             "sentiment": sentiment,
+            "score": score,
+            "emoji": emoji,
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
         }
@@ -102,14 +110,31 @@ def run_updates_tests():
     assert len(my_updates["updates"]) > 0, "No updates found for user 1"
     logger.info(f"✓ User 1 has {len(my_updates['updates'])} updates")
 
+    # Verify score and emoji fields are present
+    for update in my_updates["updates"]:
+        assert "score" in update, "Update missing score field"
+        assert "emoji" in update, "Update missing emoji field"
+        assert isinstance(
+            update["score"], int
+        ), f"Score should be a number, got {type(update['score'])}"
+        assert (
+            1 <= update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {update['score']}"
+        assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
+    logger.info("✓ Updates contain valid score and emoji fields")
+
     # Step 3: Create updates for the second user
     logger.info("Step 3: Creating updates for the second user")
     user2_updates = []
     for i in range(TEST_CONFIG["initial_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
+        score = random.choice(SCORES)
+        emoji = random.choice(EMOJIS)
         update_data = {
             "content": f"This is update #{i+1} from user 2 with {sentiment} sentiment",
             "sentiment": sentiment,
+            "score": score,
+            "emoji": emoji,
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
         }
@@ -159,9 +184,13 @@ def run_updates_tests():
     user2_shared_updates = []
     for i in range(TEST_CONFIG["shared_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
+        score = random.choice(SCORES)
+        emoji = random.choice(EMOJIS)
         update_data = {
             "content": f"This is update #{i+1} from user 2 shared with user 1, with {sentiment} sentiment",
             "sentiment": sentiment,
+            "score": score,
+            "emoji": emoji,
             "friend_ids": [api.user_ids[users[0]["email"]]],  # Share with user 1
             "group_ids": [],  # No groups yet
         }
@@ -207,6 +236,8 @@ def run_updates_tests():
         assert "username" in update, "Update missing username field"
         assert "name" in update, "Update missing name field"
         assert "avatar" in update, "Update missing avatar field"
+        assert "score" in update, "Update missing score field"
+        assert "emoji" in update, "Update missing emoji field"
         assert (
             update["username"] == users[0]["email"].split("@")[0]
         ), "Incorrect username in update"
@@ -215,6 +246,13 @@ def run_updates_tests():
             update["avatar"]
             == f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg"
         ), "Incorrect avatar in update"
+        assert isinstance(
+            update["score"], int
+        ), f"Score should be a number, got {type(update['score'])}"
+        assert (
+            1 <= update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {update['score']}"
+        assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
     logger.info("✓ User's own updates contain correct enriched profile data")
 
     # Verify that friend's updates appear in the feed
@@ -233,6 +271,8 @@ def run_updates_tests():
         assert "username" in update, "Update missing username field"
         assert "name" in update, "Update missing name field"
         assert "avatar" in update, "Update missing avatar field"
+        assert "score" in update, "Update missing score field"
+        assert "emoji" in update, "Update missing emoji field"
         assert (
             update["username"] == users[1]["email"].split("@")[0]
         ), "Incorrect username in update"
@@ -241,6 +281,13 @@ def run_updates_tests():
             update["avatar"]
             == f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg"
         ), "Incorrect avatar in update"
+        assert isinstance(
+            update["score"], int
+        ), f"Score should be a number, got {type(update['score'])}"
+        assert (
+            1 <= update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {update['score']}"
+        assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
     logger.info("✓ Friend's updates contain correct enriched profile data")
 
     logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
@@ -255,9 +302,13 @@ def run_updates_tests():
         additional_needed = (TEST_CONFIG["pagination_limit"] + 1) - total_user1_updates
         for i in range(additional_needed):
             sentiment = random.choice(SENTIMENTS)
+            score = random.choice(SCORES)
+            emoji = random.choice(EMOJIS)
             update_data = {
                 "content": f"Pagination test update #{i+1} with {sentiment} sentiment",
                 "sentiment": sentiment,
+                "score": score,
+                "emoji": emoji,
                 "friend_ids": [api.user_ids[users[1]["email"]]],
                 "group_ids": [],
             }
@@ -469,6 +520,8 @@ def run_updates_tests():
     invalid_update_data = {
         "content": "This update has an empty sentiment",
         "sentiment": "",
+        "score": 3,
+        "emoji": "😐",
         "friend_ids": [],
         "group_ids": [],
     }
@@ -490,6 +543,8 @@ def run_updates_tests():
     empty_content_data = {
         "content": "",
         "sentiment": "happy",
+        "score": 3,
+        "emoji": "😐",
         "friend_ids": [],
         "group_ids": [],
     }
@@ -515,6 +570,8 @@ def run_updates_tests():
         json_data={
             "content": "This update should not be created",
             "sentiment": "happy",
+            "score": 3,
+            "emoji": "😐",
             "friend_ids": [],
             "group_ids": [],
         },

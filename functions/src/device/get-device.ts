@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Collections, DeviceFields } from "../models/constants";
 import { Device } from "../models/data-models";
+import { NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
 
@@ -30,11 +31,7 @@ export const getDevice = async (req: Request, res: Response): Promise<void> => {
     const deviceDoc = await deviceRef.get();
     if (!deviceDoc.exists) {
         logger.warn(`Device not found for user ${currentUserId}`);
-        res.status(404).json({
-            code: 404,
-            name: "Not Found",
-            description: "Device not found"
-        });
+        throw new NotFoundError("Device not found");
     }
 
     // Get device data and create Device object

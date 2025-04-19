@@ -26,6 +26,8 @@ const logger = getLogger(__filename);
  *              - validated_params: The validated request data containing:
  *                - content: The text content of the update
  *                - sentiment: The sentiment value of the update
+ *                - score: The score of the update
+ *                - emoji: The emoji of the update
  *                - group_ids: Optional list of group IDs to share the update with
  *                - friend_ids: Optional list of friend IDs to share the update with
  * @param res - The Express response object
@@ -41,12 +43,14 @@ export const createUpdate = async (req: Request, res: Response): Promise<void> =
     const validatedParams = req.validated_params;
     const content = validatedParams.content || "";
     const sentiment = validatedParams.sentiment || "";
+    const score = validatedParams.score || "3";
+    const emoji = validatedParams.emoji || "😐";
     const groupIds = validatedParams.group_ids || [];
     const friendIds = validatedParams.friend_ids || [];
 
     logger.info(
         `Update details - content length: ${content.length}, ` +
-        `sentiment: ${sentiment}, ` +
+        `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
         `shared with ${friendIds.length} friends and ${groupIds.length} groups`
     );
 
@@ -76,6 +80,8 @@ export const createUpdate = async (req: Request, res: Response): Promise<void> =
         [UpdateFields.CREATED_BY]: currentUserId,
         [UpdateFields.CONTENT]: content,
         [UpdateFields.SENTIMENT]: sentiment,
+        [UpdateFields.SCORE]: score,
+        [UpdateFields.EMOJI]: emoji,
         [UpdateFields.CREATED_AT]: createdAt,
         [UpdateFields.GROUP_IDS]: groupIds,
         [UpdateFields.FRIEND_IDS]: friendIds,
@@ -159,6 +165,8 @@ export const createUpdate = async (req: Request, res: Response): Promise<void> =
         created_by: currentUserId,
         content: content,
         sentiment: sentiment,
+        score: score,
+        emoji: emoji,
         created_at: formatTimestamp(createdAt),
         group_ids: groupIds,
         friend_ids: friendIds,
