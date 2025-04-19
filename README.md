@@ -9,6 +9,21 @@ This repository contains the backend functions for the Village application.
 #### POST /me/profile
 **Purpose**: Create a new profile for the authenticated user.
 
+**Analytics Events**:
+- PROFILE_CREATED: When a new profile is successfully created
+  
+  **Event Body:**
+  ```json
+  {
+    "has_name": true,
+    "has_avatar": true,
+    "has_location": true,
+    "has_birthday": true,
+    "has_notification_settings": true,
+    "has_gender": true
+  }
+  ```
+
 **Input**:
 ```json
 {
@@ -53,6 +68,21 @@ This repository contains the backend functions for the Village application.
 
 #### PUT /me/profile
 **Purpose**: Update an existing profile for the authenticated user. When username, name, or avatar is updated, the changes are propagated to all related collections (invitations, friendships, and groups).
+
+**Analytics Events**:
+- PROFILE_UPDATED: When a profile is successfully updated
+  
+  **Event Body:**
+  ```json
+  {
+    "has_name": true,
+    "has_avatar": true,
+    "has_location": true,
+    "has_birthday": true,
+    "has_notification_settings": true,
+    "has_gender": true
+  }
+  ```
 
 **Input**:
 ```json
@@ -99,6 +129,21 @@ This repository contains the backend functions for the Village application.
 #### GET /me/profile
 **Purpose**: Retrieve the authenticated user's profile with insights information.
 
+**Analytics Events**:
+- PROFILE_VIEWED: When a user views their own profile
+  
+  **Event Body:**
+  ```json
+  {
+    "has_name": true,
+    "has_avatar": true,
+    "has_location": true,
+    "has_birthday": true,
+    "has_notification_settings": true,
+    "has_gender": true
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**:
@@ -131,6 +176,22 @@ This repository contains the backend functions for the Village application.
 #### DELETE /me/profile
 **Purpose**: Delete the authenticated user's profile and all associated data. This triggers a cascade deletion of all user-related data including updates, friendships, invitations, and other associated content.
 
+**Analytics Events**:
+- PROFILE_DELETED: When a profile is successfully deleted
+  
+  **Event Body:**
+  ```json
+  {
+    "update_count": 0,
+    "feed_count": 0,
+    "friend_count": 0,
+    "summary_count": 0,
+    "group_count": 0,
+    "device_count": 0,
+    "invitation_count": 0
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**: No content
@@ -145,6 +206,17 @@ This repository contains the backend functions for the Village application.
 
 #### GET /me/updates
 **Purpose**: Get all updates of the authenticated user, paginated.
+
+**Analytics Events**:
+- UPDATES_VIEWED: When a user views their own updates
+  
+  **Event Body:**
+  ```json
+  {
+    "update_count": 0,
+    "user": "string"
+  }
+  ```
 
 **Input**: Query Parameters
 ```
@@ -180,6 +252,16 @@ This repository contains the backend functions for the Village application.
 #### GET /me/question
 **Purpose**: Get a personalized question to encourage the user to share an update. The question is generated based on the user's profile data, insights, and sharing history.
 
+**Analytics Events**:
+- QUESTION_GENERATED: When a personalized question is generated for a user
+  
+  **Event Body:**
+  ```json
+  {
+    "question_length": 0
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**:
@@ -195,6 +277,17 @@ This repository contains the backend functions for the Village application.
 
 #### GET /me/feed
 **Purpose**: Get all updates from the authenticated user's feed, paginated.
+
+**Analytics Events**:
+- FEED_VIEWED: When a user views their feed
+  
+  **Event Body:**
+  ```json
+  {
+    "update_count": 0,
+    "unique_creators": 0
+  }
+  ```
 
 **Input**: Query Parameters
 ```
@@ -233,6 +326,16 @@ This repository contains the backend functions for the Village application.
 #### GET /me/friends
 **Purpose**: Get all friends of the authenticated user, paginated.
 
+**Analytics Events**:
+- FRIENDS_VIEWED: When a user views their friends list
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0
+  }
+  ```
+
 **Input**: Query Parameters
 ```
 ?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
@@ -263,6 +366,20 @@ This repository contains the backend functions for the Village application.
 
 #### POST /updates
 **Purpose**: Create a new update for the authenticated user.
+
+**Analytics Events**:
+- UPDATE_CREATED: When a new update is created
+  
+  **Event Body:**
+  ```json
+  {
+    "content_length": 0,
+    "sentiment": "string",
+    "score": "string",
+    "friend_count": 0,
+    "group_count": 0
+  }
+  ```
 
 **Input**:
 ```json
@@ -299,6 +416,18 @@ This repository contains the backend functions for the Village application.
 #### POST /updates/sentiment
 **Purpose**: Analyze the sentiment of text content and return sentiment, score, and an emoji.
 
+**Analytics Events**:
+- SENTIMENT_ANALYZED: When sentiment analysis is performed on text
+  
+  **Event Body:**
+  ```json
+  {
+    "sentiment": "string",
+    "score": 0,
+    "emoji": "string"
+  }
+  ```
+
 **Input**:
 ```json
 {
@@ -323,6 +452,18 @@ This repository contains the backend functions for the Village application.
 
 #### GET /updates/{update_id}/comments
 **Purpose**: Get all comments for a specific update, paginated.
+
+**Analytics Events**:
+- COMMENTS_VIEWED: When comments for an update are viewed
+  
+  **Event Body:**
+  ```json
+  {
+    "comment_count": 0,
+    "reaction_count": 0,
+    "unique_creators": 0
+  }
+  ```
 
 **Input**: Query Parameters
 ```
@@ -360,6 +501,18 @@ This repository contains the backend functions for the Village application.
 #### POST /updates/{update_id}/comments
 **Purpose**: Create a new comment on an update.
 
+**Analytics Events**:
+- COMMENT_CREATED: When a new comment is created
+  
+  **Event Body:**
+  ```json
+  {
+    "comment_length": 0,
+    "comment_count": 0,
+    "reaction_count": 0
+  }
+  ```
+
 **Input**:
 ```json
 {
@@ -391,6 +544,18 @@ This repository contains the backend functions for the Village application.
 
 #### PUT /updates/{update_id}/comments/{comment_id}
 **Purpose**: Update an existing comment.
+
+**Analytics Events**:
+- COMMENT_UPDATED: When a comment is updated
+  
+  **Event Body:**
+  ```json
+  {
+    "comment_length": 0,
+    "comment_count": 0,
+    "reaction_count": 0
+  }
+  ```
 
 **Input**:
 ```json
@@ -425,6 +590,18 @@ This repository contains the backend functions for the Village application.
 #### DELETE /updates/{update_id}/comments/{comment_id}
 **Purpose**: Delete a comment.
 
+**Analytics Events**:
+- COMMENT_DELETED: When a comment is deleted
+  
+  **Event Body:**
+  ```json
+  {
+    "comment_length": 0,
+    "comment_count": 0,
+    "reaction_count": 0
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**: No content
@@ -441,6 +618,17 @@ This repository contains the backend functions for the Village application.
 
 #### POST /updates/{update_id}/reactions
 **Purpose**: Create a new reaction on an update.
+
+**Analytics Events**:
+- REACTION_CREATED: When a new reaction is created
+  
+  **Event Body:**
+  ```json
+  {
+    "reaction_count": 0,
+    "comment_count": 0
+  }
+  ```
 
 **Input**:
 ```json
@@ -470,6 +658,17 @@ This repository contains the backend functions for the Village application.
 #### DELETE /updates/{update_id}/reactions/{reaction_id}
 **Purpose**: Delete a reaction from an update. The authenticated user must be the creator of the reaction.
 
+**Analytics Events**:
+- REACTION_DELETED: When a reaction is deleted
+  
+  **Event Body:**
+  ```json
+  {
+    "reaction_count": 0,
+    "comment_count": 0
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**:
@@ -493,6 +692,17 @@ This repository contains the backend functions for the Village application.
 
 #### POST /invitations
 **Purpose**: Create an invitation for a user to join the Village app. The user must not have reached the combined limit of friends and active invitations (5).
+
+**Analytics Events**:
+- INVITE_CREATED: When a new invitation is created
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0,
+    "invitation_count": 0
+  }
+  ```
 
 **Input**:
 ```json
@@ -525,6 +735,17 @@ This repository contains the backend functions for the Village application.
 #### POST /invitations/{invitation_id}/accept
 **Purpose**: Accept an invitation to connect with another user. Both the sender and receiver must not have reached the combined limit of friends and active invitations (5).
 
+**Analytics Events**:
+- INVITE_ACCEPTED: When an invitation is accepted
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0,
+    "invitation_count": 0
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**:
@@ -550,6 +771,17 @@ This repository contains the backend functions for the Village application.
 
 #### POST /invitations/{invitation_id}/reject
 **Purpose**: Reject an invitation from another user.
+
+**Analytics Events**:
+- INVITE_REJECTED: When an invitation is rejected
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0,
+    "invitation_count": 0
+  }
+  ```
 
 **Input**: (None, uses auth token)
 
@@ -577,6 +809,17 @@ This repository contains the backend functions for the Village application.
 #### POST /invitations/{invitation_id}/resend
 **Purpose**: Resend an invitation by refreshing its timestamps. The user must not have reached the combined limit of friends and active invitations (5). When resending, the current invitation is excluded from the limit count.
 
+**Analytics Events**:
+- INVITE_RESENT: When an invitation is resent
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0,
+    "invitation_count": 0
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**:
@@ -602,6 +845,17 @@ This repository contains the backend functions for the Village application.
 
 #### GET /invitations
 **Purpose**: Get all invitations created by the current user, paginated.
+
+**Analytics Events**:
+- INVITES_VIEWED: When a user views their invitations list
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0,
+    "invitation_count": 0
+  }
+  ```
 
 **Input**: Query Parameters
 ```
@@ -635,6 +889,17 @@ This repository contains the backend functions for the Village application.
 
 #### GET /invitations/{invitation_id}
 **Purpose**: Get a single invitation by ID. The authenticated user must be the sender of the invitation.
+
+**Analytics Events**:
+- INVITE_VIEWED: When a specific invitation is viewed
+  
+  **Event Body:**
+  ```json
+  {
+    "friend_count": 0,
+    "invitation_count": 0
+  }
+  ```
 
 **Input**: (None, uses auth token)
 
@@ -703,6 +968,16 @@ This repository contains the backend functions for the Village application.
 #### POST /feedback
 **Purpose**: Create a new feedback entry from the authenticated user.
 
+**Analytics Events**:
+- FEEDBACK_CREATED: When new feedback is submitted
+  
+  **Event Body:**
+  ```json
+  {
+    "feedback_length": 0
+  }
+  ```
+
 **Input**:
 ```json
 {
@@ -730,6 +1005,21 @@ This repository contains the backend functions for the Village application.
 #### GET /users/{user_id}/profile
 **Purpose**: Get another user's profile information. The authenticated user must be friends with the target user.
 
+**Analytics Events**:
+- FRIEND_PROFILE_VIEWED: When a friend's profile is viewed
+  
+  **Event Body:**
+  ```json
+  {
+    "has_name": true,
+    "has_avatar": true,
+    "has_location": true,
+    "has_birthday": true,
+    "has_notification_settings": true,
+    "has_gender": true
+  }
+  ```
+
 **Input**: (None, uses auth token)
 
 **Output**:
@@ -755,6 +1045,17 @@ This repository contains the backend functions for the Village application.
 
 #### GET /users/{user_id}/updates
 **Purpose**: Get another user's updates. The authenticated user must be friends with the target user.
+
+**Analytics Events**:
+- FRIEND_UPDATES_VIEWED: When a friend's updates are viewed
+  
+  **Event Body:**
+  ```json
+  {
+    "update_count": 0,
+    "user": "string"
+  }
+  ```
 
 **Input**: Query Parameters
 ```
@@ -854,3 +1155,102 @@ This repository contains the backend functions for the Village application.
 **Errors**:
 - 400: Invalid request parameters
 - 500: Internal server error
+
+## Firestore Triggers & Scheduled Functions
+
+### New Update Created (Firestore Trigger)
+- **Trigger**: When a new document is created in the `updates` collection.
+- **Analytics Events**:
+  - `SUMMARY_CREATED`: When a summary is generated for the update.
+  
+  **Event Body:**
+  ```json
+  {
+    "update_length": 0,
+    "update_sentiment": "string",
+    "summary_length": 0,
+    "suggestions_length": 0,
+    "emotional_overview_length": 0,
+    "key_moments_length": 0,
+    "recurring_themes_length": 0,
+    "progress_and_growth_length": 0,
+    "has_name": true,
+    "has_avatar": true,
+    "has_location": true,
+    "has_birthday": true,
+    "has_gender": true,
+    "friend_summary_count": 0
+  }
+  ```
+  - `FRIEND_SUMMARY_CREATED`: When a summary is generated for a friend.
+  
+  **Event Body:**
+  ```json
+  {
+    "summary_length": 0,
+    "suggestions_length": 0
+  }
+  ```
+
+### Update Notification Sent (Firestore Trigger)
+- **Trigger**: When a new document is created in the `updates` collection (notification logic).
+- **Analytics Events**:
+  - `NOTIFICATION_SENT`: When notifications are sent for a new update.
+  
+  **Event Body:**
+  ```json
+  {
+    "notification_all": true,
+    "notification_urgent": false,
+    "no_notification": false,
+    "no_device": false,
+    "notification_length": 0,
+    "is_urgent": false
+  }
+  ```
+
+### Daily Notifications (Scheduled Function)
+- **Trigger**: Runs daily at 14:00 UTC.
+- **Analytics Events**:
+  - `DAILY_NOTIFICATIONS_SENT`: When daily notifications are sent to all users.
+  
+  **Event Body:**
+  ```json
+  {
+    "total_users_count": 0,
+    "notification_all_count": 0,
+    "notification_urgent_count": 0,
+    "no_notification_count": 0,
+    "no_device_count": 0
+  }
+  ```
+  - `DAILY_NOTIFICATION_SENT`: When a daily notification is sent to a user.
+  
+  **Event Body:**
+  ```json
+  {
+    "total_users_count": 0,
+    "notification_all_count": 0,
+    "notification_urgent_count": 0,
+    "no_notification_count": 0,
+    "no_device_count": 0
+  }
+  ```
+
+### Profile Deleted (Firestore Trigger)
+- **Trigger**: When a document is deleted in the `profiles` collection.
+- **Analytics Events**:
+  - `PROFILE_DELETED`: When a profile and all associated data are deleted.
+  
+  **Event Body:**
+  ```json
+  {
+    "update_count": 0,
+    "feed_count": 0,
+    "friend_count": 0,
+    "summary_count": 0,
+    "group_count": 0,
+    "device_count": 0,
+    "invitation_count": 0
+  }
+  ```
