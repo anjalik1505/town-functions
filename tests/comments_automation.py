@@ -97,6 +97,8 @@ def run_comments_tests():
         "sentiment": "happy",
         "friend_ids": [api.user_ids[users[1]["email"]]],  # Share with user 2
         "group_ids": [],
+        "score": 3,
+        "emoji": "👍",
     }
     created_update = api.create_update(users[0]["email"], update_data)
     update_id = created_update["update_id"]

@@ -59,6 +59,7 @@ import {
   UnauthorizedError
 } from "./utils/errors";
 
+
 // Response Handler
 const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
   const {analytics} = response;
@@ -70,6 +71,8 @@ const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
   res.status(response.status);
   if (response.data !== null) {
     res.json(response.data);
+  } else {
+    res.end();
   }
 };
 
