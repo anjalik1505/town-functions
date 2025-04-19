@@ -1,5 +1,6 @@
 // Constants for query operations
 export const MAX_BATCH_SIZE = 10;
+export const MAX_BATCH_OPERATIONS = 500;
 
 // Collection names
 export const Collections = {
@@ -171,4 +172,10 @@ export const FeedFields = {
   FRIEND_ID: 'friend_id',
   GROUP_IDS: 'group_ids',
   CREATED_BY: 'created_by'
-} as const; 
+} as const;
+
+// Options for notification settings
+export const NotificationFields = {
+  ALL: 'all',
+  URGENT: 'urgent'
+} as const;

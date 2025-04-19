@@ -128,6 +128,19 @@ This repository contains the backend functions for the Village application.
 - 404: Profile not found
 - 500: Internal server error
 
+#### DELETE /me/profile
+**Purpose**: Delete the authenticated user's profile and all associated data. This triggers a cascade deletion of all user-related data including updates, friendships, invitations, and other associated content.
+
+**Input**: (None, uses auth token)
+
+**Output**: No content
+
+**Status Code**: 204 (No Content)
+
+**Errors**:
+- 404: Profile not found for user {user_id}
+- 500: Internal server error
+
 ### User Data
 
 #### GET /me/updates

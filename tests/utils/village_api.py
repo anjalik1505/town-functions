@@ -155,6 +155,19 @@ class VillageAPI:
         logger.info(f"Profile updated for user: {email}")
         return response.json()
 
+    def delete_profile(self, email: str) -> None:
+        """Delete a user's profile"""
+        logger.info(f"Deleting profile for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(f"{API_BASE_URL}/me/profile", headers=headers)
+        if response.status_code != 204:
+            logger.error(f"Failed to delete profile: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully deleted profile for user: {email}")
+
     # Friend Methods
     def get_friends(
         self, email: str, limit: int = 10, after_cursor: Optional[str] = None
