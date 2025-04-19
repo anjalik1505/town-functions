@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
+import { ApiResponse, EventName, ReactionEventParams } from "../models/analytics-events";
 import { Collections, QueryOperators, ReactionFields } from "../models/constants";
 import { ReactionGroup } from "../models/data-models";
 import { BadRequestError } from "../utils/errors";
@@ -24,15 +25,14 @@ const logger = getLogger(__filename);
  *                - type: The type of reaction (e.g., "like", "love", "laugh")
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update to react to
- * @param res - The Express response object
  * 
- * @returns A ReactionGroup containing the reaction type and updated count
+ * @returns An ApiResponse containing the reaction group and analytics
  * 
  * @throws 400: You have already reacted with this type
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const createReaction = async (req: Request, res: Response): Promise<void> => {
+export const createReaction = async (req: Request): Promise<ApiResponse<ReactionGroup>> => {
     const currentUserId = req.userId;
     const updateId = req.params.update_id;
     const reactionType = req.validated_params.type;
@@ -88,5 +88,19 @@ export const createReaction = async (req: Request, res: Response): Promise<void>
         reaction_id: reactionId
     };
 
-    res.status(201).json(response);
+    // Create analytics event
+    const event: ReactionEventParams = {
+        reaction_count: (updateResult.data.reaction_count || 0) + 1,
+        comment_count: updateResult.data.comment_count || 0
+    };
+
+    return {
+        data: response,
+        status: 201,
+        analytics: {
+            event: EventName.REACTION_CREATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

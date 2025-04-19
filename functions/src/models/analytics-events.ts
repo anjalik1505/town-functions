@@ -25,7 +25,9 @@ export enum EventName {
   COMMENT_CREATED = 'comment_created',
   COMMENT_UPDATED = 'comment_updated',
   COMMENT_DELETED = 'comment_deleted',
-  COMMENTS_VIEWED = 'comments_viewed'
+  COMMENTS_VIEWED = 'comments_viewed',
+  REACTION_CREATED = 'reaction_created',
+  REACTION_DELETED = 'reaction_deleted'
 }
 
 // Base interface for all event parameters
@@ -93,12 +95,20 @@ export interface FriendEventParams extends BaseEventParams {
 export interface CommentEventParams extends BaseEventParams {
   comment_length: number;
   comment_count: number;
+  reaction_count: number;
 }
 
 // Comment view event parameters
 export interface CommentViewEventParams extends BaseEventParams {
   comment_count: number;
+  reaction_count: number;
   unique_creators: number;
+}
+
+// Reactions event parameters
+export interface ReactionEventParams extends BaseEventParams {
+  reaction_count: number;
+  comment_count: number;
 }
 
 // Response Types

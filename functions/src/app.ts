@@ -240,11 +240,13 @@ app.delete("/updates/:update_id/comments/:comment_id", async (req, res) => {
 
 // Reaction routes
 app.post("/updates/:update_id/reactions", validateRequest(createReactionSchema), async (req, res) => {
-    await createReaction(req, res);
+    const result = await createReaction(req);
+    sendResponse(res, result);
 });
 
 app.delete("/updates/:update_id/reactions/:reaction_id", async (req, res) => {
-    await deleteReaction(req, res);
+    const result = await deleteReaction(req);
+    sendResponse(res, result);
 });
 
 // Sentiment analysis endpoint

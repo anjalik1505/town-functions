@@ -77,7 +77,8 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
     // Create analytics event with the updated comment count
     const event: CommentEventParams = {
         comment_length: req.validated_params.content.length,
-        comment_count: (updateData.comment_count || 0) + 1
+        comment_count: (updateData.comment_count || 0) + 1,
+        reaction_count: updateData.reaction_count || 0
     };
 
     return {
