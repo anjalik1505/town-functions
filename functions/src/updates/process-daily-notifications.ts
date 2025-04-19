@@ -1,11 +1,11 @@
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {generateDailyNotificationFlow} from "../ai/flows";
-import {DailyNotificationsEventParams, EventName, NotificationEventParams} from "../models/analytics-events";
-import {Collections, DeviceFields, NotificationFields, ProfileFields} from "../models/constants";
-import {trackApiEvents} from "../utils/analytics-utils";
-import {getLogger} from "../utils/logging-utils";
-import {sendNotification} from "../utils/notification-utils";
-import {calculateAge} from "../utils/profile-utils";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { generateDailyNotificationFlow } from "../ai/flows";
+import { DailyNotificationsEventParams, EventName, NotificationEventParams } from "../models/analytics-events";
+import { Collections, DeviceFields, NotificationFields, ProfileFields } from "../models/constants";
+import { trackApiEvents } from "../utils/analytics-utils";
+import { getLogger } from "../utils/logging-utils";
+import { sendNotification } from "../utils/notification-utils";
+import { calculateAge } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 

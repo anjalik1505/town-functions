@@ -1,12 +1,12 @@
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {FirestoreEvent} from "firebase-functions/v2/firestore";
-import {generateNotificationMessageFlow} from "../ai/flows";
-import {EventName, NotificationEventParams, NotificationsEventParams} from "../models/analytics-events";
-import {Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields} from "../models/constants";
-import {trackApiEvents} from "../utils/analytics-utils";
-import {getLogger} from "../utils/logging-utils";
-import {sendNotification} from "../utils/notification-utils";
-import {calculateAge} from "../utils/profile-utils";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { FirestoreEvent } from "firebase-functions/v2/firestore";
+import { generateNotificationMessageFlow } from "../ai/flows";
+import { EventName, NotificationEventParams, NotificationsEventParams } from "../models/analytics-events";
+import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields } from "../models/constants";
+import { trackApiEvents } from "../utils/analytics-utils";
+import { getLogger } from "../utils/logging-utils";
+import { sendNotification } from "../utils/notification-utils";
+import { calculateAge } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 

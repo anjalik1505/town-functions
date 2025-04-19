@@ -1,9 +1,9 @@
-import {Request, Response} from "express";
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {Collections, DeviceFields} from "../models/constants";
-import {Device} from "../models/data-models";
-import {getLogger} from "../utils/logging-utils";
-import {formatTimestamp} from "../utils/timestamp-utils";
+import { Request, Response } from "express";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Collections, DeviceFields } from "../models/constants";
+import { Device } from "../models/data-models";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

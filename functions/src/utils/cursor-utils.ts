@@ -1,4 +1,4 @@
-import {DocumentSnapshot} from "firebase-admin/firestore";
+import { DocumentSnapshot } from "firebase-admin/firestore";
 
 /**
  * Encodes a document snapshot into a cursor string for pagination

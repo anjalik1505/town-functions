@@ -1,10 +1,10 @@
-import {differenceInYears, parse} from "date-fns";
-import {getFirestore} from "firebase-admin/firestore";
-import {Collections, InsightsFields, ProfileFields} from "../models/constants";
-import {FriendProfileResponse, Insights, ProfileResponse} from "../models/data-models";
-import {BadRequestError, NotFoundError} from "./errors";
-import {getLogger} from "./logging-utils";
-import {formatTimestamp} from "./timestamp-utils";
+import { differenceInYears, parse } from "date-fns";
+import { getFirestore } from "firebase-admin/firestore";
+import { Collections, InsightsFields, ProfileFields } from "../models/constants";
+import { FriendProfileResponse, Insights, ProfileResponse } from "../models/data-models";
+import { BadRequestError, NotFoundError } from "./errors";
+import { getLogger } from "./logging-utils";
+import { formatTimestamp } from "./timestamp-utils";
 
 const logger = getLogger(__filename);
 

@@ -1,7 +1,7 @@
-import {isValid, parse} from "date-fns";
+import { isValid, parse } from "date-fns";
 import emojiRegex from "emoji-regex";
-import {z} from "zod";
-import {NotificationFields} from "./constants";
+import { z } from "zod";
+import { NotificationFields } from "./constants";
 
 // Reusable schema for birthday validation
 const birthdaySchema = z.string()

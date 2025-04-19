@@ -1,10 +1,10 @@
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {Collections, FeedFields, UpdateFields} from "../models/constants";
-import {EnrichedUpdate, Update} from "../models/data-models";
-import {ForbiddenError, NotFoundError} from "./errors";
-import {getLogger} from "./logging-utils";
-import {formatTimestamp} from "./timestamp-utils";
-import {createFriendVisibilityIdentifier} from "./visibility-utils";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, FeedFields, UpdateFields } from "../models/constants";
+import { EnrichedUpdate, Update } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "./errors";
+import { getLogger } from "./logging-utils";
+import { formatTimestamp } from "./timestamp-utils";
+import { createFriendVisibilityIdentifier } from "./visibility-utils";
 
 const logger = getLogger(__filename);
 
@@ -57,14 +57,12 @@ export const formatEnrichedUpdate = (
   const update = formatUpdate(updateId, updateData, createdBy, reactions);
 
   // Create a base object with the update properties
-  const enrichedUpdate = {
+  return {
     ...update,
     username: profile?.username || "",
     name: profile?.name || "",
     avatar: profile?.avatar || ""
   };
-
-  return enrichedUpdate;
 };
 
 /**

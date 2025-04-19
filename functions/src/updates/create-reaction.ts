@@ -1,12 +1,12 @@
-import {Request} from "express";
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {v4 as uuidv4} from "uuid";
-import {ApiResponse, EventName, ReactionEventParams} from "../models/analytics-events";
-import {Collections, QueryOperators, ReactionFields} from "../models/constants";
-import {ReactionGroup} from "../models/data-models";
-import {BadRequestError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {getUpdateDoc, hasUpdateAccess} from "../utils/update-utils";
+import { Request } from "express";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { v4 as uuidv4 } from "uuid";
+import { ApiResponse, EventName, ReactionEventParams } from "../models/analytics-events";
+import { Collections, QueryOperators, ReactionFields } from "../models/constants";
+import { ReactionGroup } from "../models/data-models";
+import { BadRequestError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 

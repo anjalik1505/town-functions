@@ -1,17 +1,17 @@
-import {Request} from "express";
-import {getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp} from "firebase-admin/firestore";
-import {ApiResponse, EventName, ProfileEventParams} from "../models/analytics-events";
+import { Request } from "express";
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
 import {
-    Collections,
-    FriendshipFields,
-    GroupFields,
-    InvitationFields,
-    ProfileFields,
-    QueryOperators
+  Collections,
+  FriendshipFields,
+  GroupFields,
+  InvitationFields,
+  ProfileFields,
+  QueryOperators
 } from "../models/constants";
-import {ProfileResponse} from "../models/data-models";
-import {getLogger} from "../utils/logging-utils";
-import {formatProfileResponse, getProfileDoc, getProfileInsights} from "../utils/profile-utils";
+import { ProfileResponse } from "../models/data-models";
+import { getLogger } from "../utils/logging-utils";
+import { formatProfileResponse, getProfileDoc, getProfileInsights } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 

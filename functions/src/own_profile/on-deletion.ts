@@ -1,6 +1,6 @@
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {FirestoreEvent} from "firebase-functions/v2/firestore";
-import {DeleteProfileEventParams, EventName} from "../models/analytics-events";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { FirestoreEvent } from "firebase-functions/v2/firestore";
+import { DeleteProfileEventParams, EventName } from "../models/analytics-events";
 import {
   Collections,
   FeedFields,
@@ -12,8 +12,8 @@ import {
   UpdateFields,
   UserSummaryFields
 } from "../models/constants";
-import {trackApiEvent} from "../utils/analytics-utils";
-import {getLogger} from "../utils/logging-utils";
+import { trackApiEvent } from "../utils/analytics-utils";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 

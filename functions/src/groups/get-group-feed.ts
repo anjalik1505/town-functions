@@ -1,11 +1,11 @@
-import {Request, Response} from "express";
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields} from "../models/constants";
-import {EnrichedUpdate, FeedResponse, GroupMember, Update} from "../models/data-models";
-import {ForbiddenError, NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {applyPagination, generateNextCursor, processQueryStream} from "../utils/pagination-utils";
-import {formatTimestamp} from "../utils/timestamp-utils";
+import { Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
+import { EnrichedUpdate, FeedResponse, GroupMember, Update } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

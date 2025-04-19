@@ -1,7 +1,7 @@
-import {getFirestore} from "firebase-admin/firestore";
-import {Collections} from "../models/constants";
-import {ReactionGroup} from "../models/data-models";
-import {getLogger} from "./logging-utils";
+import { getFirestore } from "firebase-admin/firestore";
+import { Collections } from "../models/constants";
+import { ReactionGroup } from "../models/data-models";
+import { getLogger } from "./logging-utils";
 
 const logger = getLogger(__filename);
 

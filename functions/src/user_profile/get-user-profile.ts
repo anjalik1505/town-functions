@@ -1,12 +1,12 @@
-import {Request} from "express";
-import {getFirestore} from "firebase-admin/firestore";
-import {ApiResponse, EventName, ProfileEventParams} from "../models/analytics-events";
-import {Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields} from "../models/constants";
-import {FriendProfileResponse} from "../models/data-models";
-import {BadRequestError, ForbiddenError} from "../utils/errors";
-import {createFriendshipId} from "../utils/friendship-utils";
-import {getLogger} from "../utils/logging-utils";
-import {formatFriendProfileResponse, getProfileDoc} from "../utils/profile-utils";
+import { Request } from "express";
+import { getFirestore } from "firebase-admin/firestore";
+import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
+import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
+import { FriendProfileResponse } from "../models/data-models";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
+import { createFriendshipId } from "../utils/friendship-utils";
+import { getLogger } from "../utils/logging-utils";
+import { formatFriendProfileResponse, getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 

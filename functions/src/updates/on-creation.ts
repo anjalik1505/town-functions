@@ -1,19 +1,19 @@
-import {getFirestore, QueryDocumentSnapshot, Timestamp} from "firebase-admin/firestore";
-import {FirestoreEvent} from "firebase-functions/v2/firestore";
-import {generateCreatorProfileFlow, generateFriendProfileFlow} from "../ai/flows";
-import {EventName, FriendSummaryEventParams, SummaryEventParams} from "../models/analytics-events";
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
+import { FirestoreEvent } from "firebase-functions/v2/firestore";
+import { generateCreatorProfileFlow, generateFriendProfileFlow } from "../ai/flows";
+import { EventName, FriendSummaryEventParams, SummaryEventParams } from "../models/analytics-events";
 import {
-    Collections,
-    Documents,
-    InsightsFields,
-    ProfileFields,
-    UpdateFields,
-    UserSummaryFields
+  Collections,
+  Documents,
+  InsightsFields,
+  ProfileFields,
+  UpdateFields,
+  UserSummaryFields
 } from "../models/constants";
-import {trackApiEvents} from "../utils/analytics-utils";
-import {createFriendshipId} from "../utils/friendship-utils";
-import {getLogger} from "../utils/logging-utils";
-import {calculateAge} from "../utils/profile-utils";
+import { trackApiEvents } from "../utils/analytics-utils";
+import { createFriendshipId } from "../utils/friendship-utils";
+import { getLogger } from "../utils/logging-utils";
+import { calculateAge } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 

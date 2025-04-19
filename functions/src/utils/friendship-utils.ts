@@ -1,6 +1,6 @@
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {Collections, FriendshipFields, InvitationFields, QueryOperators, Status} from "../models/constants";
-import {getLogger} from "../utils/logging-utils";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Collections, FriendshipFields, InvitationFields, QueryOperators, Status } from "../models/constants";
+import { getLogger } from "./logging-utils";
 
 const MAX_COMBINED = 5;
 

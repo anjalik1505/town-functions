@@ -1,11 +1,11 @@
-import {Request} from "express";
-import {getFirestore} from "firebase-admin/firestore";
-import {ApiResponse, CommentEventParams, EventName} from "../models/analytics-events";
-import {CommentFields} from "../models/constants";
-import {getCommentDoc} from "../utils/comment-utils";
-import {ForbiddenError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {getUpdateDoc} from "../utils/update-utils";
+import { Request } from "express";
+import { getFirestore } from "firebase-admin/firestore";
+import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
+import { CommentFields } from "../models/constants";
+import { getCommentDoc } from "../utils/comment-utils";
+import { ForbiddenError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { getUpdateDoc } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 

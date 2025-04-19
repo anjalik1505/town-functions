@@ -1,8 +1,8 @@
-import {Request} from "express";
-import {ApiResponse, EventName, ProfileEventParams} from "../models/analytics-events";
-import {Collections, Documents, ProfileFields} from "../models/constants";
-import {getLogger} from "../utils/logging-utils";
-import {getProfileDoc} from "../utils/profile-utils";
+import { Request } from "express";
+import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
+import { Collections, Documents, ProfileFields } from "../models/constants";
+import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 

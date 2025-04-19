@@ -1,10 +1,10 @@
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {Collections, CommentFields} from "../models/constants";
-import {Comment} from "../models/data-models";
-import {NotFoundError} from "../utils/errors";
-import {getLogger} from "./logging-utils";
-import {enrichWithProfile} from "./profile-utils";
-import {formatTimestamp} from "./timestamp-utils";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Collections, CommentFields } from "../models/constants";
+import { Comment } from "../models/data-models";
+import { NotFoundError } from "./errors";
+import { getLogger } from "./logging-utils";
+import { enrichWithProfile } from "./profile-utils";
+import { formatTimestamp } from "./timestamp-utils";
 
 const logger = getLogger(__filename);
 

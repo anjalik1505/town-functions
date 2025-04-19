@@ -1,9 +1,9 @@
-import {Request, Response} from "express";
-import {getFirestore, QueryDocumentSnapshot, WhereFilterOp} from "firebase-admin/firestore";
-import {Collections, GroupFields, QueryOperators} from "../models/constants";
-import {Group, GroupsResponse} from "../models/data-models";
-import {getLogger} from "../utils/logging-utils";
-import {formatTimestamp} from "../utils/timestamp-utils";
+import { Request, Response } from "express";
+import { getFirestore, QueryDocumentSnapshot, WhereFilterOp } from "firebase-admin/firestore";
+import { Collections, GroupFields, QueryOperators } from "../models/constants";
+import { Group, GroupsResponse } from "../models/data-models";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

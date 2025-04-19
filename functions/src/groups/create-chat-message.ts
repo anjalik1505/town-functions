@@ -1,10 +1,10 @@
-import {Request, Response} from "express";
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {ChatFields, Collections, GroupFields} from "../models/constants";
-import {ChatMessage} from "../models/data-models";
-import {ForbiddenError, NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {formatTimestamp} from "../utils/timestamp-utils";
+import { Request, Response } from "express";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ChatFields, Collections, GroupFields } from "../models/constants";
+import { ChatMessage } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

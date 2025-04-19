@@ -1,7 +1,7 @@
-import {Query, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {decodeCursor, encodeCursor} from "./cursor-utils";
-import {BadRequestError} from "./errors";
-import {getLogger} from "./logging-utils";
+import { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { decodeCursor, encodeCursor } from "./cursor-utils";
+import { BadRequestError } from "./errors";
+import { getLogger } from "./logging-utils";
 
 const logger = getLogger(__filename);
 
@@ -65,6 +65,7 @@ export const generateNextCursor = (
  *
  * @param query - The Firestore query to stream
  * @param processDoc - Function to process each document
+ * @param limit - Maximum number of items to process
  * @returns Array of processed items and the last document
  */
 export const processQueryStream = async <T>(

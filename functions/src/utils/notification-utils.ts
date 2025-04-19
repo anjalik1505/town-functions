@@ -1,5 +1,5 @@
-import {getMessaging} from "firebase-admin/messaging";
-import {getLogger} from "./logging-utils";
+import { getMessaging } from "firebase-admin/messaging";
+import { getLogger } from "./logging-utils";
 
 const logger = getLogger(__filename);
 

@@ -1,5 +1,5 @@
-import {Request, Response} from "express";
-import {FieldValue, getFirestore} from "firebase-admin/firestore";
+import { Request, Response } from "express";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import {
   Collections,
   FriendshipFields,
@@ -9,10 +9,10 @@ import {
   QueryOperators,
   Status
 } from "../models/constants";
-import {Group} from "../models/data-models";
-import {BadRequestError, ForbiddenError, NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {formatTimestamp} from "../utils/timestamp-utils";
+import { Group } from "../models/data-models";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

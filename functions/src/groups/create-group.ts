@@ -1,6 +1,6 @@
-import {Request, Response} from "express";
-import {FieldValue, getFirestore, Timestamp} from "firebase-admin/firestore";
-import {v4 as uuidv4} from "uuid";
+import { Request, Response } from "express";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
+import { v4 as uuidv4 } from "uuid";
 import {
   Collections,
   FriendshipFields,
@@ -10,10 +10,10 @@ import {
   QueryOperators,
   Status
 } from "../models/constants";
-import {Group} from "../models/data-models";
-import {BadRequestError, NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {formatTimestamp} from "../utils/timestamp-utils";
+import { Group } from "../models/data-models";
+import { BadRequestError, NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { formatTimestamp } from "../utils/timestamp-utils";
 
 const logger = getLogger(__filename);
 

@@ -1,6 +1,6 @@
-import {RequestHandler} from "express";
-import {z} from "zod";
-import {getLogger} from "../utils/logging-utils";
+import { RequestHandler } from "express";
+import { z } from "zod";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 

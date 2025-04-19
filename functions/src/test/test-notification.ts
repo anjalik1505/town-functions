@@ -1,10 +1,10 @@
-import {Request, Response} from "express";
-import {getFirestore} from "firebase-admin/firestore";
-import {getMessaging} from "firebase-admin/messaging";
-import {Collections, DeviceFields} from "../models/constants";
-import {NotificationResponse} from "../models/data-models";
-import {NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
+import { Request, Response } from "express";
+import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
+import { Collections, DeviceFields } from "../models/constants";
+import { NotificationResponse } from "../models/data-models";
+import { NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 

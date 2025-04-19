@@ -1,11 +1,11 @@
-import {Request} from "express";
-import {getFirestore} from "firebase-admin/firestore";
-import {ApiResponse, EventName, ReactionEventParams} from "../models/analytics-events";
-import {Collections, ReactionFields} from "../models/constants";
-import {ReactionGroup} from "../models/data-models";
-import {ForbiddenError, NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
-import {getUpdateDoc, hasUpdateAccess} from "../utils/update-utils";
+import { Request } from "express";
+import { getFirestore } from "firebase-admin/firestore";
+import { ApiResponse, EventName, ReactionEventParams } from "../models/analytics-events";
+import { Collections, ReactionFields } from "../models/constants";
+import { ReactionGroup } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
+import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 

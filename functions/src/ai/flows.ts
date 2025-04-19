@@ -1,7 +1,7 @@
-import {googleAI} from '@genkit-ai/googleai';
-import {defineSecret} from 'firebase-functions/params';
-import {genkit} from 'genkit';
-import {getLogger} from '../utils/logging-utils';
+import { googleAI } from '@genkit-ai/googleai';
+import { defineSecret } from 'firebase-functions/params';
+import { genkit } from 'genkit';
+import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
 

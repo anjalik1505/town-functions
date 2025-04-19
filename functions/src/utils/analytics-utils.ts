@@ -1,6 +1,6 @@
-import axios, {AxiosInstance} from 'axios';
-import {BaseEventParams, EventName} from '../models/analytics-events';
-import {getLogger} from './logging-utils';
+import axios, { AxiosInstance } from 'axios';
+import { BaseEventParams, EventName } from '../models/analytics-events';
+import { getLogger } from './logging-utils';
 
 const logger = getLogger(__filename);
 

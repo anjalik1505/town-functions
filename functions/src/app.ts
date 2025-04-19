@@ -1,62 +1,62 @@
 import cors from "cors";
-import express, {ErrorRequestHandler, RequestHandler, Response} from "express";
-import {initializeApp} from "firebase-admin/app";
-import {getAuth} from "firebase-admin/auth";
-import {ZodError} from "zod";
-import {getDevice} from "./device/get-device";
-import {updateDevice} from "./device/update-device";
-import {createFeedback} from "./feedback/create-feedback";
-import {acceptInvitation} from "./invitations/accept-invitation";
-import {createInvitation} from "./invitations/create-invitation";
-import {getInvitation} from "./invitations/get-invitation";
-import {getInvitations} from "./invitations/get-invitations";
-import {rejectInvitation} from "./invitations/reject-invitation";
-import {resendInvitation} from "./invitations/resend-invitation";
-import {validateQueryParams, validateRequest} from "./middleware/validation";
-import {ApiResponse, ErrorResponse, EventName} from "./models/analytics-events";
+import express, { ErrorRequestHandler, RequestHandler, Response } from "express";
+import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { ZodError } from "zod";
+import { getDevice } from "./device/get-device";
+import { updateDevice } from "./device/update-device";
+import { createFeedback } from "./feedback/create-feedback";
+import { acceptInvitation } from "./invitations/accept-invitation";
+import { createInvitation } from "./invitations/create-invitation";
+import { getInvitation } from "./invitations/get-invitation";
+import { getInvitations } from "./invitations/get-invitations";
+import { rejectInvitation } from "./invitations/reject-invitation";
+import { resendInvitation } from "./invitations/resend-invitation";
+import { validateQueryParams, validateRequest } from "./middleware/validation";
+import { ApiResponse, ErrorResponse, EventName } from "./models/analytics-events";
 import {
-    analyzeSentimentSchema,
-    createCommentSchema,
-    createFeedbackSchema,
-    createInvitationSchema,
-    createProfileSchema,
-    createReactionSchema,
-    createUpdateSchema,
-    deviceSchema,
-    paginationSchema,
-    testNotificationSchema,
-    testPromptSchema,
-    updateCommentSchema,
-    updateProfileSchema
+  analyzeSentimentSchema,
+  createCommentSchema,
+  createFeedbackSchema,
+  createInvitationSchema,
+  createProfileSchema,
+  createReactionSchema,
+  createUpdateSchema,
+  deviceSchema,
+  paginationSchema,
+  testNotificationSchema,
+  testPromptSchema,
+  updateCommentSchema,
+  updateProfileSchema
 } from "./models/validation-schemas";
-import {createProfile} from "./own_profile/create-my-profile";
-import {deleteProfile} from "./own_profile/delete-my-profile";
-import {getFeeds} from "./own_profile/get-my-feeds";
-import {getMyFriends} from "./own_profile/get-my-friends";
-import {getProfile} from "./own_profile/get-my-profile";
-import {getUpdates} from "./own_profile/get-my-updates";
-import {getQuestion} from "./own_profile/get-question";
-import {updateProfile} from "./own_profile/update-my-profile";
-import {testNotification} from "./test/test-notification";
-import {testPrompt} from "./test/test-prompt";
-import {analyzeSentiment} from "./updates/analyze-sentiment";
-import {createComment} from "./updates/create-comment";
-import {createReaction} from "./updates/create-reaction";
-import {createUpdate} from "./updates/create-update";
-import {deleteComment} from "./updates/delete-comment";
-import {deleteReaction} from "./updates/delete-reaction";
-import {getComments} from "./updates/get-comments";
-import {updateComment} from "./updates/update-comment";
-import {getUserProfile} from "./user_profile/get-user-profile";
-import {getUserUpdates} from "./user_profile/get-user-updates";
-import {trackApiEvent} from "./utils/analytics-utils";
+import { createProfile } from "./own_profile/create-my-profile";
+import { deleteProfile } from "./own_profile/delete-my-profile";
+import { getFeeds } from "./own_profile/get-my-feeds";
+import { getMyFriends } from "./own_profile/get-my-friends";
+import { getProfile } from "./own_profile/get-my-profile";
+import { getUpdates } from "./own_profile/get-my-updates";
+import { getQuestion } from "./own_profile/get-question";
+import { updateProfile } from "./own_profile/update-my-profile";
+import { testNotification } from "./test/test-notification";
+import { testPrompt } from "./test/test-prompt";
+import { analyzeSentiment } from "./updates/analyze-sentiment";
+import { createComment } from "./updates/create-comment";
+import { createReaction } from "./updates/create-reaction";
+import { createUpdate } from "./updates/create-update";
+import { deleteComment } from "./updates/delete-comment";
+import { deleteReaction } from "./updates/delete-reaction";
+import { getComments } from "./updates/get-comments";
+import { updateComment } from "./updates/update-comment";
+import { getUserProfile } from "./user_profile/get-user-profile";
+import { getUserUpdates } from "./user_profile/get-user-updates";
+import { trackApiEvent } from "./utils/analytics-utils";
 import {
-    BadRequestError,
-    ConflictError,
-    ForbiddenError,
-    InternalServerError,
-    NotFoundError,
-    UnauthorizedError
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+  UnauthorizedError
 } from "./utils/errors";
 
 // Response Handler
@@ -400,4 +400,4 @@ const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
 // Register the global error handler last
 app.use(global_error_handler);
 
-export {app};
+export { app };

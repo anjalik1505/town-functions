@@ -1,12 +1,12 @@
-import {Request} from "express";
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import {ApiResponse, CommentEventParams, EventName} from "../models/analytics-events";
-import {Collections, CommentFields, ProfileFields} from "../models/constants";
-import {Comment} from "../models/data-models";
-import {formatComment} from "../utils/comment-utils";
-import {getLogger} from "../utils/logging-utils";
-import {getProfileDoc} from "../utils/profile-utils";
-import {getUpdateDoc, hasUpdateAccess} from "../utils/update-utils";
+import { Request } from "express";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
+import { Collections, CommentFields, ProfileFields } from "../models/constants";
+import { Comment } from "../models/data-models";
+import { formatComment } from "../utils/comment-utils";
+import { getLogger } from "../utils/logging-utils";
+import { getProfileDoc } from "../utils/profile-utils";
+import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 

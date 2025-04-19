@@ -1,5 +1,5 @@
-import {formatInTimeZone} from "date-fns-tz";
-import {Timestamp} from "firebase-admin/firestore";
+import { formatInTimeZone } from "date-fns-tz";
+import { Timestamp } from "firebase-admin/firestore";
 
 /**
  * Formats a Firestore Timestamp to an ISO string in the same format as Python's datetime.isoformat()

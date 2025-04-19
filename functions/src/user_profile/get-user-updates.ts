@@ -1,15 +1,15 @@
-import {Request} from "express";
-import {getFirestore, QueryDocumentSnapshot} from "firebase-admin/firestore";
-import {ApiResponse, EventName, UpdateViewEventParams} from "../models/analytics-events";
-import {Collections, FeedFields, FriendshipFields, QueryOperators, Status} from "../models/constants";
-import {UpdatesResponse} from "../models/data-models";
-import {BadRequestError, ForbiddenError} from "../utils/errors";
-import {createFriendshipId} from "../utils/friendship-utils";
-import {getLogger} from "../utils/logging-utils";
-import {applyPagination, generateNextCursor, processQueryStream} from "../utils/pagination-utils";
-import {getProfileDoc} from "../utils/profile-utils";
-import {fetchUpdatesReactions} from "../utils/reaction-utils";
-import {fetchUpdatesByIds, processFeedItems} from "../utils/update-utils";
+import { Request } from "express";
+import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { ApiResponse, EventName, UpdateViewEventParams } from "../models/analytics-events";
+import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
+import { UpdatesResponse } from "../models/data-models";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
+import { createFriendshipId } from "../utils/friendship-utils";
+import { getLogger } from "../utils/logging-utils";
+import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
+import { getProfileDoc } from "../utils/profile-utils";
+import { fetchUpdatesReactions } from "../utils/reaction-utils";
+import { fetchUpdatesByIds, processFeedItems } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 

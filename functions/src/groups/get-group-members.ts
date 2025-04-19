@@ -1,9 +1,9 @@
-import {Request, Response} from "express";
-import {getFirestore} from "firebase-admin/firestore";
-import {Collections, GroupFields, ProfileFields} from "../models/constants";
-import {GroupMember, GroupMembersResponse} from "../models/data-models";
-import {ForbiddenError, NotFoundError} from "../utils/errors";
-import {getLogger} from "../utils/logging-utils";
+import { Request, Response } from "express";
+import { getFirestore } from "firebase-admin/firestore";
+import { Collections, GroupFields, ProfileFields } from "../models/constants";
+import { GroupMember, GroupMembersResponse } from "../models/data-models";
+import { ForbiddenError, NotFoundError } from "../utils/errors";
+import { getLogger } from "../utils/logging-utils";
 
 const logger = getLogger(__filename);
 
