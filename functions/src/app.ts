@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { ErrorRequestHandler, RequestHandler } from "express";
+import express, { ErrorRequestHandler, RequestHandler, Response } from "express";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { ZodError } from "zod";
@@ -13,6 +13,7 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
+import { ApiResponse, ErrorResponse, EventName } from "./models/analytics-events";
 import { analyzeSentimentSchema, createCommentSchema, createFeedbackSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { deleteProfile } from "./own_profile/delete-my-profile";
@@ -34,6 +35,7 @@ import { getComments } from "./updates/get-comments";
 import { updateComment } from "./updates/update-comment";
 import { getUserProfile } from "./user_profile/get-user-profile";
 import { getUserUpdates } from "./user_profile/get-user-updates";
+import { trackApiEvent } from "./utils/analytics-utils";
 import {
     BadRequestError,
     ConflictError,
@@ -42,6 +44,17 @@ import {
     NotFoundError,
     UnauthorizedError
 } from "./utils/errors";
+
+// Response Handler
+const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
+    const { analytics } = response;
+    if (analytics) {
+        res.on('finish', () => {
+            trackApiEvent(analytics.event, analytics.userId, analytics.params);
+        });
+    }
+    res.status(response.status).json(response.data);
+};
 
 // Initialize Firebase Admin
 initializeApp();
@@ -113,7 +126,8 @@ app.get("/me/question", async (req, res) => {
 });
 
 app.post("/me/profile", validateRequest(createProfileSchema), async (req, res) => {
-    await createProfile(req, res);
+    const result = await createProfile(req);
+    sendResponse(res, result);
 });
 
 app.put("/me/profile", validateRequest(updateProfileSchema), async (req, res) => {
@@ -318,14 +332,28 @@ const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
         errorName = (err as any).name || "Error";
         errorDescription = (err as any).message || "An error occurred.";
     }
-    // For any other unknown error, we use the default 500 Internal Server Error
 
-    // Send standardized error response
-    res.status(statusCode).json({
-        code: statusCode,
-        name: errorName,
-        description: errorDescription,
-    });
+    const response: ApiResponse<ErrorResponse> = {
+        data: {
+            code: statusCode,
+            name: errorName,
+            description: errorDescription
+        },
+        status: statusCode,
+        analytics: {
+            event: EventName.API_ERROR,
+            userId: req.userId,
+            params: {
+                error_type: errorName,
+                error_message: errorDescription,
+                error_code: statusCode,
+                path: req.path,
+                method: req.method
+            }
+        }
+    };
+
+    sendResponse(res, response);
 };
 
 // Register the global error handler last

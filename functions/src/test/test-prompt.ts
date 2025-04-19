@@ -83,7 +83,7 @@ export const testPrompt = async (req: Request, res: Response): Promise<void> => 
         // Return error if all retries failed
         throw new InternalServerError("Failed to generate response after all retries");
     } catch (error) {
-        console.error("Error in test/prompt:", error);
+        logger.error("Error in test/prompt:", error);
         throw new InternalServerError("Failed to generate response");
     }
 } 

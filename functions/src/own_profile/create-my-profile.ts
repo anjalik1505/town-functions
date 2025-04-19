@@ -1,7 +1,8 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, EventName, ProfileCreatedEventParams } from "../models/analytics-events";
 import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
-import { Insights } from "../models/data-models";
+import { Insights, ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatProfileResponse, getProfileInsights, profileExists } from "../utils/profile-utils";
 
@@ -34,7 +35,7 @@ const logger = getLogger(__filename);
  * 
  * @throws 400: Profile already exists for user {user_id}
  */
-export const createProfile = async (req: Request, res: Response): Promise<void> => {
+export const createProfile = async (req: Request): Promise<ApiResponse<ProfileResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Starting add_user operation for user ID: ${currentUserId}`);
 
@@ -86,5 +87,23 @@ export const createProfile = async (req: Request, res: Response): Promise<void> 
   const response = formatProfileResponse(currentUserId, profileDataToSave, insights);
 
   logger.info(`User profile creation completed successfully for user ${currentUserId}`);
-  res.status(201).json(response);
+
+  // Track profile creation event
+  const profileEventParams: ProfileCreatedEventParams = {
+    has_avatar: !!profileData.avatar,
+    has_location: !!profileData.location,
+    has_birthday: !!profileData.birthday,
+    has_notification_settings: Array.isArray(profileData.notification_settings) && profileData.notification_settings.length > 0,
+    has_gender: !!profileData.gender
+  };
+
+  return {
+    data: response,
+    status: 201,
+    analytics: {
+      event: EventName.PROFILE_CREATED,
+      userId: currentUserId,
+      params: profileEventParams
+    }
+  };
 }; 
