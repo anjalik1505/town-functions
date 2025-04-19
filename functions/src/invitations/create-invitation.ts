@@ -81,8 +81,8 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
 
     // Create analytics event
     const event: InviteEventParams = {
-        friends: friendCount,
-        invitations: activeInvitationCount + 1 // Add 1 for the new invitation
+        friend_count: friendCount,
+        invitation_count: activeInvitationCount + 1 // Add 1 for the new invitation
     };
 
     return {

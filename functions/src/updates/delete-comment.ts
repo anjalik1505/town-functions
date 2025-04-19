@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore } from "firebase-admin/firestore";
+import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
 import { CommentFields } from "../models/constants";
 import { getCommentDoc } from "../utils/comment-utils";
 import { ForbiddenError } from "../utils/errors";
@@ -21,15 +22,14 @@ const logger = getLogger(__filename);
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update
  *                - comment_id: The ID of the comment to delete
- * @param res - The Express response object
  * 
- * @returns 204 No Content on success
+ * @returns An ApiResponse containing analytics data
  * 
  * @throws 404: Update not found
  * @throws 404: Comment not found
  * @throws 403: You can only delete your own comments
  */
-export const deleteComment = async (req: Request, res: Response): Promise<void> => {
+export const deleteComment = async (req: Request): Promise<ApiResponse<null>> => {
     const updateId = req.params.update_id;
     const commentId = req.params.comment_id;
     const currentUserId = req.userId;
@@ -57,5 +57,18 @@ export const deleteComment = async (req: Request, res: Response): Promise<void> 
 
     await batch.commit();
 
-    res.status(204).send();
+    // Create analytics event
+    const event: CommentEventParams = {
+        comment_length: commentData[CommentFields.CONTENT].length
+    };
+
+    return {
+        data: null,
+        status: 204,
+        analytics: {
+            event: EventName.COMMENT_DELETED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

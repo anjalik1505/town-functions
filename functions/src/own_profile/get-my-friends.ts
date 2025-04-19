@@ -95,7 +95,7 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
 
     // Create analytics event
     const event: FriendEventParams = {
-        friends: friends.length
+        friend_count: friends.length
     };
 
     // Return the list of friends with pagination info

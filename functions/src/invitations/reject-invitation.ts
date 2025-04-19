@@ -54,8 +54,8 @@ export const rejectInvitation = async (req: Request): Promise<ApiResponse<Invita
 
     // Create analytics event
     const event: InviteEventParams = {
-        friends: friendCount,
-        invitations: activeInvitationCount
+        friend_count: friendCount,
+        invitation_count: activeInvitationCount
     };
 
     return {

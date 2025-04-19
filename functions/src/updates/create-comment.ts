@@ -1,6 +1,8 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
 import { Collections, CommentFields, ProfileFields } from "../models/constants";
+import { Comment } from "../models/data-models";
 import { formatComment } from "../utils/comment-utils";
 import { getLogger } from "../utils/logging-utils";
 import { getProfileDoc } from "../utils/profile-utils";
@@ -23,23 +25,14 @@ const logger = getLogger(__filename);
  *                - content: The comment text
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update to comment on
- * @param res - The Express response object
  * 
- * @returns 201 Created with Comment object containing:
- * - comment_id: The ID of the created comment
- * - created_by: The ID of the user who created the comment
- * - content: The comment text
- * - created_at: ISO timestamp of creation
- * - updated_at: ISO timestamp of last update
- * - username: The username of the comment creator
- * - name: The display name of the comment creator
- * - avatar: The avatar URL of the comment creator
+ * @returns An ApiResponse containing the created comment and analytics
  * 
  * @throws 400: Invalid request parameters
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const createComment = async (req: Request, res: Response): Promise<void> => {
+export const createComment = async (req: Request): Promise<ApiResponse<Comment>> => {
     const updateId = req.params.update_id;
     const currentUserId = req.userId;
     logger.info(`Creating comment on update: ${updateId}`);
@@ -81,5 +74,18 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
     comment.name = profileData[ProfileFields.NAME] || "";
     comment.avatar = profileData[ProfileFields.AVATAR] || "";
 
-    res.status(201).json(comment);
+    // Create analytics event
+    const event: CommentEventParams = {
+        comment_length: req.validated_params.content.length
+    };
+
+    return {
+        data: comment,
+        status: 201,
+        analytics: {
+            event: EventName.COMMENT_CREATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

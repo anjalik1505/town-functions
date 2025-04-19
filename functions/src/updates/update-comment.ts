@@ -1,6 +1,8 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { Timestamp } from "firebase-admin/firestore";
+import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
 import { CommentFields, ProfileFields } from "../models/constants";
+import { Comment } from "../models/data-models";
 import { formatComment, getCommentDoc } from "../utils/comment-utils";
 import { ForbiddenError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
@@ -23,24 +25,15 @@ const logger = getLogger(__filename);
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update
  *                - comment_id: The ID of the comment to update
- * @param res - The Express response object
  * 
- * @returns 200 OK with Comment object containing:
- * - comment_id: The ID of the updated comment
- * - created_by: The ID of the user who created the comment
- * - content: The updated comment text
- * - created_at: ISO timestamp of creation
- * - updated_at: ISO timestamp of last update
- * - username: The username of the comment creator
- * - name: The display name of the comment creator
- * - avatar: The avatar URL of the comment creator
+ * @returns An ApiResponse containing the updated comment and analytics
  * 
  * @throws 400: Invalid request parameters
  * @throws 403: You can only update your own comments
  * @throws 404: Update not found
  * @throws 404: Comment not found
  */
-export const updateComment = async (req: Request, res: Response): Promise<void> => {
+export const updateComment = async (req: Request): Promise<ApiResponse<Comment>> => {
     const updateId = req.params.update_id;
     const commentId = req.params.comment_id;
     const currentUserId = req.userId;
@@ -76,5 +69,18 @@ export const updateComment = async (req: Request, res: Response): Promise<void> 
     comment.name = profileData[ProfileFields.NAME] || "";
     comment.avatar = profileData[ProfileFields.AVATAR] || "";
 
-    res.status(200).json(comment);
+    // Create analytics event
+    const event: CommentEventParams = {
+        comment_length: req.validated_params.content.length
+    };
+
+    return {
+        data: comment,
+        status: 200,
+        analytics: {
+            event: EventName.COMMENT_UPDATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
 }; 

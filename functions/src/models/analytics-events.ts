@@ -21,7 +21,11 @@ export enum EventName {
   INVITE_VIEWED = 'invite_viewed',
   INVITES_VIEWED = 'invites_viewed',
   QUESTION_GENERATED = 'question_generated',
-  FRIENDS_VIEWED = 'friends_viewed'
+  FRIENDS_VIEWED = 'friends_viewed',
+  COMMENT_CREATED = 'comment_created',
+  COMMENT_UPDATED = 'comment_updated',
+  COMMENT_DELETED = 'comment_deleted',
+  COMMENTS_VIEWED = 'comments_viewed'
 }
 
 // Base interface for all event parameters
@@ -59,20 +63,20 @@ export interface UpdateEventParams extends BaseEventParams {
 
 // Update event parameters
 export interface UpdateViewEventParams extends BaseEventParams {
-  updates: number;
+  update_count: number;
   user: string;
 }
 
 // Feed event parameters
 export interface FeedViewEventParams extends BaseEventParams {
-  updates: number;
+  update_count: number;
   unique_creators: number;
 }
 
 // Invite event parameters
 export interface InviteEventParams extends BaseEventParams {
-  friends: number;
-  invitations: number;
+  friend_count: number;
+  invitation_count: number;
 }
 
 // Question event parameters
@@ -82,7 +86,18 @@ export interface QuestionEventParams extends BaseEventParams {
 
 // Friend event parameters
 export interface FriendEventParams extends BaseEventParams {
-  friends: number;
+  friend_count: number;
+}
+
+// Comment event parameters
+export interface CommentEventParams extends BaseEventParams {
+  comment_length: number;
+}
+
+// Comment view event parameters
+export interface CommentViewEventParams extends BaseEventParams {
+  comment_count: number;
+  unique_creators: number;
 }
 
 // Response Types

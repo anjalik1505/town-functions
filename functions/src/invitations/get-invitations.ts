@@ -95,8 +95,8 @@ export const getInvitations = async (req: Request): Promise<ApiResponse<Invitati
 
     // Create analytics event
     const event: InviteEventParams = {
-        friends: friendCount,
-        invitations: activeInvitationCount
+        friend_count: friendCount,
+        invitation_count: activeInvitationCount
     };
 
     // Return the invitations response with pagination info

@@ -60,7 +60,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
     if (feedDocs.length === 0) {
         logger.info(`No updates found for user ${currentUserId}`);
         const emptyEvent: UpdateViewEventParams = {
-            updates: 0,
+            update_count: 0,
             user: currentUserId
         };
         return {
@@ -91,7 +91,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
 
     logger.info(`Retrieved ${updates.length} updates for user ${currentUserId}`);
     const event: UpdateViewEventParams = {
-        updates: updates.length,
+        update_count: updates.length,
         user: currentUserId
     };
     return {

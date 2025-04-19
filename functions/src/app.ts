@@ -219,19 +219,23 @@ app.post("/updates", validateRequest(createUpdateSchema), async (req, res) => {
 
 // Comment routes
 app.get("/updates/:update_id/comments", validateQueryParams(paginationSchema), async (req, res) => {
-    await getComments(req, res);
+    const result = await getComments(req);
+    sendResponse(res, result);
 });
 
 app.post("/updates/:update_id/comments", validateRequest(createCommentSchema), async (req, res) => {
-    await createComment(req, res);
+    const result = await createComment(req);
+    sendResponse(res, result);
 });
 
 app.put("/updates/:update_id/comments/:comment_id", validateRequest(updateCommentSchema), async (req, res) => {
-    await updateComment(req, res);
+    const result = await updateComment(req);
+    sendResponse(res, result);
 });
 
 app.delete("/updates/:update_id/comments/:comment_id", async (req, res) => {
-    await deleteComment(req, res);
+    const result = await deleteComment(req);
+    sendResponse(res, result);
 });
 
 // Reaction routes

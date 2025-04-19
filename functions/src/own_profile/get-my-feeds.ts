@@ -63,7 +63,7 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
     if (feedDocs.length === 0) {
         logger.info(`No feed items found for user ${currentUserId}`);
         const emptyEvent: FeedViewEventParams = {
-            updates: 0,
+            update_count: 0,
             unique_creators: 0
         };
         return {
@@ -102,7 +102,7 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
 
     logger.info(`Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`);
     const event: FeedViewEventParams = {
-        updates: enrichedUpdates.length,
+        update_count: enrichedUpdates.length,
         unique_creators: uniqueUserIds.length
     };
     return {
