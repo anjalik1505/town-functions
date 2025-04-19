@@ -27,7 +27,9 @@ export enum EventName {
   COMMENT_DELETED = 'comment_deleted',
   COMMENTS_VIEWED = 'comments_viewed',
   REACTION_CREATED = 'reaction_created',
-  REACTION_DELETED = 'reaction_deleted'
+  REACTION_DELETED = 'reaction_deleted',
+  SENTIMENT_ANALYZED = 'sentiment_analyzed',
+  FEEDBACK_CREATED = 'feedback_created'
 }
 
 // Base interface for all event parameters
@@ -109,6 +111,18 @@ export interface CommentViewEventParams extends BaseEventParams {
 export interface ReactionEventParams extends BaseEventParams {
   reaction_count: number;
   comment_count: number;
+}
+
+// Analyze sentiment event parameters
+export interface AnalyzeSentimentEventParams extends BaseEventParams {
+  sentiment: string;
+  score: number;
+  emoji: string;
+}
+
+// Feedback event parameters
+export interface FeedbackEventParams extends BaseEventParams {
+  feedback_length: number;
 }
 
 // Response Types

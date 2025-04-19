@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { analyzeSentimentFlow } from "../ai/flows";
+import { AnalyzeSentimentEventParams, ApiResponse, EventName } from "../models/analytics-events";
 import { SentimentAnalysisResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 
@@ -15,16 +16,12 @@ const logger = getLogger(__filename);
  * 
  * @param req - The Express request object containing:
  *              - content: The text to analyze
- * @param res - The Express response object
  * 
- * @returns A response containing:
- * - sentiment: The detected sentiment (e.g., "happy", "sad", "neutral")
- * - score: A sentiment score from 1-5
- * - emoji: An emoji representing the sentiment
+ * @returns An ApiResponse containing the analysis results and analytics
  * 
  * @throws 400: Invalid request parameters
  */
-export const analyzeSentiment = async (req: Request, res: Response): Promise<void> => {
+export const analyzeSentiment = async (req: Request): Promise<ApiResponse<SentimentAnalysisResponse>> => {
     const { content } = req.validated_params;
     logger.info(`Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`);
 
@@ -42,5 +39,20 @@ export const analyzeSentiment = async (req: Request, res: Response): Promise<voi
         emoji: result.emoji
     };
 
-    res.json(response);
+    // Create analytics event
+    const event: AnalyzeSentimentEventParams = {
+        sentiment: result.sentiment,
+        score: result.score,
+        emoji: result.emoji
+    };
+
+    return {
+        data: response,
+        status: 200,
+        analytics: {
+            event: EventName.SENTIMENT_ANALYZED,
+            userId: req.userId,
+            params: event
+        }
+    };
 }; 

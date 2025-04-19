@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
+import { ApiResponse, EventName, FeedbackEventParams } from "../models/analytics-events";
 import { Collections } from "../models/constants";
 import { Feedback } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
@@ -18,10 +19,10 @@ const logger = getLogger(__filename);
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - validated_params: The validated request data containing:
  *                - content: The text content of the feedback
- * @param res - The Express response object
- * @returns A Promise that resolves to the created feedback object
+ * 
+ * @returns An ApiResponse containing the created feedback and analytics
  */
-export const createFeedback = async (req: Request, res: Response): Promise<void> => {
+export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback>> => {
     logger.info(`Creating feedback for user: ${req.userId}`);
 
     // Get the authenticated user ID from the request
@@ -60,5 +61,18 @@ export const createFeedback = async (req: Request, res: Response): Promise<void>
         created_at: formatTimestamp(createdAt)
     };
 
-    res.json(response);
-} 
+    // Create analytics event
+    const event: FeedbackEventParams = {
+        feedback_length: content.length
+    };
+
+    return {
+        data: response,
+        status: 201,
+        analytics: {
+            event: EventName.FEEDBACK_CREATED,
+            userId: currentUserId,
+            params: event
+        }
+    };
+}; 
