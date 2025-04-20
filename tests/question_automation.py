@@ -69,6 +69,8 @@ def run_question_tests():
     update_data = {
         "content": "I'm working on a new project and facing some challenges with the team.",
         "sentiment": "neutral",
+        "score": 3,
+        "emoji": "👍",
         "friend_ids": [],
         "group_ids": [],
     }

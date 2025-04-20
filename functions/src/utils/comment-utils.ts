@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, CommentFields } from "../models/constants";
 import { Comment } from "../models/data-models";
-import { NotFoundError } from "../utils/errors";
+import { NotFoundError } from "./errors";
 import { getLogger } from "./logging-utils";
 import { enrichWithProfile } from "./profile-utils";
 import { formatTimestamp } from "./timestamp-utils";
@@ -16,20 +16,20 @@ const logger = getLogger(__filename);
  * @returns A formatted Comment object
  */
 export const formatComment = (
-    commentId: string,
-    commentData: FirebaseFirestore.DocumentData,
-    createdBy: string
+  commentId: string,
+  commentData: FirebaseFirestore.DocumentData,
+  createdBy: string
 ): Comment => {
-    return {
-        comment_id: commentId,
-        created_by: createdBy,
-        content: commentData[CommentFields.CONTENT] || "",
-        created_at: formatTimestamp(commentData[CommentFields.CREATED_AT]),
-        updated_at: formatTimestamp(commentData[CommentFields.UPDATED_AT]),
-        username: "",  // Will be populated from profile
-        name: "",     // Will be populated from profile
-        avatar: ""    // Will be populated from profile
-    };
+  return {
+    comment_id: commentId,
+    created_by: createdBy,
+    content: commentData[CommentFields.CONTENT] || "",
+    created_at: formatTimestamp(commentData[CommentFields.CREATED_AT]),
+    updated_at: formatTimestamp(commentData[CommentFields.UPDATED_AT]),
+    username: "",  // Will be populated from profile
+    name: "",     // Will be populated from profile
+    avatar: ""    // Will be populated from profile
+  };
 };
 
 /**
@@ -41,13 +41,13 @@ export const formatComment = (
  * @returns A formatted Comment object with profile data
  */
 export const formatEnrichedComment = (
-    commentId: string,
-    commentData: FirebaseFirestore.DocumentData,
-    createdBy: string,
-    profile: { username: string; name: string; avatar: string } | null = null
+  commentId: string,
+  commentData: FirebaseFirestore.DocumentData,
+  createdBy: string,
+  profile: { username: string; name: string; avatar: string } | null = null
 ): Comment => {
-    const comment = formatComment(commentId, commentData, createdBy);
-    return enrichWithProfile(comment, profile);
+  const comment = formatComment(commentId, commentData, createdBy);
+  return enrichWithProfile(comment, profile);
 };
 
 /**
@@ -57,22 +57,22 @@ export const formatEnrichedComment = (
  * @returns Array of formatted Comment objects with profile data
  */
 export const processEnrichedComments = (
-    commentDocs: QueryDocumentSnapshot[],
-    profiles: Map<string, { username: string; name: string; avatar: string }>
+  commentDocs: QueryDocumentSnapshot[],
+  profiles: Map<string, { username: string; name: string; avatar: string }>
 ): Comment[] => {
-    return commentDocs
-        .map(commentDoc => {
-            const commentData = commentDoc.data();
-            const createdBy = commentData[CommentFields.CREATED_BY] || "";
+  return commentDocs
+    .map(commentDoc => {
+      const commentData = commentDoc.data();
+      const createdBy = commentData[CommentFields.CREATED_BY] || "";
 
-            return formatEnrichedComment(
-                commentDoc.id,
-                commentData,
-                createdBy,
-                profiles.get(createdBy) || null
-            );
-        })
-        .filter((comment): comment is Comment => comment !== null);
+      return formatEnrichedComment(
+        commentDoc.id,
+        commentData,
+        createdBy,
+        profiles.get(createdBy) || null
+      );
+    })
+    .filter((comment): comment is Comment => comment !== null);
 };
 
 /**
@@ -83,21 +83,21 @@ export const processEnrichedComments = (
  * @throws NotFoundError if the comment doesn't exist
  */
 export const getCommentDoc = async (
-    updateId: string,
-    commentId: string
+  updateId: string,
+  commentId: string
 ): Promise<{ ref: FirebaseFirestore.DocumentReference; data: FirebaseFirestore.DocumentData }> => {
-    const db = getFirestore();
-    const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-    const commentRef = updateRef.collection(Collections.COMMENTS).doc(commentId);
-    const commentDoc = await commentRef.get();
+  const db = getFirestore();
+  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  const commentRef = updateRef.collection(Collections.COMMENTS).doc(commentId);
+  const commentDoc = await commentRef.get();
 
-    if (!commentDoc.exists) {
-        logger.warn(`Comment not found: ${commentId}`);
-        throw new NotFoundError("Comment not found");
-    }
+  if (!commentDoc.exists) {
+    logger.warn(`Comment not found: ${commentId}`);
+    throw new NotFoundError("Comment not found");
+  }
 
-    return {
-        ref: commentRef,
-        data: commentDoc.data() || {}
-    };
+  return {
+    ref: commentRef,
+    data: commentDoc.data() || {}
+  };
 };

@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { ErrorRequestHandler, RequestHandler } from "express";
+import express, { ErrorRequestHandler, RequestHandler, Response } from "express";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { ZodError } from "zod";
@@ -13,7 +13,22 @@ import { getInvitations } from "./invitations/get-invitations";
 import { rejectInvitation } from "./invitations/reject-invitation";
 import { resendInvitation } from "./invitations/resend-invitation";
 import { validateQueryParams, validateRequest } from "./middleware/validation";
-import { analyzeSentimentSchema, createCommentSchema, createFeedbackSchema, createInvitationSchema, createProfileSchema, createReactionSchema, createUpdateSchema, deviceSchema, paginationSchema, testNotificationSchema, testPromptSchema, updateCommentSchema, updateProfileSchema } from "./models/validation-schemas";
+import { ApiResponse, ErrorResponse, EventName } from "./models/analytics-events";
+import {
+  analyzeSentimentSchema,
+  createCommentSchema,
+  createFeedbackSchema,
+  createInvitationSchema,
+  createProfileSchema,
+  createReactionSchema,
+  createUpdateSchema,
+  deviceSchema,
+  paginationSchema,
+  testNotificationSchema,
+  testPromptSchema,
+  updateCommentSchema,
+  updateProfileSchema
+} from "./models/validation-schemas";
 import { createProfile } from "./own_profile/create-my-profile";
 import { deleteProfile } from "./own_profile/delete-my-profile";
 import { getFeeds } from "./own_profile/get-my-feeds";
@@ -34,14 +49,32 @@ import { getComments } from "./updates/get-comments";
 import { updateComment } from "./updates/update-comment";
 import { getUserProfile } from "./user_profile/get-user-profile";
 import { getUserUpdates } from "./user_profile/get-user-updates";
+import { trackApiEvent } from "./utils/analytics-utils";
 import {
-    BadRequestError,
-    ConflictError,
-    ForbiddenError,
-    InternalServerError,
-    NotFoundError,
-    UnauthorizedError
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+  UnauthorizedError
 } from "./utils/errors";
+
+
+// Response Handler
+const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
+  const {analytics} = response;
+  if (analytics) {
+    res.on('finish', () => {
+      trackApiEvent(analytics.event, analytics.userId, analytics.params);
+    });
+  }
+  res.status(response.status);
+  if (response.data !== null) {
+    res.json(response.data);
+  } else {
+    res.end();
+  }
+};
 
 // Initialize Firebase Admin
 initializeApp();
@@ -55,9 +88,9 @@ app.use(cors());
 
 // Content type middleware to ensure JSON responses
 const ensureJsonResponse: RequestHandler = (req, res, next) => {
-    // Set content type for all responses
-    res.setHeader('Content-Type', 'application/json');
-    next();
+  // Set content type for all responses
+  res.setHeader('Content-Type', 'application/json');
+  next();
 };
 
 // Apply content type middleware
@@ -65,39 +98,39 @@ app.use(ensureJsonResponse);
 
 // Extend Express Request type to include userId and validated_params
 declare global {
-    namespace Express {
-        interface Request {
-            userId: string;  // Changed from optional to required since it's always set by auth middleware
-            validated_params?: any; // This will be properly typed by the validation middleware
-        }
+  namespace Express {
+    interface Request {
+      userId: string;  // Changed from optional to required since it's always set by auth middleware
+      validated_params?: any; // This will be properly typed by the validation middleware
     }
+  }
 }
 
 // Authentication middleware
 const authenticate_request: RequestHandler = async (req, res, next) => {
-    try {
-        const auth_header = req.headers.authorization;
-        if (!auth_header) {
-            throw new UnauthorizedError("Authentication required: valid Firebase ID token needed");
-        }
-
-        const token = auth_header.startsWith("Bearer ")
-            ? auth_header.split("Bearer ")[1]
-            : auth_header;
-
-        const decoded_token = await auth.verifyIdToken(token);
-        const user_id = decoded_token.uid;
-
-        if (!user_id) {
-            throw new UnauthorizedError("Invalid token: no user ID found");
-        }
-
-        // Attach userId to request
-        req.userId = user_id;
-        next();
-    } catch (error: unknown) {
-        next(error);
+  try {
+    const auth_header = req.headers.authorization;
+    if (!auth_header) {
+      throw new UnauthorizedError("Authentication required: valid Firebase ID token needed");
     }
+
+    const token = auth_header.startsWith("Bearer ")
+      ? auth_header.split("Bearer ")[1]
+      : auth_header;
+
+    const decoded_token = await auth.verifyIdToken(token);
+    const user_id = decoded_token.uid;
+
+    if (!user_id) {
+      throw new UnauthorizedError("Invalid token: no user ID found");
+    }
+
+    // Attach userId to request
+    req.userId = user_id;
+    next();
+  } catch (error: unknown) {
+    next(error);
+  }
 };
 
 // Apply authentication to all routes
@@ -105,114 +138,138 @@ app.use(authenticate_request);
 
 // Routes - leveraging Express 5+'s automatic error handling for async handlers
 app.get("/me/profile", async (req, res) => {
-    await getProfile(req, res);
+  const result = await getProfile(req);
+  sendResponse(res, result);
 });
 
 app.get("/me/question", async (req, res) => {
-    await getQuestion(req, res);
+  const result = await getQuestion(req);
+  sendResponse(res, result);
 });
 
 app.post("/me/profile", validateRequest(createProfileSchema), async (req, res) => {
-    await createProfile(req, res);
+  const result = await createProfile(req);
+  sendResponse(res, result);
 });
 
 app.put("/me/profile", validateRequest(updateProfileSchema), async (req, res) => {
-    await updateProfile(req, res);
+  const result = await updateProfile(req);
+  sendResponse(res, result);
 });
 
 app.delete("/me/profile", async (req, res) => {
-    await deleteProfile(req, res);
+  const result = await deleteProfile(req);
+  sendResponse(res, result);
 });
 
 app.get("/me/updates", validateQueryParams(paginationSchema), async (req, res) => {
-    await getUpdates(req, res);
+  const result = await getUpdates(req);
+  sendResponse(res, result);
 });
 
 app.get("/me/feed", validateQueryParams(paginationSchema), async (req, res) => {
-    await getFeeds(req, res);
+  const result = await getFeeds(req);
+  sendResponse(res, result);
 });
 
 app.get("/me/friends", validateQueryParams(paginationSchema), async (req, res) => {
-    await getMyFriends(req, res);
+  const result = await getMyFriends(req);
+  sendResponse(res, result);
 });
 
 // User profile routes
 app.get("/users/:target_user_id/profile", async (req, res) => {
-    await getUserProfile(req, res);
+  const result = await getUserProfile(req);
+  sendResponse(res, result);
 });
 
 app.get("/users/:target_user_id/updates", validateQueryParams(paginationSchema), async (req, res) => {
-    await getUserUpdates(req, res);
+  const result = await getUserUpdates(req);
+  sendResponse(res, result);
 });
 
 // Invitation routes
 app.get("/invitations", validateQueryParams(paginationSchema), async (req, res) => {
-    await getInvitations(req, res);
+  const result = await getInvitations(req);
+  sendResponse(res, result);
 });
 
 app.get("/invitations/:invitation_id", async (req, res) => {
-    await getInvitation(req, res);
+  const result = await getInvitation(req);
+  sendResponse(res, result);
 });
 
 app.post("/invitations", validateRequest(createInvitationSchema), async (req, res) => {
-    await createInvitation(req, res);
+  const result = await createInvitation(req);
+  sendResponse(res, result);
 });
 
 app.post("/invitations/:invitation_id/accept", async (req, res) => {
-    await acceptInvitation(req, res);
+  const result = await acceptInvitation(req);
+  sendResponse(res, result);
 });
 
 app.post("/invitations/:invitation_id/reject", async (req, res) => {
-    await rejectInvitation(req, res);
+  const result = await rejectInvitation(req);
+  sendResponse(res, result);
 });
 
 app.post("/invitations/:invitation_id/resend", async (req, res) => {
-    await resendInvitation(req, res);
+  const result = await resendInvitation(req);
+  sendResponse(res, result);
 });
 
 // Device routes
 app.get("/device", async (req, res) => {
-    await getDevice(req, res);
+  await getDevice(req, res);
 });
 
 app.put("/device", validateRequest(deviceSchema), async (req, res) => {
-    await updateDevice(req, res);
+  await updateDevice(req, res);
 });
 
 // Update routes
 app.post("/updates", validateRequest(createUpdateSchema), async (req, res) => {
-    await createUpdate(req, res);
+  const result = await createUpdate(req);
+  sendResponse(res, result);
 });
 
 // Comment routes
 app.get("/updates/:update_id/comments", validateQueryParams(paginationSchema), async (req, res) => {
-    await getComments(req, res);
+  const result = await getComments(req);
+  sendResponse(res, result);
 });
 
 app.post("/updates/:update_id/comments", validateRequest(createCommentSchema), async (req, res) => {
-    await createComment(req, res);
+  const result = await createComment(req);
+  sendResponse(res, result);
 });
 
 app.put("/updates/:update_id/comments/:comment_id", validateRequest(updateCommentSchema), async (req, res) => {
-    await updateComment(req, res);
+  const result = await updateComment(req);
+  sendResponse(res, result);
 });
 
 app.delete("/updates/:update_id/comments/:comment_id", async (req, res) => {
-    await deleteComment(req, res);
+  const result = await deleteComment(req);
+  sendResponse(res, result);
 });
 
 // Reaction routes
 app.post("/updates/:update_id/reactions", validateRequest(createReactionSchema), async (req, res) => {
-    await createReaction(req, res);
+  const result = await createReaction(req);
+  sendResponse(res, result);
 });
 
 app.delete("/updates/:update_id/reactions/:reaction_id", async (req, res) => {
-    await deleteReaction(req, res);
+  const result = await deleteReaction(req);
+  sendResponse(res, result);
 });
 
 // Sentiment analysis endpoint
 app.post("/updates/sentiment", validateRequest(analyzeSentimentSchema), async (req, res) => {
-    await analyzeSentiment(req, res);
+  const result = await analyzeSentiment(req);
+  sendResponse(res, result);
 });
 
 // // Group routes
@@ -246,86 +303,101 @@ app.post("/updates/sentiment", validateRequest(analyzeSentimentSchema), async (r
 
 // Test prompt endpoint
 app.post("/test/prompt", validateRequest(testPromptSchema), async (req, res) => {
-    await testPrompt(req, res);
+  await testPrompt(req, res);
 });
 
 // Test notification endpoint
 app.post("/test/notification", validateRequest(testNotificationSchema), async (req, res) => {
-    await testNotification(req, res);
+  await testNotification(req, res);
 });
 
 // Feedback endpoint
 app.post("/feedback", validateRequest(createFeedbackSchema), async (req, res) => {
-    await createFeedback(req, res);
+  const result = await createFeedback(req);
+  sendResponse(res, result);
 });
 
 // Catch-all route handler for unmatched routes
 app.use((req, res) => {
-    // Ensure content type is set to application/json
-    res.setHeader('Content-Type', 'application/json');
+  // Ensure content type is set to application/json
+  res.setHeader('Content-Type', 'application/json');
 
-    res.status(403).json({
-        code: 403,
-        name: "Forbidden",
-        description: `Cannot ${req.method} ${req.path}`
-    });
+  res.status(403).json({
+    code: 403,
+    name: "Forbidden",
+    description: `Cannot ${req.method} ${req.path}`
+  });
 });
 
 // Global error handler
 const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
-    // Log the error with request context
-    console.error(`Error during ${req.method} ${req.path}:`, err);
+  // Log the error with request context
+  console.error(`Error during ${req.method} ${req.path}:`, err);
 
-    // Ensure content type is set to application/json
-    res.setHeader('Content-Type', 'application/json');
+  // Ensure content type is set to application/json
+  res.setHeader('Content-Type', 'application/json');
 
-    let statusCode = 500;
-    let errorName = "Internal Server Error";
-    let errorDescription = "An unexpected error occurred.";
+  let statusCode = 500;
+  let errorName = "Internal Server Error";
+  let errorDescription = "An unexpected error occurred.";
 
-    // Handle specific known errors
-    if (err instanceof ZodError) {
-        statusCode = 400;
-        errorName = "Bad Request";
-        errorDescription = "Invalid request parameters.";
-    } else if (err instanceof BadRequestError) {
-        statusCode = err.statusCode;
-        errorName = err.name;
-        errorDescription = err.message;
-    } else if (err instanceof UnauthorizedError) {
-        statusCode = err.statusCode;
-        errorName = err.name;
-        errorDescription = err.message;
-    } else if (err instanceof ForbiddenError) {
-        statusCode = err.statusCode;
-        errorName = err.name;
-        errorDescription = err.message;
-    } else if (err instanceof NotFoundError) {
-        statusCode = err.statusCode;
-        errorName = err.name;
-        errorDescription = err.message;
-    } else if (err instanceof ConflictError) {
-        statusCode = err.statusCode;
-        errorName = err.name;
-        errorDescription = err.message;
-    } else if (err instanceof InternalServerError) {
-        statusCode = err.statusCode;
-        errorName = err.name;
-        errorDescription = err.message;
-    } else if (err && typeof err === 'object' && 'statusCode' in err && typeof (err as any).statusCode === 'number') {
-        // Handle generic errors that might have a statusCode attached
-        statusCode = (err as any).statusCode;
-        errorName = (err as any).name || "Error";
-        errorDescription = (err as any).message || "An error occurred.";
+  // Handle specific known errors
+  if (err instanceof ZodError) {
+    statusCode = 400;
+    errorName = "Bad Request";
+    errorDescription = "Invalid request parameters.";
+  } else if (err instanceof BadRequestError) {
+    statusCode = err.statusCode;
+    errorName = err.name;
+    errorDescription = err.message;
+  } else if (err instanceof UnauthorizedError) {
+    statusCode = err.statusCode;
+    errorName = err.name;
+    errorDescription = err.message;
+  } else if (err instanceof ForbiddenError) {
+    statusCode = err.statusCode;
+    errorName = err.name;
+    errorDescription = err.message;
+  } else if (err instanceof NotFoundError) {
+    statusCode = err.statusCode;
+    errorName = err.name;
+    errorDescription = err.message;
+  } else if (err instanceof ConflictError) {
+    statusCode = err.statusCode;
+    errorName = err.name;
+    errorDescription = err.message;
+  } else if (err instanceof InternalServerError) {
+    statusCode = err.statusCode;
+    errorName = err.name;
+    errorDescription = err.message;
+  } else if (err && typeof err === 'object' && 'statusCode' in err && typeof (err as any).statusCode === 'number') {
+    // Handle generic errors that might have a statusCode attached
+    statusCode = (err as any).statusCode;
+    errorName = (err as any).name || "Error";
+    errorDescription = (err as any).message || "An error occurred.";
+  }
+
+  const response: ApiResponse<ErrorResponse> = {
+    data: {
+      code: statusCode,
+      name: errorName,
+      description: errorDescription
+    },
+    status: statusCode,
+    analytics: {
+      event: EventName.API_ERROR,
+      userId: req.userId,
+      params: {
+        error_type: errorName,
+        error_message: errorDescription,
+        error_code: statusCode,
+        path: req.path,
+        method: req.method
+      }
     }
-    // For any other unknown error, we use the default 500 Internal Server Error
+  };
 
-    // Send standardized error response
-    res.status(statusCode).json({
-        code: statusCode,
-        name: errorName,
-        description: errorDescription,
-    });
+  sendResponse(res, response);
 };
 
 // Register the global error handler last

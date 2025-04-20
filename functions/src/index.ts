@@ -9,19 +9,22 @@ import { onUpdateCreated } from "./updates/on-creation";
 import { onUpdateNotification } from "./updates/on-notification";
 import { processDailyNotifications } from "./updates/process-daily-notifications";
 
-// Define the API key secret for Gemini
+// Define secrets
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const ga4MeasurementId = defineSecret("GA4_MEASUREMENT_ID");
+const ga4ApiSecret = defineSecret("GA4_API_SECRET");
+const g4ClientId = defineSecret("GA4_SERVER_CLIENT_ID");
 
 // Export the main HTTP API function with proper configuration
 export const api = onRequest({
-  secrets: [geminiApiKey],
+  secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
 }, app);
 
 // Export the Firestore trigger function for new updates
 export const process_update_creation = onDocumentCreated(
   {
     document: `${Collections.UPDATES}/{id}`,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onUpdateCreated(event)
 );
@@ -30,7 +33,7 @@ export const process_update_creation = onDocumentCreated(
 export const process_update_notification = onDocumentCreated(
   {
     document: `${Collections.UPDATES}/{id}`,
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onUpdateNotification(event)
 );
@@ -38,7 +41,7 @@ export const process_update_notification = onDocumentCreated(
 // Export the scheduled function for daily notifications
 export const process_daily_notifications = onSchedule({
   schedule: "every day 14:00",
-  secrets: [geminiApiKey]
+  secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId]
 }, async () => {
   await processDailyNotifications();
 });
@@ -46,7 +49,8 @@ export const process_daily_notifications = onSchedule({
 // Export the Firestore trigger function for profile deletion
 export const process_profile_deletion = onDocumentDeleted(
   {
-    document: `${Collections.PROFILES}/{id}`
+    document: `${Collections.PROFILES}/{id}`,
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId]
   },
   (event) => onProfileDeleted(event)
 );

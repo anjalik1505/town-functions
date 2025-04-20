@@ -1,16 +1,18 @@
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
 import { FirestoreEvent } from "firebase-functions/v2/firestore";
 import { generateNotificationMessageFlow } from "../ai/flows";
+import { EventName, NotificationEventParams, NotificationsEventParams } from "../models/analytics-events";
 import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields } from "../models/constants";
+import { trackApiEvents } from "../utils/analytics-utils";
 import { getLogger } from "../utils/logging-utils";
+import { sendNotification } from "../utils/notification-utils";
 import { calculateAge } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
 /**
  * Process notifications for a specific user.
- * 
+ *
  * @param db - Firestore client
  * @param updateData - The update document data
  * @param creatorId - The ID of the user who created the update
@@ -19,253 +21,332 @@ const logger = getLogger(__filename);
  * @param creatorGender - The gender of the creator
  * @param creatorLocation - The location of the creator
  * @param creatorBirthday - The birthday of the creator
+ * @returns Analytics data for this user's notification processing
  */
 const processUserNotification = async (
-    db: FirebaseFirestore.Firestore,
-    updateData: Record<string, any>,
-    creatorId: string,
-    targetUserId: string,
-    creatorName: string,
-    creatorGender: string,
-    creatorLocation: string,
-    creatorBirthday: string
-): Promise<void> => {
-    // Skip if the target user is the creator
-    if (targetUserId === creatorId) {
-        logger.info(`Skipping notification for creator: ${creatorId}`);
-        return;
-    }
+  db: FirebaseFirestore.Firestore,
+  updateData: Record<string, any>,
+  creatorId: string,
+  targetUserId: string,
+  creatorName: string,
+  creatorGender: string,
+  creatorLocation: string,
+  creatorBirthday: string
+): Promise<NotificationEventParams> => {
+  // Skip if the target user is the creator
+  if (targetUserId === creatorId) {
+    logger.info(`Skipping notification for creator: ${creatorId}`);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: false,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false
+    };
+  }
 
-    // Get the user's profile to check notification settings
-    const profileRef = db.collection(Collections.PROFILES).doc(targetUserId);
-    const profileDoc = await profileRef.get();
+  // Get the user's profile to check notification settings
+  const profileRef = db.collection(Collections.PROFILES).doc(targetUserId);
+  const profileDoc = await profileRef.get();
 
-    if (!profileDoc.exists) {
-        logger.warn(`Profile not found for user ${targetUserId}`);
-        return;
-    }
+  if (!profileDoc.exists) {
+    logger.warn(`Profile not found for user ${targetUserId}`);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: false,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false
+    };
+  }
 
-    // Get notification settings from profile
-    const profileData = profileDoc.data() || {};
-    const notificationSettings = profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
+  // Get notification settings from profile
+  const profileData = profileDoc.data() || {};
+  const notificationSettings = profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
 
-    // If user has no notification settings, skip
-    if (!notificationSettings || notificationSettings.length === 0) {
-        logger.info(`User ${targetUserId} has no notification settings, skipping notification`);
-        return;
-    }
+  // If user has no notification settings, skip
+  if (!notificationSettings || notificationSettings.length === 0) {
+    logger.info(`User ${targetUserId} has no notification settings, skipping notification`);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: true,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false
+    };
+  }
 
-    // Get the user's device ID
-    const deviceRef = db.collection(Collections.DEVICES).doc(targetUserId);
-    const deviceDoc = await deviceRef.get();
+  // Get the user's device ID
+  const deviceRef = db.collection(Collections.DEVICES).doc(targetUserId);
+  const deviceDoc = await deviceRef.get();
 
-    if (!deviceDoc.exists) {
-        logger.info(`No device found for user ${targetUserId}, skipping notification`);
-        return;
-    }
+  if (!deviceDoc.exists) {
+    logger.info(`No device found for user ${targetUserId}, skipping notification`);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: false,
+      no_device: true,
+      notification_length: 0,
+      is_urgent: false
+    };
+  }
 
-    const deviceData = deviceDoc.data() || {};
-    const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() || {};
+  const deviceId = deviceData[DeviceFields.DEVICE_ID];
 
-    if (!deviceId) {
-        logger.info(`No device ID found for user ${targetUserId}, skipping notification`);
-        return;
-    }
+  if (!deviceId) {
+    logger.info(`No device ID found for user ${targetUserId}, skipping notification`);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: false,
+      no_device: true,
+      notification_length: 0,
+      is_urgent: false
+    };
+  }
 
-    // Extract update content and sentiment
-    const updateContent = updateData[UpdateFields.CONTENT];
-    const sentiment = updateData[UpdateFields.SENTIMENT];
-    const updateId = updateData[UpdateFields.ID];
-    const score = updateData[UpdateFields.SCORE] || 3;
+  // Extract update content and sentiment
+  const updateContent = updateData[UpdateFields.CONTENT];
+  const sentiment = updateData[UpdateFields.SENTIMENT];
+  const updateId = updateData[UpdateFields.ID];
+  const score = updateData[UpdateFields.SCORE] || 3;
 
-    // Determine if we should send a notification based on user settings
-    let shouldSendNotification = false;
+  // Determine if we should send a notification based on user settings
+  let shouldSendNotification = false;
+  let userAll = false;
+  let userUrgent = false;
 
-    if (notificationSettings.includes(NotificationFields.ALL)) {
-        // User wants all notifications
-        shouldSendNotification = true;
-        logger.info(`User ${targetUserId} has 'all' notification setting, will send notification`);
-    } else if (notificationSettings.includes(NotificationFields.URGENT) && (score === 5 || score === 1)) {
-        // User only wants urgent notifications, check if this update is urgent
-        shouldSendNotification = true;
-        logger.info(`User ${targetUserId} has 'urgent' notification setting, will send notification`);
-    } else {
-        logger.info(`User ${targetUserId} has notification settings that don't include 'all' or 'urgent', skipping notification`);
-    }
+  if (notificationSettings.includes(NotificationFields.ALL)) {
+    // User wants all notifications
+    shouldSendNotification = true;
+    userAll = true;
+    logger.info(`User ${targetUserId} has 'all' notification setting, will send notification`);
+  } else if (notificationSettings.includes(NotificationFields.URGENT) && (score === 5 || score === 1)) {
+    // User only wants urgent notifications, check if this update is urgent
+    shouldSendNotification = true;
+    userUrgent = true;
+    logger.info(`User ${targetUserId} has 'urgent' notification setting, will send notification`);
+  } else {
+    logger.info(`User ${targetUserId} has notification settings that don't include 'all' or 'urgent', skipping notification`);
+  }
 
-    // If we should send a notification, generate the message and send it
-    if (shouldSendNotification) {
-        // Calculate creator's age
-        const creatorAge = calculateAge(creatorBirthday || "");
+  // If we should send a notification, generate the message and send it
+  if (shouldSendNotification) {
+    // Calculate creator's age
+    const creatorAge = calculateAge(creatorBirthday || "");
 
-        // Generate notification message using creator's information
-        const result = await generateNotificationMessageFlow({
-            updateContent: updateContent || "",
-            sentiment: sentiment || "",
-            score: score.toString(),
-            friendName: creatorName,
-            friendGender: creatorGender,
-            friendLocation: creatorLocation,
-            friendAge: creatorAge
-        });
+    // Generate notification message using creator's information
+    const result = await generateNotificationMessageFlow({
+      updateContent: updateContent || "",
+      sentiment: sentiment || "",
+      score: score.toString(),
+      friendName: creatorName,
+      friendGender: creatorGender,
+      friendLocation: creatorLocation,
+      friendAge: creatorAge
+    });
 
-        // Send the notification
-        await sendNotification(deviceId, result.message, updateId);
+    // Send the notification
+    await sendNotification(deviceId, "New Update", result.message, {
+      type: "update",
+      update_id: updateId
+    });
 
-        logger.info(`Sent notification to user ${targetUserId} for update ${updateId}`);
-    }
-}
+    logger.info(`Sent notification to user ${targetUserId} for update ${updateId}`);
+  }
 
-/**
- * Send a notification to a device.
- * 
- * @param deviceId - The device ID to send the notification to
- * @param message - The notification message
- * @param updateId - The ID of the update
- */
-const sendNotification = async (
-    deviceId: string,
-    message: string,
-    updateId: string
-): Promise<void> => {
-    try {
-        const messaging = getMessaging();
-
-        await messaging.send({
-            token: deviceId,
-            notification: {
-                title: "New Update",
-                body: message
-            },
-            data: {
-                update_id: updateId,
-                type: "update"
-            }
-        });
-
-        logger.info(`Successfully sent notification to device ${deviceId}`);
-    } catch (error) {
-        logger.error(`Error sending notification to device ${deviceId}: ${error}`);
-    }
+  return {
+    notification_all: userAll,
+    notification_urgent: userUrgent,
+    no_notification: false,
+    no_device: false,
+    notification_length: updateContent?.length || 0,
+    is_urgent: score === 5 || score === 1
+  };
 }
 
 /**
  * Process notifications for all users who should receive the update.
- * 
+ *
  * @param db - Firestore client
  * @param updateData - The update document data
+ * @returns Analytics data about the notification processing
  */
 const processAllNotifications = async (
-    db: FirebaseFirestore.Firestore,
-    updateData: Record<string, any>
-): Promise<void> => {
-    // Get the creator ID and friend IDs
-    const creatorId = updateData[UpdateFields.CREATED_BY];
-    const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
-    const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
+  db: FirebaseFirestore.Firestore,
+  updateData: Record<string, any>
+): Promise<{
+  notifications: NotificationsEventParams;
+  notificationEvents: NotificationEventParams[];
+}> => {
+  // Get the creator ID and friend IDs
+  const creatorId = updateData[UpdateFields.CREATED_BY];
+  const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
+  const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
 
-    if (!creatorId) {
-        logger.error("Update has no creator ID");
-        return;
-    }
+  if (!creatorId) {
+    logger.error("Update has no creator ID");
+    return {
+      notifications: {
+        total_users_count: 0,
+        notification_all_acount: 0,
+        notification_urgent_count: 0,
+        no_notification_count: 0,
+        friend_count: 0,
+        group_count: 0,
+        no_device_count: 0,
+        is_urgent: false
+      },
+      notificationEvents: []
+    };
+  }
 
-    // Get the creator's profile information
-    const creatorProfileRef = db.collection(Collections.PROFILES).doc(creatorId);
-    const creatorProfileDoc = await creatorProfileRef.get();
+  // Get the creator's profile information
+  const creatorProfileRef = db.collection(Collections.PROFILES).doc(creatorId);
+  const creatorProfileDoc = await creatorProfileRef.get();
 
-    let creatorName = "Friend";
-    let creatorGender = "They";
-    let creatorLocation = "";
-    let creatorBirthday = "";
+  let creatorName = "Friend";
+  let creatorGender = "They";
+  let creatorLocation = "";
+  let creatorBirthday = "";
 
-    if (creatorProfileDoc.exists) {
-        const creatorProfileData = creatorProfileDoc.data() || {};
-        creatorName = creatorProfileData[ProfileFields.NAME] ||
-            creatorProfileData[ProfileFields.USERNAME] ||
-            "Friend";
-        creatorGender = creatorProfileData[ProfileFields.GENDER] || "They";
-        creatorLocation = creatorProfileData[ProfileFields.LOCATION] || "";
-        creatorBirthday = creatorProfileData[ProfileFields.BIRTHDAY] || "";
-    } else {
-        logger.warn(`Creator profile not found: ${creatorId}`);
-    }
+  if (creatorProfileDoc.exists) {
+    const creatorProfileData = creatorProfileDoc.data() || {};
+    creatorName = creatorProfileData[ProfileFields.NAME] ||
+      creatorProfileData[ProfileFields.USERNAME] ||
+      "Friend";
+    creatorGender = creatorProfileData[ProfileFields.GENDER] || "They";
+    creatorLocation = creatorProfileData[ProfileFields.LOCATION] || "";
+    creatorBirthday = creatorProfileData[ProfileFields.BIRTHDAY] || "";
+  } else {
+    logger.warn(`Creator profile not found: ${creatorId}`);
+  }
 
-    // Create a set of all users who should receive the update
-    const usersToNotify = new Set<string>();
+  // Create a set of all users who should receive the update
+  const usersToNotify = new Set<string>();
+  const groupUsers = new Set<string>();
 
-    // Add all friends
-    friendIds.forEach((friendId: string) => usersToNotify.add(friendId));
+  // Add all friends
+  friendIds.forEach((friendId: string) => usersToNotify.add(friendId));
 
-    // Get all group members if there are groups
-    if (groupIds.length > 0) {
-        const groupDocs = await Promise.all(
-            groupIds.map((groupId: string) =>
-                db.collection(Collections.GROUPS).doc(groupId).get()
-            )
-        );
-
-        groupDocs.forEach(groupDoc => {
-            if (groupDoc.exists) {
-                const groupData = groupDoc.data();
-                if (groupData && groupData.members) {
-                    groupData.members.forEach((memberId: string) => usersToNotify.add(memberId));
-                }
-            }
-        });
-    }
-
-    // Process notifications for all users in parallel
-    const tasks = Array.from(usersToNotify).map(userId =>
-        processUserNotification(
-            db,
-            updateData,
-            creatorId,
-            userId,
-            creatorName,
-            creatorGender,
-            creatorLocation,
-            creatorBirthday
-        )
+  // Get all group members if there are groups
+  if (groupIds.length > 0) {
+    const groupDocs = await Promise.all(
+      groupIds.map((groupId: string) =>
+        db.collection(Collections.GROUPS).doc(groupId).get()
+      )
     );
 
-    // Run all tasks in parallel
-    await Promise.all(tasks);
-    logger.info(`Processed notifications for ${tasks.length} users`);
+    groupDocs.forEach(groupDoc => {
+      if (groupDoc.exists) {
+        const groupData = groupDoc.data();
+        if (groupData && groupData.members) {
+          groupData.members.forEach((memberId: string) => {
+            usersToNotify.add(memberId);
+            groupUsers.add(memberId);
+          });
+        }
+      }
+    });
+  }
+
+  // Process notifications for all users in parallel
+  const tasks = Array.from(usersToNotify).map(userId =>
+    processUserNotification(
+      db,
+      updateData,
+      creatorId,
+      userId,
+      creatorName,
+      creatorGender,
+      creatorLocation,
+      creatorBirthday
+    )
+  );
+
+  // Run all tasks in parallel and collect results
+  const results = await Promise.all(tasks);
+
+  // Aggregate analytics data
+  const userAllCount = results.filter(r => r.notification_all).length;
+  const usersUrgentCount = results.filter(r => r.notification_urgent).length;
+  const noDeviceCount = results.filter(r => r.no_device).length;
+  const noNotificationCount = results.filter(r => r.no_notification).length;
+  const score = updateData[UpdateFields.SCORE] || 3;
+  const isUrgent = score === 5 || score === 1;
+
+  // Return analytics data
+  return {
+    notifications: {
+      total_users_count: usersToNotify.size,
+      notification_all_acount: userAllCount,
+      notification_urgent_count: usersUrgentCount,
+      no_notification_count: noNotificationCount,
+      friend_count: friendIds.length,
+      group_count: groupUsers.size,
+      no_device_count: noDeviceCount,
+      is_urgent: isUrgent
+    },
+    notificationEvents: results
+  };
 }
 
 /**
  * Firestore trigger function that runs when a new update is created.
- * 
+ *
  * @param event - The Firestore event object containing the document data
  */
-export const onUpdateNotification = async (event: FirestoreEvent<QueryDocumentSnapshot | undefined, { id: string }>): Promise<void> => {
-    if (!event.data) {
-        logger.error("No data in update event");
-        return;
-    }
+export const onUpdateNotification = async (event: FirestoreEvent<QueryDocumentSnapshot | undefined, {
+  id: string
+}>): Promise<void> => {
+  if (!event.data) {
+    logger.error("No data in update event");
+    return;
+  }
 
-    logger.info(`Processing notifications for update: ${event.data.id}`);
+  logger.info(`Processing notifications for update: ${event.data.id}`);
 
-    // Get the update data directly from the event
-    const updateData = event.data.data() || {};
+  // Get the update data directly from the event
+  const updateData = event.data.data() || {};
 
-    // Add the document ID to the update data
-    updateData[UpdateFields.ID] = event.data.id;
+  // Add the document ID to the update data
+  updateData[UpdateFields.ID] = event.data.id;
 
-    // Check if the update has the required fields
-    if (!updateData || Object.keys(updateData).length === 0) {
-        logger.error(`Update ${updateData[UpdateFields.ID] || "unknown"} has no data`);
-        return;
-    }
+  // Check if the update has the required fields
+  if (!updateData || Object.keys(updateData).length === 0) {
+    logger.error(`Update ${updateData[UpdateFields.ID] || "unknown"} has no data`);
+    return;
+  }
 
-    // Initialize Firestore client
-    const db = getFirestore();
+  // Initialize Firestore client
+  const db = getFirestore();
 
-    try {
-        await processAllNotifications(db, updateData);
-        logger.info(`Successfully processed notifications for update ${updateData[UpdateFields.ID] || "unknown"}`);
-    } catch (error) {
-        logger.error(`Error processing notifications for update ${updateData[UpdateFields.ID] || "unknown"}: ${error}`);
-        // In a production environment, we would implement retry logic here
-    }
+  try {
+    const {notifications, notificationEvents} = await processAllNotifications(db, updateData);
+    logger.info(`Successfully processed notifications for update ${updateData[UpdateFields.ID] || "unknown"}`);
+
+    // Track all events at once
+    const events = [
+      {
+        eventName: EventName.NOTIFICATION_SENT,
+        params: notifications
+      },
+      ...notificationEvents.map(event => ({
+        eventName: EventName.NOTIFICATION_SENT,
+        params: event
+      }))
+    ];
+
+    trackApiEvents(events, updateData[UpdateFields.CREATED_BY]);
+
+    logger.info(`Tracked ${events.length} analytics events`);
+  } catch (error) {
+    logger.error(`Error processing notifications for update ${updateData[UpdateFields.ID] || "unknown"}: ${error}`);
+    // In a production environment, we would implement retry logic here
+  }
 } 

@@ -6,7 +6,8 @@ This guide explains how to integrate and deploy the Village application's AI flo
 
 ### 1. Set up API Key for Development
 
-The application uses the Gemini API for generating insights. For local development, you can set the API key as an environment variable:
+The application uses the Gemini API for generating insights. For local development, you can set the API key as an
+environment variable:
 
 ```bash
 # For Windows
@@ -40,21 +41,25 @@ firebase deploy --only functions
 
 The GenKit flows are integrated with the existing Firestore triggers following these principles:
 
-1. **Atomic Database Operations**: All related Firestore operations are grouped in a single batch for atomicity, following the Village application's best practices.
+1. **Atomic Database Operations**: All related Firestore operations are grouped in a single batch for atomicity,
+   following the Village application's best practices.
 
 2. **Validation Before Writes**: All validations are performed before starting any database write operations.
 
-3. **Efficient Data Fetching**: The implementation uses batch fetching for related documents when possible instead of individual queries.
+3. **Efficient Data Fetching**: The implementation uses batch fetching for related documents when possible instead of
+   individual queries.
 
 4. **Proper Error Handling**: The flows include retry logic and proper error handling to ensure robustness.
 
-5. **Comprehensive Logging**: Detailed logging is implemented to track the success and failure of AI generation processes.
+5. **Comprehensive Logging**: Detailed logging is implemented to track the success and failure of AI generation
+   processes.
 
 ## Architecture
 
 The application uses Firestore trigger functions that internally use GenKit flows:
 
-- **Firestore Trigger Function**: The `process_update_creation` function is triggered when a new update is created in Firestore. It processes the update using GenKit flows to generate AI insights for the creator and their friends.
+- **Firestore Trigger Function**: The `process_update_creation` function is triggered when a new update is created in
+  Firestore. It processes the update using GenKit flows to generate AI insights for the creator and their friends.
 
 - **AI Flows**: The flows are defined in the `flows.ts` file and are used internally by the Firestore trigger function.
 

@@ -3,8 +3,8 @@
  */
 
 export const VisibilityTypes = {
-    FRIEND: 'friend',
-    GROUP: 'group'
+  FRIEND: 'friend',
+  GROUP: 'group'
 } as const;
 
 export type VisibilityType = typeof VisibilityTypes[keyof typeof VisibilityTypes];
@@ -16,7 +16,7 @@ export type VisibilityType = typeof VisibilityTypes[keyof typeof VisibilityTypes
  * @returns A formatted visibility identifier string
  */
 export function createVisibilityIdentifier(type: VisibilityType, id: string): string {
-    return `${type}:${id}`;
+  return `${type}:${id}`;
 }
 
 /**
@@ -25,7 +25,7 @@ export function createVisibilityIdentifier(type: VisibilityType, id: string): st
  * @returns A formatted friend visibility identifier
  */
 export function createFriendVisibilityIdentifier(friendId: string): string {
-    return createVisibilityIdentifier(VisibilityTypes.FRIEND, friendId);
+  return createVisibilityIdentifier(VisibilityTypes.FRIEND, friendId);
 }
 
 /**
@@ -34,7 +34,7 @@ export function createFriendVisibilityIdentifier(friendId: string): string {
  * @returns A formatted group visibility identifier
  */
 export function createGroupVisibilityIdentifier(groupId: string): string {
-    return createVisibilityIdentifier(VisibilityTypes.GROUP, groupId);
+  return createVisibilityIdentifier(VisibilityTypes.GROUP, groupId);
 }
 
 /**
@@ -43,7 +43,7 @@ export function createGroupVisibilityIdentifier(groupId: string): string {
  * @returns Array of friend visibility identifiers
  */
 export function createFriendVisibilityIdentifiers(friendIds: string[]): string[] {
-    return friendIds.map(createFriendVisibilityIdentifier);
+  return friendIds.map(createFriendVisibilityIdentifier);
 }
 
 /**
@@ -52,5 +52,5 @@ export function createFriendVisibilityIdentifiers(friendIds: string[]): string[]
  * @returns Array of group visibility identifiers
  */
 export function createGroupVisibilityIdentifiers(groupIds: string[]): string[] {
-    return groupIds.map(createGroupVisibilityIdentifier);
+  return groupIds.map(createGroupVisibilityIdentifier);
 } 
