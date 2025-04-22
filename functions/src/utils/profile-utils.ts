@@ -242,3 +242,15 @@ export const calculateAge = (birthdayString: string): string => {
 
   return age.toString();
 };
+
+/**
+ * Creates a consistent summary ID by sorting user IDs.
+ * This ensures that the same summary ID is generated regardless of which user is first.
+ *
+ * @param userId1 - First user ID
+ * @param userId2 - Second user ID
+ * @returns A consistent summary ID in the format "user1_user2" where user1 and user2 are concatenated
+ */
+export const createSummaryId = (userId1: string, userId2: string): string => {
+  return `${userId1}_${userId2}`;
+};

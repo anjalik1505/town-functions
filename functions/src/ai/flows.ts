@@ -56,7 +56,7 @@ const executeAIFlow = async <T>(
       const prompt = ai.prompt(promptName);
 
       // Call the prompt with parameters
-      const {output} = await prompt(params, {config});
+      const { output } = await prompt(params, { config });
 
       if (output) {
         logger.info(`${logPrefix} result: ${JSON.stringify(output, null, 2)}`);
@@ -117,6 +117,8 @@ export const generateCreatorProfileFlow = async (params: {
     progress_and_growth: params.existingProgressAndGrowth || "",
     age: params.age || ""
   };
+
+  logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow(
     'creator_profile',

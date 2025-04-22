@@ -6,7 +6,7 @@ import { FriendProfileResponse } from "../models/data-models";
 import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
-import { formatFriendProfileResponse, getProfileDoc } from "../utils/profile-utils";
+import { createSummaryId, formatFriendProfileResponse, getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -52,10 +52,11 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   }
 
   // Get the target user's profile using the utility function
-  const {data: targetUserProfileData} = await getProfileDoc(targetUserId);
+  const { data: targetUserProfileData } = await getProfileDoc(targetUserId);
 
   // Check if users are friends using the unified friendships collection
   const friendshipId = createFriendshipId(currentUserId, targetUserId);
+  const summaryId = createSummaryId(currentUserId, targetUserId);
 
   const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
   const friendshipDoc = await friendshipRef.get();
@@ -74,7 +75,7 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
 
   // Get the user summary document for this friendship
-  const userSummaryRef = db.collection(Collections.USER_SUMMARIES).doc(friendshipId);
+  const userSummaryRef = db.collection(Collections.USER_SUMMARIES).doc(summaryId);
   const userSummaryDoc = await userSummaryRef.get();
 
   // Initialize summary and suggestions
