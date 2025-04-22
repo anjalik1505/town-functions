@@ -11,9 +11,8 @@ import {
   UserSummaryFields
 } from "../models/constants";
 import { trackApiEvents } from "../utils/analytics-utils";
-import { createFriendshipId } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
-import { calculateAge } from "../utils/profile-utils";
+import { calculateAge, createSummaryId } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -35,13 +34,13 @@ const processFriendSummary = async (
   batch: FirebaseFirestore.WriteBatch
 ): Promise<FriendSummaryEventParams> => {
   // Create a consistent relationship ID using the utility function
-  const relationshipId = createFriendshipId(creatorId, friendId);
+  const summaryId = createSummaryId(friendId, creatorId);
 
   // Determine which user is the target (the friend who will see the summary)
   const targetId = friendId;
 
   // Get the existing summary document if it exists
-  const summaryRef = db.collection(Collections.USER_SUMMARIES).doc(relationshipId);
+  const summaryRef = db.collection(Collections.USER_SUMMARIES).doc(summaryId);
   const summaryDoc = await summaryRef.get();
 
   // Extract data from the existing summary or initialize new data
@@ -139,8 +138,8 @@ const processFriendSummary = async (
   }
 
   // Add to batch instead of writing immediately
-  batch.set(summaryRef, summaryUpdateData, {merge: true});
-  logger.info(`Added summary update for relationship ${relationshipId} to batch`);
+  batch.set(summaryRef, summaryUpdateData, { merge: true });
+  logger.info(`Added summary update for summary ${summaryId} to batch`);
 
   // Return analytics data without tracking the event
   return {
@@ -255,7 +254,7 @@ const updateCreatorProfile = async (
     : profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
 
   // Add insights update to batch
-  batch.set(insightsRef, insightsData, {merge: true});
+  batch.set(insightsRef, insightsData, { merge: true });
   logger.info(`Added insights update for user ${creatorId} to batch`);
 
   return {
@@ -408,7 +407,7 @@ export const onUpdateCreated = async (event: FirestoreEvent<QueryDocumentSnapsho
   const db = getFirestore();
 
   try {
-    const {mainSummary, friendSummaries} = await processAllSummaries(db, updateData);
+    const { mainSummary, friendSummaries } = await processAllSummaries(db, updateData);
     logger.info(`Successfully processed update ${updateData[UpdateFields.ID] || "unknown"}`);
 
     // Track all events at once
