@@ -118,6 +118,8 @@ export const generateCreatorProfileFlow = async (params: {
     age: params.age || ""
   };
 
+  logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
+
   return executeAIFlow(
     'creator_profile',
     params,
@@ -148,6 +150,8 @@ export const generateFriendProfileFlow = async (params: {
     suggestions: params.existingSuggestions || ""
   };
 
+  logger.error(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
+
   return executeAIFlow(
     'friend_profile',
     params,
@@ -174,6 +178,8 @@ export const generateQuestionFlow = async (params: {
     question: "What's on your mind today?"
   };
 
+  logger.error(`Generating question with params: ${JSON.stringify(params, null, 2)}`);
+
   return executeAIFlow(
     'generate_question',
     params,
@@ -198,6 +204,8 @@ export const generateNotificationMessageFlow = async (params: {
     message: `${params.friendName} shared an update with you.`
   };
 
+  logger.error(`Generating notification message with params: ${JSON.stringify(params, null, 2)}`);
+
   return executeAIFlow(
     'notification_message',
     params,
@@ -220,6 +228,8 @@ export const determineUrgencyFlow = async (params: {
     is_urgent: false
   };
 
+  logger.error(`Determining urgency with params: ${JSON.stringify(params, null, 2)}`);
+
   return executeAIFlow(
     'determine_urgency',
     params,
@@ -239,6 +249,8 @@ export const analyzeSentimentFlow = async (params: {
     score: 3,
     emoji: "😐"
   };
+
+  logger.error(`Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow(
     'analyze_sentiment',
@@ -267,6 +279,8 @@ export const generateDailyNotificationFlow = async (params: {
     title: "Daily Check-in",
     message: `Hey ${params.name}, how are you doing today?`
   };
+
+  logger.error(`Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow(
     'daily_notification',
