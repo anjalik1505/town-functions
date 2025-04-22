@@ -118,8 +118,6 @@ export const generateCreatorProfileFlow = async (params: {
     age: params.age || ""
   };
 
-  logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
-
   return executeAIFlow(
     'creator_profile',
     params,

@@ -32,7 +32,7 @@ Scenario 1: No summary. <SUMMARY> is empty which means no prior updates shared. 
 
 Prompt 6
 
-ALWAYS use these exact questions: "How are you truly feeling as you go through your day? What's on your mind that you'd like to share freely with your Village?"
+For the first update use these exact questions: "How are you truly feeling as you go through your day? What's on your mind that you'd like to share freely with your Village?"
 
 Scenario 2: ALL other cases except no summary. Use Prompt 7
 
