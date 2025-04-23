@@ -25,6 +25,9 @@ output:
 ### TASK:
 Update the user's Village profile sections based on their latest update. Integrate the information from the `<LATEST_UPDATE>` section and its `<SENTIMENT>` into the existing profile content provided below.
 
+### **IMPORTANT GUIDELINE:**
+**Base all outputs strictly on the information explicitly provided under `<LATEST_UPDATE>`, `<SENTIMENT>`, and the existing content found under the `<SUMMARY>`, `<SUGGESTIONS>`, `<EMOTIONAL_OVERVIEW>`, `<KEY_MOMENTS>`, `<RECURRING_THEMES>`, and `<PROGRESS_AND_GROWTH>` sections. Do NOT invent details, make assumptions, or extrapolate beyond the given text. If the provided information is insufficient to generate a meaningful update for a section according to its rules, provide a minimal, factual update or leave that section unchanged where appropriate.**
+
 ### EXISTING PROFILE CONTENT:
 - <SUMMARY>: {{existingSummary}}
 - <SUGGESTIONS>: {{existingSuggestions}}
@@ -45,52 +48,52 @@ Update the user's Village profile sections based on their latest update. Integra
 ### INSTRUCTIONS FOR UPDATING PROFILE SECTIONS:
 
 **Summary:**
-- Objective: Update the text following `<SUMMARY>:` to incorporate the key information and feeling from the text following `<LATEST_UPDATE>:`. Create a cohesive narrative reflecting the new input while being consistent with the previous summary. Use emojis where appropriate.
-- Content: Blend the essence of the `<LATEST_UPDATE>` content into the `<SUMMARY>` content. Start with phrasing like "Recently, you've..." or similar, integrating the new information smoothly. Maintain the present perfect tense where appropriate. Use the `<SENTIMENT>` value to guide the tone. Incorporate the `<LOCATION>` value only if it's central to the `<LATEST_UPDATE>` content.
+- Objective: Update the text following `<SUMMARY>:` to incorporate key information and feelings explicitly mentioned in `<LATEST_UPDATE>:`. Ensure the result is consistent with the previous summary. Use emojis where appropriate.
+- Content: Blend specific details from `<LATEST_UPDATE>` into the `<SUMMARY>` content. Start with phrasing like "Recently, you've..." or similar, integrating the new information smoothly. Maintain the present perfect tense where appropriate. Use the `<SENTIMENT>` value to guide the tone. Incorporate `<LOCATION>` only if central to the `<LATEST_UPDATE>`. **Avoid creating a narrative that goes beyond the provided facts.**
 - Point of view: Use 2nd person point of view.
-- Tone of voice: Adapt based on the `<SENTIMENT>` value (e.g., upbeat for Positive, supportive for Negative). Aim for a tone consistent with the existing `<SUMMARY>` unless the new `<SENTIMENT>` indicates a significant shift.
-- Limitation: Maximum 500 characters including spaces. Stay within this limit.
+- Tone of voice: Adapt based on the `<SENTIMENT>` value. Aim for consistency with the existing `<SUMMARY>` unless the new `<SENTIMENT>` indicates a significant shift.
+- Limitation: Maximum 500 characters including spaces.
 - Format: Short paragraph.
 
 **Suggestions:**
-- Objective: Generate 3 distinct, actionable suggestions primarily inspired by the `<LATEST_UPDATE>` content and `<SENTIMENT>`, while considering the overall context from the `<SUMMARY>` content. The goal is to offer relevant support or ideas for mental well-being and processing life events.
-- Content: Suggestions should be specific. Consider `<GENDER>`, `<AGE>`, and `<LOCATION>` values for relevance (e.g., suggest local parks if `<LOCATION>` is known and relevant to the update). Focus on positive actions, connection (online/offline, nature), and well-being. Ensure suggestions are distinct from those already listed under `<SUGGESTIONS>` unless the new update strongly reinforces a previous suggestion's relevance.
-- Include: Ideas for reflection, connection with others, connection with nature, self-care, relevant local activities.
-- Exclude: Promoting consumerism, unsustainable or unethical products/experiences.
+- Objective: Generate relevant, actionable suggestions primarily inspired by the `<LATEST_UPDATE>` content, `<SENTIMENT>`, or user demographics, considering the `<SUMMARY>` context.
+- Content: Suggestions should be specific and **directly relevant** to the provided information. Consider `<GENDER>`, `<AGE>`, and `<LOCATION>` for relevance. Focus on positive actions, connection, well-being. Ensure suggestions are distinct from `<SUGGESTIONS>` unless the new update strongly reinforces one. **If fewer than 3 relevant suggestions can be derived, provide only those that are.**
+- Include: Ideas for reflection, connection, nature, self-care, relevant local activities.
+- Exclude: Promoting consumerism, unsustainable/unethical products/experiences.
 - Point of view: Use 2nd person point of view.
 - Tone of voice: Warm, friendly, encouraging. Use an emoji per suggestion.
 - Limitation: Keep each suggestion under 20 words.
-- Format: Exactly 3 bullet points, 1 suggestion per bullet point. Each bullet point on a new line.
+- Format: **Up to 3** bullet points. 1 suggestion per bullet point. Each on a new line.
 
 **Insights - Emotional Overview:**
-- Objective: Update the text following `<EMOTIONAL_OVERVIEW>:` to reflect the `<SENTIMENT>` of the `<LATEST_UPDATE>`.
-- Content: Analyze the `<SENTIMENT>` value. Adjust the existing bullet points under `<EMOTIONAL_OVERVIEW>` or add/replace one to represent the current emotional tone accurately, informed by the `<LATEST_UPDATE>`. If the new `<SENTIMENT>` strongly reinforces an existing point, you might refine its wording. The goal is a concise overview reflecting the latest update, within the context of the recent past.
-- Include: 3 emojis reflecting the most prominent sentiments after considering the new update.
+- Objective: Update `<EMOTIONAL_OVERVIEW>:` to reflect the emotional tone **clearly present** in `<LATEST_UPDATE>` and `<SENTIMENT>`.
+- Content: Analyze the `<SENTIMENT>`. Adjust existing points or add/replace one *only if* the `<LATEST_UPDATE>` provides clear emotional information. If the update is neutral or lacks emotional content, reflect that minimally or make no changes. The goal is a concise overview grounded in the latest update.
+- Include: **Up to 3 relevant** emojis reflecting prominent sentiments *clearly indicated* by the new update.
 - Point of view: Use 2nd person point of view.
 - Tone of voice: Warm, supportive, objective.
-- Limitation: Up to 100 words total. Exactly 3 emojis.
-- Format: Exactly 3 bullet points. Each bullet point: 1 emoji and up to 30 words explanation. Each bullet point on a new line.
+- Limitation: Up to 100 words total.
+- Format: **Up to 3** bullet points. Each bullet point: 1 emoji and up to 30 words explanation. Each on a new line.
 
 **Insights - Key Moments:**
-- Objective: Update the text following `<KEY_MOMENTS>:` if the `<LATEST_UPDATE>` describes a significant highlight (high, low, unique event).
-- Content: Determine if the `<LATEST_UPDATE>` constitutes a new key moment. If yes, add it to the list under `<KEY_MOMENTS>:`. If the list already has 3 moments, consider replacing the oldest or least impactful one with the new one derived from `<LATEST_UPDATE>`. Briefly describe the moment.
+- Objective: Update `<KEY_MOMENTS>:` **only if** `<LATEST_UPDATE>` **clearly describes** a significant highlight (a notable high, low, or unique occurrence).
+- Content: **If** the update clearly describes such a moment, add it or consider replacing the oldest/least impactful existing moment. Briefly describe the moment based *only* on `<LATEST_UPDATE>`. **If the update is mundane or lacks significance, make no changes to `<KEY_MOMENTS>`.**
 - Point of view: Use 2nd person point of view.
 - Tone of voice: Warm, supportive, objective.
 - Limitation: Up to 200 words total. Use emojis where applicable.
-- Format: Up to 3 bullet points. Each bullet point: 1 key moment with up to 70 words explanation. Each bullet point on a new line.
+- Format: Up to 3 bullet points. Each bullet point: 1 key moment with up to 70 words explanation. Each on a new line.
 
 **Insights - Recurring Themes:**
-- Objective: Update the text following `<RECURRING_THEMES>:` based on topics mentioned in the `<LATEST_UPDATE>`.
-- Content: Identify the main topic(s) in `<LATEST_UPDATE>`. Check if these topics match or reinforce themes listed under `<RECURRING_THEMES>:`. If a theme's relevance increases, update its description or prominence slightly. If `<LATEST_UPDATE>` seems to introduce a *new* potential theme, consider adding it only if there's space (max 3 themes) and it seems distinct and significant. Focus on reinforcing existing themes based on the new update.
+- Objective: Update `<RECURRING_THEMES>:` **only if** `<LATEST_UPDATE>` **clearly reinforces** an existing theme or **strongly suggests** a *distinct* and significant new one based on *concrete details*.
+- Content: Identify main topic(s) in `<LATEST_UPDATE>`. Check if they strongly match/reinforce existing themes. Consider adding a new theme only if clearly distinct, significant, and space allows (max 3). **Avoid identifying themes based on vague mentions or forcing connections.** Focus on clear reinforcement.
 - Point of view: Use 2nd person point of view.
 - Tone of voice: Warm, supportive, objective.
 - Limitation: Up to 200 words total. Use emojis where applicable.
-- Format: Up to 3 bullet points. Each bullet point: 1 recurring theme with up to 70 words explanation. Each bullet point on a new line.
+- Format: Up to 3 bullet points. Each bullet point: 1 recurring theme with up to 70 words explanation. Each on a new line.
 
 **Insights - Progress and Growth:**
-- Objective: Update the text following `<PROGRESS_AND_GROWTH>:` by reflecting on how the `<LATEST_UPDATE>` shows change or continuity related to existing themes (from `<RECURRING_THEMES>:`) or goals (from `<PROGRESS_AND_GROWTH>:` itself).
-- Content: Evaluate `<LATEST_UPDATE>` for evidence of progress, learning, setbacks, or reflections related to topics under `<RECURRING_THEMES>` or points already under `<PROGRESS_AND_GROWTH>:`. Update the relevant points to incorporate this new perspective.
+- Objective: Update `<PROGRESS_AND_GROWTH>:` **only if** `<LATEST_UPDATE>` provides **clear, concrete evidence** of progress, learning, setbacks, or reflections directly related to existing themes or goals.
+- Content: Evaluate `<LATEST_UPDATE>` for such evidence. Update relevant points to incorporate this new perspective *only if the evidence is clear*. **Do not infer progress or growth from minimal or ambiguous information.**
 - Point of view: Use 2nd person point of view.
 - Tone of voice: Warm, supportive, objective.
 - Limitation: Up to 200 words total. Use emojis where applicable.
-- Format: Up to 3 bullet points. Each bullet point: 1 progress/growth insight with up to 70 words explanation. Each bullet point on a new line.
+- Format: Up to 3 bullet points. Each bullet point: 1 progress/growth insight with up to 70 words explanation. Each on a new line.
