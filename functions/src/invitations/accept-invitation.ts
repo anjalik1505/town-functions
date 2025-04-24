@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
-import { Collections, FriendshipFields, InvitationFields, ProfileFields, Status } from "../models/constants";
+import { Collections, FriendPlaceholderTemplates, FriendshipFields, InvitationFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
 import { Friend } from "../models/data-models";
 import { BadRequestError, ForbiddenError } from "../utils/errors";
 import { createFriendshipId, hasReachedCombinedLimit } from "../utils/friendship-utils";
@@ -13,7 +13,7 @@ import {
   updateInvitationStatus
 } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
-import { getProfileDoc } from "../utils/profile-utils";
+import { createSummaryId, getProfileDoc } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -55,7 +55,7 @@ export const acceptInvitation = async (req: Request): Promise<ApiResponse<Friend
   const db = getFirestore();
 
   // Get the invitation document
-  const {ref: invitationRef, data: invitationData} = await getInvitationDoc(invitationId);
+  const { ref: invitationRef, data: invitationData } = await getInvitationDoc(invitationId);
 
   // Check invitation status
   const status = invitationData[InvitationFields.STATUS];
@@ -86,16 +86,16 @@ export const acceptInvitation = async (req: Request): Promise<ApiResponse<Friend
   }
 
   // Check combined limit for the sender (excluding this invitation)
-  const {hasReachedLimit: senderHasReachedLimit} = await hasReachedCombinedLimit(senderId, invitationId);
+  const { hasReachedLimit: senderHasReachedLimit } = await hasReachedCombinedLimit(senderId, invitationId);
   if (senderHasReachedLimit) {
     throw new BadRequestError("Sender has reached the maximum number of friends and active invitations");
   }
 
   // Get current user's profile
-  const {data: currentUserProfile} = await getProfileDoc(currentUserId);
+  const { data: currentUserProfile } = await getProfileDoc(currentUserId);
 
   // Get sender's profile
-  const {data: senderProfile} = await getProfileDoc(senderId);
+  const { data: senderProfile } = await getProfileDoc(senderId);
 
   // Create a batch operation for atomicity
   const batch = db.batch();
@@ -177,6 +177,39 @@ export const acceptInvitation = async (req: Request): Promise<ApiResponse<Friend
   // Add operations to batch
   batch.set(friendshipRef, friendshipData);
   batch.delete(invitationRef);
+
+  const senderName = senderProfile[ProfileFields.NAME] || senderProfile[ProfileFields.USERNAME] || "Friend";
+  const currentUserName = currentUserProfile[ProfileFields.NAME] || currentUserProfile[ProfileFields.USERNAME] || "Friend";
+
+  // Create summary for current user about sender
+  const summaryIdForCurrentUser = createSummaryId(currentUserId, senderId);
+  const summaryRefForCurrentUser = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForCurrentUser);
+  const summaryDataForCurrentUser = {
+    [UserSummaryFields.CREATOR_ID]: senderId,
+    [UserSummaryFields.TARGET_ID]: currentUserId,
+    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace("<FRIEND_NAME>", senderName),
+    [UserSummaryFields.SUGGESTIONS]: FriendPlaceholderTemplates.SUGGESTIONS.replace("<FRIEND_NAME>", senderName),
+    [UserSummaryFields.LAST_UPDATE_ID]: "",
+    [UserSummaryFields.UPDATE_COUNT]: 0,
+    [UserSummaryFields.CREATED_AT]: currentTime,
+    [UserSummaryFields.UPDATED_AT]: currentTime,
+  };
+  batch.set(summaryRefForCurrentUser, summaryDataForCurrentUser);
+
+  // Create summary for sender about current user
+  const summaryIdForSender = createSummaryId(senderId, currentUserId);
+  const summaryRefForSender = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForSender);
+  const summaryDataForSender = {
+    [UserSummaryFields.CREATOR_ID]: currentUserId,
+    [UserSummaryFields.TARGET_ID]: senderId,
+    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace("<FRIEND_NAME>", currentUserName),
+    [UserSummaryFields.SUGGESTIONS]: FriendPlaceholderTemplates.SUGGESTIONS.replace("<FRIEND_NAME>", currentUserName),
+    [UserSummaryFields.LAST_UPDATE_ID]: "",
+    [UserSummaryFields.UPDATE_COUNT]: 0,
+    [UserSummaryFields.CREATED_AT]: currentTime,
+    [UserSummaryFields.UPDATED_AT]: currentTime,
+  };
+  batch.set(summaryRefForSender, summaryDataForSender);
 
   // Commit the batch
   await batch.commit();

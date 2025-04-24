@@ -1,6 +1,7 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { defineSecret } from 'firebase-functions/params';
 import { genkit } from 'genkit';
+import { FriendPlaceholderChecks, Placeholders } from '../models/constants';
 import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
@@ -93,7 +94,7 @@ const executeAIFlow = async <T>(
 };
 
 /**
- * Generate creator profile insights based on updates
+ * Generate creator profile insights based on updates, handling placeholders.
  */
 export const generateCreatorProfileFlow = async (params: {
   existingSummary: string;
@@ -108,24 +109,79 @@ export const generateCreatorProfileFlow = async (params: {
   location: string;
   age: string;
 }) => {
+  const originalParams = { ...params };
+
+  const aiParams = { ...params };
+  if (aiParams.existingSummary === Placeholders.SUMMARY) {
+    aiParams.existingSummary = "";
+  }
+  if (aiParams.existingSuggestions === Placeholders.SUGGESTIONS) {
+    aiParams.existingSuggestions = "";
+  }
+  if (aiParams.existingEmotionalOverview === Placeholders.EMOTIONAL_OVERVIEW) {
+    aiParams.existingEmotionalOverview = "";
+  }
+  if (aiParams.existingKeyMoments === Placeholders.KEY_MOMENTS) {
+    aiParams.existingKeyMoments = "";
+  }
+  if (aiParams.existingRecurringThemes === Placeholders.RECURRING_THEMES) {
+    aiParams.existingRecurringThemes = "";
+  }
+  if (aiParams.existingProgressAndGrowth === Placeholders.PROGRESS_AND_GROWTH) {
+    aiParams.existingProgressAndGrowth = "";
+  }
+
   const defaultOutput = {
-    summary: params.existingSummary || "",
-    suggestions: params.existingSuggestions || "",
-    emotional_overview: params.existingEmotionalOverview || "",
-    key_moments: params.existingKeyMoments || "",
-    recurring_themes: params.existingRecurringThemes || "",
-    progress_and_growth: params.existingProgressAndGrowth || "",
-    age: params.age || ""
+    summary: originalParams.existingSummary,
+    suggestions: originalParams.existingSuggestions,
+    emotional_overview: originalParams.existingEmotionalOverview,
+    key_moments: originalParams.existingKeyMoments,
+    recurring_themes: originalParams.existingRecurringThemes,
+    progress_and_growth: originalParams.existingProgressAndGrowth,
   };
 
   logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
-  return executeAIFlow(
+  const aiResult = await executeAIFlow<{
+    summary: string;
+    suggestions: string;
+    emotional_overview: string;
+    key_moments: string;
+    recurring_themes: string;
+    progress_and_growth: string;
+  }>(
     'creator_profile',
-    params,
+    aiParams,
     defaultOutput,
     'Generating creator profile insights'
   );
+
+  const finalResult = { ...aiResult };
+
+  const isEmpty = (str: string | null | undefined) => !str || str.trim().length === 0;
+
+  if (isEmpty(finalResult.summary)) {
+    finalResult.summary = originalParams.existingSummary;
+  }
+  if (isEmpty(finalResult.suggestions)) {
+    finalResult.suggestions = originalParams.existingSuggestions;
+  }
+  if (isEmpty(finalResult.emotional_overview)) {
+    finalResult.emotional_overview = originalParams.existingEmotionalOverview;
+  }
+  if (isEmpty(finalResult.key_moments)) {
+    finalResult.key_moments = originalParams.existingKeyMoments;
+  }
+  if (isEmpty(finalResult.recurring_themes)) {
+    finalResult.recurring_themes = originalParams.existingRecurringThemes;
+  }
+  if (isEmpty(finalResult.progress_and_growth)) {
+    finalResult.progress_and_growth = originalParams.existingProgressAndGrowth;
+  }
+
+  logger.info(`Post-processed creator profile insights: ${JSON.stringify(finalResult, null, 2)}`);
+
+  return finalResult;
 };
 
 /**
@@ -145,19 +201,48 @@ export const generateFriendProfileFlow = async (params: {
   userLocation: string;
   userAge: string;
 }) => {
+  const originalParams = { ...params };
+
+  const aiParams = { ...params };
+
+  if (aiParams.existingSummary?.includes(FriendPlaceholderChecks.SUMMARY_END)) {
+    aiParams.existingSummary = "";
+  }
+  if (aiParams.existingSuggestions?.includes(FriendPlaceholderChecks.SUGGESTIONS_END)) {
+    aiParams.existingSuggestions = "";
+  }
+
   const defaultOutput = {
-    summary: params.existingSummary || "",
-    suggestions: params.existingSuggestions || ""
+    summary: originalParams.existingSummary,
+    suggestions: originalParams.existingSuggestions
   };
 
   logger.error(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
-  return executeAIFlow(
+  const aiResult = await executeAIFlow<{
+    summary: string;
+    suggestions: string;
+  }>(
     'friend_profile',
-    params,
+    aiParams,
     defaultOutput,
     'Generating friend profile insights'
   );
+
+  const finalResult = { ...aiResult };
+
+  const isEmpty = (str: string | null | undefined) => !str || str.trim().length === 0;
+
+  if (isEmpty(finalResult.summary)) {
+    finalResult.summary = originalParams.existingSummary;
+  }
+  if (isEmpty(finalResult.suggestions)) {
+    finalResult.suggestions = originalParams.existingSuggestions;
+  }
+
+  logger.info(`Post-processed friend profile insights: ${JSON.stringify(finalResult, null, 2)}`);
+
+  return finalResult;
 };
 
 /**
@@ -174,6 +259,26 @@ export const generateQuestionFlow = async (params: {
   location: string;
   age: string;
 }) => {
+  const aiParams = { ...params };
+  if (aiParams.existingSummary === Placeholders.SUMMARY) {
+    aiParams.existingSummary = "";
+  }
+  if (aiParams.existingSuggestions === Placeholders.SUGGESTIONS) {
+    aiParams.existingSuggestions = "";
+  }
+  if (aiParams.existingEmotionalOverview === Placeholders.EMOTIONAL_OVERVIEW) {
+    aiParams.existingEmotionalOverview = "";
+  }
+  if (aiParams.existingKeyMoments === Placeholders.KEY_MOMENTS) {
+    aiParams.existingKeyMoments = "";
+  }
+  if (aiParams.existingRecurringThemes === Placeholders.RECURRING_THEMES) {
+    aiParams.existingRecurringThemes = "";
+  }
+  if (aiParams.existingProgressAndGrowth === Placeholders.PROGRESS_AND_GROWTH) {
+    aiParams.existingProgressAndGrowth = "";
+  }
+
   const defaultOutput = {
     question: "What's on your mind today?"
   };
@@ -182,7 +287,7 @@ export const generateQuestionFlow = async (params: {
 
   return executeAIFlow(
     'generate_question',
-    params,
+    aiParams,
     defaultOutput,
     'Generating personalized question'
   );

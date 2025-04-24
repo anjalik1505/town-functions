@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
-import { Collections, Documents, InsightsFields, ProfileFields } from "../models/constants";
+import { Collections, Documents, InsightsFields, Placeholders, ProfileFields } from "../models/constants";
 import { Insights, ProfileResponse } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatProfileResponse, getProfileInsights, profileExists } from "../utils/profile-utils";
@@ -57,8 +57,8 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     [ProfileFields.BIRTHDAY]: profileData.birthday || "",
     [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
     [ProfileFields.GENDER]: profileData.gender || "",
-    [ProfileFields.SUMMARY]: "",
-    [ProfileFields.SUGGESTIONS]: "",
+    [ProfileFields.SUMMARY]: Placeholders.SUMMARY,
+    [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
     [ProfileFields.GROUP_IDS]: [],
     [ProfileFields.UPDATED_AT]: updatedAt,
   };
@@ -68,13 +68,13 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   await profileRef.set(profileDataToSave);
   logger.info(`Profile document created for user ${currentUserId}`);
 
-  // Create an empty insights subcollection document
+  // Create an empty insights subcollection document with placeholders
   const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
   const insightsData: Insights = {
-    [InsightsFields.EMOTIONAL_OVERVIEW]: "",
-    [InsightsFields.KEY_MOMENTS]: "",
-    [InsightsFields.RECURRING_THEMES]: "",
-    [InsightsFields.PROGRESS_AND_GROWTH]: ""
+    [InsightsFields.EMOTIONAL_OVERVIEW]: Placeholders.EMOTIONAL_OVERVIEW,
+    [InsightsFields.KEY_MOMENTS]: Placeholders.KEY_MOMENTS,
+    [InsightsFields.RECURRING_THEMES]: Placeholders.RECURRING_THEMES,
+    [InsightsFields.PROGRESS_AND_GROWTH]: Placeholders.PROGRESS_AND_GROWTH
   };
   await insightsRef.set(insightsData);
   logger.info(`Insights document created for user ${currentUserId}`);

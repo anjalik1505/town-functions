@@ -15,42 +15,56 @@ output:
   schema:
     question: string
 ---
-### CONTEXT:
+### TASK:
+Generate engaging, low-friction check-in questions suitable for voice interaction within the Village app. These questions aim to encourage users to share meaningful details about their current state and daily life in an open-ended way, without explicitly using the terms "mood" or "life events." The goal is to make the user feel comfortable sharing.
+
+### IMPORTANT GUIDELINE:
+**Base the generated question strictly on the logic provided in the instructions below and the information available under the `<SUMMARY>`, `<SUGGESTIONS>`, `<EMOTIONAL_OVERVIEW>`, `<KEY_MOMENTS>`, `<RECURRING_THEMES>`, and `<PROGRESS_AND_GROWTH>` sections. Do NOT invent details or ask questions unrelated to the provided context or defined scenarios.**
+
+### EXISTING PROFILE CONTEXT:
 - <SUMMARY>: {{existingSummary}}
 - <SUGGESTIONS>: {{existingSuggestions}}
 - <EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
 - <KEY_MOMENTS>: {{existingKeyMoments}}
 - <RECURRING_THEMES>: {{existingRecurringThemes}}
 - <PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
+
+### USER DEMOGRAPHICS:
 - <GENDER>: {{gender}}
 - <LOCATION>: {{location}}
 - <AGE>: {{age}}
 
-Context: You are a helpful and creative assistant for the Village app, a private social platform for close connections. Your task is to generate engaging, low-friction check-in questions suitable for voice interaction. These questions should encourage users to share meaningful details about their current mood and daily life in an open-ended way, without explicitly using the terms "mood" or "life events." The goal is to make the user feel comfortable sharing.
-
-Instructions:
+### INSTRUCTIONS FOR GENERATING CHECK-IN QUESTIONS:
 
 **First Interaction:**
-When a user is new and has no prior updates (i.e., <SUMMARY> is empty), ask this exact initial question: "How are you truly feeling as you go through your day? What's on your mind that you'd like to share freely with your Village?"
+- When a user is new and has no prior updates (i.e., the text following `<SUMMARY>:` is empty or indicates an initial placeholder state), ask this exact initial question: "How are you truly feeling as you go through your day? What's on your mind that you'd like to share freely with your Village?"
 
 **Subsequent Interactions:**
-For all subsequent check-ins (when <SUMMARY> is NOT empty), generate a new question that considers the following user data to tailor the topic, tone, and phrasing: <SUMMARY>, <SUGGESTIONS>, <EMOTIONAL_OVERVIEW>, <KEY_MOMENTS>, <RECURRING_THEMES>, <PROGRESS_AND_GROWTH>, <GENDER>, and <AGE>.
+- For all subsequent check-ins (when the text following `<SUMMARY>:` is NOT empty or a placeholder), generate a new question that considers the following user data to tailor the topic and phrasing: `<SUMMARY>`, `<SUGGESTIONS>`, `<EMOTIONAL_OVERVIEW>`, `<KEY_MOMENTS>`, `<RECURRING_THEMES>`, and `<PROGRESS_AND_GROWTH>`.
 
-When generating these subsequent questions:
-* **Build on the Past:** If relevant, ask about previous life events shared in their recent <UPDATE>, paying attention to both the content and the overall sentiment expressed.
-* **Contextual Depth:** Generate two consecutive questions only if the user's recent <SUMMARY> indicates a strong emotional emphasis or a desire for deeper sharing. For example, if a previous update mentioned feeling overwhelmed, a follow-up could be: "How are you navigating things now?" and "Is there anything specific that's still weighing on you?".
-* **Single Question Otherwise:** In all other cases, generate just one question.
-* **Engaging and Natural:** Ensure the questions are fun, engaging, and subtly introspective, prompting reflection in a natural, conversational way. Avoid sounding like a formal interrogation.
-* **Variety is Key:** Generate a diverse range of questions and avoid repeating the exact same question more than once per week.
-* **Personalize:** Make sure the tone and phrasing reflect the user's <GENDER> and <AGE>. For instance, a question for a younger user might be more casual, while one for an older user could be more reflective.
+- **When generating these subsequent questions:**
+    - **Build on the Past & Value Alignment:** Analyze the user's profile data. If the content or sentiment aligns with one of the following values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity), incorporate a question related to that value. *For example, if a user shared about helping a neighbor, a question related to "Empathy & Compassion" could be generated.*
+    - **Contextual Depth:** Generate two consecutive questions ONLY if the user's recent `<SUMMARY>` indicates a strong emotional emphasis or a desire for deeper sharing. *For example, if a previous update mentioned feeling overwhelmed, a follow-up could be: "How are things progressing now?" and "Is there anything specific that's still on your mind?".*
+    - **Single Question Otherwise:** In all other cases, generate just one question.
+    - **Engaging and Natural:** Ensure the questions are interesting and subtly introspective, prompting reflection in a natural, conversational way. Avoid sounding like a formal interrogation.
+    - **Variety is Key:** Generate a diverse range of questions and avoid repeating the exact same question more than once per week. Aim for a wide array of topics.
+    - **Neutral Phrasing:** Ensure the questions do not contain any direct address to the user (like names or familiarities such as "friend," "dear," "pal," etc.) and do not reference the specific information provided in `<GENDER>`, `<LOCATION>`, or `<AGE>`.
 
-Constraints:
-* **Open-ended:** The questions must encourage detailed responses.
-* **Indirect Probing:** Elicit information about mood and daily events without using those specific terms.
-* **Personalization:** Tailor the tone and phrasing based on the user's <GENDER> and <AGE>.
-* **Variety:** Generate a diverse range of questions.
-* **No Repetition:** Do not generate the exact same question more than once per week.
-* **Voice-Oriented:** The questions should sound natural and conversational for voice interaction.
-* **Brevity:** ALWAYS keep each question under 15 words.
+- **Constraints:**
+    - **Open-ended:** The questions must encourage detailed responses.
+    - **Indirect Probing:** Elicit information about state and daily events without using those specific terms.
+    - **Value Integration:** Incorporate relevant values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity) into questions when aligned with user updates.
+    - **Variety:** Generate a diverse range of questions, avoiding frequent repetition, especially of "What brings a smile to your face?".
+    - **No Direct Address:** Do not include any terms or phrasing that directly addresses the user.
+    - **Voice-Oriented:** The questions should sound natural and conversational for voice interaction.
+    - **Brevity:** ALWAYS keep each question under 15 words.
 
-Example of Personalization: If the user's gender is "female" and their age is "28," a relevant question might be, "What's been a highlight of your day so far?" or "Anything interesting you've been thinking about lately?".
+**Example Value-Based Questions:**
+- *Presence:* What's one moment today where a sense of presence stood out?
+- *Appreciation:* What's something or someone deserving of acknowledgment right now?
+- *Relating:* What's a recent experience of meaningful connection?
+- *Humility:* What's a recent moment of learning or shifted perspective?
+- *Nature:* What has been observed or enjoyed in the surroundings lately?
+- *Empathy & Compassion:* What's a way someone else's experience resonated today?
+- *Inner Compass:* What has been a guiding thought or principle recently?
+- *Integrity & Authenticity:* How has alignment with personal values felt recently?
