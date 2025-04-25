@@ -93,12 +93,18 @@ def run_updates_tests():
             "emoji": emoji,
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
+            "all_village": True,
         }
         created_update = api.create_update(users[0]["email"], update_data)
         user1_updates.append(created_update)
         logger.info(
             f"Created update #{i+1} for user 1: {json.dumps(created_update, indent=2)}"
         )
+
+        # Verify all_village field is present and has the correct value
+        assert "all_village" in created_update, "Update missing all_village field"
+        assert created_update["all_village"] is True, "all_village should be True"
+        logger.info("✓ all_village field is present and set to True in the response")
 
     # Step 2: Get user's own updates
     logger.info("Step 2: Getting user's own updates")
@@ -137,12 +143,18 @@ def run_updates_tests():
             "emoji": emoji,
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
+            "all_village": True,
         }
         created_update = api.create_update(users[1]["email"], update_data)
         user2_updates.append(created_update)
         logger.info(
             f"Created update #{i+1} for user 2: {json.dumps(created_update, indent=2)}"
         )
+
+        # Verify all_village field is present and has the correct value
+        assert "all_village" in created_update, "Update missing all_village field"
+        assert created_update["all_village"] is True, "all_village should be True"
+        logger.info("✓ all_village field is present and set to True in the response")
 
     # Step 4: Try to view another user's updates before becoming friends
     logger.info(
@@ -238,6 +250,7 @@ def run_updates_tests():
         assert "avatar" in update, "Update missing avatar field"
         assert "score" in update, "Update missing score field"
         assert "emoji" in update, "Update missing emoji field"
+        assert "all_village" in update, "Update missing all_village field"
         assert (
             update["username"] == users[0]["email"].split("@")[0]
         ), "Incorrect username in update"
@@ -253,6 +266,7 @@ def run_updates_tests():
             1 <= update["score"] <= 5
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
+        assert isinstance(update["all_village"], bool), f"all_village should be a boolean, got {type(update['all_village'])}"
     logger.info("✓ User's own updates contain correct enriched profile data")
 
     # Verify that friend's updates appear in the feed
@@ -273,6 +287,7 @@ def run_updates_tests():
         assert "avatar" in update, "Update missing avatar field"
         assert "score" in update, "Update missing score field"
         assert "emoji" in update, "Update missing emoji field"
+        assert "all_village" in update, "Update missing all_village field"
         assert (
             update["username"] == users[1]["email"].split("@")[0]
         ), "Incorrect username in update"
@@ -288,6 +303,13 @@ def run_updates_tests():
             1 <= update["score"] <= 5
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
+        assert isinstance(update["all_village"], bool), f"all_village should be a boolean, got {type(update['all_village'])}"
+
+    # Find the all_village update in the feed
+    all_village_updates = [update for update in user2_updates if update.get("all_village") is True]
+    assert len(all_village_updates) > 0, "No updates with all_village=True found in the feed"
+    logger.info(f"✓ Found {len(all_village_updates)} updates with all_village=True in the feed")
+
     logger.info("✓ Friend's updates contain correct enriched profile data")
 
     logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
@@ -392,7 +414,7 @@ def run_updates_tests():
 
     # Verify we have exactly 4 feed items (3 own updates + 1 shared update)
     expected_feed_items = (
-        TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["shared_updates_count"]
+        TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["shared_updates_count"]
     )
     assert (
         total_feed_items == expected_feed_items
@@ -428,7 +450,6 @@ def run_updates_tests():
         # Get second page
         second_page_feed = api.get_my_feed(
             users[0]["email"],
-            limit=TEST_CONFIG["pagination_limit"],
             after_cursor=first_page_feed["next_cursor"],
         )
         logger.info(
@@ -441,7 +462,7 @@ def run_updates_tests():
             update["created_at"] for update in second_page_updates
         ]
 
-        # Verify second page has exactly 2 items (4 total - 2 on first page)
+        # Verify second page has exactly 5 items (7 total - 2 on first page)
         expected_second_page_items = (
             expected_feed_items - TEST_CONFIG["pagination_limit"]
         )
