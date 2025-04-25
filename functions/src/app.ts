@@ -56,7 +56,8 @@ import {
   ForbiddenError,
   InternalServerError,
   NotFoundError,
-  UnauthorizedError
+  UnauthorizedError,
+  isFirebaseAuthTokenExpiredError
 } from "./utils/errors";
 
 
@@ -129,7 +130,12 @@ const authenticate_request: RequestHandler = async (req, res, next) => {
     req.userId = user_id;
     next();
   } catch (error: unknown) {
-    next(error);
+    // Check if this is a Firebase Auth token expiration error using the type-safe utility function
+    if (isFirebaseAuthTokenExpiredError(error)) {
+      next(new UnauthorizedError("Token expired, please re-authenticate"));
+    } else {
+      next(error);
+    }
   }
 };
 
