@@ -1,152 +1,15 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
 import { FirestoreEvent } from "firebase-functions/v2/firestore";
-import { generateCreatorProfileFlow, generateFriendProfileFlow } from "../ai/flows";
+import { generateCreatorProfileFlow } from "../ai/flows";
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from "../models/analytics-events";
-import {
-  Collections,
-  Documents,
-  InsightsFields,
-  ProfileFields,
-  UpdateFields,
-  UserSummaryFields
-} from "../models/constants";
+import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from "../models/constants";
 import { trackApiEvents } from "../utils/analytics-utils";
 import { getLogger } from "../utils/logging-utils";
-import { calculateAge, createSummaryId } from "../utils/profile-utils";
+import { calculateAge } from "../utils/profile-utils";
+import { processFriendSummary } from "../utils/summary-utils";
 
 const logger = getLogger(__filename);
 
-/**
- * Process a summary for a specific friend.
- *
- * @param db - Firestore client
- * @param updateData - The update document data
- * @param creatorId - The ID of the user who created the update
- * @param friendId - The ID of the friend to process the summary for
- * @param batch - Firestore write batch for atomic operations
- * @returns Analytics data for the friend summary
- */
-const processFriendSummary = async (
-  db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
-  creatorId: string,
-  friendId: string,
-  batch: FirebaseFirestore.WriteBatch
-): Promise<FriendSummaryEventParams> => {
-  // Create a consistent relationship ID using the utility function
-  const summaryId = createSummaryId(friendId, creatorId);
-
-  // Determine which user is the target (the friend who will see the summary)
-  const targetId = friendId;
-
-  // Get the existing summary document if it exists
-  const summaryRef = db.collection(Collections.USER_SUMMARIES).doc(summaryId);
-  const summaryDoc = await summaryRef.get();
-
-  // Extract data from the existing summary or initialize new data
-  let existingSummary: string | undefined;
-  let existingSuggestions: string | undefined;
-  let updateCount: number;
-
-  if (summaryDoc.exists) {
-    const summaryData = summaryDoc.data() || {};
-    existingSummary = summaryData[UserSummaryFields.SUMMARY];
-    existingSuggestions = summaryData[UserSummaryFields.SUGGESTIONS];
-    updateCount = (summaryData[UserSummaryFields.UPDATE_COUNT] || 0) + 1;
-  } else {
-    updateCount = 1;
-  }
-
-  // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT];
-  const sentiment = updateData[UpdateFields.SENTIMENT];
-  const updateId = updateData[UpdateFields.ID];
-
-  // Get the creator's name or username
-  const creatorProfileRef = db.collection(Collections.PROFILES).doc(creatorId);
-  const creatorProfileDoc = await creatorProfileRef.get();
-
-  let userName = "Friend";
-  let userGender = "unknown";
-  let userLocation = "unknown";
-  let userAge = "unknown";
-  if (creatorProfileDoc.exists) {
-    const creatorProfileData = creatorProfileDoc.data() || {};
-    // Try to get name first, then username, then fall back to "Friend"
-    userName = creatorProfileData[ProfileFields.NAME] ||
-      creatorProfileData[ProfileFields.USERNAME] ||
-      "Friend";
-    userGender = creatorProfileData[ProfileFields.GENDER] || "unknown";
-    userLocation = creatorProfileData[ProfileFields.LOCATION] || "unknown";
-    userAge = calculateAge(creatorProfileData[ProfileFields.BIRTHDAY] || "");
-  } else {
-    logger.warn(`Creator profile not found: ${creatorId}`);
-  }
-
-  // Get the friend's profile data
-  const friendProfileRef = db.collection(Collections.PROFILES).doc(friendId);
-  const friendProfileDoc = await friendProfileRef.get();
-
-  let friendName = "Friend";
-  let friendGender = "unknown";
-  let friendLocation = "unknown";
-  let friendAge = "unknown";
-
-  if (friendProfileDoc.exists) {
-    const friendProfileData = friendProfileDoc.data() || {};
-    friendName = friendProfileData[ProfileFields.NAME] ||
-      friendProfileData[ProfileFields.USERNAME] ||
-      "Friend";
-    friendGender = friendProfileData[ProfileFields.GENDER] || "unknown";
-    friendLocation = friendProfileData[ProfileFields.LOCATION] || "unknown";
-    friendAge = calculateAge(friendProfileData[ProfileFields.BIRTHDAY] || "");
-  } else {
-    logger.warn(`Friend profile not found: ${friendId}`);
-  }
-
-  // Use the friend profile flow to generate summary and suggestions
-  const result = await generateFriendProfileFlow({
-    existingSummary: existingSummary || "",
-    existingSuggestions: existingSuggestions || "",
-    updateContent: updateContent || "",
-    sentiment: sentiment || "",
-    friendName: friendName,
-    friendGender: friendGender,
-    friendLocation: friendLocation,
-    friendAge: friendAge,
-    userName: userName,
-    userGender: userGender,
-    userLocation: userLocation,
-    userAge: userAge
-  });
-
-  // Prepare the summary document
-  const now = Timestamp.now();
-  const summaryUpdateData: Record<string, any> = {
-    [UserSummaryFields.CREATOR_ID]: creatorId,
-    [UserSummaryFields.TARGET_ID]: targetId,
-    [UserSummaryFields.SUMMARY]: result.summary || "",
-    [UserSummaryFields.SUGGESTIONS]: result.suggestions || "",
-    [UserSummaryFields.LAST_UPDATE_ID]: updateId,
-    [UserSummaryFields.UPDATED_AT]: now,
-    [UserSummaryFields.UPDATE_COUNT]: updateCount
-  };
-
-  // If this is a new summary, add created_at
-  if (!summaryDoc.exists) {
-    summaryUpdateData[UserSummaryFields.CREATED_AT] = now;
-  }
-
-  // Add to batch instead of writing immediately
-  batch.set(summaryRef, summaryUpdateData, { merge: true });
-  logger.info(`Added summary update for summary ${summaryId} to batch`);
-
-  // Return analytics data without tracking the event
-  return {
-    summary_length: (result.summary || "").length,
-    suggestions_length: (result.suggestions || "").length
-  };
-}
 
 /**
  * Update the creator's own profile with summary, suggestions, and insights.

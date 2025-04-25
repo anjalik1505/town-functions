@@ -4,6 +4,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { app } from "./app";
 import { Collections } from "./models/constants";
+import { onFriendshipCreated } from "./invitations/on-friendship-creation";
 import { onProfileDeleted } from "./own_profile/on-deletion";
 import { onUpdateCreated } from "./updates/on-creation";
 import { onUpdateNotification } from "./updates/on-notification";
@@ -53,4 +54,13 @@ export const process_profile_deletion = onDocumentDeleted(
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId]
   },
   (event) => onProfileDeleted(event)
+);
+
+// Export the Firestore trigger function for friendship creation
+export const process_friendship_creation = onDocumentCreated(
+  {
+    document: `${Collections.FRIENDSHIPS}/{id}`,
+    secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onFriendshipCreated(event)
 );
