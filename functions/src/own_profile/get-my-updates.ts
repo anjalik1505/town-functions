@@ -67,7 +67,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
       user: currentUserId
     };
     return {
-      data: {updates: [], next_cursor: null},
+      data: { updates: [], next_cursor: null },
       status: 200,
       analytics: {
         event: EventName.UPDATES_VIEWED,
@@ -98,7 +98,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
     user: currentUserId
   };
   return {
-    data: {updates, next_cursor: nextCursor},
+    data: { updates, next_cursor: nextCursor },
     status: 200,
     analytics: {
       event: EventName.UPDATES_VIEWED,

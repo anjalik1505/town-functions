@@ -29,7 +29,7 @@ export const getQuestion = async (req: Request): Promise<ApiResponse<QuestionRes
   logger.info(`Generating personalized question for user: ${currentUserId}`);
 
   // Get the profile document
-  const {ref: profileRef, data: profileData} = await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Extract data from the profile
   const existingSummary = profileData[ProfileFields.SUMMARY];

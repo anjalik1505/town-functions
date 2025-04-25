@@ -84,7 +84,7 @@ export const formatInvitation = (invitationId: string, invitationData: any): Inv
  * @returns A promise that resolves when the update is complete
  */
 export const updateInvitationStatus = async (invitationRef: FirebaseFirestore.DocumentReference, status: string) => {
-  await invitationRef.update({[InvitationFields.STATUS]: status});
+  await invitationRef.update({ [InvitationFields.STATUS]: status });
   logger.info(`Updated invitation ${invitationRef.id} status to ${status}`);
 };
 

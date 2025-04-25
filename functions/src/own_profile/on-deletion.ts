@@ -282,7 +282,7 @@ const deleteUpdateAndFeedData = async (
 
   if (updateIds.length === 0) {
     logger.info(`No updates found for user ${userId}`);
-    return {updateCount: 0, feedCount: 0};
+    return { updateCount: 0, feedCount: 0 };
   }
 
   // 2. Create a single batch for all operations
@@ -348,7 +348,7 @@ const deleteUpdateAndFeedData = async (
   }
 
   logger.info(`Deleted ${totalFeedEntriesDeleted} feed entries and ${totalUpdatesDeleted} updates for user ${userId}`);
-  return {updateCount: totalUpdatesDeleted, feedCount: totalFeedEntriesDeleted};
+  return { updateCount: totalUpdatesDeleted, feedCount: totalFeedEntriesDeleted };
 };
 
 /**

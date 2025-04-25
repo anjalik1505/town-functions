@@ -25,12 +25,12 @@ export const fetchUpdateReactions = async (updateId: string): Promise<ReactionGr
     reactionsSnapshot.docs.forEach(doc => {
       const reactionData = doc.data();
       const type = reactionData.type;
-      const current = reactionsByType.get(type) || {count: 0, id: doc.id};
-      reactionsByType.set(type, {count: current.count + 1, id: doc.id});
+      const current = reactionsByType.get(type) || { count: 0, id: doc.id };
+      reactionsByType.set(type, { count: current.count + 1, id: doc.id });
     });
 
     reactionsByType.forEach((data, type) => {
-      reactions.push({type, count: data.count, reaction_id: data.id});
+      reactions.push({ type, count: data.count, reaction_id: data.id });
     });
 
     return reactions;

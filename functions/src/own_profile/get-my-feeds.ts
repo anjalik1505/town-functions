@@ -70,7 +70,7 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
       unique_creators: 0
     };
     return {
-      data: {updates: [], next_cursor: null},
+      data: { updates: [], next_cursor: null },
       status: 200,
       analytics: {
         event: EventName.FEED_VIEWED,
@@ -109,7 +109,7 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
     unique_creators: uniqueUserIds.length
   };
   return {
-    data: {updates: enrichedUpdates, next_cursor: nextCursor},
+    data: { updates: enrichedUpdates, next_cursor: nextCursor },
     status: 200,
     analytics: {
       event: EventName.FEED_VIEWED,

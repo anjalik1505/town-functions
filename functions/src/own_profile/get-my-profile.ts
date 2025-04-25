@@ -30,7 +30,7 @@ export const getProfile = async (req: Request): Promise<ApiResponse<ProfileRespo
   logger.info(`Retrieving profile for user: ${currentUserId}`);
 
   // Get the profile document using the utility function
-  const {ref: profileRef, data: profileData} = await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Get insights data
   const insightsData = await getProfileInsights(profileRef);

@@ -35,7 +35,7 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
   logger.info(`Creating invitation for user ${currentUserId}`);
 
   // Check combined limit
-  const {friendCount, activeInvitationCount, hasReachedLimit} = await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
   if (hasReachedLimit) {
     logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
     throw new BadRequestError("You have reached the maximum number of friends and active invitations");
@@ -45,7 +45,7 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
   const db = getFirestore();
 
   // Get current user's profile for name and avatar
-  const {data: currentUserProfile} = await getProfileDoc(currentUserId);
+  const { data: currentUserProfile } = await getProfileDoc(currentUserId);
 
   const validatedParams = req.validated_params;
 

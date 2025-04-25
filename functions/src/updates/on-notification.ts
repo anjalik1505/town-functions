@@ -327,7 +327,7 @@ export const onUpdateNotification = async (event: FirestoreEvent<QueryDocumentSn
   const db = getFirestore();
 
   try {
-    const {notifications, notificationEvents} = await processAllNotifications(db, updateData);
+    const { notifications, notificationEvents } = await processAllNotifications(db, updateData);
     logger.info(`Successfully processed notifications for update ${updateData[UpdateFields.ID] || "unknown"}`);
 
     // Track all events at once

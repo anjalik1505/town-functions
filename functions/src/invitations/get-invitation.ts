@@ -30,10 +30,10 @@ export const getInvitation = async (req: Request): Promise<ApiResponse<Invitatio
   logger.info(`Getting invitation ${invitationId} for user ${currentUserId}`);
 
   // Get the invitation document
-  const {data: invitationData} = await getInvitationDoc(invitationId);
+  const { data: invitationData } = await getInvitationDoc(invitationId);
 
   // Get current friend and invitation counts for analytics
-  const {friendCount, activeInvitationCount} = await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
 
   // Format the invitation
   const invitation = formatInvitation(invitationId, invitationData);

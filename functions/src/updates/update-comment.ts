@@ -62,7 +62,7 @@ export const updateComment = async (req: Request): Promise<ApiResponse<Comment>>
   const updatedCommentData = updatedCommentDoc.data() || {};
 
   // Get the creator's profile
-  const {data: profileData} = await getProfileDoc(currentUserId);
+  const { data: profileData } = await getProfileDoc(currentUserId);
 
   const comment = formatComment(commentResult.ref.id, updatedCommentData, currentUserId);
   comment.username = profileData[ProfileFields.USERNAME] || "";

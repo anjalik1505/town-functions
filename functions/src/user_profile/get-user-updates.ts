@@ -108,7 +108,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
       user: targetUserId
     };
     return {
-      data: {updates: [], next_cursor: null},
+      data: { updates: [], next_cursor: null },
       status: 200,
       analytics: {
         event: EventName.FRIEND_UPDATES_VIEWED,
@@ -139,7 +139,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
     user: targetUserId
   };
   return {
-    data: {updates, next_cursor: nextCursor},
+    data: { updates, next_cursor: nextCursor },
     status: 200,
     analytics: {
       event: EventName.FRIEND_UPDATES_VIEWED,

@@ -29,7 +29,7 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
   logger.info(`Starting delete_profile operation for user ID: ${currentUserId}`);
 
   // Get the profile document using the utility function (throws NotFoundError if not found)
-  const {ref: profileRef, data: profileData} = await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Delete the insights subcollection first
   const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);

@@ -27,7 +27,7 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
   logger.info(`Sending test notification to user ${currentUserId}`);
 
   // Get validated data from request
-  const {title, body} = req.validated_params;
+  const { title, body } = req.validated_params;
 
   // Initialize Firestore client
   const db = getFirestore();

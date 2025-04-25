@@ -49,7 +49,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   const profileData = req.validated_params;
 
   // Get the profile document using the utility function
-  const {ref: profileRef, data: currentProfileData} = await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: currentProfileData } = await getProfileDoc(currentUserId);
   logger.info(`Retrieved current profile data for user ${currentUserId}`);
 
   // Check if username, name, or avatar has changed

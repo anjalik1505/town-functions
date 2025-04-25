@@ -38,7 +38,7 @@ export const updateDevice = async (req: Request, res: Response): Promise<void> =
   };
 
   // Update the device document
-  await deviceRef.set(deviceData, {merge: true});
+  await deviceRef.set(deviceData, { merge: true });
   logger.info(`Device updated for user ${currentUserId}`);
 
   // Create and return a Device object

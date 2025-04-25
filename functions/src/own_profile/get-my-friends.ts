@@ -102,7 +102,7 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
   };
 
   // Return the list of friends with pagination info
-  const response: FriendsResponse = {friends, next_cursor: nextCursor};
+  const response: FriendsResponse = { friends, next_cursor: nextCursor };
 
   return {
     data: response,

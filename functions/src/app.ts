@@ -55,15 +55,15 @@ import {
   ConflictError,
   ForbiddenError,
   InternalServerError,
+  isFirebaseAuthTokenExpiredError,
   NotFoundError,
-  UnauthorizedError,
-  isFirebaseAuthTokenExpiredError
+  UnauthorizedError
 } from "./utils/errors";
 
 
 // Response Handler
 const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
-  const {analytics} = response;
+  const { analytics } = response;
   if (analytics) {
     res.on('finish', () => {
       trackApiEvent(analytics.event, analytics.userId, analytics.params);

@@ -22,7 +22,7 @@ const logger = getLogger(__filename);
  * @throws 400: Invalid request parameters
  */
 export const analyzeSentiment = async (req: Request): Promise<ApiResponse<SentimentAnalysisResponse>> => {
-  const {content} = req.validated_params;
+  const { content } = req.validated_params;
   logger.info(`Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`);
 
   // Use the sentiment analysis flow to analyze the text

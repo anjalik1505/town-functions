@@ -70,7 +70,7 @@ const processUserNotification = async (
   });
 
   // Send notification
-  await sendNotification(deviceId, result.title, result.message, {type: "daily"});
+  await sendNotification(deviceId, result.title, result.message, { type: "daily" });
 
   return {
     notification_all: hasAllSetting,

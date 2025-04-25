@@ -34,7 +34,7 @@ export const rejectInvitation = async (req: Request): Promise<ApiResponse<Invita
   logger.info(`User ${currentUserId} rejecting invitation ${invitationId}`);
 
   // Get the invitation document
-  const {ref: invitationRef, data: invitationData} = await getInvitationDoc(invitationId);
+  const { ref: invitationRef, data: invitationData } = await getInvitationDoc(invitationId);
 
   // Check invitation status
   const status = invitationData[InvitationFields.STATUS];
@@ -45,7 +45,7 @@ export const rejectInvitation = async (req: Request): Promise<ApiResponse<Invita
   hasInvitationPermission(senderId, currentUserId, "reject");
 
   // Get current friend and invitation counts for analytics
-  const {friendCount, activeInvitationCount} = await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
 
   // Update the invitation status to rejected
   await updateInvitationStatus(invitationRef, Status.REJECTED);

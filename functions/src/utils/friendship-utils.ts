@@ -63,5 +63,5 @@ export const hasReachedCombinedLimit = async (userId: string, excludeInvitationI
 
   const totalCount = friendCount + activeInvitationCount;
   logger.info(`User ${userId} has ${friendCount} friends and ${activeInvitationCount} active invitations (total: ${totalCount})`);
-  return {friendCount, activeInvitationCount, hasReachedLimit: totalCount >= MAX_COMBINED};
+  return { friendCount, activeInvitationCount, hasReachedLimit: totalCount >= MAX_COMBINED };
 };

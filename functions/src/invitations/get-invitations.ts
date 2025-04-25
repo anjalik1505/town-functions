@@ -70,7 +70,7 @@ export const getInvitations = async (req: Request): Promise<ApiResponse<Invitati
     // Only update if the invitation is pending and has expired
     if (status === Status.PENDING && isInvitationExpired(expiresAt)) {
       // Use the document reference directly from the query
-      batch.update(doc.ref, {[InvitationFields.STATUS]: Status.EXPIRED});
+      batch.update(doc.ref, { [InvitationFields.STATUS]: Status.EXPIRED });
       batchUpdated = true;
 
       // Update status for the response
@@ -94,7 +94,7 @@ export const getInvitations = async (req: Request): Promise<ApiResponse<Invitati
   logger.info(`Retrieved ${invitations.length} invitations for user ${currentUserId}`);
 
   // Get current friend and invitation counts for analytics
-  const {friendCount, activeInvitationCount} = await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
 
   // Create analytics event
   const event: InviteEventParams = {
@@ -103,7 +103,7 @@ export const getInvitations = async (req: Request): Promise<ApiResponse<Invitati
   };
 
   // Return the invitations response with pagination info
-  const response: InvitationsResponse = {invitations, next_cursor: nextCursor};
+  const response: InvitationsResponse = { invitations, next_cursor: nextCursor };
 
   return {
     data: response,

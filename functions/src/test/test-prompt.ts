@@ -43,7 +43,7 @@ export const testPrompt = async (req: Request, res: Response): Promise<void> => 
           temperature: data.temperature ?? 0.0,
         };
 
-        const {output} = await ai.generate({
+        const { output } = await ai.generate({
           prompt: `### CONTEXT:
                     - <SUMMARY>: ${summary}
                     - <SUGGESTIONS>: ${suggestions}${data.is_own_profile ? `
@@ -59,7 +59,7 @@ export const testPrompt = async (req: Request, res: Response): Promise<void> => 
                     - <SENTIMENT>: ${updateSentiment}
                     
                     ${data.prompt}`,
-          output: {schema: data.is_own_profile ? ownProfileSchema : friendProfileSchema},
+          output: { schema: data.is_own_profile ? ownProfileSchema : friendProfileSchema },
           config,
         });
 

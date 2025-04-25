@@ -89,5 +89,5 @@ export const processQueryStream = async <T>(
     lastDoc = docs[docs.length - 1];
   }
 
-  return {items, lastDoc};
+  return { items, lastDoc };
 }; 

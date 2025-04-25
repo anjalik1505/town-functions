@@ -57,6 +57,6 @@ export const getMyGroups = async (req: Request, res: Response): Promise<void> =>
   logger.info(`Retrieved ${groups.length} groups for user: ${currentUserId}`);
 
   // Return the list of groups
-  const response: GroupsResponse = {groups};
+  const response: GroupsResponse = { groups };
   res.json(response);
 }; 
