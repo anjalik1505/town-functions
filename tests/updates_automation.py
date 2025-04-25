@@ -34,10 +34,10 @@ EMOJIS = ["😢", "😕", "😐", "🙂", "😊"]
 
 # Test configuration
 TEST_CONFIG = {
-    "initial_updates_count": 2,  # Number of initial updates per user
+    "initial_updates_count": 3,  # Number of initial updates per user
     "shared_updates_count": 1,  # Number of updates shared with friends
-    "pagination_updates_count": 1,  # Additional updates for pagination test
-    "pagination_limit": 1,  # Limit for pagination test
+    "pagination_updates_count": 0,  # No additional updates needed
+    "pagination_limit": 2,  # Limit for pagination test
     "wait_time": 10,  # Time to wait for Firestore triggers and AI processing
 }
 
@@ -295,25 +295,16 @@ def run_updates_tests():
     # Step 9: Test pagination for updates
     logger.info("Step 9: Testing pagination for all update endpoints")
 
-    # Create enough updates for pagination testing if needed
-    total_user1_updates = len(my_updates["updates"])
-    if total_user1_updates < TEST_CONFIG["pagination_limit"] + 1:
-        # Create just enough updates to test pagination
-        additional_needed = (TEST_CONFIG["pagination_limit"] + 1) - total_user1_updates
-        for i in range(additional_needed):
-            sentiment = random.choice(SENTIMENTS)
-            score = random.choice(SCORES)
-            emoji = random.choice(EMOJIS)
-            update_data = {
-                "content": f"Pagination test update #{i+1} with {sentiment} sentiment",
-                "sentiment": sentiment,
-                "score": score,
-                "emoji": emoji,
-                "friend_ids": [api.user_ids[users[1]["email"]]],
-                "group_ids": [],
-            }
-            api.create_update(users[0]["email"], update_data)
-            logger.info(f"Created additional update for pagination testing")
+    # Get total updates for user 1
+    all_updates = api.get_my_updates(users[0]["email"])
+    total_updates = len(all_updates["updates"])
+    logger.info(f"User 1 has {total_updates} total updates")
+
+    # Verify we have exactly 3 updates (initial_updates_count)
+    expected_updates = TEST_CONFIG["initial_updates_count"]
+    assert (
+        total_updates == expected_updates
+    ), f"Expected {expected_updates} updates, got {total_updates}"
 
     # Test pagination for /me/updates
     logger.info("Testing pagination for /me/updates")
@@ -326,6 +317,9 @@ def run_updates_tests():
     assert (
         "next_cursor" in first_page
     ), "Response does not contain next_cursor field for pagination"
+    assert (
+        len(first_page["updates"]) == TEST_CONFIG["pagination_limit"]
+    ), f"First page should have {TEST_CONFIG['pagination_limit']} items, got {len(first_page['updates'])}"
 
     if first_page["next_cursor"]:
         # Store first page updates for comparison
@@ -353,6 +347,12 @@ def run_updates_tests():
             update["created_at"] for update in second_page_updates
         ]
 
+        # Verify second page has exactly 1 item (3 total - 2 on first page)
+        expected_second_page_items = expected_updates - TEST_CONFIG["pagination_limit"]
+        assert (
+            len(second_page_updates) == expected_second_page_items
+        ), f"Second page should have {expected_second_page_items} item, got {len(second_page_updates)}"
+
         # Verify second page timestamps are in descending order
         assert second_page_timestamps == sorted(
             second_page_timestamps, reverse=True
@@ -373,28 +373,44 @@ def run_updates_tests():
                 newest_second_page < oldest_first_page
             ), "Second page updates are not older than first page updates"
 
+        # Verify all updates were retrieved
+        all_retrieved_ids = first_page_ids | second_page_ids
+        all_update_ids = {update["update_id"] for update in all_updates["updates"]}
+        assert (
+            all_retrieved_ids == all_update_ids
+        ), "Did not retrieve all updates across pages"
+
         logger.info(f"✓ /me/updates pagination test passed")
 
     # Test pagination for /me/feed
     logger.info("Testing pagination for /me/feed")
 
-    # First verify we have enough updates for pagination
-    first_page_feed = api.get_my_feed(users[0]["email"])
-    total_updates = len(first_page_feed["updates"])
-    logger.info(f"Total updates in feed: {total_updates}")
+    # Get total feed items
+    all_feed = api.get_my_feed(users[0]["email"])
+    total_feed_items = len(all_feed["updates"])
+    logger.info(f"User 1 has {total_feed_items} total feed items")
 
-    # Test with a limit that should definitely produce a next_cursor
-    test_limit = min(2, total_updates - 1)  # Use 2 or total-1, whichever is smaller
-    first_page_feed = api.get_my_feed(users[0]["email"], limit=test_limit)
+    # Verify we have exactly 4 feed items (3 own updates + 1 shared update)
+    expected_feed_items = (
+        TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["shared_updates_count"]
+    )
+    assert (
+        total_feed_items == expected_feed_items
+    ), f"Expected {expected_feed_items} feed items, got {total_feed_items}"
+
+    # Test with a limit of 2
+    first_page_feed = api.get_my_feed(
+        users[0]["email"], limit=TEST_CONFIG["pagination_limit"]
+    )
     logger.info(
-        f"Retrieved first page of /me/feed with limit {test_limit}: {json.dumps(first_page_feed, indent=2)}"
+        f"Retrieved first page of /me/feed with limit {TEST_CONFIG['pagination_limit']}: {json.dumps(first_page_feed, indent=2)}"
     )
     assert (
         "next_cursor" in first_page_feed
     ), "Response does not contain next_cursor field for feed pagination"
     assert (
-        len(first_page_feed["updates"]) == test_limit
-    ), f"Expected {test_limit} updates in first page, got {len(first_page_feed['updates'])}"
+        len(first_page_feed["updates"]) == TEST_CONFIG["pagination_limit"]
+    ), f"Expected {TEST_CONFIG['pagination_limit']} updates in first page, got {len(first_page_feed['updates'])}"
     assert (
         first_page_feed["next_cursor"] is not None
     ), "next_cursor should not be null when we have more updates than the limit"
@@ -412,7 +428,7 @@ def run_updates_tests():
         # Get second page
         second_page_feed = api.get_my_feed(
             users[0]["email"],
-            limit=test_limit,
+            limit=TEST_CONFIG["pagination_limit"],
             after_cursor=first_page_feed["next_cursor"],
         )
         logger.info(
@@ -424,6 +440,14 @@ def run_updates_tests():
         second_page_timestamps = [
             update["created_at"] for update in second_page_updates
         ]
+
+        # Verify second page has exactly 2 items (4 total - 2 on first page)
+        expected_second_page_items = (
+            expected_feed_items - TEST_CONFIG["pagination_limit"]
+        )
+        assert (
+            len(second_page_updates) == expected_second_page_items
+        ), f"Second page should have {expected_second_page_items} items, got {len(second_page_updates)}"
 
         # Verify second page timestamps are in descending order
         assert second_page_timestamps == sorted(
@@ -444,6 +468,13 @@ def run_updates_tests():
             assert (
                 newest_second_page < oldest_first_page
             ), "Second page feed updates are not older than first page updates"
+
+        # Verify all feed items were retrieved
+        all_retrieved_ids = first_page_ids | second_page_ids
+        all_feed_ids = {update["update_id"] for update in all_feed["updates"]}
+        assert (
+            all_retrieved_ids == all_feed_ids
+        ), "Did not retrieve all feed items across pages"
 
         logger.info(f"✓ /me/feed pagination test passed")
 
