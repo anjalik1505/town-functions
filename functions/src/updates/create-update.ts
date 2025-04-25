@@ -74,7 +74,6 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     const friendshipDocs = await friendshipsQuery.get();
 
     // Extract friend IDs from friendships
-    friendIds = [];
     friendshipDocs.forEach(doc => {
       const friendshipData = doc.data();
       const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
@@ -95,7 +94,6 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     const groupDocs = await groupsQuery.get();
 
     // Extract group IDs
-    groupIds = [];
     groupDocs.forEach(doc => {
       groupIds.push(doc.id);
     });
