@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from "../models/constants";
-import { EnrichedUpdate, FeedResponse, GroupMember, Update } from "../models/data-models";
+import { FeedResponse } from "../models/data-models";
 import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { getLogger } from "../utils/logging-utils";
 import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { fetchUpdatesByIds, processEnrichedFeedItems } from "../utils/update-utils";
 
 const logger = getLogger(__filename);
 
@@ -86,58 +86,30 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
     lastDoc
   } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
 
-  // Convert Firestore documents to Update models
-  const updates: Update[] = updateDocs.map(updateDoc => {
-    const docData = updateDoc.data();
-    const update: Update = {
-      update_id: updateDoc.id,
-      created_by: docData[UpdateFields.CREATED_BY] || "",
-      content: docData[UpdateFields.CONTENT] || "",
-      group_ids: docData[UpdateFields.GROUP_IDS] || [],
-      friend_ids: docData[UpdateFields.FRIEND_IDS] || [],
-      sentiment: docData[UpdateFields.SENTIMENT] || "",
-      created_at: docData[UpdateFields.CREATED_AT] ? formatTimestamp(docData[UpdateFields.CREATED_AT]) : "",
-      comment_count: docData[UpdateFields.COMMENT_COUNT] || 0,
-      reaction_count: docData[UpdateFields.REACTION_COUNT] || 0,
-      reactions: [], // Empty array since reactions are fetched separately
-      score: docData[UpdateFields.SCORE] || "3",
-      emoji: docData[UpdateFields.EMOJI] || "😐"
-    };
-    return update;
-  });
+  // Get all update IDs from the query results
+  const updateIds = updateDocs.map(updateDoc => updateDoc.id);
 
-  logger.info("Query executed successfully");
+  // Fetch update data using util
+  const updateMap = await fetchUpdatesByIds(updateIds);
 
-  // Get member profiles from the group document
+  // Prepare a map of user IDs to profile data from group memberProfiles
   const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
-  const memberProfilesMap = new Map<string, GroupMember>();
-
-  // Build the map of user IDs to their profile data
+  const profilesMap = new Map<string, { username: string; name: string; avatar: string }>();
   for (const profile of memberProfiles) {
-    const member: GroupMember = {
-      user_id: profile[ProfileFields.USER_ID] || "",
+    profilesMap.set(profile[ProfileFields.USER_ID], {
       username: profile[ProfileFields.USERNAME] || "",
       name: profile[ProfileFields.NAME] || "",
       avatar: profile[ProfileFields.AVATAR] || ""
-    };
-    memberProfilesMap.set(member.user_id, member);
+    });
   }
 
-  // Enrich updates with profile data from member profiles
-  const enrichedUpdates: EnrichedUpdate[] = updates.map(update => {
-    const profile = memberProfilesMap.get(update.created_by);
-    if (!profile) {
-      logger.warn(`Missing profile data for update ${update.update_id} created by ${update.created_by}`);
-    }
+  // No reactions fetched for now (empty map)
+  const reactionsMap = new Map<string, any[]>();
 
-    const enrichedUpdate: EnrichedUpdate = {
-      ...update,
-      username: profile?.username || "",
-      name: profile?.name || "",
-      avatar: profile?.avatar || ""
-    };
-    return enrichedUpdate;
-  });
+  // Use util to enrich updates
+  const enrichedUpdates = processEnrichedFeedItems(updateDocs, updateMap, reactionsMap, profilesMap);
+
+  logger.info("Query executed successfully");
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, enrichedUpdates.length, limit);

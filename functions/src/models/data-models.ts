@@ -55,6 +55,7 @@ export interface Update {
   comment_count: number;
   reaction_count: number;
   reactions: ReactionGroup[];
+  all_village: boolean;
 }
 
 export interface EnrichedUpdate extends Update {

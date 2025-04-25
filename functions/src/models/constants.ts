@@ -95,7 +95,8 @@ export const UpdateFields = {
   VISIBLE_TO: 'visible_to',
   ID: 'id',
   COMMENT_COUNT: 'comment_count',
-  REACTION_COUNT: 'reaction_count'
+  REACTION_COUNT: 'reaction_count',
+  ALL_VILLAGE: 'all_village'
 } as const;
 
 // Field names for Group documents

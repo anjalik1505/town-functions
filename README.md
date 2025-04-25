@@ -11,7 +11,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - PROFILE_CREATED: When a new profile is successfully created
-  
+
   **Event Body:**
   ```json
   {
@@ -71,7 +71,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - PROFILE_UPDATED: When a profile is successfully updated
-  
+
   **Event Body:**
   ```json
   {
@@ -131,7 +131,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - PROFILE_VIEWED: When a user views their own profile
-  
+
   **Event Body:**
   ```json
   {
@@ -178,7 +178,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - PROFILE_DELETED: When a profile is successfully deleted
-  
+
   **Event Body:**
   ```json
   {
@@ -209,7 +209,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - UPDATES_VIEWED: When a user views their own updates
-  
+
   **Event Body:**
   ```json
   {
@@ -254,7 +254,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - QUESTION_GENERATED: When a personalized question is generated for a user
-  
+
   **Event Body:**
   ```json
   {
@@ -280,7 +280,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - FEED_VIEWED: When a user views their feed
-  
+
   **Event Body:**
   ```json
   {
@@ -328,7 +328,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - FRIENDS_VIEWED: When a user views their friends list
-  
+
   **Event Body:**
   ```json
   {
@@ -369,7 +369,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - UPDATE_CREATED: When a new update is created
-  
+
   **Event Body:**
   ```json
   {
@@ -377,7 +377,8 @@ This repository contains the backend functions for the Village application.
     "sentiment": "string",
     "score": "string",
     "friend_count": 0,
-    "group_count": 0
+    "group_count": 0,
+    "all_village": false
   }
   ```
 
@@ -389,10 +390,11 @@ This repository contains the backend functions for the Village application.
   "score": "5",
   "emoji": "😊",
   "group_ids": ["group123"],
-  "friend_ids": ["friend123"]
+  "friend_ids": ["friend123"],
+  "all_village": false
 }
 ```
-*Note: group_ids and friend_ids are optional. score and emoji are optional with default values of "3" and "😐" respectively.*
+*Note: group_ids, friend_ids, and all_village are optional. score and emoji are optional with default values of "3" and "😐" respectively. If all_village is set to true, the update will be shared with all of the user's friends and groups, ignoring the friend_ids and group_ids parameters.*
 
 **Output**:
 ```json
@@ -405,7 +407,8 @@ This repository contains the backend functions for the Village application.
   "sentiment": "happy",
   "score": "5",
   "emoji": "😊",
-  "created_at": "2025-01-01T00:00:00.000+00:00"
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "all_village": false
 }
 ```
 
@@ -418,7 +421,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - SENTIMENT_ANALYZED: When sentiment analysis is performed on text
-  
+
   **Event Body:**
   ```json
   {
@@ -455,7 +458,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - COMMENTS_VIEWED: When comments for an update are viewed
-  
+
   **Event Body:**
   ```json
   {
@@ -503,7 +506,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - COMMENT_CREATED: When a new comment is created
-  
+
   **Event Body:**
   ```json
   {
@@ -547,7 +550,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - COMMENT_UPDATED: When a comment is updated
-  
+
   **Event Body:**
   ```json
   {
@@ -592,7 +595,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - COMMENT_DELETED: When a comment is deleted
-  
+
   **Event Body:**
   ```json
   {
@@ -621,7 +624,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - REACTION_CREATED: When a new reaction is created
-  
+
   **Event Body:**
   ```json
   {
@@ -660,7 +663,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - REACTION_DELETED: When a reaction is deleted
-  
+
   **Event Body:**
   ```json
   {
@@ -695,7 +698,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - INVITE_CREATED: When a new invitation is created
-  
+
   **Event Body:**
   ```json
   {
@@ -737,7 +740,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - INVITE_ACCEPTED: When an invitation is accepted
-  
+
   **Event Body:**
   ```json
   {
@@ -774,7 +777,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - INVITE_REJECTED: When an invitation is rejected
-  
+
   **Event Body:**
   ```json
   {
@@ -811,7 +814,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - INVITE_RESENT: When an invitation is resent
-  
+
   **Event Body:**
   ```json
   {
@@ -848,7 +851,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - INVITES_VIEWED: When a user views their invitations list
-  
+
   **Event Body:**
   ```json
   {
@@ -892,7 +895,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - INVITE_VIEWED: When a specific invitation is viewed
-  
+
   **Event Body:**
   ```json
   {
@@ -970,7 +973,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - FEEDBACK_CREATED: When new feedback is submitted
-  
+
   **Event Body:**
   ```json
   {
@@ -1007,7 +1010,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - FRIEND_PROFILE_VIEWED: When a friend's profile is viewed
-  
+
   **Event Body:**
   ```json
   {
@@ -1048,7 +1051,7 @@ This repository contains the backend functions for the Village application.
 
 **Analytics Events**:
 - FRIEND_UPDATES_VIEWED: When a friend's updates are viewed
-  
+
   **Event Body:**
   ```json
   {
@@ -1162,7 +1165,7 @@ This repository contains the backend functions for the Village application.
 - **Trigger**: When a new document is created in the `updates` collection.
 - **Analytics Events**:
   - `SUMMARY_CREATED`: When a summary is generated for the update.
-  
+
   **Event Body:**
   ```json
   {
@@ -1183,7 +1186,7 @@ This repository contains the backend functions for the Village application.
   }
   ```
   - `FRIEND_SUMMARY_CREATED`: When a summary is generated for a friend.
-  
+
   **Event Body:**
   ```json
   {
@@ -1196,7 +1199,7 @@ This repository contains the backend functions for the Village application.
 - **Trigger**: When a new document is created in the `updates` collection (notification logic).
 - **Analytics Events**:
   - `NOTIFICATION_SENT`: When notifications are sent for a new update.
-  
+
   **Event Body:**
   ```json
   {
@@ -1213,7 +1216,7 @@ This repository contains the backend functions for the Village application.
 - **Trigger**: Runs daily at 14:00 UTC.
 - **Analytics Events**:
   - `DAILY_NOTIFICATIONS_SENT`: When daily notifications are sent to all users.
-  
+
   **Event Body:**
   ```json
   {
@@ -1225,7 +1228,7 @@ This repository contains the backend functions for the Village application.
   }
   ```
   - `DAILY_NOTIFICATION_SENT`: When a daily notification is sent to a user.
-  
+
   **Event Body:**
   ```json
   {
@@ -1241,7 +1244,7 @@ This repository contains the backend functions for the Village application.
 - **Trigger**: When a document is deleted in the `profiles` collection.
 - **Analytics Events**:
   - `PROFILE_DELETED`: When a profile and all associated data are deleted.
-  
+
   **Event Body:**
   ```json
   {

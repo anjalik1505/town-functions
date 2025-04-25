@@ -6,7 +6,7 @@ import { NotificationFields } from "./constants";
 // Reusable schema for birthday validation
 const birthdaySchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Birthday must be in yyyy-mm-dd format")
-  .refine((val) => {
+  .refine((val: any) => {
     // Use date-fns to parse and validate the date
     const parsedDate = parse(val, 'yyyy-MM-dd', new Date());
     return isValid(parsedDate);
@@ -36,7 +36,7 @@ export const updateProfileSchema = z.object({
 
 // Pagination schemas
 export const paginationSchema = z.object({
-  limit: z.string().transform(val => parseInt(val, 10)).pipe(z.number().min(1).max(100)).default("20"),
+  limit: z.string().transform((val: string) => parseInt(val, 10)).pipe(z.number().min(1).max(100)).default("20"),
   after_cursor: z.string().regex(/^[A-Za-z0-9+/=]+$/).optional()
 });
 
@@ -49,12 +49,13 @@ export const createUpdateSchema = z.object({
   sentiment: z.string().min(1, "Sentiment is required"),
   score: z.number().min(1).max(5, "Score must be between 1 and 5"),
   emoji: z.string().min(1, "Sentiment emoji is required")
-    .refine((val) => {
+    .refine((val: any) => {
       const regex = emojiRegex();
       return regex.test(val);
     }, "Must be a valid emoji"),
   group_ids: z.array(z.string()).optional(),
-  friend_ids: z.array(z.string()).optional()
+  friend_ids: z.array(z.string()).optional(),
+  all_village: z.boolean().optional().default(false)
 });
 
 export const createChatMessageSchema = z.object({
