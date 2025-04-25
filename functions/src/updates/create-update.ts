@@ -2,10 +2,11 @@ import { Request } from "express";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { ApiResponse, EventName, UpdateEventParams } from "../models/analytics-events";
-import { Collections, FeedFields, UpdateFields } from "../models/constants";
+import { Collections, FriendshipFields, GroupFields, QueryOperators, Status, UpdateFields } from "../models/constants";
 import { Update } from "../models/data-models";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
+import { createFeedItem } from "../utils/update-utils";
 import {
   createFriendVisibilityIdentifier,
   createFriendVisibilityIdentifiers,
@@ -46,17 +47,64 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   const sentiment = validatedParams.sentiment || "";
   const score = validatedParams.score || "3";
   const emoji = validatedParams.emoji || "😐";
-  const groupIds = validatedParams.group_ids || [];
-  const friendIds = validatedParams.friend_ids || [];
+  const allVillage = validatedParams.all_village || false;
+  let groupIds = validatedParams.group_ids || [];
+  let friendIds = validatedParams.friend_ids || [];
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
     `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+    `all_village: ${allVillage}, ` +
     `shared with ${friendIds.length} friends and ${groupIds.length} groups`
   );
 
   // Initialize Firestore client
   const db = getFirestore();
+
+  // If allVillage is true, get all friends and groups of the user
+  if (allVillage) {
+    logger.info(`All village mode enabled, fetching all friends and groups for user: ${currentUserId}`);
+
+    // Get all accepted friendships
+    const friendshipsQuery = db
+      .collection(Collections.FRIENDSHIPS)
+      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
+      .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
+
+    const friendshipDocs = await friendshipsQuery.get();
+
+    // Extract friend IDs from friendships
+    friendIds = [];
+    friendshipDocs.forEach(doc => {
+      const friendshipData = doc.data();
+      const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
+      const friendId = isSender
+        ? friendshipData[FriendshipFields.RECEIVER_ID]
+        : friendshipData[FriendshipFields.SENDER_ID];
+      friendIds.push(friendId);
+    });
+
+    // Deduplicate friendIds after extraction
+    friendIds = Array.from(new Set(friendIds));
+
+    // Get all groups where user is a member
+    const groupsQuery = db
+      .collection(Collections.GROUPS)
+      .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
+
+    const groupDocs = await groupsQuery.get();
+
+    // Extract group IDs
+    groupIds = [];
+    groupDocs.forEach(doc => {
+      groupIds.push(doc.id);
+    });
+
+    // Deduplicate groupIds after extraction
+    groupIds = Array.from(new Set(groupIds));
+
+    logger.info(`All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`);
+  }
 
   // Generate a unique ID for the update
   const updateId = uuidv4();
@@ -87,6 +135,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     [UpdateFields.GROUP_IDS]: groupIds,
     [UpdateFields.FRIEND_IDS]: friendIds,
     [UpdateFields.VISIBLE_TO]: visibleTo,
+    [UpdateFields.ALL_VILLAGE]: allVillage,
     comment_count: 0,
     reaction_count: 0
   };
@@ -131,28 +180,24 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
 
   // 3. Create feed items for each user
   Array.from(usersToNotify).forEach((userId) => {
-    const feedItemRef = db
-      .collection(Collections.USER_FEEDS)
-      .doc(userId)
-      .collection(Collections.FEED)
-      .doc(updateId);
-
     // Determine how this user can see the update
     const isDirectFriend = userId === currentUserId || friendIds.includes(userId);
     const userGroups = groupIds.filter((groupId: string) =>
       groupMembersMap.get(groupId)?.has(userId)
     );
 
-    const feedItemData = {
-      [FeedFields.UPDATE_ID]: updateId,
-      [FeedFields.CREATED_AT]: createdAt,
-      [FeedFields.DIRECT_VISIBLE]: isDirectFriend,
-      [FeedFields.FRIEND_ID]: isDirectFriend ? currentUserId : null,
-      [FeedFields.GROUP_IDS]: userGroups,
-      [FeedFields.CREATED_BY]: currentUserId
-    };
-
-    batch.set(feedItemRef, feedItemData);
+    // Use the utility function to create the feed item
+    createFeedItem(
+      db,
+      batch,
+      userId,
+      updateId,
+      createdAt,
+      isDirectFriend,
+      isDirectFriend ? currentUserId : null,
+      userGroups,
+      currentUserId
+    );
   });
 
   // Commit the batch
@@ -173,7 +218,8 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     friend_ids: friendIds,
     comment_count: 0,
     reaction_count: 0,
-    reactions: []
+    reactions: [],
+    all_village: allVillage
   };
 
   const event: UpdateEventParams = {
@@ -181,7 +227,8 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     sentiment: sentiment,
     score: score,
     friend_count: friendIds.length,
-    group_count: groupIds.length
+    group_count: groupIds.length,
+    all_village: allVillage
   };
   return {
     data: response,

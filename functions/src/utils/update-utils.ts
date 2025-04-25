@@ -1,4 +1,4 @@
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch } from "firebase-admin/firestore";
 import { Collections, FeedFields, UpdateFields } from "../models/constants";
 import { EnrichedUpdate, Update } from "../models/data-models";
 import { ForbiddenError, NotFoundError } from "./errors";
@@ -34,7 +34,8 @@ export const formatUpdate = (
     created_at: formatTimestamp(updateData[UpdateFields.CREATED_AT]),
     comment_count: updateData.comment_count || 0,
     reaction_count: updateData.reaction_count || 0,
-    reactions: reactions
+    reactions: reactions,
+    all_village: updateData[UpdateFields.ALL_VILLAGE] || false
   };
 };
 
@@ -198,4 +199,46 @@ export const hasUpdateAccess = (
   if (!visibleTo.includes(friendVisibility)) {
     throw new ForbiddenError("You don't have access to this update");
   }
+};
+
+/**
+ * Create a feed item for a user
+ *
+ * @param db - Firestore client
+ * @param batch - Firestore write batch
+ * @param userId - The ID of the user who will see the feed item
+ * @param updateId - The ID of the update
+ * @param createdAt - The timestamp when the update was created
+ * @param isDirectFriend - Whether the user is directly connected to the creator
+ * @param friendId - The ID of the friend who created the update (or null if not a direct friend)
+ * @param groupIds - Array of group IDs through which the user can see the update
+ * @param createdBy - The ID of the user who created the update
+ */
+export const createFeedItem = (
+  db: FirebaseFirestore.Firestore,
+  batch: WriteBatch,
+  userId: string,
+  updateId: string,
+  createdAt: Timestamp,
+  isDirectFriend: boolean,
+  friendId: string | null,
+  groupIds: string[],
+  createdBy: string
+): void => {
+  const feedItemRef = db.collection(Collections.USER_FEEDS)
+    .doc(userId)
+    .collection(Collections.FEED)
+    .doc(updateId);
+
+  const feedItemData = {
+    [FeedFields.UPDATE_ID]: updateId,
+    [FeedFields.CREATED_AT]: createdAt,
+    [FeedFields.DIRECT_VISIBLE]: isDirectFriend,
+    [FeedFields.FRIEND_ID]: friendId,
+    [FeedFields.GROUP_IDS]: groupIds,
+    [FeedFields.CREATED_BY]: createdBy
+  };
+
+  batch.set(feedItemRef, feedItemData);
+  logger.debug(`Added feed item for user ${userId} to batch`);
 };
