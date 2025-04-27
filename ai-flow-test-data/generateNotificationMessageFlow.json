@@ -1,0 +1,12 @@
+{
+  "flow": "generateNotificationMessageFlow",
+  "params": {
+    "updateContent": "Your friend posted an update.",
+    "sentiment": "happy",
+    "score": "0.85",
+    "friendName": "Morgan",
+    "friendGender": "non-binary",
+    "friendLocation": "Sydney",
+    "friendAge": "27"
+  }
+}
