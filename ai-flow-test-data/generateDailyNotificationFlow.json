@@ -1,0 +1,15 @@
+{
+  "flow": "generateDailyNotificationFlow",
+  "params": {
+    "name": "Jamie",
+    "existingSummary": "Daily summary.",
+    "existingSuggestions": "Try to relax more.",
+    "existingEmotionalOverview": "Stressed.",
+    "existingKeyMoments": "Had a long meeting.",
+    "existingRecurringThemes": "Work, stress.",
+    "existingProgressAndGrowth": "Learning to manage time.",
+    "gender": "female",
+    "location": "Toronto",
+    "age": "32"
+  }
+}

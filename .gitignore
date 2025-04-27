@@ -63,7 +63,7 @@ node_modules/
 .yarn-integrity
 
 # dotenv environment variables file
-
+.env
 
 # Created by https://www.toptal.com/developers/gitignore/api/django
 # Edit at https://www.toptal.com/developers/gitignore?templates=django
@@ -198,7 +198,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+**/.env
 .venv
 env/
 venv/
