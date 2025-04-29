@@ -19,6 +19,9 @@ output:
     summary: string
     suggestions: string
 ---
+### TASK:
+Generate Summary and Suggestions for a friend's profile on Village.
+
 ### CONTEXT:
 - <SUMMARY>: {{existingSummary}}
 - <SUGGESTIONS>: {{existingSuggestions}}
@@ -30,48 +33,38 @@ output:
 - <USER_GENDER>: {{userGender}}
 - <USER_LOCATION>: {{userLocation}}
 - <USER_AGE>: {{userAge}}
-
-### NEW UPDATE:
 - <UPDATE>: {{updateContent}}
 - <SENTIMENT>: {{sentiment}}
 
-Context: You are generating content a user sees on their friend's profiles on the private social networking app "Village." Users share daily updates via voice or text, responding to questions like "How are you feeling?" These updates are gathered historically and used to generate insights on their profiles for other users to see. Remember, you are generating content that <FRIEND_NAME> will see on <USER_NAME>'s profile.
+You are generating content that {{friendName}} will see on {{userName}}'s profile. You have access to {{userGender}} and {{friendGender}}.
 
-Generate Summary and Suggestions for 2 scenarios 
+### INSTRUCTIONS:
 
-Scenario 1: First <UPDATE>. No prior updates shared. <UPDATE> field has content that fits these Special Conditions: 
+**Summary:**
+- Objective: Based on the history of updates shared by {{userName}}, provide a summary for {{friendName}} to understand what's been happening in {{userName}}'s life. Encourage more sharing if updates are limited.
+- Content:
+    - If the total number of updates shared by {{userName}} is three or less, OR the latest update ({{updateContent}}) is less than 15 words: Start with "Lately {{userName}}" and use the present perfect tense in the third person (using pronouns based on {{userGender}}) to reflect the latest update ({{updateContent}}). On a new line, add: "Ask {{userName}} to spill more so that you can get the inside scoop into their life."
+    - Otherwise (more substantial updates): Based on the entire history of updates shared by {{userName}}, provide a holistic and authentic picture of their life. Use emojis where applicable. Highlight daily details, emotional highlights, mood shifts, and patterns. Include key aspects like activities, feelings, and interactions. Imitate their personality and tone of voice. Incorporate {{userLocation}} if significant. Focus on a balanced view across history. Start with "Lately {{userName}} has been" and use the present perfect tense consistently.
+- Point of view: 3rd person. Use appropriate pronouns based on {{userGender}}.
+- Tone of voice: Adjust based on the overall sentiment of {{userName}}'s updates (friendly/encouraging for limited, adapting to {{sentiment}} for substantial).
+- Limitation: Maximum 60 words for limited updates summary, 500 characters (including spaces) for substantial updates summary.
+- Format: Short paragraph.
 
-Special Conditions: 
-- If <UPDATE> field has a short status update (eg: "feeling good") then, use prompt 4
-- If <UPDATE> field has less than 10 words then use prompt 4
-- If <UPDATE> field has a greeting such as (eg: "hello village") then use prompt 4
 
-Prompt 4 
-
-Summary: Start the summary with "Lately <USER_NAME>" and use present perfect tense. Use 3rd person point of view. Use <USER__GENDER> to adjust pronoun. Use exactly the input in <UPDATE> field, adapted to present perfect tense in a grammatically correct way.  Go to next line. ALWAYS Add this exact statement: "Ask <USER__NAME> to spill more so that you can get the inside scoop into their life".  Use <USER__GENDER> to adjust pronoun. 
-Suggestions: ALWAYS Use this exact statement: "Nudge <USER__NAME> to share more updates. More updates = better hangout suggestions online & offline!
-
-Scenario 2
-
-All other conditions EXCEPT Special Conditions. Use Prompt 5
-Every new <UPDATE> triggers Prompt 5
-
-Prompt 5 
-
-Summary 
-- Objective: Based on the entire history of <UPDATE> shared by <USER_NAME>, provide a holistic and authentic picture of their life. Use emojis where applicable to strengthen the narrative. Highlight daily details such as highs and lows, emotional highlights, and broader mood, shifts in mood, and patterns observed across all their updates. Highlight the key aspects of their life, including main activities, feelings, and interactions as reflected in their history. Imitate their personality and tone of voice, for example, if they use self-deprecating humor, reflect that in the summary. Incorporate the <USER__LOCATION> of the user only if it has a significant place in the overall events across their history. Do NOT put the emphasis on the most recent update; instead, provide a balanced view based on their entire history. Start the summary with "Lately  <USER__NAME> has been" and maintain a consistent use of the present perfect tense throughout. Use <USER__GENDER> to adjust pronouns. Do NOT include this statement if the summary is more than 40 words "Ask them to spill more so that you can get the inside scoop into their life" 
-- Include: key moments, recurring patterns, catch the characteristics of the person who wrote these updates and stick to it as much as possible. Include specific examples, jokes, unique phrases or incidents they've shared
-- Point of view: Use 3rd person point of view consistently. Use <USER__GENDER> to adjust pronouns.
-- Tone of voice: adjust the tone of voice and sentiment based on the user sentiment you detect in the <UPDATE> field If the sentiment is positive, use an upbeat and encouraging tone. If it's negative, use a supportive and empathetic tone
-- Limitation: 500 characters including spaces 
-- Format: Short paragraph up to 500 characters including spaces 
-
-Suggestions 
-- Objective: Generate 3 suggestions to increase the quality of the relationship <FRIEND_NAME> and <USER_NAME>, strengthen their bond and deepen their connection, to initiate contact and encourage positive interactions between them. These suggestions should be based on 1) the entire history of <SUMMARY> field including the new <UPDATE>, 2) the entire history of <SUMMARY> and <SUGGESTIONS>, 3) <FRIEND_LOCATION> of <FRIEND_NAME>, 4) <FRIEND_GENDER> of <FRIEND_NAME>, 5) <FRIEND_AGE> of <FRIEND_NAME>, 6) <USER_LOCATION> of <USER_NAME>, 7) <USER_GENDER> of <USER_NAME>, 8) <USER_AGE> of <USER_NAME>. Make suggestions relevant to the key moments, emotional journey, difficulties and celebrations mentioned by both. Take all updates into consideration shared across history. Make suggestions feel relevant, natural and encouraging. Be specific in your suggestions, for example, do not say ""gift a book"", tell the name of the book. If <FRIEND_NAME> and <USER_NAME> share a location, prioritize suggestions involving that location. You can choose from options, events, classes etc. that are available in their shared <FRIEND_LOCATION> and <USER_LOCATION>. If they have different locations, consider online interactions. If any of their locations is unknown, then focus on online interactions or general suggestions. Take both of their <FRIEND_AGE> and <USER_AGE> into account and provide age-appropriate suggestions. If any of their age is unknown, then make age agnostic suggestions. Take both of their <FRIEND_GENDER> and <USER_GENDER> into account and provide gender-appropriate suggestions. If any of their gender is unknown, then make gender agnostic suggestions Incorporate the location, gender and age to the suggestions only if it is contextually relevant. Do not put the emphasis on the new update, take all previous updates into account and provide a balanced view. 
-
-- Include: online and offline human interactions, sustainable options and magical, healing experiences, real human interactions, stronger connection with nature
-- Exclude: consumerism, unnecessary shopping, unsustainable brands, non-ethical products and experiences
-- Point of view: Use 3rd person point of view  
-- Tone of voice: use a warm, friendly tone and an emoji
-- Limitation: Keep each suggestion under 20 words 
-- Format:  Exactly 3 bullet points, 1 suggestions and 1 emoji per bullet point. Each bullet point in a new line. Generate the suggestions with call to actions phrases.
+**Suggestions:**
+- Objective: Generate up to 3 suggestions for {{friendName}} to interact with {{userName}}, strengthen their bond, and encourage positive interactions, based on a combination of {{userName}}'s **latest update**, their **historical updates (as reflected in the summary)**, and **existing suggestions**, while considering relevant personal data.
+- Content:
+    - If the total number of updates shared by {{userName}} is three or less, OR the latest update ({{updateContent}}) is less than 15 words: "Nudge {{userName}} to share more updates. More updates = better hangout suggestions online & offline!"
+    - Otherwise (more substantial updates): Generate up to 3 suggestions that are inspired by:
+        1. **Themes and topics mentioned in the latest update** ({{updateContent}}).
+        2. **Overall context and patterns evident in the historical updates** (as summarized).
+        3. **Existing suggestions** ({{existingSuggestions}}), aiming to complement or build upon them if relevant, but also offering fresh ideas.
+        4. {{friendLocation}}, {{friendGender}}, {{friendAge}}.
+        5. {{userLocation}}, {{userGender}}, {{userAge}}.
+    Focus on key moments, emotional journeys, difficulties, and celebrations. Prioritize shared locations for offline suggestions; otherwise, suggest online interactions. Consider age and gender appropriateness. Start each suggestion with a relevant emoji, followed by a title (up to 4 words), and then a description (under 20 words), avoiding obvious suggestions.
+- Include: Online and offline human interactions that resonate with the latest update's themes, sustainable/healing experiences, real connections with nature.
+- Exclude: Consumerism, unsustainable/unethical options.
+- Point of view: 3rd person (suggesting actions for {{friendName}} regarding {{userName}}).
+- Tone of voice: Warm, friendly, encouraging.
+- Limitation: Keep each substantial suggestion title under 4 words and the description under 20 words (up to 3 suggestions).  Maximum 30 words for limited updates suggestion
+- Format: Bullet points (up to 3). Each bullet point starts with a relevant emoji, followed by a title (up to 4 words), and then a description under 15 words (up to 3 suggestions).

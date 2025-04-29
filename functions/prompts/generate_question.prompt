@@ -16,55 +16,55 @@ output:
     question: string
 ---
 ### TASK:
-Generate engaging, low-friction check-in questions suitable for voice interaction within the Village app. These questions aim to encourage users to share meaningful details about their current state and daily life in an open-ended way, without explicitly using the terms "mood" or "life events." The goal is to make the user feel comfortable sharing.
+Generate engaging, low-friction check-in questions suitable for voice interaction within the Village app. These questions aim to encourage users to share meaningful details about their current state and daily life in an open-ended way, without explicitly using the terms ""mood"" or ""life events."" The goal is to make the user feel comfortable sharing.
 
-### IMPORTANT GUIDELINE:
-**Base the generated question strictly on the logic provided in the instructions below and the information available under the `<SUMMARY>`, `<SUGGESTIONS>`, `<EMOTIONAL_OVERVIEW>`, `<KEY_MOMENTS>`, `<RECURRING_THEMES>`, and `<PROGRESS_AND_GROWTH>` sections. Do NOT invent details or ask questions unrelated to the provided context or defined scenarios.**
-
-### EXISTING PROFILE CONTEXT:
-- <SUMMARY>: {{existingSummary}}
-- <SUGGESTIONS>: {{existingSuggestions}}
-- <EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
-- <KEY_MOMENTS>: {{existingKeyMoments}}
-- <RECURRING_THEMES>: {{existingRecurringThemes}}
-- <PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
-
-### USER DEMOGRAPHICS:
-- <GENDER>: {{gender}}
-- <LOCATION>: {{location}}
-- <AGE>: {{age}}
+### USER PROFILE DATA:
+<SUMMARY>: {{existingSummary}}
+<SUGGESTIONS>: {{existingSuggestions}}
+<EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
+<KEY_MOMENTS>: {{existingKeyMoments}}
+<RECURRING_THEMES>: {{existingRecurringThemes}}
+<PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
+<GENDER>: {{gender}}
+<AGE>: {{age}}
+<LOCATION>: {{location}}
 
 ### INSTRUCTIONS FOR GENERATING CHECK-IN QUESTIONS:
 
-**First Interaction:**
-- When a user is new and has no prior updates (i.e., the text following `<SUMMARY>:` is empty or indicates an initial placeholder state), ask this exact initial question: "How are you truly feeling as you go through your day? What's on your mind that you'd like to share freely with your Village?"
+First Interaction:
+When a user is new and has no prior updates (i.e., <SUMMARY> is empty), ask this exact initial question: ""How are you truly feeling as you go through your day?""
 
-**Subsequent Interactions:**
-- For all subsequent check-ins (when the text following `<SUMMARY>:` is NOT empty or a placeholder), generate a new question that considers the following user data to tailor the topic and phrasing: `<SUMMARY>`, `<SUGGESTIONS>`, `<EMOTIONAL_OVERVIEW>`, `<KEY_MOMENTS>`, `<RECURRING_THEMES>`, and `<PROGRESS_AND_GROWTH>`.
+Subsequent Interactions:
+For all subsequent check-ins (when <SUMMARY> is NOT empty), generate a new question that considers the following user data to tailor the topic and phrasing: <SUMMARY>, <SUGGESTIONS>, <EMOTIONAL_OVERVIEW>, <KEY_MOMENTS>, <RECURRING_THEMES>, <PROGRESS_AND_GROWTH>, <GENDER>, <AGE>, and <LOCATION>.
 
-- **When generating these subsequent questions:**
-    - **Build on the Past & Value Alignment:** Analyze the user's profile data. If the content or sentiment aligns with one of the following values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity), incorporate a question related to that value. *For example, if a user shared about helping a neighbor, a question related to "Empathy & Compassion" could be generated.*
-    - **Contextual Depth:** Generate two consecutive questions ONLY if the user's recent `<SUMMARY>` indicates a strong emotional emphasis or a desire for deeper sharing. *For example, if a previous update mentioned feeling overwhelmed, a follow-up could be: "How are things progressing now?" and "Is there anything specific that's still on your mind?".*
-    - **Single Question Otherwise:** In all other cases, generate just one question.
-    - **Engaging and Natural:** Ensure the questions are interesting and subtly introspective, prompting reflection in a natural, conversational way. Avoid sounding like a formal interrogation.
-    - **Variety is Key:** Generate a diverse range of questions and avoid repeating the exact same question more than once per week. Aim for a wide array of topics.
-    - **Neutral Phrasing:** Ensure the questions do not contain any direct address to the user (like names or familiarities such as "friend," "dear," "pal," etc.) and do not reference the specific information provided in `<GENDER>`, `<LOCATION>`, or `<AGE>`.
+When generating these subsequent questions:
 
-- **Constraints:**
-    - **Open-ended:** The questions must encourage detailed responses.
-    - **Indirect Probing:** Elicit information about state and daily events without using those specific terms.
-    - **Value Integration:** Incorporate relevant values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity) into questions when aligned with user updates.
-    - **Variety:** Generate a diverse range of questions, avoiding frequent repetition, especially of "What brings a smile to your face?".
-    - **No Direct Address:** Do not include any terms or phrasing that directly addresses the user.
-    - **Voice-Oriented:** The questions should sound natural and conversational for voice interaction.
-    - **Brevity:** ALWAYS keep each question under 15 words.
+Prioritize Following Up on Significant Events: Analyze the user's recent <SUMMARY> and <KEY_MOMENTS>. Consider updates about major life changes, health issues, important family/friend situations, or relationship milestones as significant events. If detected, generate a follow-up question about that event. Try to subtly weave in a relevant value (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity) into the follow-up, making it feel relevant to the user's `<GENDER>`, `<AGE>`, and `<LOCATION>` where appropriate. For instance, if a user mentioned a work challenge, a follow-up incorporating 'Inner Compass' could be: 'What's been your guiding principle in navigating this at work?'
 
-**Example Value-Based Questions:**
-- *Presence:* What's one moment today where a sense of presence stood out?
-- *Appreciation:* What's something or someone deserving of acknowledgment right now?
-- *Relating:* What's a recent experience of meaningful connection?
-- *Humility:* What's a recent moment of learning or shifted perspective?
-- *Nature:* What has been observed or enjoyed in the surroundings lately?
-- *Empathy & Compassion:* What's a way someone else's experience resonated today?
-- *Inner Compass:* What has been a guiding thought or principle recently?
-- *Integrity & Authenticity:* How has alignment with personal values felt recently?
+Value-Aligned Life Check-in (If No Significant Event): If the recent updates do not highlight a significant event, generate a general life check-in question that incorporates one of the values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity). Use the examples below as inspiration for tone and theme, but generate new, varied questions, making them subtly relevant to the user's `<GENDER>`, `<AGE>`, and `<LOCATION>` if a natural connection exists. For example, a question about "Nature" for a user in London could subtly reference local parks or weather.
+
+Contextual Depth: Generate two consecutive questions only if the user's recent <SUMMARY> indicates a strong emotional emphasis or a desire for deeper sharing. The first question can address the emotion directly (without using the word "mood"), and the second can be a value-aligned follow-up or a further exploration of the situation, considering their `<GENDER>`, `<AGE>`, and `<LOCATION>` for nuanced phrasing.
+Single Question Otherwise: In all other cases, generate just one question.
+Engaging and Natural: Ensure the questions are interesting and subtly introspective, prompting reflection in a natural, conversational way. Avoid sounding like a formal interrogation.
+Variety is Key: Generate a diverse range of questions and avoid repeating the exact same question more than once per week. Aim for a wide array of topics.
+Neutral Phrasing: Ensure the questions do not contain any direct address to the user, such as names, gendered terms, age-related terms, or familiarities like ""friend,"" ""dear,"" ""pal,"" etc.
+Constraints:
+
+Open-ended: The questions must encourage detailed responses.
+Indirect Probing: Elicit information about state and daily events without using those specific terms.
+Value Integration: Incorporate relevant values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity) into questions where applicable, either as the primary focus or woven into a follow-up about a life event, with subtle consideration for `<GENDER>`, `<AGE>`, and `<LOCATION>`.
+Variety: Generate a diverse range of questions, avoiding frequent repetition, especially of ""What brings a smile to your face?"".
+No Direct Address: Do not include any terms or phrasing that directly addresses the user.
+Voice-Oriented: The questions should sound natural and conversational for voice interaction.
+Brevity: ALWAYS keep each question under 15 words.
+
+Example Value-Based Life Check-in Questions (Illustrative - Generate New Ones):
+
+Presence: What's a small detail that held your focus today?
+Appreciation: What's a little moment of comfort you're carrying with you?
+Relating: Has a connection with someone felt particularly meaningful today?
+Humility: What's a subtle learning that's shifted how you see something?
+Nature: Was there a glimpse of the natural world that caught your eye today?
+Empathy & Compassion: What's a small way you connected with someone else's experience?
+Inner Compass: What's a quiet feeling that's been guiding you today?
+Integrity & Authenticity: What's a small action that felt very true to yourself today?

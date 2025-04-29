@@ -23,77 +23,57 @@ output:
     progress_and_growth: string
 ---
 ### TASK:
-Update the user's Village profile sections based on their latest update. Integrate the information from the `<LATEST_UPDATE>` section and its `<SENTIMENT>` into the existing profile content provided below.
+Generate engaging, low-friction check-in questions suitable for voice interaction within the Village app. These questions aim to encourage users to share meaningful details about their current state and daily life in an open-ended way, without explicitly using the terms ""mood"" or ""life events."" The goal is to make the user feel comfortable sharing.
 
-### **IMPORTANT GUIDELINE:**
-**Base all outputs strictly on the information explicitly provided under `<LATEST_UPDATE>`, `<SENTIMENT>`, and the existing content found under the `<SUMMARY>`, `<SUGGESTIONS>`, `<EMOTIONAL_OVERVIEW>`, `<KEY_MOMENTS>`, `<RECURRING_THEMES>`, and `<PROGRESS_AND_GROWTH>` sections. Do NOT invent details, make assumptions, or extrapolate beyond the given text. If the provided information is insufficient to generate a meaningful update for a section according to its rules, provide a minimal, factual update or leave that section unchanged where appropriate.**
+### USER PROFILE DATA:
+<SUMMARY>: {{existingSummary}}
+<SUGGESTIONS>: {{existingSuggestions}}
+<EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
+<KEY_MOMENTS>: {{existingKeyMoments}}
+<RECURRING_THEMES>: {{existingRecurringThemes}}
+<PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
+<GENDER>: {{gender}}
+<AGE>: {{age}}
+<LOCATION>: {{location}}
 
-### EXISTING PROFILE CONTENT:
-- <SUMMARY>: {{existingSummary}}
-- <SUGGESTIONS>: {{existingSuggestions}}
-- <EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
-- <KEY_MOMENTS>: {{existingKeyMoments}}
-- <RECURRING_THEMES>: {{existingRecurringThemes}}
-- <PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
+### INSTRUCTIONS FOR GENERATING CHECK-IN QUESTIONS:
 
-### USER DEMOGRAPHICS:
-- <GENDER>: {{gender}}
-- <LOCATION>: {{location}}
-- <AGE>: {{age}}
+First Interaction:
+When a user is new and has no prior updates (i.e., <SUMMARY> is empty), ask this exact initial question: ""How are you truly feeling as you go through your day? What's on your mind that you'd like to share freely with your Village?""
 
-### LATEST UPDATE INFORMATION:
-- <LATEST_UPDATE>: {{updateContent}}
-- <SENTIMENT>: {{sentiment}}
+Subsequent Interactions:
+For all subsequent check-ins (when <SUMMARY> is NOT empty), generate a new question that considers the following user data to tailor the topic and phrasing: <SUMMARY>, <SUGGESTIONS>, <EMOTIONAL_OVERVIEW>, <KEY_MOMENTS>, <RECURRING_THEMES>, <PROGRESS_AND_GROWTH>, <GENDER>, <AGE>, and <LOCATION>.
 
-### INSTRUCTIONS FOR UPDATING PROFILE SECTIONS:
+When generating these subsequent questions:
 
-**Summary:**
-- Objective: Update the text following `<SUMMARY>:` to incorporate key information and feelings explicitly mentioned in `<LATEST_UPDATE>:`. Ensure the result is consistent with the previous summary. Use emojis where appropriate.
-- Content: Blend specific details from `<LATEST_UPDATE>` into the `<SUMMARY>` content. Start with phrasing like "Recently, you've..." or similar, integrating the new information smoothly. Maintain the present perfect tense where appropriate. Use the `<SENTIMENT>` value to guide the tone. Incorporate `<LOCATION>` only if central to the `<LATEST_UPDATE>`. **Avoid creating a narrative that goes beyond the provided facts.**
-- Point of view: Use 2nd person point of view.
-- Tone of voice: Adapt based on the `<SENTIMENT>` value. Aim for consistency with the existing `<SUMMARY>` unless the new `<SENTIMENT>` indicates a significant shift.
-- Limitation: Maximum 500 characters including spaces.
-- Format: Short paragraph.
+Prioritize Following Up on Significant Events: Analyze the user's recent <SUMMARY> and <KEY_MOMENTS>. Consider updates about major life changes, health issues, important family/friend situations, or relationship milestones as significant events. If detected, generate a follow-up question about that event. Try to subtly weave in a relevant value (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity) into the follow-up, making it feel relevant to the user's `<GENDER>`, `<AGE>`, and `<LOCATION>` where appropriate. For instance, if a user mentioned a work challenge, a follow-up incorporating 'Inner Compass' could be: 'What's been your guiding principle in navigating this at work?'
 
-**Suggestions:**
-- Objective: Generate relevant, actionable suggestions primarily inspired by the `<LATEST_UPDATE>` content, `<SENTIMENT>`, or user demographics, considering the `<SUMMARY>` context.
-- Content: Suggestions should be specific and **directly relevant** to the provided information. Consider `<GENDER>`, `<AGE>`, and `<LOCATION>` for relevance. Focus on positive actions, connection, well-being. Ensure suggestions are distinct from `<SUGGESTIONS>` unless the new update strongly reinforces one. **If fewer than 3 relevant suggestions can be derived, provide only those that are.**
-- Include: Ideas for reflection, connection, nature, self-care, relevant local activities.
-- Exclude: Promoting consumerism, unsustainable/unethical products/experiences.
-- Point of view: Use 2nd person point of view.
-- Tone of voice: Warm, friendly, encouraging. Use an emoji per suggestion.
-- Limitation: Keep each suggestion under 20 words.
-- Format: **Up to 3** bullet points. 1 suggestion per bullet point. Each on a new line.
+Value-Aligned Life Check-in (If No Significant Event): If the recent updates do not highlight a significant event, generate a general life check-in question that incorporates one of the values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity). Use the examples below as inspiration for tone and theme, but generate new, varied questions, making them subtly relevant to the user's `<GENDER>`, `<AGE>`, and `<LOCATION>` if a natural connection exists.
 
-**Insights - Emotional Overview:**
-- Objective: Update `<EMOTIONAL_OVERVIEW>:` to reflect the emotional tone **clearly present** in `<LATEST_UPDATE>` and `<SENTIMENT>`.
-- Content: Analyze the `<SENTIMENT>`. Adjust existing points or add/replace one *only if* the `<LATEST_UPDATE>` provides clear emotional information. If the update is neutral or lacks emotional content, reflect that minimally or make no changes. The goal is a concise overview grounded in the latest update.
-- Include: **Up to 3 relevant** emojis reflecting prominent sentiments *clearly indicated* by the new update.
-- Point of view: Use 2nd person point of view.
-- Tone of voice: Warm, supportive, objective.
-- Limitation: Up to 100 words total.
-- Format: **Up to 3** bullet points. Each bullet point: 1 emoji and up to 30 words explanation. Each on a new line.
+    **Gender-Specific Tone Adjustment:** If `<GENDER>` is "male", aim for more direct and action-oriented phrasing in questions related to values like Appreciation. For example, instead of "What's a little moment of appreciation you're carrying with you today?", consider "What's one thing you valued happening today?" or "What's a positive takeaway from your day so far?". Apply similar adjustments for other value-based questions where a more direct tone might resonate.
 
-**Insights - Key Moments:**
-- Objective: Update `<KEY_MOMENTS>:` **only if** `<LATEST_UPDATE>` **clearly describes** a significant highlight (a notable high, low, or unique occurrence).
-- Content: **If** the update clearly describes such a moment, add it or consider replacing the oldest/least impactful existing moment. Briefly describe the moment based *only* on `<LATEST_UPDATE>`. **If the update is mundane or lacks significance, make no changes to `<KEY_MOMENTS>`.**
-- Point of view: Use 2nd person point of view.
-- Tone of voice: Warm, supportive, objective.
-- Limitation: Up to 200 words total. Use emojis where applicable.
-- Format: Up to 3 bullet points. Each bullet point: 1 key moment with up to 70 words explanation. Each on a new line.
+Contextual Depth: Generate two consecutive questions only if the user's recent <SUMMARY> indicates a strong emotional emphasis or a desire for deeper sharing. The first question can address the emotion directly (without using the word "mood"), and the second can be a value-aligned follow-up or a further exploration of the situation, considering their `<GENDER>`, `<AGE>`, and `<LOCATION>` for nuanced phrasing.
+Single Question Otherwise: In all other cases, generate just one question.
+Engaging and Natural: Ensure the questions are interesting and subtly introspective, prompting reflection in a natural, conversational way. Avoid sounding like a formal interrogation.
+Variety is Key: Generate a diverse range of questions and avoid repeating the exact same question more than once per week. Aim for a wide array of topics.
+Neutral Phrasing: Ensure the questions do not contain any direct address to the user, such as names, gendered terms, age-related terms, or familiarities like ""friend,"" ""dear,"" ""pal,"" etc.
+Constraints:
 
-**Insights - Recurring Themes:**
-- Objective: Update `<RECURRING_THEMES>:` **only if** `<LATEST_UPDATE>` **clearly reinforces** an existing theme or **strongly suggests** a *distinct* and significant new one based on *concrete details*.
-- Content: Identify main topic(s) in `<LATEST_UPDATE>`. Check if they strongly match/reinforce existing themes. Consider adding a new theme only if clearly distinct, significant, and space allows (max 3). **Avoid identifying themes based on vague mentions or forcing connections.** Focus on clear reinforcement.
-- Point of view: Use 2nd person point of view.
-- Tone of voice: Warm, supportive, objective.
-- Limitation: Up to 200 words total. Use emojis where applicable.
-- Format: Up to 3 bullet points. Each bullet point: 1 recurring theme with up to 70 words explanation. Each on a new line.
+Open-ended: The questions must encourage detailed responses.
+Indirect Probing: Elicit information about state and daily events without using those specific terms.
+Value Integration: Incorporate relevant values (Presence, Appreciation, Relating, Humility, Nature, Empathy & Compassion, Inner Compass, Integrity & Authenticity) into questions where applicable, either as the primary focus or woven into a follow-up about a life event, with subtle consideration for `<GENDER>`, `<AGE>`, and `<LOCATION>`, and adjusting tone based on gender.
+Variety: Generate a diverse range of questions, avoiding frequent repetition, especially of ""What brings a smile to your face?"".
+No Direct Address: Do not include any terms or phrasing that directly addresses the user.
+Voice-Oriented: The questions should sound natural and conversational for voice interaction.
+Brevity: ALWAYS keep each question under 15 words.
 
-**Insights - Progress and Growth:**
-- Objective: Update `<PROGRESS_AND_GROWTH>:` **only if** `<LATEST_UPDATE>` provides **clear, concrete evidence** of progress, learning, setbacks, or reflections directly related to existing themes or goals.
-- Content: Evaluate `<LATEST_UPDATE>` for such evidence. Update relevant points to incorporate this new perspective *only if the evidence is clear*. **Do not infer progress or growth from minimal or ambiguous information.**
-- Point of view: Use 2nd person point of view.
-- Tone of voice: Warm, supportive, objective.
-- Limitation: Up to 200 words total. Use emojis where applicable.
-- Format: Up to 3 bullet points. Each bullet point: 1 progress/growth insight with up to 70 words explanation. Each on a new line.
+Example Value-Based Life Check-in Questions (Illustrative - Generate New Ones):
+
+Presence: What's a small detail that held your focus today?
+Appreciation: What's a little moment of comfort you're carrying with you?
+Relating: Has a connection with someone felt particularly meaningful today?
+Humility: What's a subtle learning that's shifted how you see something?
+Nature: Was there a glimpse of the natural world that caught your eye today?
+Empathy & Compassion: What's a small way you connected with someone else's experience?
+Inner Compass: What's a quiet feeling that's been guiding you today?
+Integrity & Authenticity: What's a small action that felt very true to yourself today?
