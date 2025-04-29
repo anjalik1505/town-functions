@@ -31,6 +31,7 @@ export enum EventName {
   SENTIMENT_ANALYZED = 'sentiment_analyzed',
   FEEDBACK_CREATED = 'feedback_created',
   NOTIFICATION_SENT = 'notification_sent',
+  FRIENDSHIP_ACCEPTED = 'friendship_accepted',
   DAILY_NOTIFICATIONS_SENT = 'daily_notifications_sent',
   DAILY_NOTIFICATION_SENT = 'daily_notification_sent',
   SUMMARY_CREATED = 'summary_created',
@@ -160,6 +161,15 @@ export interface DailyNotificationsEventParams extends BaseEventParams {
   notification_urgent_count: number;
   no_notification_count: number;
   no_device_count: number;
+}
+
+// Friendship acceptance event parameters
+export interface FriendshipAcceptanceEventParams extends BaseEventParams {
+  sender_has_name: boolean;
+  sender_has_avatar: boolean;
+  receiver_has_name: boolean;
+  receiver_has_avatar: boolean;
+  has_device: boolean;
 }
 
 // Summary event parameters
