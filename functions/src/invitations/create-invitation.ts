@@ -7,7 +7,7 @@ import { BadRequestError } from "../utils/errors";
 import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { formatInvitation } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
-import { getProfileDoc } from "../utils/profile-utils";
+import { getProfileDoc, hasLimitOverride } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -37,8 +37,11 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
   // Check combined limit
   const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
   if (hasReachedLimit) {
-    logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-    throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+    const override = await hasLimitOverride(currentUserId);
+    if (!override) {
+      logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
+      throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+    }
   }
 
   // Initialize Firestore client

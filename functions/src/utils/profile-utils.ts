@@ -254,3 +254,16 @@ export const calculateAge = (birthdayString: string): string => {
 export const createSummaryId = (userId1: string, userId2: string): string => {
   return `${userId1}_${userId2}`;
 };
+
+/**
+ * Checks if a user has a limit override
+ * @param userId The ID of the user to check
+ * @returns True if the user has a limit override, false otherwise
+ */
+export const hasLimitOverride = async (userId: string): Promise<boolean> => {
+  const db = getFirestore();
+  const profileRef = db.collection(Collections.PROFILES).doc(userId);
+  const profileDoc = await profileRef.get();
+  const profileData = profileDoc.data() || {};
+  return profileData[ProfileFields.LIMIT_OVERRIDE] || false;
+}
