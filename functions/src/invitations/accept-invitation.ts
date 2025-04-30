@@ -21,7 +21,7 @@ import {
   updateInvitationStatus
 } from "../utils/invitation-utils";
 import { getLogger } from "../utils/logging-utils";
-import { createSummaryId, getProfileDoc } from "../utils/profile-utils";
+import { createSummaryId, getProfileDoc, hasLimitOverride } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -90,13 +90,19 @@ export const acceptInvitation = async (req: Request): Promise<ApiResponse<Friend
     hasReachedLimit
   } = await hasReachedCombinedLimit(currentUserId);
   if (hasReachedLimit) {
-    throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+    const override = await hasLimitOverride(currentUserId);
+    if (!override) {
+      throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+    }
   }
 
   // Check combined limit for the sender (excluding this invitation)
   const { hasReachedLimit: senderHasReachedLimit } = await hasReachedCombinedLimit(senderId, invitationId);
   if (senderHasReachedLimit) {
-    throw new BadRequestError("Sender has reached the maximum number of friends and active invitations");
+    const override = await hasLimitOverride(currentUserId);
+    if (!override) {
+      throw new BadRequestError("Sender has reached the maximum number of friends and active invitations");
+    }
   }
 
   // Get current user's profile

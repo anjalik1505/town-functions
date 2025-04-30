@@ -7,6 +7,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors"
 import { hasReachedCombinedLimit } from "../utils/friendship-utils";
 import { getLogger } from "../utils/logging-utils";
 import { formatTimestamp } from "../utils/timestamp-utils";
+import { hasLimitOverride } from "../utils/profile-utils";
 
 const logger = getLogger(__filename);
 
@@ -63,8 +64,11 @@ export const resendInvitation = async (req: Request): Promise<ApiResponse<Invita
     hasReachedLimit
   } = await hasReachedCombinedLimit(currentUserId, invitationId);
   if (hasReachedLimit) {
-    logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-    throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+    const override = await hasLimitOverride(currentUserId);
+    if (!override) {
+      logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
+      throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+    }
   }
 
   // Set new timestamps

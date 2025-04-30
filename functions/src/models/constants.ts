@@ -50,7 +50,8 @@ export const ProfileFields = {
   SUMMARY: 'summary',
   SUGGESTIONS: 'suggestions',
   LAST_UPDATE_ID: 'last_update_id',
-  UPDATED_AT: 'updated_at'
+  UPDATED_AT: 'updated_at',
+  LIMIT_OVERRIDE: 'limit_override'
 } as const;
 
 // Field names for Friendship documents
