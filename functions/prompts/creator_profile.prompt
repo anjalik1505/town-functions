@@ -22,12 +22,6 @@ output:
     recurring_themes: string
     progress_and_growth: string
 ---
-
-MVP - Content 
-MVP - Content 
-100%
-E3
-
 ### TASK:
 Update the user's Village profile sections based on their latest update. Integrate the information from the `<LATEST_UPDATE>` section and its `<SENTIMENT>` into the existing profile content provided below.
 
