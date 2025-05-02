@@ -14,7 +14,7 @@ Firestore Schema
        ├── group_ids: array<string>  # list of groupIds the user belongs to
        └── subcollections:
            └── insights (collection)
-                └── {docId} (document, typically "default_insights")
+                └── {docId} (document, typically "default")
                     ├── emotional_overview: string
                     ├── key_moments: string
                     ├── recurring_themes: string

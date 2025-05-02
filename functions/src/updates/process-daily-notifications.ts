@@ -15,7 +15,8 @@ const logger = getLogger(__filename);
 const processUserNotification = async (
   db: FirebaseFirestore.Firestore,
   userId: string,
-  profileData: FirebaseFirestore.DocumentData
+  profileData: FirebaseFirestore.DocumentData,
+  profileRef: FirebaseFirestore.DocumentReference
 ): Promise<NotificationEventParams> => {
   // Get the user's device
   const deviceDoc = await db.collection(Collections.DEVICES).doc(userId).get();
@@ -51,9 +52,9 @@ const processUserNotification = async (
   const hasUrgentSetting = notificationSettings.includes(NotificationFields.URGENT);
 
   // Get insights data
-  const insightsRef = profileData.ref.collection(Collections.INSIGHTS).doc("default_insights");
-  const insightsDoc = await insightsRef.get();
-  const insightsData = insightsDoc.exists ? insightsDoc.data() || {} : {};
+  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
+  const insightsDoc = insightsSnapshot.docs[0];
+  const insightsData = insightsDoc?.data() || {};
 
   // Generate personalized message
   const result = await generateDailyNotificationFlow({
@@ -96,7 +97,7 @@ export const processDailyNotifications = async (): Promise<void> => {
   const results: NotificationEventParams[] = [];
   for await (const profileDoc of profilesStream) {
     const profileData = profileDoc.data();
-    const result = await processUserNotification(db, profileDoc.id, profileData);
+    const result = await processUserNotification(db, profileDoc.id, profileData, profileDoc.ref);
     results.push(result);
   }
 
