@@ -37,7 +37,7 @@ export const getInvitation = async (
   logger.info(`Getting invitation ${invitationId} for user ${currentUserId}`);
 
   if (!invitationId) {
-    throw new BadRequestError("Invitation ID is required");
+    throw new BadRequestError('Invitation ID is required');
   }
 
   // Get the invitation document

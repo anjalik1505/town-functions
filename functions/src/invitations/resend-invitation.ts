@@ -47,7 +47,7 @@ export const resendInvitation = async (
   const db = getFirestore();
 
   if (!invitationId) {
-    throw new BadRequestError("Invitation ID is required");
+    throw new BadRequestError('Invitation ID is required');
   }
 
   // Get the invitation document

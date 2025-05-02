@@ -60,7 +60,7 @@ export const getComments = async (
   const afterCursor = validatedParams?.after_cursor;
 
   if (!updateId) {
-    throw new BadRequestError("Update ID is required");
+    throw new BadRequestError('Update ID is required');
   }
 
   // Get the update document to check access

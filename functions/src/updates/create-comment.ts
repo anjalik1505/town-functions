@@ -47,7 +47,7 @@ export const createComment = async (
   const db = getFirestore();
 
   if (!updateId) {
-    throw new BadRequestError("Update ID is required");
+    throw new BadRequestError('Update ID is required');
   }
 
   // Get the update document to check access

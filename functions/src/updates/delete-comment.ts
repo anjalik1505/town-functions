@@ -44,11 +44,11 @@ export const deleteComment = async (
   const db = getFirestore();
 
   if (!updateId) {
-    throw new BadRequestError("Update ID is required");
+    throw new BadRequestError('Update ID is required');
   }
 
   if (!commentId) {
-    throw new BadRequestError("Comment ID is required");
+    throw new BadRequestError('Comment ID is required');
   }
 
   // Get the update document to check if it exists
