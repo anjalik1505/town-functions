@@ -5,6 +5,7 @@ import {
   InviteEventParams,
 } from '../models/analytics-events';
 import { Invitation } from '../models/data-models';
+import { BadRequestError } from '../utils/errors';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils';
 import { formatInvitation, getInvitationDoc } from '../utils/invitation-utils';
 import { getLogger } from '../utils/logging-utils';
@@ -34,6 +35,10 @@ export const getInvitation = async (
   const invitationId = req.params.invitation_id;
 
   logger.info(`Getting invitation ${invitationId} for user ${currentUserId}`);
+
+  if (!invitationId) {
+    throw new BadRequestError("Invitation ID is required");
+  }
 
   // Get the invitation document
   const { data: invitationData } = await getInvitationDoc(invitationId);

@@ -7,7 +7,7 @@ import {
 } from '../models/analytics-events';
 import { CommentFields } from '../models/constants';
 import { getCommentDoc } from '../utils/comment-utils';
-import { ForbiddenError } from '../utils/errors';
+import { BadRequestError, ForbiddenError } from '../utils/errors';
 import { getLogger } from '../utils/logging-utils';
 import { getUpdateDoc } from '../utils/update-utils';
 
@@ -42,6 +42,14 @@ export const deleteComment = async (
   logger.info(`Deleting comment ${commentId} from update: ${updateId}`);
 
   const db = getFirestore();
+
+  if (!updateId) {
+    throw new BadRequestError("Update ID is required");
+  }
+
+  if (!commentId) {
+    throw new BadRequestError("Comment ID is required");
+  }
 
   // Get the update document to check if it exists
   const updateResult = await getUpdateDoc(updateId);

@@ -75,6 +75,10 @@ export const acceptInvitation = async (
   // Initialize Firestore client
   const db = getFirestore();
 
+  if (!invitationId) {
+    throw new BadRequestError("Invitation ID is required");
+  }
+
   // Get the invitation document
   const { ref: invitationRef, data: invitationData } =
     await getInvitationDoc(invitationId);

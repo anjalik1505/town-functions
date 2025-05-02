@@ -59,6 +59,10 @@ export const getUserUpdates = async (
 
   const db = getFirestore();
 
+  if (!targetUserId) {
+    throw new BadRequestError("Target user ID is required");
+  }
+
   // Redirect users to the appropriate endpoint for their own updates
   if (currentUserId === targetUserId) {
     logger.warn(

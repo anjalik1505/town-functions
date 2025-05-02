@@ -97,13 +97,13 @@ export const createGroup = async (
     const missingMembers = [];
     for (let i = 0; i < memberProfilesData.length; i++) {
       const profileSnapshot = memberProfilesData[i];
-      if (!profileSnapshot.exists) {
+      if (!profileSnapshot?.exists) {
         missingMembers.push(membersToValidate[i]);
       } else {
         // Store profile data for denormalization
-        const profileData = profileSnapshot.data() || {};
+        const profileData = profileSnapshot?.data() || {};
         memberProfiles.push({
-          [ProfileFields.USER_ID]: profileSnapshot.id,
+          [ProfileFields.USER_ID]: profileSnapshot?.id,
           [ProfileFields.USERNAME]: profileData[ProfileFields.USERNAME] || '',
           [ProfileFields.NAME]: profileData[ProfileFields.NAME] || '',
           [ProfileFields.AVATAR]: profileData[ProfileFields.AVATAR] || '',

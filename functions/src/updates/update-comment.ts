@@ -8,7 +8,7 @@ import {
 import { CommentFields, ProfileFields } from '../models/constants';
 import { Comment } from '../models/data-models';
 import { formatComment, getCommentDoc } from '../utils/comment-utils';
-import { ForbiddenError } from '../utils/errors';
+import { BadRequestError, ForbiddenError } from '../utils/errors';
 import { getLogger } from '../utils/logging-utils';
 import { getProfileDoc } from '../utils/profile-utils';
 
@@ -44,6 +44,14 @@ export const updateComment = async (
   const commentId = req.params.comment_id;
   const currentUserId = req.userId;
   logger.info(`Updating comment ${commentId} on update: ${updateId}`);
+
+  if (!updateId) {
+    throw new BadRequestError("Update ID is required");
+  }
+
+  if (!commentId) {
+    throw new BadRequestError("Comment ID is required");
+  }
 
   // Get the update document to check if it exists
   const commentResult = await getCommentDoc(updateId, commentId);

@@ -496,6 +496,7 @@ This repository contains the backend functions for the Village application.
 **Status Code**: 200 (OK)
 
 **Errors**:
+- 400: Update ID is required
 - 400: Invalid query parameters
 - 403: You don't have access to this update
 - 404: Update not found
@@ -540,6 +541,7 @@ This repository contains the backend functions for the Village application.
 **Status Code**: 201 (Created)
 
 **Errors**:
+- 400: Update ID is required
 - 400: Invalid request parameters
 - 403: You don't have access to this update
 - 404: Update not found
@@ -584,6 +586,8 @@ This repository contains the backend functions for the Village application.
 **Status Code**: 200 (OK)
 
 **Errors**:
+- 400: Update ID is required
+- 400: Comment ID is required
 - 400: Invalid request parameters
 - 403: You can only update your own comments
 - 404: Update not found
@@ -612,6 +616,8 @@ This repository contains the backend functions for the Village application.
 **Status Code**: 204 (No Content)
 
 **Errors**:
+- 400: Update ID is required
+- 400: Comment ID is required
 - 403: You can only delete your own comments
 - 404: Update not found
 - 404: Comment not found
@@ -653,7 +659,9 @@ This repository contains the backend functions for the Village application.
 **Status Code**: 201 (Created)
 
 **Errors**:
+- 400: Update ID is required
 - 400: Invalid request parameters
+- 400: You have already reacted with this type
 - 403: You don't have access to this update
 - 404: Update not found
 - 500: Internal server error
@@ -686,9 +694,12 @@ This repository contains the backend functions for the Village application.
 **Status Code**: 200 (OK)
 
 **Errors**:
-- 400: You have already reacted with this type
+- 400: Update ID is required
+- 400: Reaction ID is required
 - 403: You don't have access to this update
+- 403: You can only delete your own reactions
 - 404: Update not found
+- 404: Reaction not found
 - 500: Internal server error
 
 ### Invitations
@@ -762,6 +773,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: Invitation ID is required
 - 400: Invitation cannot be accepted (status: {status})
 - 400: Invitation has expired
 - 400: You cannot accept your own invitation
@@ -804,6 +816,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: Invitation ID is required
 - 400: Invitation cannot be rejected (status: {status})
 - 400: You cannot reject your own invitation
 - 404: Invitation not found
@@ -841,6 +854,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: Invitation ID is required
 - 400: You have reached the maximum number of friends and active invitations (5)
 - 403: You can only resend your own invitations
 - 404: Invitation not found
@@ -922,6 +936,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: Invitation ID is required
 - 403: You can only view your own invitations
 - 404: Invitation not found
 
@@ -1042,6 +1057,8 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: Target user ID is required
+- 400: Use /me/profile endpoint to view your own profile
 - 403: You must be friends with this user to view their profile
 - 404: Profile not found
 - 500: Internal server error
@@ -1087,6 +1104,8 @@ This repository contains the backend functions for the Village application.
 ```
 
 **Errors**:
+- 400: Target user ID is required
+- 400: Use /me/updates endpoint to view your own updates
 - 400: Invalid query parameters
 - 403: You must be friends with this user to view their updates
 - 404: Profile not found

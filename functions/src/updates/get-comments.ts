@@ -12,6 +12,7 @@ import {
 } from '../models/constants';
 import { CommentsResponse } from '../models/data-models';
 import { processEnrichedComments } from '../utils/comment-utils';
+import { BadRequestError } from '../utils/errors';
 import { getLogger } from '../utils/logging-utils';
 import {
   applyPagination,
@@ -57,6 +58,10 @@ export const getComments = async (
   const validatedParams = req.validated_params;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
+
+  if (!updateId) {
+    throw new BadRequestError("Update ID is required");
+  }
 
   // Get the update document to check access
   const updateResult = await getUpdateDoc(updateId);

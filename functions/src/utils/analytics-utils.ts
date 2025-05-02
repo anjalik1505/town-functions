@@ -149,8 +149,9 @@ export class GA4MeasurementClient {
     for (let i = 0; i < events.length; i++) {
       const eventSize = eventSizes[i];
 
+      const currentEventSize = eventSize || 0;
       if (
-        currentSize + eventSize > CONFIG.maxPayloadSize ||
+        currentSize + currentEventSize > CONFIG.maxPayloadSize ||
         currentBatch.length >= CONFIG.maxEventsPerBatch
       ) {
         if (currentBatch.length > 0) {
@@ -164,8 +165,11 @@ export class GA4MeasurementClient {
         currentSize = 0;
       }
 
-      currentBatch.push(events[i]);
-      currentSize += eventSize;
+      if (events[i]) {
+        const event = events[i] as GA4Event; // Type assertion to ensure TypeScript knows event is not undefined
+        currentBatch.push(event);
+        currentSize += eventSize || 0;
+      }
     }
 
     if (currentBatch.length > 0) {

@@ -128,6 +128,10 @@ const authenticate_request: RequestHandler = async (req, res, next) => {
       ? auth_header.split('Bearer ')[1]
       : auth_header;
 
+    if (!token) {
+      throw new UnauthorizedError('Authentication token is required');
+    }
+
     const decoded_token = await auth.verifyIdToken(token);
     const user_id = decoded_token.uid;
 

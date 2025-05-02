@@ -6,6 +6,7 @@ import {
 } from '../models/analytics-events';
 import { InvitationFields, Status } from '../models/constants';
 import { Invitation } from '../models/data-models';
+import { BadRequestError } from '../utils/errors';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils';
 import {
   canActOnInvitation,
@@ -38,6 +39,10 @@ export const rejectInvitation = async (
   const currentUserId = req.userId;
   const invitationId = req.params.invitation_id;
   logger.info(`User ${currentUserId} rejecting invitation ${invitationId}`);
+
+  if (!invitationId) {
+    throw new BadRequestError("Invitation ID is required");
+  }
 
   // Get the invitation document
   const { ref: invitationRef, data: invitationData } =

@@ -7,7 +7,7 @@ import {
 } from '../models/analytics-events';
 import { Collections, ReactionFields } from '../models/constants';
 import { ReactionGroup } from '../models/data-models';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { getLogger } from '../utils/logging-utils';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
 
@@ -45,6 +45,14 @@ export const deleteReaction = async (
   );
 
   const db = getFirestore();
+
+  if (!updateId) {
+    throw new BadRequestError("Update ID is required");
+  }
+
+  if (!reactionId) {
+    throw new BadRequestError("Reaction ID is required");
+  }
 
   // Get the update document and verify access
   const updateResult = await getUpdateDoc(updateId);

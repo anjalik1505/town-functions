@@ -86,7 +86,11 @@ export const processQueryStream = async <T>(
   if (limit && items.length > limit) {
     items = items.slice(0, limit);
     docs = docs.slice(0, limit);
-    lastDoc = docs[docs.length - 1];
+    if (docs.length > 0) {
+      lastDoc = docs[docs.length - 1]!; // Non-null assertion to ensure TypeScript knows this element exists
+    } else {
+      lastDoc = null;
+    }
   }
 
   return { items, lastDoc };

@@ -8,6 +8,7 @@ import {
 import { Collections, CommentFields, ProfileFields } from '../models/constants';
 import { Comment } from '../models/data-models';
 import { formatComment } from '../utils/comment-utils';
+import { BadRequestError } from '../utils/errors';
 import { getLogger } from '../utils/logging-utils';
 import { getProfileDoc } from '../utils/profile-utils';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
@@ -44,6 +45,10 @@ export const createComment = async (
   logger.info(`Creating comment on update: ${updateId}`);
 
   const db = getFirestore();
+
+  if (!updateId) {
+    throw new BadRequestError("Update ID is required");
+  }
 
   // Get the update document to check access
   const updateResult = await getUpdateDoc(updateId);

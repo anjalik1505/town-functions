@@ -53,6 +53,10 @@ export const createReaction = async (
 
   const db = getFirestore();
 
+  if (!updateId) {
+    throw new BadRequestError("Update ID is required");
+  }
+
   // Get the update document and verify access
   const updateResult = await getUpdateDoc(updateId);
   hasUpdateAccess(updateResult.data, currentUserId);
