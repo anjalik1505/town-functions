@@ -1,9 +1,14 @@
-import { Timestamp } from "firebase-admin/firestore";
-import { FriendSummaryEventParams } from "../models/analytics-events";
-import { calculateAge, createSummaryId } from "./profile-utils";
-import { Collections, ProfileFields, UpdateFields, UserSummaryFields } from "../models/constants";
-import { generateFriendProfileFlow } from "../ai/flows";
-import { getLogger } from "./logging-utils";
+import { Timestamp } from 'firebase-admin/firestore';
+import { FriendSummaryEventParams } from '../models/analytics-events';
+import { calculateAge, createSummaryId } from './profile-utils';
+import {
+  Collections,
+  ProfileFields,
+  UpdateFields,
+  UserSummaryFields,
+} from '../models/constants';
+import { generateFriendProfileFlow } from '../ai/flows';
+import { getLogger } from './logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -52,7 +57,7 @@ export interface SummaryResult {
 export const getSummaryContext = async (
   db: FirebaseFirestore.Firestore,
   creatorId: string,
-  friendId: string
+  friendId: string,
 ): Promise<SummaryContext> => {
   // Create a consistent relationship ID using the utility function
   const summaryId = createSummaryId(friendId, creatorId);
@@ -62,15 +67,15 @@ export const getSummaryContext = async (
   const summaryDoc = await summaryRef.get();
 
   // Extract data from the existing summary or initialize new data
-  let existingSummary = "";
-  let existingSuggestions = "";
+  let existingSummary = '';
+  let existingSuggestions = '';
   let updateCount = 1;
   let isNewSummary = true;
 
   if (summaryDoc.exists) {
     const summaryData = summaryDoc.data() || {};
-    existingSummary = summaryData[UserSummaryFields.SUMMARY] || "";
-    existingSuggestions = summaryData[UserSummaryFields.SUGGESTIONS] || "";
+    existingSummary = summaryData[UserSummaryFields.SUMMARY] || '';
+    existingSuggestions = summaryData[UserSummaryFields.SUGGESTIONS] || '';
     updateCount = (summaryData[UserSummaryFields.UPDATE_COUNT] || 0) + 1;
     isNewSummary = false;
   }
@@ -80,22 +85,23 @@ export const getSummaryContext = async (
   const creatorProfileDoc = await creatorProfileRef.get();
 
   let creatorProfile: ProfileData = {
-    name: "Friend",
-    gender: "unknown",
-    location: "unknown",
-    age: "unknown"
+    name: 'Friend',
+    gender: 'unknown',
+    location: 'unknown',
+    age: 'unknown',
   };
 
   if (creatorProfileDoc.exists) {
     const creatorProfileData = creatorProfileDoc.data() || {};
     // Try to get name first, then username, then fall back to "Friend"
     creatorProfile = {
-      name: creatorProfileData[ProfileFields.NAME] ||
+      name:
+        creatorProfileData[ProfileFields.NAME] ||
         creatorProfileData[ProfileFields.USERNAME] ||
-        "Friend",
-      gender: creatorProfileData[ProfileFields.GENDER] || "unknown",
-      location: creatorProfileData[ProfileFields.LOCATION] || "unknown",
-      age: calculateAge(creatorProfileData[ProfileFields.BIRTHDAY] || "")
+        'Friend',
+      gender: creatorProfileData[ProfileFields.GENDER] || 'unknown',
+      location: creatorProfileData[ProfileFields.LOCATION] || 'unknown',
+      age: calculateAge(creatorProfileData[ProfileFields.BIRTHDAY] || ''),
     };
   } else {
     logger.warn(`Creator profile not found: ${creatorId}`);
@@ -106,21 +112,22 @@ export const getSummaryContext = async (
   const friendProfileDoc = await friendProfileRef.get();
 
   let friendProfile: ProfileData = {
-    name: "Friend",
-    gender: "unknown",
-    location: "unknown",
-    age: "unknown"
+    name: 'Friend',
+    gender: 'unknown',
+    location: 'unknown',
+    age: 'unknown',
   };
 
   if (friendProfileDoc.exists) {
     const friendProfileData = friendProfileDoc.data() || {};
     friendProfile = {
-      name: friendProfileData[ProfileFields.NAME] ||
+      name:
+        friendProfileData[ProfileFields.NAME] ||
         friendProfileData[ProfileFields.USERNAME] ||
-        "Friend",
-      gender: friendProfileData[ProfileFields.GENDER] || "unknown",
-      location: friendProfileData[ProfileFields.LOCATION] || "unknown",
-      age: calculateAge(friendProfileData[ProfileFields.BIRTHDAY] || "")
+        'Friend',
+      gender: friendProfileData[ProfileFields.GENDER] || 'unknown',
+      location: friendProfileData[ProfileFields.LOCATION] || 'unknown',
+      age: calculateAge(friendProfileData[ProfileFields.BIRTHDAY] || ''),
     };
   } else {
     logger.warn(`Friend profile not found: ${friendId}`);
@@ -134,7 +141,7 @@ export const getSummaryContext = async (
     updateCount,
     isNewSummary,
     creatorProfile,
-    friendProfile
+    friendProfile,
   };
 };
 
@@ -147,11 +154,11 @@ export const getSummaryContext = async (
  */
 export const generateFriendSummary = async (
   context: SummaryContext,
-  updateData: Record<string, any>
+  updateData: Record<string, any>,
 ): Promise<SummaryResult> => {
   // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT] || "";
-  const sentiment = updateData[UpdateFields.SENTIMENT] || "";
+  const updateContent = updateData[UpdateFields.CONTENT] || '';
+  const sentiment = updateData[UpdateFields.SENTIMENT] || '';
   const updateId = updateData[UpdateFields.ID];
 
   // Use the friend profile flow to generate summary and suggestions
@@ -167,18 +174,18 @@ export const generateFriendSummary = async (
     userName: context.creatorProfile.name,
     userGender: context.creatorProfile.gender,
     userLocation: context.creatorProfile.location,
-    userAge: context.creatorProfile.age
+    userAge: context.creatorProfile.age,
   });
 
   // Return the result with analytics data
   return {
-    summary: result.summary || "",
-    suggestions: result.suggestions || "",
+    summary: result.summary || '',
+    suggestions: result.suggestions || '',
     updateId,
     analytics: {
-      summary_length: (result.summary || "").length,
-      suggestions_length: (result.suggestions || "").length
-    }
+      summary_length: (result.summary || '').length,
+      suggestions_length: (result.suggestions || '').length,
+    },
   };
 };
 
@@ -196,7 +203,7 @@ export const writeFriendSummary = (
   result: SummaryResult,
   creatorId: string,
   friendId: string,
-  batch: FirebaseFirestore.WriteBatch
+  batch: FirebaseFirestore.WriteBatch,
 ): void => {
   // Prepare the summary document
   const now = Timestamp.now();
@@ -207,7 +214,7 @@ export const writeFriendSummary = (
     [UserSummaryFields.SUGGESTIONS]: result.suggestions,
     [UserSummaryFields.LAST_UPDATE_ID]: result.updateId,
     [UserSummaryFields.UPDATED_AT]: now,
-    [UserSummaryFields.UPDATE_COUNT]: context.updateCount
+    [UserSummaryFields.UPDATE_COUNT]: context.updateCount,
   };
 
   // If this is a new summary, add created_at
@@ -235,7 +242,7 @@ export const processFriendSummary = async (
   updateData: Record<string, any>,
   creatorId: string,
   friendId: string,
-  batch: FirebaseFirestore.WriteBatch
+  batch: FirebaseFirestore.WriteBatch,
 ): Promise<FriendSummaryEventParams> => {
   // Get the summary context
   const context = await getSummaryContext(db, creatorId, friendId);
@@ -248,4 +255,4 @@ export const processFriendSummary = async (
 
   // Return analytics data
   return result.analytics;
-}
+};

@@ -1,12 +1,16 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
-import { Collections, CommentFields, ProfileFields } from "../models/constants";
-import { Comment } from "../models/data-models";
-import { formatComment } from "../utils/comment-utils";
-import { getLogger } from "../utils/logging-utils";
-import { getProfileDoc } from "../utils/profile-utils";
-import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  CommentEventParams,
+  EventName,
+} from '../models/analytics-events';
+import { Collections, CommentFields, ProfileFields } from '../models/constants';
+import { Comment } from '../models/data-models';
+import { formatComment } from '../utils/comment-utils';
+import { getLogger } from '../utils/logging-utils';
+import { getProfileDoc } from '../utils/profile-utils';
+import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
 
 const logger = getLogger(__filename);
 
@@ -32,7 +36,9 @@ const logger = getLogger(__filename);
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const createComment = async (req: Request): Promise<ApiResponse<Comment>> => {
+export const createComment = async (
+  req: Request,
+): Promise<ApiResponse<Comment>> => {
   const updateId = req.params.update_id;
   const currentUserId = req.userId;
   logger.info(`Creating comment on update: ${updateId}`);
@@ -49,7 +55,7 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
     [CommentFields.CREATED_BY]: currentUserId,
     [CommentFields.CONTENT]: req.validated_params.content,
     [CommentFields.CREATED_AT]: Timestamp.now(),
-    [CommentFields.UPDATED_AT]: Timestamp.now()
+    [CommentFields.UPDATED_AT]: Timestamp.now(),
   };
 
   // Create comment and update comment count in a batch
@@ -57,7 +63,7 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
   const commentRef = updateResult.ref.collection(Collections.COMMENTS).doc();
   batch.set(commentRef, commentData);
   batch.update(updateResult.ref, {
-    comment_count: (updateData.comment_count || 0) + 1
+    comment_count: (updateData.comment_count || 0) + 1,
   });
 
   await batch.commit();
@@ -70,15 +76,15 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
   const { data: profileData } = await getProfileDoc(currentUserId);
 
   const comment = formatComment(commentRef.id, commentDocData, currentUserId);
-  comment.username = profileData[ProfileFields.USERNAME] || "";
-  comment.name = profileData[ProfileFields.NAME] || "";
-  comment.avatar = profileData[ProfileFields.AVATAR] || "";
+  comment.username = profileData[ProfileFields.USERNAME] || '';
+  comment.name = profileData[ProfileFields.NAME] || '';
+  comment.avatar = profileData[ProfileFields.AVATAR] || '';
 
   // Create analytics event with the updated comment count
   const event: CommentEventParams = {
     comment_length: req.validated_params.content.length,
     comment_count: (updateData.comment_count || 0) + 1,
-    reaction_count: updateData.reaction_count || 0
+    reaction_count: updateData.reaction_count || 0,
   };
 
   return {
@@ -87,7 +93,7 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
     analytics: {
       event: EventName.COMMENT_CREATED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

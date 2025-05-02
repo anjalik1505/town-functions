@@ -1,9 +1,13 @@
-import { Request } from "express";
-import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
-import { Invitation } from "../models/data-models";
-import { hasReachedCombinedLimit } from "../utils/friendship-utils";
-import { formatInvitation, getInvitationDoc } from "../utils/invitation-utils";
-import { getLogger } from "../utils/logging-utils";
+import { Request } from 'express';
+import {
+  ApiResponse,
+  EventName,
+  InviteEventParams,
+} from '../models/analytics-events';
+import { Invitation } from '../models/data-models';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils';
+import { formatInvitation, getInvitationDoc } from '../utils/invitation-utils';
+import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -23,7 +27,9 @@ const logger = getLogger(__filename);
  *
  * @throws 404: Invitation not found
  */
-export const getInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
+export const getInvitation = async (
+  req: Request,
+): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
   const invitationId = req.params.invitation_id;
 
@@ -33,17 +39,20 @@ export const getInvitation = async (req: Request): Promise<ApiResponse<Invitatio
   const { data: invitationData } = await getInvitationDoc(invitationId);
 
   // Get current friend and invitation counts for analytics
-  const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount } =
+    await hasReachedCombinedLimit(currentUserId);
 
   // Format the invitation
   const invitation = formatInvitation(invitationId, invitationData);
 
-  logger.info(`Successfully retrieved invitation ${invitationId} for user ${currentUserId}`);
+  logger.info(
+    `Successfully retrieved invitation ${invitationId} for user ${currentUserId}`,
+  );
 
   // Create analytics event
   const event: InviteEventParams = {
     friend_count: friendCount,
-    invitation_count: activeInvitationCount
+    invitation_count: activeInvitationCount,
   };
 
   return {
@@ -52,7 +61,7 @@ export const getInvitation = async (req: Request): Promise<ApiResponse<Invitatio
     analytics: {
       event: EventName.INVITE_VIEWED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

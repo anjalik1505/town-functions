@@ -1,12 +1,20 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { v4 as uuidv4 } from "uuid";
-import { ApiResponse, EventName, ReactionEventParams } from "../models/analytics-events";
-import { Collections, QueryOperators, ReactionFields } from "../models/constants";
-import { ReactionGroup } from "../models/data-models";
-import { BadRequestError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
-import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  ApiResponse,
+  EventName,
+  ReactionEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  QueryOperators,
+  ReactionFields,
+} from '../models/constants';
+import { ReactionGroup } from '../models/data-models';
+import { BadRequestError } from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
+import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
 
 const logger = getLogger(__filename);
 
@@ -32,12 +40,16 @@ const logger = getLogger(__filename);
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const createReaction = async (req: Request): Promise<ApiResponse<ReactionGroup>> => {
+export const createReaction = async (
+  req: Request,
+): Promise<ApiResponse<ReactionGroup>> => {
   const currentUserId = req.userId;
   const updateId = req.params.update_id;
   const reactionType = req.validated_params.type;
 
-  logger.info(`Creating ${reactionType} reaction on update ${updateId} by user ${currentUserId}`);
+  logger.info(
+    `Creating ${reactionType} reaction on update ${updateId} by user ${currentUserId}`,
+  );
 
   const db = getFirestore();
 
@@ -46,14 +58,17 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
   hasUpdateAccess(updateResult.data, currentUserId);
 
   // Check if user has already reacted with this type
-  const existingReactionSnapshot = await updateResult.ref.collection(Collections.REACTIONS)
+  const existingReactionSnapshot = await updateResult.ref
+    .collection(Collections.REACTIONS)
     .where(ReactionFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
     .where(ReactionFields.TYPE, QueryOperators.EQUALS, reactionType)
     .get();
 
   if (!existingReactionSnapshot.empty) {
-    logger.warn(`User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`);
-    throw new BadRequestError("You have already reacted with this type");
+    logger.warn(
+      `User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`,
+    );
+    throw new BadRequestError('You have already reacted with this type');
   }
 
   // Create the reaction document
@@ -63,35 +78,40 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
   const reactionData = {
     [ReactionFields.CREATED_BY]: currentUserId,
     [ReactionFields.TYPE]: reactionType,
-    [ReactionFields.CREATED_AT]: createdAt
+    [ReactionFields.CREATED_AT]: createdAt,
   };
 
   // Create a batch for atomic operations
   const batch = db.batch();
 
   // Add the reaction document
-  batch.set(updateResult.ref.collection(Collections.REACTIONS).doc(reactionId), reactionData);
+  batch.set(
+    updateResult.ref.collection(Collections.REACTIONS).doc(reactionId),
+    reactionData,
+  );
 
   // Update the reaction count
   batch.update(updateResult.ref, {
-    reaction_count: (updateResult.data.reaction_count || 0) + 1
+    reaction_count: (updateResult.data.reaction_count || 0) + 1,
   });
 
   // Commit the batch
   await batch.commit();
-  logger.info(`Successfully created reaction ${reactionId} on update ${updateId}`);
+  logger.info(
+    `Successfully created reaction ${reactionId} on update ${updateId}`,
+  );
 
   // Return the reaction group with updated count
   const response: ReactionGroup = {
     type: reactionType,
     count: (updateResult.data.reaction_count || 0) + 1,
-    reaction_id: reactionId
+    reaction_id: reactionId,
   };
 
   // Create analytics event
   const event: ReactionEventParams = {
     reaction_count: (updateResult.data.reaction_count || 0) + 1,
-    comment_count: updateResult.data.comment_count || 0
+    comment_count: updateResult.data.comment_count || 0,
   };
 
   return {
@@ -100,7 +120,7 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
     analytics: {
       event: EventName.REACTION_CREATED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

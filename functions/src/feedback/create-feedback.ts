@@ -1,11 +1,15 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { v4 as uuidv4 } from "uuid";
-import { ApiResponse, EventName, FeedbackEventParams } from "../models/analytics-events";
-import { Collections } from "../models/constants";
-import { Feedback } from "../models/data-models";
-import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  ApiResponse,
+  EventName,
+  FeedbackEventParams,
+} from '../models/analytics-events';
+import { Collections } from '../models/constants';
+import { Feedback } from '../models/data-models';
+import { getLogger } from '../utils/logging-utils';
+import { formatTimestamp } from '../utils/timestamp-utils';
 
 const logger = getLogger(__filename);
 
@@ -22,7 +26,9 @@ const logger = getLogger(__filename);
  *
  * @returns An ApiResponse containing the created feedback and analytics
  */
-export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback>> => {
+export const createFeedback = async (
+  req: Request,
+): Promise<ApiResponse<Feedback>> => {
   logger.info(`Creating feedback for user: ${req.userId}`);
 
   // Get the authenticated user ID from the request
@@ -46,7 +52,7 @@ export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback
   const feedbackData = {
     created_by: currentUserId,
     content: content,
-    created_at: createdAt
+    created_at: createdAt,
   };
 
   // Save the feedback to Firestore
@@ -58,12 +64,12 @@ export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback
     feedback_id: feedbackId,
     created_by: currentUserId,
     content: content,
-    created_at: formatTimestamp(createdAt)
+    created_at: formatTimestamp(createdAt),
   };
 
   // Create analytics event
   const event: FeedbackEventParams = {
-    feedback_length: content.length
+    feedback_length: content.length,
   };
 
   return {
@@ -72,7 +78,7 @@ export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback
     analytics: {
       event: EventName.FEEDBACK_CREATED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

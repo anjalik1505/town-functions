@@ -1,5 +1,5 @@
-import { formatInTimeZone } from "date-fns-tz";
-import { Timestamp } from "firebase-admin/firestore";
+import { formatInTimeZone } from 'date-fns-tz';
+import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Formats a Firestore Timestamp to an ISO string in the same format as Python's datetime.isoformat()
@@ -10,5 +10,5 @@ import { Timestamp } from "firebase-admin/firestore";
  */
 export const formatTimestamp = (timestamp: Timestamp): string => {
   const date = timestamp.toDate();
-  return formatInTimeZone(date, "UTC", "yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx");
-}; 
+  return formatInTimeZone(date, 'UTC', "yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx");
+};

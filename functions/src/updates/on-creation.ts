@@ -1,15 +1,28 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
-import { FirestoreEvent } from "firebase-functions/v2/firestore";
-import { generateCreatorProfileFlow } from "../ai/flows";
-import { EventName, FriendSummaryEventParams, SummaryEventParams } from "../models/analytics-events";
-import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from "../models/constants";
-import { trackApiEvents } from "../utils/analytics-utils";
-import { getLogger } from "../utils/logging-utils";
-import { calculateAge } from "../utils/profile-utils";
-import { processFriendSummary } from "../utils/summary-utils";
+import {
+  getFirestore,
+  QueryDocumentSnapshot,
+  Timestamp,
+} from 'firebase-admin/firestore';
+import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import { generateCreatorProfileFlow } from '../ai/flows';
+import {
+  EventName,
+  FriendSummaryEventParams,
+  SummaryEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  Documents,
+  InsightsFields,
+  ProfileFields,
+  UpdateFields,
+} from '../models/constants';
+import { trackApiEvents } from '../utils/analytics-utils';
+import { getLogger } from '../utils/logging-utils';
+import { calculateAge } from '../utils/profile-utils';
+import { processFriendSummary } from '../utils/summary-utils';
 
 const logger = getLogger(__filename);
-
 
 /**
  * Update the creator's own profile with summary, suggestions, and insights.
@@ -24,7 +37,7 @@ const updateCreatorProfile = async (
   db: FirebaseFirestore.Firestore,
   updateData: Record<string, any>,
   creatorId: string,
-  batch: FirebaseFirestore.WriteBatch
+  batch: FirebaseFirestore.WriteBatch,
 ): Promise<{
   summary_length: number;
   suggestions_length: number;
@@ -55,7 +68,7 @@ const updateCreatorProfile = async (
       has_avatar: false,
       has_location: false,
       has_birthday: false,
-      has_gender: false
+      has_gender: false,
     };
   }
 
@@ -70,34 +83,40 @@ const updateCreatorProfile = async (
   const updateId = updateData[UpdateFields.ID];
 
   // Get insights data from the profile's insights subcollection
-  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
+  const insightsSnapshot = await profileRef
+    .collection(Collections.INSIGHTS)
+    .limit(1)
+    .get();
   const insightsDoc = insightsSnapshot.docs[0];
   const existingInsights = insightsDoc?.data() || {};
 
   // Calculate age from birthday
-  const age = calculateAge(profileData[ProfileFields.BIRTHDAY] || "");
+  const age = calculateAge(profileData[ProfileFields.BIRTHDAY] || '');
 
   // Use the creator profile flow to generate insights
   const result = await generateCreatorProfileFlow({
-    existingSummary: existingSummary || "",
-    existingSuggestions: existingSuggestions || "",
-    existingEmotionalOverview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || "",
-    existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || "",
-    existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || "",
-    existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || "",
-    updateContent: updateContent || "",
-    sentiment: sentiment || "",
-    gender: profileData[ProfileFields.GENDER] || "unknown",
-    location: profileData[ProfileFields.LOCATION] || "unknown",
-    age: age
+    existingSummary: existingSummary || '',
+    existingSuggestions: existingSuggestions || '',
+    existingEmotionalOverview:
+      existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
+    existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || '',
+    existingRecurringThemes:
+      existingInsights[InsightsFields.RECURRING_THEMES] || '',
+    existingProgressAndGrowth:
+      existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
+    updateContent: updateContent || '',
+    sentiment: sentiment || '',
+    gender: profileData[ProfileFields.GENDER] || 'unknown',
+    location: profileData[ProfileFields.LOCATION] || 'unknown',
+    age: age,
   });
 
   // Update the profile
   const profileUpdate = {
-    [ProfileFields.SUMMARY]: result.summary || "",
-    [ProfileFields.SUGGESTIONS]: result.suggestions || "",
+    [ProfileFields.SUMMARY]: result.summary || '',
+    [ProfileFields.SUGGESTIONS]: result.suggestions || '',
     [ProfileFields.LAST_UPDATE_ID]: updateId,
-    [ProfileFields.UPDATED_AT]: Timestamp.now()
+    [ProfileFields.UPDATED_AT]: Timestamp.now(),
   };
 
   // Add profile update to batch
@@ -106,34 +125,36 @@ const updateCreatorProfile = async (
 
   // Update or create insights document
   const insightsData = {
-    [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview || "",
-    [InsightsFields.KEY_MOMENTS]: result.key_moments || "",
-    [InsightsFields.RECURRING_THEMES]: result.recurring_themes || "",
-    [InsightsFields.PROGRESS_AND_GROWTH]: result.progress_and_growth || ""
+    [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview || '',
+    [InsightsFields.KEY_MOMENTS]: result.key_moments || '',
+    [InsightsFields.RECURRING_THEMES]: result.recurring_themes || '',
+    [InsightsFields.PROGRESS_AND_GROWTH]: result.progress_and_growth || '',
   };
 
   const insightsRef = insightsDoc
     ? insightsDoc.ref
-    : profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
+    : profileRef
+        .collection(Collections.INSIGHTS)
+        .doc(Documents.DEFAULT_INSIGHTS);
 
   // Add insights update to batch
   batch.set(insightsRef, insightsData, { merge: true });
   logger.info(`Added insights update for user ${creatorId} to batch`);
 
   return {
-    summary_length: (result.summary || "").length,
-    suggestions_length: (result.suggestions || "").length,
-    emotional_overview_length: (result.emotional_overview || "").length,
-    key_moments_length: (result.key_moments || "").length,
-    recurring_themes_length: (result.recurring_themes || "").length,
-    progress_and_growth_length: (result.progress_and_growth || "").length,
+    summary_length: (result.summary || '').length,
+    suggestions_length: (result.suggestions || '').length,
+    emotional_overview_length: (result.emotional_overview || '').length,
+    key_moments_length: (result.key_moments || '').length,
+    recurring_themes_length: (result.recurring_themes || '').length,
+    progress_and_growth_length: (result.progress_and_growth || '').length,
     has_name: !!profileData[ProfileFields.NAME],
     has_avatar: !!profileData[ProfileFields.AVATAR],
     has_location: !!profileData[ProfileFields.LOCATION],
     has_birthday: !!profileData[ProfileFields.BIRTHDAY],
-    has_gender: !!profileData[ProfileFields.GENDER]
+    has_gender: !!profileData[ProfileFields.GENDER],
   };
-}
+};
 
 /**
  * Process summaries for all friends and the creator in parallel.
@@ -144,7 +165,7 @@ const updateCreatorProfile = async (
  */
 const processAllSummaries = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>
+  updateData: Record<string, any>,
 ): Promise<{
   mainSummary: SummaryEventParams;
   friendSummaries: FriendSummaryEventParams[];
@@ -154,11 +175,11 @@ const processAllSummaries = async (
   const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
 
   if (!creatorId) {
-    logger.error("Update has no creator ID");
+    logger.error('Update has no creator ID');
     return {
       mainSummary: {
         update_length: 0,
-        update_sentiment: "",
+        update_sentiment: '',
         summary_length: 0,
         suggestions_length: 0,
         emotional_overview_length: 0,
@@ -170,9 +191,9 @@ const processAllSummaries = async (
         has_location: false,
         has_birthday: false,
         has_gender: false,
-        friend_summary_count: 0
+        friend_summary_count: 0,
       },
-      friendSummaries: []
+      friendSummaries: [],
     };
   }
 
@@ -187,7 +208,9 @@ const processAllSummaries = async (
 
   // Add tasks for all friends
   for (const friendId of friendIds) {
-    tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch));
+    tasks.push(
+      processFriendSummary(db, updateData, creatorId, friendId, batch),
+    );
   }
 
   // Run all tasks in parallel
@@ -220,8 +243,8 @@ const processAllSummaries = async (
   // Return all analytics data
   return {
     mainSummary: {
-      update_length: (updateData[UpdateFields.CONTENT] || "").length,
-      update_sentiment: updateData[UpdateFields.SENTIMENT] || "",
+      update_length: (updateData[UpdateFields.CONTENT] || '').length,
+      update_sentiment: updateData[UpdateFields.SENTIMENT] || '',
       summary_length: creatorResult.summary_length,
       suggestions_length: creatorResult.suggestions_length,
       emotional_overview_length: creatorResult.emotional_overview_length,
@@ -233,22 +256,27 @@ const processAllSummaries = async (
       has_location: creatorResult.has_location,
       has_birthday: creatorResult.has_birthday,
       has_gender: creatorResult.has_gender,
-      friend_summary_count: friendIds.length
+      friend_summary_count: friendIds.length,
     },
-    friendSummaries: friendResults
+    friendSummaries: friendResults,
   };
-}
+};
 
 /**
  * Firestore trigger function that runs when a new update is created.
  *
  * @param event - The Firestore event object containing the document data
  */
-export const onUpdateCreated = async (event: FirestoreEvent<QueryDocumentSnapshot | undefined, {
-  id: string
-}>): Promise<void> => {
+export const onUpdateCreated = async (
+  event: FirestoreEvent<
+    QueryDocumentSnapshot | undefined,
+    {
+      id: string;
+    }
+  >,
+): Promise<void> => {
   if (!event.data) {
-    logger.error("No data in update event");
+    logger.error('No data in update event');
     return;
   }
 
@@ -262,7 +290,9 @@ export const onUpdateCreated = async (event: FirestoreEvent<QueryDocumentSnapsho
 
   // Check if the update has the required fields
   if (!updateData || Object.keys(updateData).length === 0) {
-    logger.error(`Update ${updateData[UpdateFields.ID] || "unknown"} has no data`);
+    logger.error(
+      `Update ${updateData[UpdateFields.ID] || 'unknown'} has no data`,
+    );
     return;
   }
 
@@ -270,26 +300,33 @@ export const onUpdateCreated = async (event: FirestoreEvent<QueryDocumentSnapsho
   const db = getFirestore();
 
   try {
-    const { mainSummary, friendSummaries } = await processAllSummaries(db, updateData);
-    logger.info(`Successfully processed update ${updateData[UpdateFields.ID] || "unknown"}`);
+    const { mainSummary, friendSummaries } = await processAllSummaries(
+      db,
+      updateData,
+    );
+    logger.info(
+      `Successfully processed update ${updateData[UpdateFields.ID] || 'unknown'}`,
+    );
 
     // Track all events at once
     const events = [
       {
         eventName: EventName.SUMMARY_CREATED,
-        params: mainSummary
+        params: mainSummary,
       },
-      ...friendSummaries.map(summary => ({
+      ...friendSummaries.map((summary) => ({
         eventName: EventName.FRIEND_SUMMARY_CREATED,
-        params: summary
-      }))
+        params: summary,
+      })),
     ];
 
     trackApiEvents(events, updateData[UpdateFields.CREATED_BY]);
 
     logger.info(`Tracked ${events.length} analytics events`);
   } catch (error) {
-    logger.error(`Error processing update ${updateData[UpdateFields.ID] || "unknown"}: ${error}`);
+    logger.error(
+      `Error processing update ${updateData[UpdateFields.ID] || 'unknown'}: ${error}`,
+    );
     // In a production environment, we would implement retry logic here
   }
-}
+};

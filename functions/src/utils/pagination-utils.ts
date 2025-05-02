@@ -1,7 +1,7 @@
-import { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { decodeCursor, encodeCursor } from "./cursor-utils";
-import { BadRequestError } from "./errors";
-import { getLogger } from "./logging-utils";
+import { Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { decodeCursor, encodeCursor } from './cursor-utils';
+import { BadRequestError } from './errors';
+import { getLogger } from './logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -17,7 +17,7 @@ const logger = getLogger(__filename);
 export const applyPagination = async (
   query: Query,
   afterCursor: string | undefined,
-  limit: number
+  limit: number,
 ): Promise<Query> => {
   if (!afterCursor) {
     return limit ? query.limit(limit + 1) : query;
@@ -34,7 +34,7 @@ export const applyPagination = async (
     return limit ? query.limit(limit + 1) : query;
   } catch (error) {
     logger.error(`Error decoding cursor: ${error}`);
-    throw new BadRequestError("Invalid request parameters");
+    throw new BadRequestError('Invalid request parameters');
   }
 };
 
@@ -49,7 +49,7 @@ export const applyPagination = async (
 export const generateNextCursor = (
   lastDoc: QueryDocumentSnapshot | null,
   itemsLength: number,
-  limit: number
+  limit: number,
 ): string | null => {
   if (!lastDoc || itemsLength !== limit) {
     return null;
@@ -90,4 +90,4 @@ export const processQueryStream = async <T>(
   }
 
   return { items, lastDoc };
-}; 
+};

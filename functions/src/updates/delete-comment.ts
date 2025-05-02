@@ -1,11 +1,15 @@
-import { Request } from "express";
-import { getFirestore } from "firebase-admin/firestore";
-import { ApiResponse, CommentEventParams, EventName } from "../models/analytics-events";
-import { CommentFields } from "../models/constants";
-import { getCommentDoc } from "../utils/comment-utils";
-import { ForbiddenError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
-import { getUpdateDoc } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  CommentEventParams,
+  EventName,
+} from '../models/analytics-events';
+import { CommentFields } from '../models/constants';
+import { getCommentDoc } from '../utils/comment-utils';
+import { ForbiddenError } from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
+import { getUpdateDoc } from '../utils/update-utils';
 
 const logger = getLogger(__filename);
 
@@ -29,7 +33,9 @@ const logger = getLogger(__filename);
  * @throws 404: Comment not found
  * @throws 403: You can only delete your own comments
  */
-export const deleteComment = async (req: Request): Promise<ApiResponse<null>> => {
+export const deleteComment = async (
+  req: Request,
+): Promise<ApiResponse<null>> => {
   const updateId = req.params.update_id;
   const commentId = req.params.comment_id;
   const currentUserId = req.userId;
@@ -44,15 +50,17 @@ export const deleteComment = async (req: Request): Promise<ApiResponse<null>> =>
 
   // Check if user is the comment creator
   if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
-    logger.warn(`User ${currentUserId} attempted to delete comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`);
-    throw new ForbiddenError("You can only delete your own comments");
+    logger.warn(
+      `User ${currentUserId} attempted to delete comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`,
+    );
+    throw new ForbiddenError('You can only delete your own comments');
   }
 
   // Delete comment and update comment count in a batch
   const batch = db.batch();
   batch.delete(commentResult.ref);
   batch.update(updateResult.ref, {
-    comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1)
+    comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1),
   });
 
   await batch.commit();
@@ -61,7 +69,7 @@ export const deleteComment = async (req: Request): Promise<ApiResponse<null>> =>
   const event: CommentEventParams = {
     comment_length: commentData[CommentFields.CONTENT].length,
     comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1),
-    reaction_count: updateResult.data.reaction_count || 0
+    reaction_count: updateResult.data.reaction_count || 0,
   };
 
   return {
@@ -70,7 +78,7 @@ export const deleteComment = async (req: Request): Promise<ApiResponse<null>> =>
     analytics: {
       event: EventName.COMMENT_DELETED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

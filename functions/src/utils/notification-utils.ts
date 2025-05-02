@@ -1,5 +1,5 @@
-import { getMessaging } from "firebase-admin/messaging";
-import { getLogger } from "./logging-utils";
+import { getMessaging } from 'firebase-admin/messaging';
+import { getLogger } from './logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -14,7 +14,7 @@ export const sendNotification = async (
   deviceId: string,
   title: string,
   message: string,
-  data?: Record<string, string>
+  data?: Record<string, string>,
 ): Promise<void> => {
   try {
     const messaging = getMessaging();
@@ -23,12 +23,12 @@ export const sendNotification = async (
       token: deviceId,
       notification: {
         title,
-        body: message
+        body: message,
       },
       data: {
         ...data,
-        type: data?.type || "default"
-      }
+        type: data?.type || 'default',
+      },
     });
 
     logger.info(`Successfully sent notification to device ${deviceId}`);

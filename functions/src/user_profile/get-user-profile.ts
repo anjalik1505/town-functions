@@ -1,12 +1,26 @@
-import { Request } from "express";
-import { getFirestore } from "firebase-admin/firestore";
-import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
-import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from "../models/constants";
-import { FriendProfileResponse } from "../models/data-models";
-import { BadRequestError, ForbiddenError } from "../utils/errors";
-import { createFriendshipId } from "../utils/friendship-utils";
-import { getLogger } from "../utils/logging-utils";
-import { createSummaryId, formatFriendProfileResponse, getProfileDoc } from "../utils/profile-utils";
+import { Request } from 'express';
+import { getFirestore } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  FriendshipFields,
+  ProfileFields,
+  Status,
+  UserSummaryFields,
+} from '../models/constants';
+import { FriendProfileResponse } from '../models/data-models';
+import { BadRequestError, ForbiddenError } from '../utils/errors';
+import { createFriendshipId } from '../utils/friendship-utils';
+import { getLogger } from '../utils/logging-utils';
+import {
+  createSummaryId,
+  formatFriendProfileResponse,
+  getProfileDoc,
+} from '../utils/profile-utils';
 
 const logger = getLogger(__filename);
 
@@ -33,12 +47,14 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their profile
  */
-export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendProfileResponse>> => {
+export const getUserProfile = async (
+  req: Request,
+): Promise<ApiResponse<FriendProfileResponse>> => {
   const currentUserId = req.userId;
   const targetUserId = req.params.target_user_id;
 
   logger.info(
-    `Retrieving profile for user ${targetUserId} requested by ${currentUserId}`
+    `Retrieving profile for user ${targetUserId} requested by ${currentUserId}`,
   );
 
   const db = getFirestore();
@@ -46,9 +62,11 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   // Redirect users to the appropriate endpoint for their own profile
   if (currentUserId === targetUserId) {
     logger.warn(
-      `User ${currentUserId} attempted to view their own profile through /user endpoint`
+      `User ${currentUserId} attempted to view their own profile through /user endpoint`,
     );
-    throw new BadRequestError("Use /me/profile endpoint to view your own profile");
+    throw new BadRequestError(
+      'Use /me/profile endpoint to view your own profile',
+    );
   }
 
   // Get the target user's profile using the utility function
@@ -58,7 +76,9 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   const friendshipId = createFriendshipId(currentUserId, targetUserId);
   const summaryId = createSummaryId(currentUserId, targetUserId);
 
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
+  const friendshipRef = db
+    .collection(Collections.FRIENDSHIPS)
+    .doc(friendshipId);
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
@@ -67,27 +87,33 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED
   ) {
     logger.warn(
-      `User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`
+      `User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`,
     );
-    throw new ForbiddenError("You must be friends with this user to view their profile");
+    throw new ForbiddenError(
+      'You must be friends with this user to view their profile',
+    );
   }
 
-  logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
+  logger.info(
+    `Friendship verified between ${currentUserId} and ${targetUserId}`,
+  );
 
   // Get the user summary document for this friendship
-  const userSummaryRef = db.collection(Collections.USER_SUMMARIES).doc(summaryId);
+  const userSummaryRef = db
+    .collection(Collections.USER_SUMMARIES)
+    .doc(summaryId);
   const userSummaryDoc = await userSummaryRef.get();
 
   // Initialize summary and suggestions
-  let summary = "";
-  let suggestions = "";
+  let summary = '';
+  let suggestions = '';
 
   if (userSummaryDoc.exists) {
     const userSummaryData = userSummaryDoc.data() || {};
     // Only return the summary if the current user is the target (the one who should see it)
     if (userSummaryData[UserSummaryFields.TARGET_ID] === currentUserId) {
-      summary = userSummaryData[UserSummaryFields.SUMMARY] || "";
-      suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS] || "";
+      summary = userSummaryData[UserSummaryFields.SUMMARY] || '';
+      suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS] || '';
       logger.info(`Retrieved user summary for relationship ${friendshipId}`);
     } else {
       logger.info(`User ${currentUserId} is not the target for this summary`);
@@ -101,7 +127,7 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     targetUserId,
     targetUserProfileData,
     summary,
-    suggestions
+    suggestions,
   );
 
   // Track friend profile view event
@@ -110,9 +136,12 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     has_avatar: !!targetUserProfileData[ProfileFields.AVATAR],
     has_location: !!targetUserProfileData[ProfileFields.LOCATION],
     has_birthday: !!targetUserProfileData[ProfileFields.BIRTHDAY],
-    has_notification_settings: Array.isArray(targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
+    has_notification_settings:
+      Array.isArray(
+        targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS],
+      ) &&
       targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
-    has_gender: !!targetUserProfileData[ProfileFields.GENDER]
+    has_gender: !!targetUserProfileData[ProfileFields.GENDER],
   };
 
   return {
@@ -121,7 +150,7 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     analytics: {
       event: EventName.FRIEND_PROFILE_VIEWED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

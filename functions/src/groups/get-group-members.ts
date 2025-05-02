@@ -1,9 +1,9 @@
-import { Request, Response } from "express";
-import { getFirestore } from "firebase-admin/firestore";
-import { Collections, GroupFields, ProfileFields } from "../models/constants";
-import { GroupMember, GroupMembersResponse } from "../models/data-models";
-import { ForbiddenError, NotFoundError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
+import { Request, Response } from 'express';
+import { getFirestore } from 'firebase-admin/firestore';
+import { Collections, GroupFields, ProfileFields } from '../models/constants';
+import { GroupMember, GroupMembersResponse } from '../models/data-models';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -25,7 +25,11 @@ const logger = getLogger(__filename);
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupMembers = async (req: Request, res: Response, groupId: string): Promise<void> => {
+export const getGroupMembers = async (
+  req: Request,
+  res: Response,
+  groupId: string,
+): Promise<void> => {
   logger.info(`Retrieving members for group: ${groupId}`);
 
   // Get the authenticated user ID from the request
@@ -40,7 +44,7 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
 
   if (!groupDoc.exists) {
     logger.warn(`Group ${groupId} not found`);
-    throw new NotFoundError("Group not found");
+    throw new NotFoundError('Group not found');
   }
 
   const groupData = groupDoc.data() || {};
@@ -49,7 +53,9 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
   // Check if the current user is a member of the group
   if (!membersIds.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-    throw new ForbiddenError("You must be a member of the group to view its members");
+    throw new ForbiddenError(
+      'You must be a member of the group to view its members',
+    );
   }
 
   const members: GroupMember[] = [];
@@ -62,10 +68,10 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
     logger.info(`Using denormalized member profiles for group: ${groupId}`);
     for (const profile of memberProfiles) {
       const member: GroupMember = {
-        user_id: profile[ProfileFields.USER_ID] || "",
-        username: profile[ProfileFields.USERNAME] || "",
-        name: profile[ProfileFields.NAME] || "",
-        avatar: profile[ProfileFields.AVATAR] || ""
+        user_id: profile[ProfileFields.USER_ID] || '',
+        username: profile[ProfileFields.USERNAME] || '',
+        name: profile[ProfileFields.NAME] || '',
+        avatar: profile[ProfileFields.AVATAR] || '',
       };
       members.push(member);
     }
@@ -75,8 +81,8 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
 
   // Return the response
   const response: GroupMembersResponse = {
-    members
+    members,
   };
 
   res.json(response);
-}; 
+};

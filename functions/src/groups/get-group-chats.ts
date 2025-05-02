@@ -1,11 +1,20 @@
-import { Request, Response } from "express";
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { ChatFields, Collections, GroupFields, QueryOperators } from "../models/constants";
-import { ChatMessage, ChatResponse } from "../models/data-models";
-import { ForbiddenError, NotFoundError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
-import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { Request, Response } from 'express';
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import {
+  ChatFields,
+  Collections,
+  GroupFields,
+  QueryOperators,
+} from '../models/constants';
+import { ChatMessage, ChatResponse } from '../models/data-models';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils';
+import { formatTimestamp } from '../utils/timestamp-utils';
 
 const logger = getLogger(__filename);
 
@@ -35,7 +44,11 @@ const logger = getLogger(__filename);
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupChats = async (req: Request, res: Response, groupId: string): Promise<void> => {
+export const getGroupChats = async (
+  req: Request,
+  res: Response,
+  groupId: string,
+): Promise<void> => {
   logger.info(`Retrieving chat messages for group: ${groupId}`);
 
   // Get the authenticated user ID from the request
@@ -50,7 +63,7 @@ export const getGroupChats = async (req: Request, res: Response, groupId: string
   const afterCursor = validatedParams?.after_cursor;
 
   logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
+    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
   );
 
   // First, check if the group exists and if the user is a member
@@ -59,7 +72,7 @@ export const getGroupChats = async (req: Request, res: Response, groupId: string
 
   if (!groupDoc.exists) {
     logger.warn(`Group ${groupId} not found`);
-    throw new NotFoundError("Group not found");
+    throw new NotFoundError('Group not found');
   }
 
   const groupData = groupDoc.data() || {};
@@ -68,50 +81,57 @@ export const getGroupChats = async (req: Request, res: Response, groupId: string
   // Check if the current user is a member of the group
   if (!members.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-    throw new ForbiddenError("You must be a member of the group to view its chat messages");
+    throw new ForbiddenError(
+      'You must be a member of the group to view its chat messages',
+    );
   }
 
   // Set up the query for chat messages
   const chatsRef = groupRef.collection(Collections.CHATS);
 
   // Build the query: first ordering, then pagination, then limit
-  let query = chatsRef
-    .orderBy(ChatFields.CREATED_AT, QueryOperators.DESC);
+  let query = chatsRef.orderBy(ChatFields.CREATED_AT, QueryOperators.DESC);
 
   // Apply cursor-based pagination - errors will be automatically caught by Express
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process chat messages using streaming
-  const {
-    items: chatDocs,
-    lastDoc
-  } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
+  const { items: chatDocs, lastDoc } =
+    await processQueryStream<QueryDocumentSnapshot>(
+      paginatedQuery,
+      (doc) => doc,
+      limit,
+    );
 
   // Convert Firestore documents to ChatMessage models
-  const messages: ChatMessage[] = chatDocs.map(chatDoc => {
+  const messages: ChatMessage[] = chatDocs.map((chatDoc) => {
     const docData = chatDoc.data();
     const message: ChatMessage = {
       message_id: chatDoc.id,
-      sender_id: docData[ChatFields.SENDER_ID] || "",
-      text: docData[ChatFields.TEXT] || "",
-      created_at: docData[ChatFields.CREATED_AT] ? formatTimestamp(docData[ChatFields.CREATED_AT]) : "",
-      attachments: docData[ChatFields.ATTACHMENTS] || []
+      sender_id: docData[ChatFields.SENDER_ID] || '',
+      text: docData[ChatFields.TEXT] || '',
+      created_at: docData[ChatFields.CREATED_AT]
+        ? formatTimestamp(docData[ChatFields.CREATED_AT])
+        : '',
+      attachments: docData[ChatFields.ATTACHMENTS] || [],
     };
     return message;
   });
 
-  logger.info("Query executed successfully");
+  logger.info('Query executed successfully');
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, messages.length, limit);
 
-  logger.info(`Retrieved ${messages.length} chat messages for group: ${groupId}`);
+  logger.info(
+    `Retrieved ${messages.length} chat messages for group: ${groupId}`,
+  );
 
   // Return the response
   const response: ChatResponse = {
     messages,
-    next_cursor: nextCursor
+    next_cursor: nextCursor,
   };
 
   res.json(response);
-}; 
+};

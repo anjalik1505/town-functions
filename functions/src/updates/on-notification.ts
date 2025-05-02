@@ -1,12 +1,22 @@
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { FirestoreEvent } from "firebase-functions/v2/firestore";
-import { generateNotificationMessageFlow } from "../ai/flows";
-import { EventName, NotificationEventParams, NotificationsEventParams } from "../models/analytics-events";
-import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields } from "../models/constants";
-import { trackApiEvents } from "../utils/analytics-utils";
-import { getLogger } from "../utils/logging-utils";
-import { sendNotification } from "../utils/notification-utils";
-import { calculateAge } from "../utils/profile-utils";
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import { generateNotificationMessageFlow } from '../ai/flows';
+import {
+  EventName,
+  NotificationEventParams,
+  NotificationsEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  DeviceFields,
+  NotificationFields,
+  ProfileFields,
+  UpdateFields,
+} from '../models/constants';
+import { trackApiEvents } from '../utils/analytics-utils';
+import { getLogger } from '../utils/logging-utils';
+import { sendNotification } from '../utils/notification-utils';
+import { calculateAge } from '../utils/profile-utils';
 
 const logger = getLogger(__filename);
 
@@ -31,7 +41,7 @@ const processUserNotification = async (
   creatorName: string,
   creatorGender: string,
   creatorLocation: string,
-  creatorBirthday: string
+  creatorBirthday: string,
 ): Promise<NotificationEventParams> => {
   // Skip if the target user is the creator
   if (targetUserId === creatorId) {
@@ -42,7 +52,7 @@ const processUserNotification = async (
       no_notification: false,
       no_device: false,
       notification_length: 0,
-      is_urgent: false
+      is_urgent: false,
     };
   }
 
@@ -58,24 +68,27 @@ const processUserNotification = async (
       no_notification: false,
       no_device: false,
       notification_length: 0,
-      is_urgent: false
+      is_urgent: false,
     };
   }
 
   // Get notification settings from profile
   const profileData = profileDoc.data() || {};
-  const notificationSettings = profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
+  const notificationSettings =
+    profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
 
   // If user has no notification settings, skip
   if (!notificationSettings || notificationSettings.length === 0) {
-    logger.info(`User ${targetUserId} has no notification settings, skipping notification`);
+    logger.info(
+      `User ${targetUserId} has no notification settings, skipping notification`,
+    );
     return {
       notification_all: false,
       notification_urgent: false,
       no_notification: true,
       no_device: false,
       notification_length: 0,
-      is_urgent: false
+      is_urgent: false,
     };
   }
 
@@ -84,14 +97,16 @@ const processUserNotification = async (
   const deviceDoc = await deviceRef.get();
 
   if (!deviceDoc.exists) {
-    logger.info(`No device found for user ${targetUserId}, skipping notification`);
+    logger.info(
+      `No device found for user ${targetUserId}, skipping notification`,
+    );
     return {
       notification_all: false,
       notification_urgent: false,
       no_notification: false,
       no_device: true,
       notification_length: 0,
-      is_urgent: false
+      is_urgent: false,
     };
   }
 
@@ -99,14 +114,16 @@ const processUserNotification = async (
   const deviceId = deviceData[DeviceFields.DEVICE_ID];
 
   if (!deviceId) {
-    logger.info(`No device ID found for user ${targetUserId}, skipping notification`);
+    logger.info(
+      `No device ID found for user ${targetUserId}, skipping notification`,
+    );
     return {
       notification_all: false,
       notification_urgent: false,
       no_notification: false,
       no_device: true,
       notification_length: 0,
-      is_urgent: false
+      is_urgent: false,
     };
   }
 
@@ -125,39 +142,50 @@ const processUserNotification = async (
     // User wants all notifications
     shouldSendNotification = true;
     userAll = true;
-    logger.info(`User ${targetUserId} has 'all' notification setting, will send notification`);
-  } else if (notificationSettings.includes(NotificationFields.URGENT) && (score === 5 || score === 1)) {
+    logger.info(
+      `User ${targetUserId} has 'all' notification setting, will send notification`,
+    );
+  } else if (
+    notificationSettings.includes(NotificationFields.URGENT) &&
+    (score === 5 || score === 1)
+  ) {
     // User only wants urgent notifications, check if this update is urgent
     shouldSendNotification = true;
     userUrgent = true;
-    logger.info(`User ${targetUserId} has 'urgent' notification setting, will send notification`);
+    logger.info(
+      `User ${targetUserId} has 'urgent' notification setting, will send notification`,
+    );
   } else {
-    logger.info(`User ${targetUserId} has notification settings that don't include 'all' or 'urgent', skipping notification`);
+    logger.info(
+      `User ${targetUserId} has notification settings that don't include 'all' or 'urgent', skipping notification`,
+    );
   }
 
   // If we should send a notification, generate the message and send it
   if (shouldSendNotification) {
     // Calculate creator's age
-    const creatorAge = calculateAge(creatorBirthday || "");
+    const creatorAge = calculateAge(creatorBirthday || '');
 
     // Generate notification message using creator's information
     const result = await generateNotificationMessageFlow({
-      updateContent: updateContent || "",
-      sentiment: sentiment || "",
+      updateContent: updateContent || '',
+      sentiment: sentiment || '',
       score: score.toString(),
       friendName: creatorName,
       friendGender: creatorGender,
       friendLocation: creatorLocation,
-      friendAge: creatorAge
+      friendAge: creatorAge,
     });
 
     // Send the notification
-    await sendNotification(deviceId, "New Update", result.message, {
-      type: "update",
-      update_id: updateId
+    await sendNotification(deviceId, 'New Update', result.message, {
+      type: 'update',
+      update_id: updateId,
     });
 
-    logger.info(`Sent notification to user ${targetUserId} for update ${updateId}`);
+    logger.info(
+      `Sent notification to user ${targetUserId} for update ${updateId}`,
+    );
   }
 
   return {
@@ -166,9 +194,9 @@ const processUserNotification = async (
     no_notification: false,
     no_device: false,
     notification_length: updateContent?.length || 0,
-    is_urgent: score === 5 || score === 1
+    is_urgent: score === 5 || score === 1,
   };
-}
+};
 
 /**
  * Process notifications for all users who should receive the update.
@@ -179,7 +207,7 @@ const processUserNotification = async (
  */
 const processAllNotifications = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>
+  updateData: Record<string, any>,
 ): Promise<{
   notifications: NotificationsEventParams;
   notificationEvents: NotificationEventParams[];
@@ -190,7 +218,7 @@ const processAllNotifications = async (
   const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
 
   if (!creatorId) {
-    logger.error("Update has no creator ID");
+    logger.error('Update has no creator ID');
     return {
       notifications: {
         total_users_count: 0,
@@ -200,9 +228,9 @@ const processAllNotifications = async (
         friend_count: 0,
         group_count: 0,
         no_device_count: 0,
-        is_urgent: false
+        is_urgent: false,
       },
-      notificationEvents: []
+      notificationEvents: [],
     };
   }
 
@@ -210,19 +238,20 @@ const processAllNotifications = async (
   const creatorProfileRef = db.collection(Collections.PROFILES).doc(creatorId);
   const creatorProfileDoc = await creatorProfileRef.get();
 
-  let creatorName = "Friend";
-  let creatorGender = "They";
-  let creatorLocation = "";
-  let creatorBirthday = "";
+  let creatorName = 'Friend';
+  let creatorGender = 'They';
+  let creatorLocation = '';
+  let creatorBirthday = '';
 
   if (creatorProfileDoc.exists) {
     const creatorProfileData = creatorProfileDoc.data() || {};
-    creatorName = creatorProfileData[ProfileFields.NAME] ||
+    creatorName =
+      creatorProfileData[ProfileFields.NAME] ||
       creatorProfileData[ProfileFields.USERNAME] ||
-      "Friend";
-    creatorGender = creatorProfileData[ProfileFields.GENDER] || "They";
-    creatorLocation = creatorProfileData[ProfileFields.LOCATION] || "";
-    creatorBirthday = creatorProfileData[ProfileFields.BIRTHDAY] || "";
+      'Friend';
+    creatorGender = creatorProfileData[ProfileFields.GENDER] || 'They';
+    creatorLocation = creatorProfileData[ProfileFields.LOCATION] || '';
+    creatorBirthday = creatorProfileData[ProfileFields.BIRTHDAY] || '';
   } else {
     logger.warn(`Creator profile not found: ${creatorId}`);
   }
@@ -238,11 +267,11 @@ const processAllNotifications = async (
   if (groupIds.length > 0) {
     const groupDocs = await Promise.all(
       groupIds.map((groupId: string) =>
-        db.collection(Collections.GROUPS).doc(groupId).get()
-      )
+        db.collection(Collections.GROUPS).doc(groupId).get(),
+      ),
     );
 
-    groupDocs.forEach(groupDoc => {
+    groupDocs.forEach((groupDoc) => {
       if (groupDoc.exists) {
         const groupData = groupDoc.data();
         if (groupData && groupData.members) {
@@ -256,7 +285,7 @@ const processAllNotifications = async (
   }
 
   // Process notifications for all users in parallel
-  const tasks = Array.from(usersToNotify).map(userId =>
+  const tasks = Array.from(usersToNotify).map((userId) =>
     processUserNotification(
       db,
       updateData,
@@ -265,18 +294,18 @@ const processAllNotifications = async (
       creatorName,
       creatorGender,
       creatorLocation,
-      creatorBirthday
-    )
+      creatorBirthday,
+    ),
   );
 
   // Run all tasks in parallel and collect results
   const results = await Promise.all(tasks);
 
   // Aggregate analytics data
-  const userAllCount = results.filter(r => r.notification_all).length;
-  const usersUrgentCount = results.filter(r => r.notification_urgent).length;
-  const noDeviceCount = results.filter(r => r.no_device).length;
-  const noNotificationCount = results.filter(r => r.no_notification).length;
+  const userAllCount = results.filter((r) => r.notification_all).length;
+  const usersUrgentCount = results.filter((r) => r.notification_urgent).length;
+  const noDeviceCount = results.filter((r) => r.no_device).length;
+  const noNotificationCount = results.filter((r) => r.no_notification).length;
   const score = updateData[UpdateFields.SCORE] || 3;
   const isUrgent = score === 5 || score === 1;
 
@@ -290,22 +319,27 @@ const processAllNotifications = async (
       friend_count: friendIds.length,
       group_count: groupUsers.size,
       no_device_count: noDeviceCount,
-      is_urgent: isUrgent
+      is_urgent: isUrgent,
     },
-    notificationEvents: results
+    notificationEvents: results,
   };
-}
+};
 
 /**
  * Firestore trigger function that runs when a new update is created.
  *
  * @param event - The Firestore event object containing the document data
  */
-export const onUpdateNotification = async (event: FirestoreEvent<QueryDocumentSnapshot | undefined, {
-  id: string
-}>): Promise<void> => {
+export const onUpdateNotification = async (
+  event: FirestoreEvent<
+    QueryDocumentSnapshot | undefined,
+    {
+      id: string;
+    }
+  >,
+): Promise<void> => {
   if (!event.data) {
-    logger.error("No data in update event");
+    logger.error('No data in update event');
     return;
   }
 
@@ -319,7 +353,9 @@ export const onUpdateNotification = async (event: FirestoreEvent<QueryDocumentSn
 
   // Check if the update has the required fields
   if (!updateData || Object.keys(updateData).length === 0) {
-    logger.error(`Update ${updateData[UpdateFields.ID] || "unknown"} has no data`);
+    logger.error(
+      `Update ${updateData[UpdateFields.ID] || 'unknown'} has no data`,
+    );
     return;
   }
 
@@ -327,26 +363,33 @@ export const onUpdateNotification = async (event: FirestoreEvent<QueryDocumentSn
   const db = getFirestore();
 
   try {
-    const { notifications, notificationEvents } = await processAllNotifications(db, updateData);
-    logger.info(`Successfully processed notifications for update ${updateData[UpdateFields.ID] || "unknown"}`);
+    const { notifications, notificationEvents } = await processAllNotifications(
+      db,
+      updateData,
+    );
+    logger.info(
+      `Successfully processed notifications for update ${updateData[UpdateFields.ID] || 'unknown'}`,
+    );
 
     // Track all events at once
     const events = [
       {
         eventName: EventName.NOTIFICATION_SENT,
-        params: notifications
+        params: notifications,
       },
-      ...notificationEvents.map(event => ({
+      ...notificationEvents.map((event) => ({
         eventName: EventName.NOTIFICATION_SENT,
-        params: event
-      }))
+        params: event,
+      })),
     ];
 
     trackApiEvents(events, updateData[UpdateFields.CREATED_BY]);
 
     logger.info(`Tracked ${events.length} analytics events`);
   } catch (error) {
-    logger.error(`Error processing notifications for update ${updateData[UpdateFields.ID] || "unknown"}: ${error}`);
+    logger.error(
+      `Error processing notifications for update ${updateData[UpdateFields.ID] || 'unknown'}: ${error}`,
+    );
     // In a production environment, we would implement retry logic here
   }
-} 
+};

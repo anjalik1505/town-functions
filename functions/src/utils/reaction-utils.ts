@@ -1,7 +1,7 @@
-import { getFirestore } from "firebase-admin/firestore";
-import { Collections } from "../models/constants";
-import { ReactionGroup } from "../models/data-models";
-import { getLogger } from "./logging-utils";
+import { getFirestore } from 'firebase-admin/firestore';
+import { Collections } from '../models/constants';
+import { ReactionGroup } from '../models/data-models';
+import { getLogger } from './logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -11,10 +11,13 @@ const logger = getLogger(__filename);
  * @param updateId - The ID of the update to fetch reactions for
  * @returns Map of reaction groups by type
  */
-export const fetchUpdateReactions = async (updateId: string): Promise<ReactionGroup[]> => {
+export const fetchUpdateReactions = async (
+  updateId: string,
+): Promise<ReactionGroup[]> => {
   const db = getFirestore();
   try {
-    const reactionsSnapshot = await db.collection(Collections.UPDATES)
+    const reactionsSnapshot = await db
+      .collection(Collections.UPDATES)
       .doc(updateId)
       .collection(Collections.REACTIONS)
       .get();
@@ -22,7 +25,7 @@ export const fetchUpdateReactions = async (updateId: string): Promise<ReactionGr
     const reactions: ReactionGroup[] = [];
     const reactionsByType = new Map<string, { count: number; id: string }>();
 
-    reactionsSnapshot.docs.forEach(doc => {
+    reactionsSnapshot.docs.forEach((doc) => {
       const reactionData = doc.data();
       const type = reactionData.type;
       const current = reactionsByType.get(type) || { count: 0, id: doc.id };
@@ -46,7 +49,9 @@ export const fetchUpdateReactions = async (updateId: string): Promise<ReactionGr
  * @param updateIds - Array of update IDs to fetch reactions for
  * @returns Map of update IDs to their reaction groups
  */
-export const fetchUpdatesReactions = async (updateIds: string[]): Promise<Map<string, ReactionGroup[]>> => {
+export const fetchUpdatesReactions = async (
+  updateIds: string[],
+): Promise<Map<string, ReactionGroup[]>> => {
   const reactionsMap = new Map<string, ReactionGroup[]>();
 
   // Fetch reactions for all updates in parallel
@@ -57,4 +62,4 @@ export const fetchUpdatesReactions = async (updateIds: string[]): Promise<Map<st
 
   await Promise.all(reactionPromises);
   return reactionsMap;
-}; 
+};

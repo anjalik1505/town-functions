@@ -1,13 +1,21 @@
-import { Request } from "express";
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { ApiResponse, EventName, UpdateViewEventParams } from "../models/analytics-events";
-import { Collections, FeedFields, QueryOperators } from "../models/constants";
-import { UpdatesResponse } from "../models/data-models";
-import { getLogger } from "../utils/logging-utils";
-import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
-import { getProfileDoc } from "../utils/profile-utils";
-import { fetchUpdatesReactions } from "../utils/reaction-utils";
-import { fetchUpdatesByIds, processFeedItems } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  UpdateViewEventParams,
+} from '../models/analytics-events';
+import { Collections, FeedFields, QueryOperators } from '../models/constants';
+import { UpdatesResponse } from '../models/data-models';
+import { getLogger } from '../utils/logging-utils';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils';
+import { getProfileDoc } from '../utils/profile-utils';
+import { fetchUpdatesReactions } from '../utils/reaction-utils';
+import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils';
 
 const logger = getLogger(__filename);
 
@@ -25,7 +33,9 @@ const logger = getLogger(__filename);
  * - A list of updates belonging to the current user
  * - A next_cursor for pagination (if more results are available)
  */
-export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesResponse>> => {
+export const getUpdates = async (
+  req: Request,
+): Promise<ApiResponse<UpdatesResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Retrieving updates for user: ${currentUserId}`);
 
@@ -37,7 +47,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
   const afterCursor = validatedParams?.after_cursor;
 
   logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
+    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
   );
 
   // Get the user's profile first to verify existence
@@ -55,16 +65,18 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const {
-    items: feedDocs,
-    lastDoc
-  } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
+  const { items: feedDocs, lastDoc } =
+    await processQueryStream<QueryDocumentSnapshot>(
+      paginatedQuery,
+      (doc) => doc,
+      limit,
+    );
 
   if (feedDocs.length === 0) {
     logger.info(`No updates found for user ${currentUserId}`);
     const emptyEvent: UpdateViewEventParams = {
       update_count: 0,
-      user: currentUserId
+      user: currentUserId,
     };
     return {
       data: { updates: [], next_cursor: null },
@@ -72,13 +84,13 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
       analytics: {
         event: EventName.UPDATES_VIEWED,
         userId: currentUserId,
-        params: emptyEvent
-      }
+        params: emptyEvent,
+      },
     };
   }
 
   // Get all update IDs from feed items
-  const updateIds = feedDocs.map(doc => doc.data()[FeedFields.UPDATE_ID]);
+  const updateIds = feedDocs.map((doc) => doc.data()[FeedFields.UPDATE_ID]);
 
   // Fetch all updates in parallel
   const updateMap = await fetchUpdatesByIds(updateIds);
@@ -87,7 +99,12 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create updates
-  const updates = processFeedItems(feedDocs, updateMap, updateReactionsMap, currentUserId);
+  const updates = processFeedItems(
+    feedDocs,
+    updateMap,
+    updateReactionsMap,
+    currentUserId,
+  );
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
@@ -95,7 +112,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
   logger.info(`Retrieved ${updates.length} updates for user ${currentUserId}`);
   const event: UpdateViewEventParams = {
     update_count: updates.length,
-    user: currentUserId
+    user: currentUserId,
   };
   return {
     data: { updates, next_cursor: nextCursor },
@@ -103,7 +120,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
     analytics: {
       event: EventName.UPDATES_VIEWED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

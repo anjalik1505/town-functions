@@ -1,13 +1,21 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
-import { Collections, InvitationFields, Status } from "../models/constants";
-import { Invitation } from "../models/data-models";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../utils/errors";
-import { hasReachedCombinedLimit } from "../utils/friendship-utils";
-import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
-import { hasLimitOverride } from "../utils/profile-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  InviteEventParams,
+} from '../models/analytics-events';
+import { Collections, InvitationFields, Status } from '../models/constants';
+import { Invitation } from '../models/data-models';
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+} from '../utils/errors';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils';
+import { getLogger } from '../utils/logging-utils';
+import { formatTimestamp } from '../utils/timestamp-utils';
+import { hasLimitOverride } from '../utils/profile-utils';
 
 const logger = getLogger(__filename);
 
@@ -28,7 +36,9 @@ const logger = getLogger(__filename);
  * @throws {403} You can only resend your own invitations
  * @throws {404} Invitation not found
  */
-export const resendInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
+export const resendInvitation = async (
+  req: Request,
+): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
   const invitationId = req.params.invitation_id;
   logger.info(`User ${currentUserId} resending invitation ${invitationId}`);
@@ -37,13 +47,15 @@ export const resendInvitation = async (req: Request): Promise<ApiResponse<Invita
   const db = getFirestore();
 
   // Get the invitation document
-  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
+  const invitationRef = db
+    .collection(Collections.INVITATIONS)
+    .doc(invitationId);
   const invitationDoc = await invitationRef.get();
 
   // Check if the invitation exists
   if (!invitationDoc.exists) {
     logger.warn(`Invitation ${invitationId} not found`);
-    throw new NotFoundError("Invitation not found");
+    throw new NotFoundError('Invitation not found');
   }
 
   const invitationData = invitationDoc.data();
@@ -52,22 +64,23 @@ export const resendInvitation = async (req: Request): Promise<ApiResponse<Invita
   const senderId = invitationData?.[InvitationFields.SENDER_ID];
   if (senderId !== currentUserId) {
     logger.warn(
-      `User ${currentUserId} is not the sender of invitation ${invitationId}`
+      `User ${currentUserId} is not the sender of invitation ${invitationId}`,
     );
-    throw new ForbiddenError("You can only resend your own invitations");
+    throw new ForbiddenError('You can only resend your own invitations');
   }
 
   // Check combined limit (excluding the current invitation)
-  const {
-    friendCount,
-    activeInvitationCount,
-    hasReachedLimit
-  } = await hasReachedCombinedLimit(currentUserId, invitationId);
+  const { friendCount, activeInvitationCount, hasReachedLimit } =
+    await hasReachedCombinedLimit(currentUserId, invitationId);
   if (hasReachedLimit) {
     const override = await hasLimitOverride(currentUserId);
     if (!override) {
-      logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-      throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+      logger.warn(
+        `User ${currentUserId} has reached the maximum number of friends and active invitations`,
+      );
+      throw new BadRequestError(
+        'You have reached the maximum number of friends and active invitations',
+      );
     }
   }
 
@@ -75,14 +88,14 @@ export const resendInvitation = async (req: Request): Promise<ApiResponse<Invita
   const currentTime = Timestamp.now();
   const expiresAt = new Timestamp(
     currentTime.seconds + 24 * 60 * 60, // Add 24 hours in seconds
-    currentTime.nanoseconds
+    currentTime.nanoseconds,
   );
 
   // Update the invitation with new timestamps
   await invitationRef.update({
     [InvitationFields.CREATED_AT]: currentTime,
     [InvitationFields.EXPIRES_AT]: expiresAt,
-    [InvitationFields.STATUS]: Status.PENDING
+    [InvitationFields.STATUS]: Status.PENDING,
   });
 
   logger.info(`User ${currentUserId} resent invitation ${invitationId}`);
@@ -94,16 +107,16 @@ export const resendInvitation = async (req: Request): Promise<ApiResponse<Invita
     expires_at: formatTimestamp(expiresAt),
     sender_id: currentUserId,
     status: Status.PENDING,
-    username: invitationData?.[InvitationFields.USERNAME] || "",
-    name: invitationData?.[InvitationFields.NAME] || "",
-    avatar: invitationData?.[InvitationFields.AVATAR] || "",
-    receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || ""
+    username: invitationData?.[InvitationFields.USERNAME] || '',
+    name: invitationData?.[InvitationFields.NAME] || '',
+    avatar: invitationData?.[InvitationFields.AVATAR] || '',
+    receiver_name: invitationData?.[InvitationFields.RECEIVER_NAME] || '',
   };
 
   // Create analytics event
   const event: InviteEventParams = {
     friend_count: friendCount,
-    invitation_count: activeInvitationCount + 1 // Add 1 for the resent invitation
+    invitation_count: activeInvitationCount + 1, // Add 1 for the resent invitation
   };
 
   return {
@@ -112,7 +125,7 @@ export const resendInvitation = async (req: Request): Promise<ApiResponse<Invita
     analytics: {
       event: EventName.INVITE_RESENT,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

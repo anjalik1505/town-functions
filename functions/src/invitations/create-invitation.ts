@@ -1,13 +1,22 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { ApiResponse, EventName, InviteEventParams } from "../models/analytics-events";
-import { Collections, InvitationFields, ProfileFields, Status } from "../models/constants";
-import { Invitation } from "../models/data-models";
-import { BadRequestError } from "../utils/errors";
-import { hasReachedCombinedLimit } from "../utils/friendship-utils";
-import { formatInvitation } from "../utils/invitation-utils";
-import { getLogger } from "../utils/logging-utils";
-import { getProfileDoc, hasLimitOverride } from "../utils/profile-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  InviteEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  InvitationFields,
+  ProfileFields,
+  Status,
+} from '../models/constants';
+import { Invitation } from '../models/data-models';
+import { BadRequestError } from '../utils/errors';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils';
+import { formatInvitation } from '../utils/invitation-utils';
+import { getLogger } from '../utils/logging-utils';
+import { getProfileDoc, hasLimitOverride } from '../utils/profile-utils';
 
 const logger = getLogger(__filename);
 
@@ -30,17 +39,24 @@ const logger = getLogger(__filename);
  * @throws 400: User has reached the maximum number of friends and active invitations
  * @throws 404: User profile not found
  */
-export const createInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
+export const createInvitation = async (
+  req: Request,
+): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
   logger.info(`Creating invitation for user ${currentUserId}`);
 
   // Check combined limit
-  const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount, hasReachedLimit } =
+    await hasReachedCombinedLimit(currentUserId);
   if (hasReachedLimit) {
     const override = await hasLimitOverride(currentUserId);
     if (!override) {
-      logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
-      throw new BadRequestError("You have reached the maximum number of friends and active invitations");
+      logger.warn(
+        `User ${currentUserId} has reached the maximum number of friends and active invitations`,
+      );
+      throw new BadRequestError(
+        'You have reached the maximum number of friends and active invitations',
+      );
     }
   }
 
@@ -59,15 +75,16 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
   const currentTime = Timestamp.now();
   const expiresAt = new Timestamp(
     currentTime.seconds + 24 * 60 * 60, // Add 24 hours in seconds
-    currentTime.nanoseconds
+    currentTime.nanoseconds,
   );
 
   // Create invitation data
   const invitationData = {
     [InvitationFields.SENDER_ID]: currentUserId,
-    [InvitationFields.USERNAME]: currentUserProfile[ProfileFields.USERNAME] || "",
-    [InvitationFields.NAME]: currentUserProfile[ProfileFields.NAME] || "",
-    [InvitationFields.AVATAR]: currentUserProfile[ProfileFields.AVATAR] || "",
+    [InvitationFields.USERNAME]:
+      currentUserProfile[ProfileFields.USERNAME] || '',
+    [InvitationFields.NAME]: currentUserProfile[ProfileFields.NAME] || '',
+    [InvitationFields.AVATAR]: currentUserProfile[ProfileFields.AVATAR] || '',
     [InvitationFields.STATUS]: Status.PENDING,
     [InvitationFields.CREATED_AT]: currentTime,
     [InvitationFields.EXPIRES_AT]: expiresAt,
@@ -85,7 +102,7 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
   // Create analytics event
   const event: InviteEventParams = {
     friend_count: friendCount,
-    invitation_count: activeInvitationCount + 1 // Add 1 for the new invitation
+    invitation_count: activeInvitationCount + 1, // Add 1 for the new invitation
   };
 
   return {
@@ -94,7 +111,7 @@ export const createInvitation = async (req: Request): Promise<ApiResponse<Invita
     analytics: {
       event: EventName.INVITE_CREATED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

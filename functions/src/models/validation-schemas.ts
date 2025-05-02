@@ -1,16 +1,17 @@
-import { isValid, parse } from "date-fns";
-import emojiRegex from "emoji-regex";
-import { z } from "zod";
-import { NotificationFields } from "./constants";
+import { isValid, parse } from 'date-fns';
+import emojiRegex from 'emoji-regex';
+import { z } from 'zod';
+import { NotificationFields } from './constants';
 
 // Reusable schema for birthday validation
-const birthdaySchema = z.string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Birthday must be in yyyy-mm-dd format")
+const birthdaySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Birthday must be in yyyy-mm-dd format')
   .refine((val: any) => {
     // Use date-fns to parse and validate the date
     const parsedDate = parse(val, 'yyyy-MM-dd', new Date());
     return isValid(parsedDate);
-  }, "Birthday must be a valid date")
+  }, 'Birthday must be a valid date')
   .optional();
 
 // Profile schemas
@@ -20,8 +21,10 @@ export const createProfileSchema = z.object({
   avatar: z.string().optional(),
   location: z.string().optional(),
   birthday: birthdaySchema,
-  notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
-  gender: z.string().optional()
+  notification_settings: z
+    .array(z.enum([NotificationFields.ALL, NotificationFields.URGENT]))
+    .optional(),
+  gender: z.string().optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -30,47 +33,58 @@ export const updateProfileSchema = z.object({
   avatar: z.string().optional(),
   location: z.string().optional(),
   birthday: birthdaySchema,
-  notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
-  gender: z.string().optional()
+  notification_settings: z
+    .array(z.enum([NotificationFields.ALL, NotificationFields.URGENT]))
+    .optional(),
+  gender: z.string().optional(),
 });
 
 // Pagination schemas
 export const paginationSchema = z.object({
-  limit: z.string().transform((val: string) => parseInt(val, 10)).pipe(z.number().min(1).max(100)).default("20"),
-  after_cursor: z.string().regex(/^[A-Za-z0-9+/=]+$/).optional()
+  limit: z
+    .string()
+    .transform((val: string) => parseInt(val, 10))
+    .pipe(z.number().min(1).max(100))
+    .default('20'),
+  after_cursor: z
+    .string()
+    .regex(/^[A-Za-z0-9+/=]+$/)
+    .optional(),
 });
 
 export const deviceSchema = z.object({
-  device_id: z.string().min(1, "Device ID is required")
+  device_id: z.string().min(1, 'Device ID is required'),
 });
 
 export const createUpdateSchema = z.object({
-  content: z.string().min(1, "Content is required"),
-  sentiment: z.string().min(1, "Sentiment is required"),
-  score: z.number().min(1).max(5, "Score must be between 1 and 5"),
-  emoji: z.string().min(1, "Sentiment emoji is required")
+  content: z.string().min(1, 'Content is required'),
+  sentiment: z.string().min(1, 'Sentiment is required'),
+  score: z.number().min(1).max(5, 'Score must be between 1 and 5'),
+  emoji: z
+    .string()
+    .min(1, 'Sentiment emoji is required')
     .refine((val: any) => {
       const regex = emojiRegex();
       return regex.test(val);
-    }, "Must be a valid emoji"),
+    }, 'Must be a valid emoji'),
   group_ids: z.array(z.string()).optional(),
   friend_ids: z.array(z.string()).optional(),
-  all_village: z.boolean().optional().default(false)
+  all_village: z.boolean().optional().default(false),
 });
 
 export const createChatMessageSchema = z.object({
-  text: z.string().min(1, "Message text is required"),
-  attachments: z.array(z.string()).optional()
+  text: z.string().min(1, 'Message text is required'),
+  attachments: z.array(z.string()).optional(),
 });
 
 export const createGroupSchema = z.object({
-  name: z.string().min(1, "Group name is required"),
+  name: z.string().min(1, 'Group name is required'),
   icon: z.string().optional(),
-  members: z.array(z.string()).min(1, "At least one member is required")
+  members: z.array(z.string()).min(1, 'At least one member is required'),
 });
 
 export const addGroupMembersSchema = z.object({
-  members: z.array(z.string()).min(1, "At least one member is required")
+  members: z.array(z.string()).min(1, 'At least one member is required'),
 });
 
 export const ownProfileSchema = z.object({
@@ -79,12 +93,12 @@ export const ownProfileSchema = z.object({
   emotional_overview: z.string(),
   key_moments: z.string(),
   recurring_themes: z.string(),
-  progress_and_growth: z.string()
+  progress_and_growth: z.string(),
 });
 
 export const friendProfileSchema = z.object({
   summary: z.string(),
-  suggestions: z.string()
+  suggestions: z.string(),
 });
 
 export const testPromptSchema = z.object({
@@ -96,39 +110,39 @@ export const testPromptSchema = z.object({
   progress_and_growth: z.string().optional(),
   update_content: z.string(),
   update_sentiment: z.string(),
-  gender: z.string().optional().default("they"),
+  gender: z.string().optional().default('they'),
   location: z.string().optional(),
   is_own_profile: z.boolean(),
   prompt: z.string(),
-  temperature: z.number().optional()
+  temperature: z.number().optional(),
 });
 
 export const testNotificationSchema = z.object({
-  title: z.string().min(1, "Notification title is required"),
-  body: z.string().min(1, "Notification body is required")
+  title: z.string().min(1, 'Notification title is required'),
+  body: z.string().min(1, 'Notification body is required'),
 });
 
 export const createInvitationSchema = z.object({
-  receiver_name: z.string().min(1, "Receiver name is required")
+  receiver_name: z.string().min(1, 'Receiver name is required'),
 });
 
 export const createCommentSchema = z.object({
   content: z.string().min(1).max(1000),
-  parent_id: z.string().optional().nullable()
+  parent_id: z.string().optional().nullable(),
 });
 
 export const updateCommentSchema = z.object({
-  content: z.string().min(1).max(1000)
+  content: z.string().min(1).max(1000),
 });
 
 export const createReactionSchema = z.object({
-  type: z.string().min(1).max(50)
+  type: z.string().min(1).max(50),
 });
 
 export const createFeedbackSchema = z.object({
-  content: z.string().min(1, "Feedback content is required")
+  content: z.string().min(1, 'Feedback content is required'),
 });
 
 export const analyzeSentimentSchema = z.object({
-  content: z.string().min(1, "Content is required")
+  content: z.string().min(1, 'Content is required'),
 });

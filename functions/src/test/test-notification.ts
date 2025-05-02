@@ -1,10 +1,10 @@
-import { Request, Response } from "express";
-import { getFirestore } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
-import { Collections, DeviceFields } from "../models/constants";
-import { NotificationResponse } from "../models/data-models";
-import { NotFoundError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
+import { Request, Response } from 'express';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
+import { Collections, DeviceFields } from '../models/constants';
+import { NotificationResponse } from '../models/data-models';
+import { NotFoundError } from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -22,7 +22,10 @@ const logger = getLogger(__filename);
  *
  * @throws {404} Device not found
  */
-export const testNotification = async (req: Request, res: Response): Promise<void> => {
+export const testNotification = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   const currentUserId = req.userId;
   logger.info(`Sending test notification to user ${currentUserId}`);
 
@@ -38,7 +41,9 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
 
   if (!deviceDoc.exists) {
     logger.warn(`Device not found for user ${currentUserId}`);
-    throw new NotFoundError("Device not found. Please register a device first.");
+    throw new NotFoundError(
+      'Device not found. Please register a device first.',
+    );
   }
 
   const deviceData = deviceDoc.data();
@@ -46,7 +51,9 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
 
   if (!deviceToken) {
     logger.warn(`No device token found for user ${currentUserId}`);
-    throw new NotFoundError("Device token not found. Please register a device first.");
+    throw new NotFoundError(
+      'Device token not found. Please register a device first.',
+    );
   }
 
   // Initialize Firebase Messaging
@@ -56,19 +63,21 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
   const message = {
     notification: {
       title,
-      body
+      body,
     },
-    token: deviceToken
+    token: deviceToken,
   };
 
   const response = await messaging.send(message);
-  logger.info(`Successfully sent notification to user ${currentUserId}: ${response}`);
+  logger.info(
+    `Successfully sent notification to user ${currentUserId}: ${response}`,
+  );
 
   const notificationResponse: NotificationResponse = {
     success: true,
-    message: "Notification sent successfully",
-    messageId: response
+    message: 'Notification sent successfully',
+    messageId: response,
   };
 
   res.json(notificationResponse);
-}; 
+};

@@ -1,10 +1,10 @@
-import { Request, Response } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Collections, DeviceFields } from "../models/constants";
-import { Device } from "../models/data-models";
-import { NotFoundError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
+import { Request, Response } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Collections, DeviceFields } from '../models/constants';
+import { Device } from '../models/data-models';
+import { NotFoundError } from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
+import { formatTimestamp } from '../utils/timestamp-utils';
 
 const logger = getLogger(__filename);
 
@@ -31,7 +31,7 @@ export const getDevice = async (req: Request, res: Response): Promise<void> => {
   const deviceDoc = await deviceRef.get();
   if (!deviceDoc.exists) {
     logger.warn(`Device not found for user ${currentUserId}`);
-    throw new NotFoundError("Device not found");
+    throw new NotFoundError('Device not found');
   }
 
   // Get device data and create Device object
@@ -40,12 +40,12 @@ export const getDevice = async (req: Request, res: Response): Promise<void> => {
 
   // Format timestamp for consistent API response
   const updatedAt = deviceData?.[DeviceFields.UPDATED_AT] as Timestamp;
-  const updatedAtIso = updatedAt ? formatTimestamp(updatedAt) : "";
+  const updatedAtIso = updatedAt ? formatTimestamp(updatedAt) : '';
 
   const device: Device = {
-    device_id: deviceData?.[DeviceFields.DEVICE_ID] || "",
-    updated_at: updatedAtIso
+    device_id: deviceData?.[DeviceFields.DEVICE_ID] || '',
+    updated_at: updatedAtIso,
   };
 
   res.json(device);
-}; 
+};

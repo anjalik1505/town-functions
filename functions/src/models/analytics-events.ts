@@ -35,7 +35,7 @@ export enum EventName {
   DAILY_NOTIFICATIONS_SENT = 'daily_notifications_sent',
   DAILY_NOTIFICATION_SENT = 'daily_notification_sent',
   SUMMARY_CREATED = 'summary_created',
-  FRIEND_SUMMARY_CREATED = 'friend_summary_created'
+  FRIEND_SUMMARY_CREATED = 'friend_summary_created',
 }
 
 // Base interface for all event parameters
