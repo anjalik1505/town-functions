@@ -120,7 +120,7 @@ export const acceptInvitation = async (
   const { hasReachedLimit: senderHasReachedLimit } =
     await hasReachedCombinedLimit(senderId, invitationId);
   if (senderHasReachedLimit) {
-    const override = await hasLimitOverride(currentUserId);
+    const override = await hasLimitOverride(senderId);
     if (!override) {
       throw new BadRequestError(
         'Sender has reached the maximum number of friends and active invitations',
