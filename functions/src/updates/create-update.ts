@@ -60,7 +60,7 @@ export const createUpdate = async (
   const sentiment = validatedParams.sentiment || '';
   const score = validatedParams.score || '3';
   const emoji = validatedParams.emoji || '😐';
-  const allVillage = validatedParams.all_village || false;
+  let allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
   let friendIds = validatedParams.friend_ids || [];
 
@@ -74,6 +74,18 @@ export const createUpdate = async (
   // Initialize Firestore client
   const db = getFirestore();
 
+  // If this is the user's first update, force allVillage
+  if (!allVillage) {
+    const firstSnapshot = await db
+      .collection(Collections.UPDATES)
+      .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
+      .limit(1)
+      .get();
+    if (firstSnapshot.empty) {
+      allVillage = true;
+      logger.info(`First update for ${currentUserId} - forcing allVillage`);
+    }
+  }
   // If allVillage is true, get all friends and groups of the user
   if (allVillage) {
     logger.info(
