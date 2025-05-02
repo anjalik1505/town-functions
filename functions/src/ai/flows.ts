@@ -7,15 +7,17 @@ import { getLogger } from '../utils/logging-utils';
 const logger = getLogger(__filename);
 
 // Define the API key secret for Gemini
-export const geminiApiKey = defineSecret("GEMINI_API_KEY");
+export const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 // Configure a Genkit instance with the prompts directory
 const ai = genkit({
-  plugins: [googleAI({
-    // Don't access the secret value during initialization
-    // It will be accessed at runtime in the flow functions
-    apiKey: process.env.GEMINI_API_KEY
-  })],
+  plugins: [
+    googleAI({
+      // Don't access the secret value during initialization
+      // It will be accessed at runtime in the flow functions
+      apiKey: process.env.GEMINI_API_KEY,
+    }),
+  ],
 });
 
 // Default configuration for AI calls
@@ -37,7 +39,7 @@ const executeAIFlow = async <T>(
   promptName: string,
   params: Record<string, any>,
   defaultOutput: T,
-  logPrefix: string
+  logPrefix: string,
 ): Promise<T> => {
   logger.info(`${logPrefix}: ${JSON.stringify(params, null, 2)}`);
 
@@ -48,7 +50,7 @@ const executeAIFlow = async <T>(
   // Configure with the actual API key at runtime
   const config = {
     apiKey: process.env.GEMINI_API_KEY,
-    ...globalConfig
+    ...globalConfig,
   };
 
   while (!success && retryCount < maxRetries) {
@@ -67,12 +69,15 @@ const executeAIFlow = async <T>(
       }
     } catch (error) {
       logger.error(`Error in ${logPrefix} (attempt ${retryCount + 1}):`, {
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        } : error,
-        params: params
+        error:
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : error,
+        params: params,
       });
     }
 
@@ -80,17 +85,19 @@ const executeAIFlow = async <T>(
 
     // Add a small delay between retries
     if (!success && retryCount < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 
   if (!success) {
-    logger.error(`Failed to execute ${logPrefix} after ${maxRetries} attempts. Using default output.`);
+    logger.error(
+      `Failed to execute ${logPrefix} after ${maxRetries} attempts. Using default output.`,
+    );
     return defaultOutput;
   }
 
   // This should never be reached due to the return in the success case and the default return above
-  throw new Error("Unexpected flow execution path");
+  throw new Error('Unexpected flow execution path');
 };
 
 /**
@@ -113,22 +120,22 @@ export const generateCreatorProfileFlow = async (params: {
 
   const aiParams = { ...params };
   if (aiParams.existingSummary === Placeholders.SUMMARY) {
-    aiParams.existingSummary = "";
+    aiParams.existingSummary = '';
   }
   if (aiParams.existingSuggestions === Placeholders.SUGGESTIONS) {
-    aiParams.existingSuggestions = "";
+    aiParams.existingSuggestions = '';
   }
   if (aiParams.existingEmotionalOverview === Placeholders.EMOTIONAL_OVERVIEW) {
-    aiParams.existingEmotionalOverview = "";
+    aiParams.existingEmotionalOverview = '';
   }
   if (aiParams.existingKeyMoments === Placeholders.KEY_MOMENTS) {
-    aiParams.existingKeyMoments = "";
+    aiParams.existingKeyMoments = '';
   }
   if (aiParams.existingRecurringThemes === Placeholders.RECURRING_THEMES) {
-    aiParams.existingRecurringThemes = "";
+    aiParams.existingRecurringThemes = '';
   }
   if (aiParams.existingProgressAndGrowth === Placeholders.PROGRESS_AND_GROWTH) {
-    aiParams.existingProgressAndGrowth = "";
+    aiParams.existingProgressAndGrowth = '';
   }
 
   const defaultOutput = {
@@ -140,7 +147,9 @@ export const generateCreatorProfileFlow = async (params: {
     progress_and_growth: originalParams.existingProgressAndGrowth,
   };
 
-  logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   const aiResult = await executeAIFlow<{
     summary: string;
@@ -153,12 +162,13 @@ export const generateCreatorProfileFlow = async (params: {
     'creator_profile',
     aiParams,
     defaultOutput,
-    'Generating creator profile insights'
+    'Generating creator profile insights',
   );
 
   const finalResult = { ...aiResult };
 
-  const isEmpty = (str: string | null | undefined) => !str || str.trim().length === 0;
+  const isEmpty = (str: string | null | undefined) =>
+    !str || str.trim().length === 0;
 
   if (isEmpty(finalResult.summary)) {
     finalResult.summary = originalParams.existingSummary;
@@ -179,7 +189,9 @@ export const generateCreatorProfileFlow = async (params: {
     finalResult.progress_and_growth = originalParams.existingProgressAndGrowth;
   }
 
-  logger.info(`Post-processed creator profile insights: ${JSON.stringify(finalResult, null, 2)}`);
+  logger.info(
+    `Post-processed creator profile insights: ${JSON.stringify(finalResult, null, 2)}`,
+  );
 
   return finalResult;
 };
@@ -206,18 +218,24 @@ export const generateFriendProfileFlow = async (params: {
   const aiParams = { ...params };
 
   if (aiParams.existingSummary?.includes(FriendPlaceholderChecks.SUMMARY_END)) {
-    aiParams.existingSummary = "";
+    aiParams.existingSummary = '';
   }
-  if (aiParams.existingSuggestions?.includes(FriendPlaceholderChecks.SUGGESTIONS_END)) {
-    aiParams.existingSuggestions = "";
+  if (
+    aiParams.existingSuggestions?.includes(
+      FriendPlaceholderChecks.SUGGESTIONS_END,
+    )
+  ) {
+    aiParams.existingSuggestions = '';
   }
 
   const defaultOutput = {
     summary: originalParams.existingSummary,
-    suggestions: originalParams.existingSuggestions
+    suggestions: originalParams.existingSuggestions,
   };
 
-  logger.error(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   const aiResult = await executeAIFlow<{
     summary: string;
@@ -226,12 +244,13 @@ export const generateFriendProfileFlow = async (params: {
     'friend_profile',
     aiParams,
     defaultOutput,
-    'Generating friend profile insights'
+    'Generating friend profile insights',
   );
 
   const finalResult = { ...aiResult };
 
-  const isEmpty = (str: string | null | undefined) => !str || str.trim().length === 0;
+  const isEmpty = (str: string | null | undefined) =>
+    !str || str.trim().length === 0;
 
   if (isEmpty(finalResult.summary)) {
     finalResult.summary = originalParams.existingSummary;
@@ -240,7 +259,9 @@ export const generateFriendProfileFlow = async (params: {
     finalResult.suggestions = originalParams.existingSuggestions;
   }
 
-  logger.info(`Post-processed friend profile insights: ${JSON.stringify(finalResult, null, 2)}`);
+  logger.info(
+    `Post-processed friend profile insights: ${JSON.stringify(finalResult, null, 2)}`,
+  );
 
   return finalResult;
 };
@@ -261,35 +282,37 @@ export const generateQuestionFlow = async (params: {
 }) => {
   const aiParams = { ...params };
   if (aiParams.existingSummary === Placeholders.SUMMARY) {
-    aiParams.existingSummary = "";
+    aiParams.existingSummary = '';
   }
   if (aiParams.existingSuggestions === Placeholders.SUGGESTIONS) {
-    aiParams.existingSuggestions = "";
+    aiParams.existingSuggestions = '';
   }
   if (aiParams.existingEmotionalOverview === Placeholders.EMOTIONAL_OVERVIEW) {
-    aiParams.existingEmotionalOverview = "";
+    aiParams.existingEmotionalOverview = '';
   }
   if (aiParams.existingKeyMoments === Placeholders.KEY_MOMENTS) {
-    aiParams.existingKeyMoments = "";
+    aiParams.existingKeyMoments = '';
   }
   if (aiParams.existingRecurringThemes === Placeholders.RECURRING_THEMES) {
-    aiParams.existingRecurringThemes = "";
+    aiParams.existingRecurringThemes = '';
   }
   if (aiParams.existingProgressAndGrowth === Placeholders.PROGRESS_AND_GROWTH) {
-    aiParams.existingProgressAndGrowth = "";
+    aiParams.existingProgressAndGrowth = '';
   }
 
   const defaultOutput = {
-    question: "What's on your mind today?"
+    question: "What's on your mind today?",
   };
 
-  logger.error(`Generating question with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Generating question with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   return executeAIFlow(
     'generate_question',
     aiParams,
     defaultOutput,
-    'Generating personalized question'
+    'Generating personalized question',
   );
 };
 
@@ -306,16 +329,18 @@ export const generateNotificationMessageFlow = async (params: {
   friendAge: string;
 }) => {
   const defaultOutput = {
-    message: `${params.friendName} shared an update with you.`
+    message: `${params.friendName} shared an update with you.`,
   };
 
-  logger.error(`Generating notification message with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Generating notification message with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   return executeAIFlow(
     'notification_message',
     params,
     defaultOutput,
-    'Generating notification message'
+    'Generating notification message',
   );
 };
 
@@ -330,38 +355,40 @@ export const determineUrgencyFlow = async (params: {
   creatorLocation: string;
 }) => {
   const defaultOutput = {
-    is_urgent: false
+    is_urgent: false,
   };
 
-  logger.error(`Determining urgency with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Determining urgency with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   return executeAIFlow(
     'determine_urgency',
     params,
     defaultOutput,
-    'Determining update urgency'
+    'Determining update urgency',
   );
 };
 
 /**
  * Analyze sentiment, score, and generate an emoji for text input
  */
-export const analyzeSentimentFlow = async (params: {
-  content: string;
-}) => {
+export const analyzeSentimentFlow = async (params: { content: string }) => {
   const defaultOutput = {
-    sentiment: "unknown",
+    sentiment: 'unknown',
     score: 3,
-    emoji: "😐"
+    emoji: '😐',
   };
 
-  logger.error(`Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   return executeAIFlow(
     'analyze_sentiment',
     params,
     defaultOutput,
-    'Analyzing text sentiment'
+    'Analyzing text sentiment',
   );
 };
 
@@ -369,28 +396,30 @@ export const analyzeSentimentFlow = async (params: {
  * Generate a daily notification message for a user
  */
 export const generateDailyNotificationFlow = async (params: {
-  name: string
-  existingSummary: string
-  existingSuggestions: string
-  existingEmotionalOverview: string
-  existingKeyMoments: string
-  existingRecurringThemes: string
-  existingProgressAndGrowth: string
-  gender: string
-  location: string
-  age: string
+  name: string;
+  existingSummary: string;
+  existingSuggestions: string;
+  existingEmotionalOverview: string;
+  existingKeyMoments: string;
+  existingRecurringThemes: string;
+  existingProgressAndGrowth: string;
+  gender: string;
+  location: string;
+  age: string;
 }) => {
   const defaultOutput = {
-    title: "Daily Check-in",
-    message: `Hey ${params.name}, how are you doing today?`
+    title: 'Daily Check-in',
+    message: `Hey ${params.name}, how are you doing today?`,
   };
 
-  logger.error(`Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`);
+  logger.error(
+    `Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`,
+  );
 
   return executeAIFlow(
     'daily_notification',
     params,
     defaultOutput,
-    'Generating daily notification message'
+    'Generating daily notification message',
   );
 };

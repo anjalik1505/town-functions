@@ -1,11 +1,19 @@
-import { Request } from "express";
-import { getFirestore } from "firebase-admin/firestore";
-import { ApiResponse, EventName, ReactionEventParams } from "../models/analytics-events";
-import { Collections, ReactionFields } from "../models/constants";
-import { ReactionGroup } from "../models/data-models";
-import { ForbiddenError, NotFoundError } from "../utils/errors";
-import { getLogger } from "../utils/logging-utils";
-import { getUpdateDoc, hasUpdateAccess } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  ReactionEventParams,
+} from '../models/analytics-events';
+import { Collections, ReactionFields } from '../models/constants';
+import { ReactionGroup } from '../models/data-models';
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+} from '../utils/errors';
+import { getLogger } from '../utils/logging-utils';
+import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
 
 const logger = getLogger(__filename);
 
@@ -29,32 +37,48 @@ const logger = getLogger(__filename);
  * @throws 404: Update or reaction not found
  * @throws 403: You don't have access to this update or you can only delete your own reactions
  */
-export const deleteReaction = async (req: Request): Promise<ApiResponse<ReactionGroup>> => {
+export const deleteReaction = async (
+  req: Request,
+): Promise<ApiResponse<ReactionGroup>> => {
   const currentUserId = req.userId;
   const updateId = req.params.update_id;
   const reactionId = req.params.reaction_id;
 
-  logger.info(`Deleting reaction ${reactionId} from update ${updateId} by user ${currentUserId}`);
+  logger.info(
+    `Deleting reaction ${reactionId} from update ${updateId} by user ${currentUserId}`,
+  );
 
   const db = getFirestore();
+
+  if (!updateId) {
+    throw new BadRequestError('Update ID is required');
+  }
+
+  if (!reactionId) {
+    throw new BadRequestError('Reaction ID is required');
+  }
 
   // Get the update document and verify access
   const updateResult = await getUpdateDoc(updateId);
   hasUpdateAccess(updateResult.data, currentUserId);
 
   // Get the reaction document
-  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc(reactionId);
+  const reactionRef = updateResult.ref
+    .collection(Collections.REACTIONS)
+    .doc(reactionId);
   const reactionDoc = await reactionRef.get();
 
   if (!reactionDoc.exists) {
     logger.warn(`Reaction ${reactionId} not found on update ${updateId}`);
-    throw new NotFoundError("Reaction not found");
+    throw new NotFoundError('Reaction not found');
   }
 
   const reactionData = reactionDoc.data();
   if (reactionData?.[ReactionFields.CREATED_BY] !== currentUserId) {
-    logger.warn(`User ${currentUserId} attempted to delete reaction created by ${reactionData?.[ReactionFields.CREATED_BY]}`);
-    throw new ForbiddenError("You can only delete your own reactions");
+    logger.warn(
+      `User ${currentUserId} attempted to delete reaction created by ${reactionData?.[ReactionFields.CREATED_BY]}`,
+    );
+    throw new ForbiddenError('You can only delete your own reactions');
   }
 
   // Create a batch for atomic operations
@@ -65,24 +89,26 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
 
   // Update the reaction count
   batch.update(updateResult.ref, {
-    reaction_count: Math.max(0, (updateResult.data.reaction_count || 0) - 1)
+    reaction_count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
   });
 
   // Commit the batch
   await batch.commit();
-  logger.info(`Successfully deleted reaction ${reactionId} from update ${updateId}`);
+  logger.info(
+    `Successfully deleted reaction ${reactionId} from update ${updateId}`,
+  );
 
   // Return the reaction group with updated count
   const response: ReactionGroup = {
-    type: reactionData?.[ReactionFields.TYPE] || "",
+    type: reactionData?.[ReactionFields.TYPE] || '',
     count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
-    reaction_id: reactionId
+    reaction_id: reactionId,
   };
 
   // Create analytics event
   const event: ReactionEventParams = {
     reaction_count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
-    comment_count: updateResult.data.comment_count || 0
+    comment_count: updateResult.data.comment_count || 0,
   };
 
   return {
@@ -91,7 +117,7 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
     analytics: {
       event: EventName.REACTION_DELETED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

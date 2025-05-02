@@ -1,4 +1,4 @@
-import { DocumentSnapshot } from "firebase-admin/firestore";
+import { DocumentSnapshot } from 'firebase-admin/firestore';
 
 /**
  * Encodes a document snapshot into a cursor string for pagination
@@ -16,4 +16,4 @@ export const encodeCursor = (doc: DocumentSnapshot): string => {
  */
 export const decodeCursor = (cursor: string): string => {
   return Buffer.from(cursor, 'base64').toString('utf-8');
-}; 
+};

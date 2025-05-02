@@ -1,10 +1,24 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
-import { Collections, Documents, InsightsFields, Placeholders, ProfileFields } from "../models/constants";
-import { Insights, ProfileResponse } from "../models/data-models";
-import { getLogger } from "../utils/logging-utils";
-import { formatProfileResponse, getProfileInsights, profileExists } from "../utils/profile-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  Documents,
+  InsightsFields,
+  Placeholders,
+  ProfileFields,
+} from '../models/constants';
+import { Insights, ProfileResponse } from '../models/data-models';
+import { getLogger } from '../utils/logging-utils';
+import {
+  formatProfileResponse,
+  getProfileInsights,
+  profileExists,
+} from '../utils/profile-utils';
 
 const logger = getLogger(__filename);
 
@@ -34,7 +48,9 @@ const logger = getLogger(__filename);
  *
  * @throws 400: Profile already exists for user {user_id}
  */
-export const createProfile = async (req: Request): Promise<ApiResponse<ProfileResponse>> => {
+export const createProfile = async (
+  req: Request,
+): Promise<ApiResponse<ProfileResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Starting add_user operation for user ID: ${currentUserId}`);
 
@@ -51,12 +67,13 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   // Create profile with provided data
   const profileDataToSave = {
     [ProfileFields.USERNAME]: profileData.username,
-    [ProfileFields.NAME]: profileData.name || "",
-    [ProfileFields.AVATAR]: profileData.avatar || "",
-    [ProfileFields.LOCATION]: profileData.location || "",
-    [ProfileFields.BIRTHDAY]: profileData.birthday || "",
-    [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
-    [ProfileFields.GENDER]: profileData.gender || "",
+    [ProfileFields.NAME]: profileData.name || '',
+    [ProfileFields.AVATAR]: profileData.avatar || '',
+    [ProfileFields.LOCATION]: profileData.location || '',
+    [ProfileFields.BIRTHDAY]: profileData.birthday || '',
+    [ProfileFields.NOTIFICATION_SETTINGS]:
+      profileData.notification_settings || [],
+    [ProfileFields.GENDER]: profileData.gender || '',
     [ProfileFields.SUMMARY]: Placeholders.SUMMARY,
     [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
     [ProfileFields.GROUP_IDS]: [],
@@ -69,12 +86,14 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   logger.info(`Profile document created for user ${currentUserId}`);
 
   // Create an empty insights subcollection document with placeholders
-  const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
+  const insightsRef = profileRef
+    .collection(Collections.INSIGHTS)
+    .doc(Documents.DEFAULT_INSIGHTS);
   const insightsData: Insights = {
     [InsightsFields.EMOTIONAL_OVERVIEW]: Placeholders.EMOTIONAL_OVERVIEW,
     [InsightsFields.KEY_MOMENTS]: Placeholders.KEY_MOMENTS,
     [InsightsFields.RECURRING_THEMES]: Placeholders.RECURRING_THEMES,
-    [InsightsFields.PROGRESS_AND_GROWTH]: Placeholders.PROGRESS_AND_GROWTH
+    [InsightsFields.PROGRESS_AND_GROWTH]: Placeholders.PROGRESS_AND_GROWTH,
   };
   await insightsRef.set(insightsData);
   logger.info(`Insights document created for user ${currentUserId}`);
@@ -83,9 +102,15 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   const insights = await getProfileInsights(profileRef);
 
   // Format and return the response using the utility function
-  const response = formatProfileResponse(currentUserId, profileDataToSave, insights);
+  const response = formatProfileResponse(
+    currentUserId,
+    profileDataToSave,
+    insights,
+  );
 
-  logger.info(`User profile creation completed successfully for user ${currentUserId}`);
+  logger.info(
+    `User profile creation completed successfully for user ${currentUserId}`,
+  );
 
   // Track profile creation event
   const event: ProfileEventParams = {
@@ -93,8 +118,10 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     has_avatar: !!profileData.avatar,
     has_location: !!profileData.location,
     has_birthday: !!profileData.birthday,
-    has_notification_settings: Array.isArray(profileData.notification_settings) && profileData.notification_settings.length > 0,
-    has_gender: !!profileData.gender
+    has_notification_settings:
+      Array.isArray(profileData.notification_settings) &&
+      profileData.notification_settings.length > 0,
+    has_gender: !!profileData.gender,
   };
 
   return {
@@ -103,7 +130,7 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     analytics: {
       event: EventName.PROFILE_CREATED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

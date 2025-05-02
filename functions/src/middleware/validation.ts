@@ -1,10 +1,12 @@
-import { RequestHandler } from "express";
-import { z } from "zod";
-import { getLogger } from "../utils/logging-utils";
+import { RequestHandler } from 'express';
+import { z } from 'zod';
+import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
 
-export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler => {
+export const validateRequest = <T extends z.ZodType>(
+  schema: T,
+): RequestHandler => {
   return (req, res, next) => {
     try {
       // Validate and attach validated data to request with proper typing
@@ -14,7 +16,7 @@ export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler 
       // Log the input data that caused the validation error
       logger.error(`Validation error for request body:`, {
         body: req.body,
-        error: error
+        error: error,
       });
       // Pass the error to the next error handler
       next(error);
@@ -22,7 +24,9 @@ export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler 
   };
 };
 
-export const validateQueryParams = <T extends z.ZodType>(schema: T): RequestHandler => {
+export const validateQueryParams = <T extends z.ZodType>(
+  schema: T,
+): RequestHandler => {
   return (req, res, next) => {
     try {
       // Validate and attach validated data to request with proper typing
@@ -32,7 +36,7 @@ export const validateQueryParams = <T extends z.ZodType>(schema: T): RequestHand
       // Log the input data that caused the validation error
       logger.error(`Validation error for query params:`, {
         query: req.query,
-        error: error
+        error: error,
       });
       // Pass the error to the next error handler
       next(error);

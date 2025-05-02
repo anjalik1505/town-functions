@@ -1,4 +1,8 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from "firebase-admin/firestore";
+import {
+  getFirestore,
+  QueryDocumentSnapshot,
+  Timestamp,
+} from 'firebase-admin/firestore';
 import {
   Collections,
   FriendshipFields,
@@ -6,13 +10,21 @@ import {
   MAX_BATCH_OPERATIONS,
   QueryOperators,
   Status,
-  UpdateFields
-} from "../models/constants";
-import { getLogger } from "./logging-utils";
-import { createFeedItem } from "./update-utils";
-import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from "./summary-utils";
-import { EventName, FriendSummaryEventParams } from "../models/analytics-events";
-import { trackApiEvents } from "./analytics-utils";
+  UpdateFields,
+} from '../models/constants';
+import { getLogger } from './logging-utils';
+import { createFeedItem } from './update-utils';
+import {
+  generateFriendSummary,
+  getSummaryContext,
+  SummaryResult,
+  writeFriendSummary,
+} from './summary-utils';
+import {
+  EventName,
+  FriendSummaryEventParams,
+} from '../models/analytics-events';
+import { trackApiEvents } from './analytics-utils';
 
 const MAX_COMBINED = 5;
 
@@ -26,7 +38,10 @@ const logger = getLogger(__filename);
  * @param userId2 - Second user ID
  * @returns A consistent friendship ID in the format "user1_user2" where user1 and user2 are sorted alphabetically
  */
-export const createFriendshipId = (userId1: string, userId2: string): string => {
+export const createFriendshipId = (
+  userId1: string,
+  userId2: string,
+): string => {
   const userIds = [userId1, userId2].sort();
   return `${userIds[0]}_${userIds[1]}`;
 };
@@ -37,23 +52,28 @@ export const createFriendshipId = (userId1: string, userId2: string): string => 
  * @param excludeInvitationId Optional invitation ID to exclude from the count (for resending)
  * @returns An object containing the friend count, active invitation count, and whether the limit has been reached
  */
-export const hasReachedCombinedLimit = async (userId: string, excludeInvitationId?: string): Promise<{
+export const hasReachedCombinedLimit = async (
+  userId: string,
+  excludeInvitationId?: string,
+): Promise<{
   friendCount: number;
   activeInvitationCount: number;
-  hasReachedLimit: boolean
+  hasReachedLimit: boolean;
 }> => {
   const db = getFirestore();
   const currentTime = Timestamp.now();
 
   // Get all friendships where the user is either the sender or receiver
-  const friendshipsQuery = await db.collection(Collections.FRIENDSHIPS)
+  const friendshipsQuery = await db
+    .collection(Collections.FRIENDSHIPS)
     .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId)
     .get();
 
   const friendCount = friendshipsQuery.size;
 
   // Get all active invitations for the user
-  const invitationsQuery = await db.collection(Collections.INVITATIONS)
+  const invitationsQuery = await db
+    .collection(Collections.INVITATIONS)
     .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId)
     .get();
 
@@ -68,14 +88,24 @@ export const hasReachedCombinedLimit = async (userId: string, excludeInvitationI
     const status = invitationData[InvitationFields.STATUS];
     const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
 
-    if (status === Status.PENDING && expiresAt && expiresAt.toDate() > currentTime.toDate()) {
+    if (
+      status === Status.PENDING &&
+      expiresAt &&
+      expiresAt.toDate() > currentTime.toDate()
+    ) {
       activeInvitationCount++;
     }
   }
 
   const totalCount = friendCount + activeInvitationCount;
-  logger.info(`User ${userId} has ${friendCount} friends and ${activeInvitationCount} active invitations (total: ${totalCount})`);
-  return { friendCount, activeInvitationCount, hasReachedLimit: totalCount >= MAX_COMBINED };
+  logger.info(
+    `User ${userId} has ${friendCount} friends and ${activeInvitationCount} active invitations (total: ${totalCount})`,
+  );
+  return {
+    friendCount,
+    activeInvitationCount,
+    hasReachedLimit: totalCount >= MAX_COMBINED,
+  };
 };
 
 /**
@@ -86,10 +116,15 @@ export const hasReachedCombinedLimit = async (userId: string, excludeInvitationI
  * @param targetUserId - The user who will receive feed items and summary
  * @param friendshipData - The data associated with the friendship
  */
-export async function syncFriendshipDataForUser(sourceUserId: string, targetUserId: string, friendshipData: FirebaseFirestore.DocumentData): Promise<void> {
+export async function syncFriendshipDataForUser(
+  sourceUserId: string,
+  targetUserId: string,
+  friendshipData: FirebaseFirestore.DocumentData,
+): Promise<void> {
   try {
     const db = getFirestore();
-    const updatesQuery = db.collection(Collections.UPDATES)
+    const updatesQuery = db
+      .collection(Collections.UPDATES)
       .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, sourceUserId)
       .where(UpdateFields.ALL_VILLAGE, QueryOperators.EQUALS, true)
       .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC);
@@ -130,7 +165,7 @@ export async function syncFriendshipDataForUser(sourceUserId: string, targetUser
         true,
         sourceUserId,
         [],
-        sourceUserId
+        sourceUserId,
       );
 
       batchCount++;
@@ -152,7 +187,9 @@ export async function syncFriendshipDataForUser(sourceUserId: string, targetUser
       logger.info(`Committed final batch with ${batchCount} feed items`);
     }
 
-    logger.info(`Created ${totalProcessed} feed items for receiver ${targetUserId}`);
+    logger.info(
+      `Created ${totalProcessed} feed items for receiver ${targetUserId}`,
+    );
 
     if (totalProcessed === 0) {
       logger.info(`No all_village updates found for sender ${sourceUserId}`);
@@ -164,7 +201,11 @@ export async function syncFriendshipDataForUser(sourceUserId: string, targetUser
     lastUpdates.reverse();
 
     // Get the summary context once at the beginning
-    const summaryContext = await getSummaryContext(db, sourceUserId, targetUserId);
+    const summaryContext = await getSummaryContext(
+      db,
+      sourceUserId,
+      targetUserId,
+    );
 
     // Create a single batch for all summary updates
     const summaryBatch = db.batch();
@@ -178,7 +219,10 @@ export async function syncFriendshipDataForUser(sourceUserId: string, targetUser
     // Process each update for friend summary
     for (const updateData of lastUpdates) {
       // Generate the summary
-      const summaryResult = await generateFriendSummary(summaryContext, updateData);
+      const summaryResult = await generateFriendSummary(
+        summaryContext,
+        updateData,
+      );
 
       summaryContext.existingSummary = summaryResult.summary;
       summaryContext.existingSuggestions = summaryResult.suggestions;
@@ -191,17 +235,28 @@ export async function syncFriendshipDataForUser(sourceUserId: string, targetUser
 
     // Write the final summary to the database
     if (latestSummaryResult) {
-      writeFriendSummary(summaryContext, latestSummaryResult, sourceUserId, targetUserId, summaryBatch);
+      writeFriendSummary(
+        summaryContext,
+        latestSummaryResult,
+        sourceUserId,
+        targetUserId,
+        summaryBatch,
+      );
 
       // Commit the batch with the final summary
       await summaryBatch.commit();
-      logger.info(`Processed friend summaries for ${lastUpdates.length} updates`);
+      logger.info(
+        `Processed friend summaries for ${lastUpdates.length} updates`,
+      );
 
       // Track all the friend summary events
-      trackApiEvents(friendSummaryEvents.map(params => ({
-        eventName: EventName.FRIEND_SUMMARY_CREATED,
-        params
-      })), sourceUserId);
+      trackApiEvents(
+        friendSummaryEvents.map((params) => ({
+          eventName: EventName.FRIEND_SUMMARY_CREATED,
+          params,
+        })),
+        sourceUserId,
+      );
     }
 
     logger.info(`Successfully processed friendship ${friendshipData.id}`);

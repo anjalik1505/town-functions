@@ -48,7 +48,7 @@ export class GA4MeasurementClient {
 
     logger.info('Initializing GA4 client', {
       maxRetries: this.maxRetries,
-      timeout: this.timeout
+      timeout: this.timeout,
     });
 
     // Create and configure axios instance
@@ -62,10 +62,12 @@ export class GA4MeasurementClient {
     });
   }
 
-  public static getInstance(config: AnalyticsClientConfig = {
-    maxRetries: CONFIG.defaultRetries,
-    timeout: CONFIG.defaultTimeout
-  }): GA4MeasurementClient {
+  public static getInstance(
+    config: AnalyticsClientConfig = {
+      maxRetries: CONFIG.defaultRetries,
+      timeout: CONFIG.defaultTimeout,
+    },
+  ): GA4MeasurementClient {
     if (!GA4MeasurementClient.instance) {
       GA4MeasurementClient.instance = new GA4MeasurementClient(config);
     }
@@ -78,7 +80,11 @@ export class GA4MeasurementClient {
       return;
     }
 
-    if (!process.env.GA4_MEASUREMENT_ID || !process.env.GA4_API_SECRET || !process.env.GA4_SERVER_CLIENT_ID) {
+    if (
+      !process.env.GA4_MEASUREMENT_ID ||
+      !process.env.GA4_API_SECRET ||
+      !process.env.GA4_SERVER_CLIENT_ID
+    ) {
       logger.warn('Missing GA4 credentials');
       return;
     }
@@ -86,19 +92,19 @@ export class GA4MeasurementClient {
     logger.info('Sending analytics events', {
       eventCount: events.length,
       userId,
-      events: events.map(e => e.name)
+      events: events.map((e) => e.name),
     });
 
     try {
       // Extend each event's params with engagement_time_msec
-      const eventsWithEngagement: GA4Event[] = events.map(event => ({
+      const eventsWithEngagement: GA4Event[] = events.map((event) => ({
         ...event,
-        params: { ...event.params, engagement_time_msec: 1 }
+        params: { ...event.params, engagement_time_msec: 1 },
       }));
       const batches = this.createBatches(eventsWithEngagement);
       logger.info('Created event batches', {
         batchCount: batches.length,
-        totalEvents: eventsWithEngagement.length
+        totalEvents: eventsWithEngagement.length,
       });
 
       for (const batch of batches) {
@@ -112,13 +118,13 @@ export class GA4MeasurementClient {
         await this.sendWithRetries(payload);
         logger.info('Successfully sent batch', {
           batchSize: batch.length,
-          events: batch.map(e => e.name)
+          events: batch.map((e) => e.name),
         });
       }
 
       logger.info('Successfully sent all events', {
         totalEvents: eventsWithEngagement.length,
-        userId
+        userId,
       });
     } catch (error) {
       logger.error('Failed to send analytics events', error);
@@ -136,35 +142,41 @@ export class GA4MeasurementClient {
     let currentSize = 0;
 
     // Pre-calculate event sizes
-    const eventSizes = events.map(event =>
-      new TextEncoder().encode(JSON.stringify(event)).length
+    const eventSizes = events.map(
+      (event) => new TextEncoder().encode(JSON.stringify(event)).length,
     );
 
     for (let i = 0; i < events.length; i++) {
       const eventSize = eventSizes[i];
 
-      if (currentSize + eventSize > CONFIG.maxPayloadSize ||
-        currentBatch.length >= CONFIG.maxEventsPerBatch) {
+      const currentEventSize = eventSize || 0;
+      if (
+        currentSize + currentEventSize > CONFIG.maxPayloadSize ||
+        currentBatch.length >= CONFIG.maxEventsPerBatch
+      ) {
         if (currentBatch.length > 0) {
           batches.push(currentBatch);
           logger.debug('Created new batch', {
             batchSize: currentBatch.length,
-            currentSize
+            currentSize,
           });
         }
         currentBatch = [];
         currentSize = 0;
       }
 
-      currentBatch.push(events[i]);
-      currentSize += eventSize;
+      if (events[i]) {
+        const event = events[i] as GA4Event; // Type assertion to ensure TypeScript knows event is not undefined
+        currentBatch.push(event);
+        currentSize += eventSize || 0;
+      }
     }
 
     if (currentBatch.length > 0) {
       batches.push(currentBatch);
       logger.debug('Created final batch', {
         batchSize: currentBatch.length,
-        currentSize
+        currentSize,
       });
     }
 
@@ -180,20 +192,20 @@ export class GA4MeasurementClient {
         if (attempt > 0) {
           const backoffMs = Math.min(
             CONFIG.minRetryDelay * Math.pow(2, attempt) + Math.random() * 1000,
-            CONFIG.maxRetryDelay
+            CONFIG.maxRetryDelay,
           );
           logger.info('Retrying analytics request', {
             attempt,
             backoffMs,
-            events: payload.events.map(e => e.name)
+            events: payload.events.map((e) => e.name),
           });
-          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
         }
 
         await this.sendRequest(payload);
         logger.info('Successfully sent request', {
           attempt: attempt + 1,
-          events: payload.events.map(e => e.name)
+          events: payload.events.map((e) => e.name),
         });
         return;
       } catch (error) {
@@ -201,7 +213,7 @@ export class GA4MeasurementClient {
         logger.warn('Analytics request failed, will retry', {
           attempt: attempt + 1,
           maxRetries: this.maxRetries,
-          events: payload.events.map(e => e.name)
+          events: payload.events.map((e) => e.name),
         });
         attempt++;
       }
@@ -209,7 +221,7 @@ export class GA4MeasurementClient {
 
     logger.error('Max retries exceeded', {
       error: lastError,
-      events: payload.events.map(e => e.name)
+      events: payload.events.map((e) => e.name),
     });
   }
 
@@ -218,7 +230,7 @@ export class GA4MeasurementClient {
 
     logger.debug('Sending request to GA4', {
       url: url.replace(process.env.GA4_API_SECRET || '', '[REDACTED]'),
-      eventCount: payload.events.length
+      eventCount: payload.events.length,
     });
 
     const response = await this.axiosInstance.post(url, payload);
@@ -226,7 +238,7 @@ export class GA4MeasurementClient {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,
-      data: response.data
+      data: response.data,
     });
   }
 }
@@ -234,18 +246,19 @@ export class GA4MeasurementClient {
 export function trackApiEvent(
   eventName: EventName,
   userId: string,
-  params: BaseEventParams = {}
+  params: BaseEventParams = {},
 ): void {
   try {
     logger.info('Tracking API event', {
       eventName,
       userId,
-      params
+      params,
     });
 
     const analytics = GA4MeasurementClient.getInstance();
-    analytics.sendEvents([{ name: eventName, params }], userId)
-      .catch(error => {
+    analytics
+      .sendEvents([{ name: eventName, params }], userId)
+      .catch((error) => {
         logger.error('Failed to send API event', error);
       });
   } catch (error) {
@@ -255,22 +268,24 @@ export function trackApiEvent(
 
 export function trackApiEvents(
   events: { eventName: EventName; params: BaseEventParams }[],
-  userId: string
+  userId: string,
 ): void {
   try {
     logger.info('Tracking multiple API events', {
       eventCount: events.length,
       userId,
-      events: events.map(e => e.eventName)
+      events: events.map((e) => e.eventName),
     });
 
     const analytics = GA4MeasurementClient.getInstance();
-    analytics.sendEvents(
-      events.map(({ eventName, params }) => ({ name: eventName, params })),
-      userId
-    ).catch(error => {
-      logger.error('Failed to send API events', error);
-    });
+    analytics
+      .sendEvents(
+        events.map(({ eventName, params }) => ({ name: eventName, params })),
+        userId,
+      )
+      .catch((error) => {
+        logger.error('Failed to send API events', error);
+      });
   } catch (error) {
     logger.error('Error in trackApiEvents', error);
   }

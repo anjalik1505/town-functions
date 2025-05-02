@@ -7,8 +7,15 @@ export interface FirebaseAuthError extends Error {
 }
 
 // Utility function to check if an error is a Firebase Auth token expiration error
-export function isFirebaseAuthTokenExpiredError(error: unknown): error is FirebaseAuthError {
-  return (error instanceof Error && ((error as FirebaseAuthError).code?.includes('auth/id-token-expired') || error.message.includes('auth/id-token-expired') || error.message.includes('token is expired')));
+export function isFirebaseAuthTokenExpiredError(
+  error: unknown,
+): error is FirebaseAuthError {
+  return (
+    error instanceof Error &&
+    ((error as FirebaseAuthError).code?.includes('auth/id-token-expired') ||
+      error.message.includes('auth/id-token-expired') ||
+      error.message.includes('token is expired'))
+  );
 }
 
 export class BadRequestError extends Error {
@@ -69,4 +76,4 @@ export class InternalServerError extends Error {
     this.name = 'Internal Server Error';
     this.statusCode = 500;
   }
-} 
+}

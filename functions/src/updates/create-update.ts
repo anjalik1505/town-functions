@@ -1,17 +1,28 @@
-import { Request } from "express";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { v4 as uuidv4 } from "uuid";
-import { ApiResponse, EventName, UpdateEventParams } from "../models/analytics-events";
-import { Collections, FriendshipFields, GroupFields, QueryOperators, Status, UpdateFields } from "../models/constants";
-import { Update } from "../models/data-models";
-import { getLogger } from "../utils/logging-utils";
-import { formatTimestamp } from "../utils/timestamp-utils";
-import { createFeedItem } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  ApiResponse,
+  EventName,
+  UpdateEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  FriendshipFields,
+  GroupFields,
+  QueryOperators,
+  Status,
+  UpdateFields,
+} from '../models/constants';
+import { Update } from '../models/data-models';
+import { getLogger } from '../utils/logging-utils';
+import { formatTimestamp } from '../utils/timestamp-utils';
+import { createFeedItem } from '../utils/update-utils';
 import {
   createFriendVisibilityIdentifier,
   createFriendVisibilityIdentifiers,
-  createGroupVisibilityIdentifiers
-} from "../utils/visibility-utils";
+  createGroupVisibilityIdentifiers,
+} from '../utils/visibility-utils';
 
 const logger = getLogger(__filename);
 
@@ -35,7 +46,9 @@ const logger = getLogger(__filename);
  *
  * @returns A Promise that resolves to the created Update object
  */
-export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> => {
+export const createUpdate = async (
+  req: Request,
+): Promise<ApiResponse<Update>> => {
   logger.info(`Creating update for user: ${req.userId}`);
 
   // Get the authenticated user ID from the request
@@ -43,19 +56,19 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
 
   // Get validated data from the request
   const validatedParams = req.validated_params;
-  const content = validatedParams.content || "";
-  const sentiment = validatedParams.sentiment || "";
-  const score = validatedParams.score || "3";
-  const emoji = validatedParams.emoji || "😐";
+  const content = validatedParams.content || '';
+  const sentiment = validatedParams.sentiment || '';
+  const score = validatedParams.score || '3';
+  const emoji = validatedParams.emoji || '😐';
   const allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
   let friendIds = validatedParams.friend_ids || [];
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-    `all_village: ${allVillage}, ` +
-    `shared with ${friendIds.length} friends and ${groupIds.length} groups`
+      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+      `all_village: ${allVillage}, ` +
+      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
   );
 
   // Initialize Firestore client
@@ -63,20 +76,27 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
 
   // If allVillage is true, get all friends and groups of the user
   if (allVillage) {
-    logger.info(`All village mode enabled, fetching all friends and groups for user: ${currentUserId}`);
+    logger.info(
+      `All village mode enabled, fetching all friends and groups for user: ${currentUserId}`,
+    );
 
     // Get all accepted friendships
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
+      .where(
+        FriendshipFields.MEMBERS,
+        QueryOperators.ARRAY_CONTAINS,
+        currentUserId,
+      )
       .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
 
     const friendshipDocs = await friendshipsQuery.get();
 
     // Extract friend IDs from friendships
-    friendshipDocs.forEach(doc => {
+    friendshipDocs.forEach((doc) => {
       const friendshipData = doc.data();
-      const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
+      const isSender =
+        friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
       const friendId = isSender
         ? friendshipData[FriendshipFields.RECEIVER_ID]
         : friendshipData[FriendshipFields.SENDER_ID];
@@ -94,14 +114,16 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     const groupDocs = await groupsQuery.get();
 
     // Extract group IDs
-    groupDocs.forEach(doc => {
+    groupDocs.forEach((doc) => {
       groupIds.push(doc.id);
     });
 
     // Deduplicate groupIds after extraction
     groupIds = Array.from(new Set(groupIds));
 
-    logger.info(`All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`);
+    logger.info(
+      `All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`,
+    );
   }
 
   // Generate a unique ID for the update
@@ -135,7 +157,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     [UpdateFields.VISIBLE_TO]: visibleTo,
     [UpdateFields.ALL_VILLAGE]: allVillage,
     comment_count: 0,
-    reaction_count: 0
+    reaction_count: 0,
   };
 
   // Run everything in a batch
@@ -161,16 +183,18 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   if (groupIds.length > 0) {
     const groupDocs = await Promise.all(
       groupIds.map((groupId: string) =>
-        db.collection(Collections.GROUPS).doc(groupId).get()
-      )
+        db.collection(Collections.GROUPS).doc(groupId).get(),
+      ),
     );
 
-    groupDocs.forEach(groupDoc => {
+    groupDocs.forEach((groupDoc) => {
       if (groupDoc.exists) {
         const groupData = groupDoc.data();
         if (groupData && groupData.members) {
           groupMembersMap.set(groupDoc.id, new Set(groupData.members));
-          groupData.members.forEach((memberId: string) => usersToNotify.add(memberId));
+          groupData.members.forEach((memberId: string) =>
+            usersToNotify.add(memberId),
+          );
         }
       }
     });
@@ -179,9 +203,10 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   // 3. Create feed items for each user
   Array.from(usersToNotify).forEach((userId) => {
     // Determine how this user can see the update
-    const isDirectFriend = userId === currentUserId || friendIds.includes(userId);
+    const isDirectFriend =
+      userId === currentUserId || friendIds.includes(userId);
     const userGroups = groupIds.filter((groupId: string) =>
-      groupMembersMap.get(groupId)?.has(userId)
+      groupMembersMap.get(groupId)?.has(userId),
     );
 
     // Use the utility function to create the feed item
@@ -194,14 +219,16 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
       isDirectFriend,
       isDirectFriend ? currentUserId : null,
       userGroups,
-      currentUserId
+      currentUserId,
     );
   });
 
   // Commit the batch
   await batch.commit();
 
-  logger.info(`Successfully created update with ID: ${updateId} and feed items for all users`);
+  logger.info(
+    `Successfully created update with ID: ${updateId} and feed items for all users`,
+  );
 
   // Return the created update (without the internal visible_to field)
   const response: Update = {
@@ -217,7 +244,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     comment_count: 0,
     reaction_count: 0,
     reactions: [],
-    all_village: allVillage
+    all_village: allVillage,
   };
 
   const event: UpdateEventParams = {
@@ -226,7 +253,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     score: score,
     friend_count: friendIds.length,
     group_count: groupIds.length,
-    all_village: allVillage
+    all_village: allVillage,
   };
   return {
     data: response,
@@ -234,7 +261,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     analytics: {
       event: EventName.UPDATE_CREATED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-} 
+};

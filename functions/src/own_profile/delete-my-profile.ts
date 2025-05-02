@@ -1,8 +1,12 @@
-import { Request } from "express";
-import { ApiResponse, EventName, ProfileEventParams } from "../models/analytics-events";
-import { Collections, Documents, ProfileFields } from "../models/constants";
-import { getLogger } from "../utils/logging-utils";
-import { getProfileDoc } from "../utils/profile-utils";
+import { Request } from 'express';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events';
+import { Collections, Documents, ProfileFields } from '../models/constants';
+import { getLogger } from '../utils/logging-utils';
+import { getProfileDoc } from '../utils/profile-utils';
 
 const logger = getLogger(__filename);
 
@@ -24,15 +28,22 @@ const logger = getLogger(__filename);
  *
  * @throws 404: Profile not found for user {user_id}
  */
-export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> => {
+export const deleteProfile = async (
+  req: Request,
+): Promise<ApiResponse<null>> => {
   const currentUserId = req.userId;
-  logger.info(`Starting delete_profile operation for user ID: ${currentUserId}`);
+  logger.info(
+    `Starting delete_profile operation for user ID: ${currentUserId}`,
+  );
 
   // Get the profile document using the utility function (throws NotFoundError if not found)
-  const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: profileData } =
+    await getProfileDoc(currentUserId);
 
   // Delete the insights subcollection first
-  const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
+  const insightsRef = profileRef
+    .collection(Collections.INSIGHTS)
+    .doc(Documents.DEFAULT_INSIGHTS);
   const insightsDoc = await insightsRef.get();
   if (insightsDoc.exists) {
     await insightsRef.delete();
@@ -49,9 +60,10 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
     has_avatar: !!profileData[ProfileFields.AVATAR],
     has_location: !!profileData[ProfileFields.LOCATION],
     has_birthday: !!profileData[ProfileFields.BIRTHDAY],
-    has_notification_settings: Array.isArray(profileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
+    has_notification_settings:
+      Array.isArray(profileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       profileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
-    has_gender: !!profileData[ProfileFields.GENDER]
+    has_gender: !!profileData[ProfileFields.GENDER],
   };
 
   return {
@@ -60,7 +72,7 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
     analytics: {
       event: EventName.PROFILE_DELETED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
 };

@@ -1,10 +1,18 @@
-import { differenceInYears, parse } from "date-fns";
-import { getFirestore } from "firebase-admin/firestore";
-import { Collections, InsightsFields, ProfileFields } from "../models/constants";
-import { FriendProfileResponse, Insights, ProfileResponse } from "../models/data-models";
-import { BadRequestError, NotFoundError } from "./errors";
-import { getLogger } from "./logging-utils";
-import { formatTimestamp } from "./timestamp-utils";
+import { differenceInYears, parse } from 'date-fns';
+import { getFirestore } from 'firebase-admin/firestore';
+import {
+  Collections,
+  InsightsFields,
+  ProfileFields,
+} from '../models/constants';
+import {
+  FriendProfileResponse,
+  Insights,
+  ProfileResponse,
+} from '../models/data-models';
+import { BadRequestError, NotFoundError } from './errors';
+import { getLogger } from './logging-utils';
+import { formatTimestamp } from './timestamp-utils';
 
 const logger = getLogger(__filename);
 
@@ -24,7 +32,10 @@ type ProfileDocumentResult = {
  * @returns The profile document and data, or null if not found and not throwing
  * @throws NotFoundError if the profile doesn't exist and throwIfNotFound is true
  */
-const getProfileDocument = async (userId: string, throwIfNotFound: boolean = false): Promise<ProfileDocumentResult | null> => {
+const getProfileDocument = async (
+  userId: string,
+  throwIfNotFound: boolean = false,
+): Promise<ProfileDocumentResult | null> => {
   const db = getFirestore();
   const profileRef = db.collection(Collections.PROFILES).doc(userId);
   const profileDoc = await profileRef.get();
@@ -40,7 +51,7 @@ const getProfileDocument = async (userId: string, throwIfNotFound: boolean = fal
   return {
     ref: profileRef,
     doc: profileDoc,
-    data: profileDoc.data() || {}
+    data: profileDoc.data() || {},
   };
 };
 
@@ -58,9 +69,9 @@ export const fetchUserProfile = async (userId: string) => {
 
   const profileData = result.data;
   return {
-    username: profileData[ProfileFields.USERNAME] || "",
-    name: profileData[ProfileFields.NAME] || "",
-    avatar: profileData[ProfileFields.AVATAR] || ""
+    username: profileData[ProfileFields.USERNAME] || '',
+    name: profileData[ProfileFields.NAME] || '',
+    avatar: profileData[ProfileFields.AVATAR] || '',
   };
 };
 
@@ -71,7 +82,10 @@ export const fetchUserProfile = async (userId: string) => {
  * @returns Map of user IDs to their profile data
  */
 export const fetchUsersProfiles = async (userIds: string[]) => {
-  const profiles = new Map<string, { username: string; name: string; avatar: string }>();
+  const profiles = new Map<
+    string,
+    { username: string; name: string; avatar: string }
+  >();
   const uniqueUserIds = Array.from(new Set(userIds));
 
   // Fetch profiles in parallel
@@ -93,9 +107,11 @@ export const fetchUsersProfiles = async (userIds: string[]) => {
  * @param profile - The profile data to add
  * @returns The enriched item
  */
-export const enrichWithProfile = <T extends { username?: string; name?: string; avatar?: string }>(
+export const enrichWithProfile = <
+  T extends { username?: string; name?: string; avatar?: string },
+>(
   item: T,
-  profile: { username: string; name: string; avatar: string } | null
+  profile: { username: string; name: string; avatar: string } | null,
 ): T => {
   if (!profile) {
     return item;
@@ -105,7 +121,7 @@ export const enrichWithProfile = <T extends { username?: string; name?: string; 
     ...item,
     username: profile.username,
     name: profile.name,
-    avatar: profile.avatar
+    avatar: profile.avatar,
   };
 };
 
@@ -115,7 +131,9 @@ export const enrichWithProfile = <T extends { username?: string; name?: string; 
  * @returns The profile document and data
  * @throws NotFoundError if the profile doesn't exist
  */
-export const getProfileDoc = async (userId: string): Promise<ProfileDocumentResult> => {
+export const getProfileDoc = async (
+  userId: string,
+): Promise<ProfileDocumentResult> => {
   const result = await getProfileDocument(userId, true);
   // This should never be null because getProfileDocument will throw if not found
   return result as ProfileDocumentResult;
@@ -142,16 +160,21 @@ export const profileExists = async (userId: string): Promise<void> => {
  * @param profileRef The reference to the profile document
  * @returns The insights data
  */
-export const getProfileInsights = async (profileRef: FirebaseFirestore.DocumentReference): Promise<Insights> => {
-  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
+export const getProfileInsights = async (
+  profileRef: FirebaseFirestore.DocumentReference,
+): Promise<Insights> => {
+  const insightsSnapshot = await profileRef
+    .collection(Collections.INSIGHTS)
+    .limit(1)
+    .get();
   const insightsDoc = insightsSnapshot.docs[0];
   const insightsData = insightsDoc?.data() || {};
 
   return {
-    emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || "",
-    key_moments: insightsData[InsightsFields.KEY_MOMENTS] || "",
-    recurring_themes: insightsData[InsightsFields.RECURRING_THEMES] || "",
-    progress_and_growth: insightsData[InsightsFields.PROGRESS_AND_GROWTH] || ""
+    emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || '',
+    key_moments: insightsData[InsightsFields.KEY_MOMENTS] || '',
+    recurring_themes: insightsData[InsightsFields.RECURRING_THEMES] || '',
+    progress_and_growth: insightsData[InsightsFields.PROGRESS_AND_GROWTH] || '',
   };
 };
 
@@ -161,19 +184,18 @@ export const getProfileInsights = async (profileRef: FirebaseFirestore.DocumentR
  * @param profileData The profile data
  * @returns Common profile fields
  */
-const formatCommonProfileFields = (
-  userId: string,
-  profileData: any
-) => {
+const formatCommonProfileFields = (userId: string, profileData: any) => {
   return {
     user_id: userId,
-    username: profileData[ProfileFields.USERNAME] || "",
-    name: profileData[ProfileFields.NAME] || "",
-    avatar: profileData[ProfileFields.AVATAR] || "",
-    location: profileData[ProfileFields.LOCATION] || "",
-    birthday: profileData[ProfileFields.BIRTHDAY] || "",
-    gender: profileData[ProfileFields.GENDER] || "",
-    updated_at: profileData[ProfileFields.UPDATED_AT] ? formatTimestamp(profileData[ProfileFields.UPDATED_AT]) : ""
+    username: profileData[ProfileFields.USERNAME] || '',
+    name: profileData[ProfileFields.NAME] || '',
+    avatar: profileData[ProfileFields.AVATAR] || '',
+    location: profileData[ProfileFields.LOCATION] || '',
+    birthday: profileData[ProfileFields.BIRTHDAY] || '',
+    gender: profileData[ProfileFields.GENDER] || '',
+    updated_at: profileData[ProfileFields.UPDATED_AT]
+      ? formatTimestamp(profileData[ProfileFields.UPDATED_AT])
+      : '',
   };
 };
 
@@ -187,16 +209,17 @@ const formatCommonProfileFields = (
 export const formatProfileResponse = (
   userId: string,
   profileData: any,
-  insightsData: Insights
+  insightsData: Insights,
 ): ProfileResponse => {
   const commonFields = formatCommonProfileFields(userId, profileData);
 
   return {
     ...commonFields,
-    notification_settings: profileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
-    summary: profileData[ProfileFields.SUMMARY] || "",
-    suggestions: profileData[ProfileFields.SUGGESTIONS] || "",
-    insights: insightsData
+    notification_settings:
+      profileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
+    summary: profileData[ProfileFields.SUMMARY] || '',
+    suggestions: profileData[ProfileFields.SUGGESTIONS] || '',
+    insights: insightsData,
   };
 };
 
@@ -211,15 +234,15 @@ export const formatProfileResponse = (
 export const formatFriendProfileResponse = (
   userId: string,
   profileData: any,
-  summary: string = "",
-  suggestions: string = ""
+  summary: string = '',
+  suggestions: string = '',
 ): FriendProfileResponse => {
   const commonFields = formatCommonProfileFields(userId, profileData);
 
   return {
     ...commonFields,
     summary,
-    suggestions
+    suggestions,
   };
 };
 
@@ -231,7 +254,7 @@ export const formatFriendProfileResponse = (
 export const calculateAge = (birthdayString: string): string => {
   // Return "unknown" if the birthday string is empty
   if (!birthdayString) {
-    return "unknown";
+    return 'unknown';
   }
 
   // Parse the birthday string into a Date object using date-fns
@@ -266,4 +289,4 @@ export const hasLimitOverride = async (userId: string): Promise<boolean> => {
   const profileDoc = await profileRef.get();
   const profileData = profileDoc.data() || {};
   return profileData[ProfileFields.LIMIT_OVERRIDE] || false;
-}
+};

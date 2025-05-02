@@ -1,15 +1,29 @@
-import { Request } from "express";
-import { getFirestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { ApiResponse, EventName, UpdateViewEventParams } from "../models/analytics-events";
-import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from "../models/constants";
-import { UpdatesResponse } from "../models/data-models";
-import { BadRequestError, ForbiddenError } from "../utils/errors";
-import { createFriendshipId } from "../utils/friendship-utils";
-import { getLogger } from "../utils/logging-utils";
-import { applyPagination, generateNextCursor, processQueryStream } from "../utils/pagination-utils";
-import { getProfileDoc } from "../utils/profile-utils";
-import { fetchUpdatesReactions } from "../utils/reaction-utils";
-import { fetchUpdatesByIds, processFeedItems } from "../utils/update-utils";
+import { Request } from 'express';
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  UpdateViewEventParams,
+} from '../models/analytics-events';
+import {
+  Collections,
+  FeedFields,
+  FriendshipFields,
+  QueryOperators,
+  Status,
+} from '../models/constants';
+import { UpdatesResponse } from '../models/data-models';
+import { BadRequestError, ForbiddenError } from '../utils/errors';
+import { createFriendshipId } from '../utils/friendship-utils';
+import { getLogger } from '../utils/logging-utils';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils';
+import { getProfileDoc } from '../utils/profile-utils';
+import { fetchUpdatesReactions } from '../utils/reaction-utils';
+import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils';
 
 const logger = getLogger(__filename);
 
@@ -33,22 +47,30 @@ const logger = getLogger(__filename);
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesResponse>> => {
+export const getUserUpdates = async (
+  req: Request,
+): Promise<ApiResponse<UpdatesResponse>> => {
   const currentUserId = req.userId;
   const targetUserId = req.params.target_user_id;
 
   logger.info(
-    `Retrieving updates for user ${targetUserId} requested by ${currentUserId}`
+    `Retrieving updates for user ${targetUserId} requested by ${currentUserId}`,
   );
 
   const db = getFirestore();
 
+  if (!targetUserId) {
+    throw new BadRequestError('Target user ID is required');
+  }
+
   // Redirect users to the appropriate endpoint for their own updates
   if (currentUserId === targetUserId) {
     logger.warn(
-      `User ${currentUserId} attempted to view their own updates through /user endpoint`
+      `User ${currentUserId} attempted to view their own updates through /user endpoint`,
     );
-    throw new BadRequestError("Use /me/updates endpoint to view your own updates");
+    throw new BadRequestError(
+      'Use /me/updates endpoint to view your own updates',
+    );
   }
 
   // Get pagination parameters from the validated request
@@ -57,7 +79,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   const afterCursor = validatedParams?.after_cursor;
 
   logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`
+    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
   );
 
   // Get the target user's profile
@@ -68,7 +90,9 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
 
   // Check if users are friends using the unified friendships collection
   const friendshipId = createFriendshipId(currentUserId, targetUserId);
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
+  const friendshipRef = db
+    .collection(Collections.FRIENDSHIPS)
+    .doc(friendshipId);
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
@@ -77,12 +101,16 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
     friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED
   ) {
     logger.warn(
-      `User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`
+      `User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`,
     );
-    throw new ForbiddenError("You must be friends with this user to view their updates");
+    throw new ForbiddenError(
+      'You must be friends with this user to view their updates',
+    );
   }
 
-  logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
+  logger.info(
+    `Friendship verified between ${currentUserId} and ${targetUserId}`,
+  );
 
   // Initialize the feed query
   let feedQuery = db
@@ -96,16 +124,18 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const {
-    items: feedDocs,
-    lastDoc
-  } = await processQueryStream<QueryDocumentSnapshot>(paginatedQuery, doc => doc, limit);
+  const { items: feedDocs, lastDoc } =
+    await processQueryStream<QueryDocumentSnapshot>(
+      paginatedQuery,
+      (doc) => doc,
+      limit,
+    );
 
   if (feedDocs.length === 0) {
     logger.info(`No updates found for user ${targetUserId}`);
     const emptyEvent: UpdateViewEventParams = {
       update_count: 0,
-      user: targetUserId
+      user: targetUserId,
     };
     return {
       data: { updates: [], next_cursor: null },
@@ -113,13 +143,13 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
       analytics: {
         event: EventName.FRIEND_UPDATES_VIEWED,
         userId: currentUserId,
-        params: emptyEvent
-      }
+        params: emptyEvent,
+      },
     };
   }
 
   // Get all update IDs from feed items
-  const updateIds = feedDocs.map(doc => doc.data()[FeedFields.UPDATE_ID]);
+  const updateIds = feedDocs.map((doc) => doc.data()[FeedFields.UPDATE_ID]);
 
   // Fetch all updates in parallel
   const updateMap = await fetchUpdatesByIds(updateIds);
@@ -128,7 +158,12 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create updates
-  const updates = processFeedItems(feedDocs, updateMap, updateReactionsMap, targetUserId);
+  const updates = processFeedItems(
+    feedDocs,
+    updateMap,
+    updateReactionsMap,
+    targetUserId,
+  );
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
@@ -136,7 +171,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   logger.info(`Retrieved ${updates.length} updates for user ${targetUserId}`);
   const event: UpdateViewEventParams = {
     update_count: updates.length,
-    user: targetUserId
+    user: targetUserId,
   };
   return {
     data: { updates, next_cursor: nextCursor },
@@ -144,7 +179,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
     analytics: {
       event: EventName.FRIEND_UPDATES_VIEWED,
       userId: currentUserId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};

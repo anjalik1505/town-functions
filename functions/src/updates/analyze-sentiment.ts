@@ -1,8 +1,12 @@
-import { Request } from "express";
-import { analyzeSentimentFlow } from "../ai/flows";
-import { AnalyzeSentimentEventParams, ApiResponse, EventName } from "../models/analytics-events";
-import { SentimentAnalysisResponse } from "../models/data-models";
-import { getLogger } from "../utils/logging-utils";
+import { Request } from 'express';
+import { analyzeSentimentFlow } from '../ai/flows';
+import {
+  AnalyzeSentimentEventParams,
+  ApiResponse,
+  EventName,
+} from '../models/analytics-events';
+import { SentimentAnalysisResponse } from '../models/data-models';
+import { getLogger } from '../utils/logging-utils';
 
 const logger = getLogger(__filename);
 
@@ -21,13 +25,17 @@ const logger = getLogger(__filename);
  *
  * @throws 400: Invalid request parameters
  */
-export const analyzeSentiment = async (req: Request): Promise<ApiResponse<SentimentAnalysisResponse>> => {
+export const analyzeSentiment = async (
+  req: Request,
+): Promise<ApiResponse<SentimentAnalysisResponse>> => {
   const { content } = req.validated_params;
-  logger.info(`Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`);
+  logger.info(
+    `Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+  );
 
   // Use the sentiment analysis flow to analyze the text
   const result = await analyzeSentimentFlow({
-    content: content || ""
+    content: content || '',
   });
 
   logger.info(`Sentiment analysis result: ${JSON.stringify(result)}`);
@@ -36,14 +44,14 @@ export const analyzeSentiment = async (req: Request): Promise<ApiResponse<Sentim
   const response: SentimentAnalysisResponse = {
     sentiment: result.sentiment,
     score: result.score,
-    emoji: result.emoji
+    emoji: result.emoji,
   };
 
   // Create analytics event
   const event: AnalyzeSentimentEventParams = {
     sentiment: result.sentiment,
     score: result.score,
-    emoji: result.emoji
+    emoji: result.emoji,
   };
 
   return {
@@ -52,7 +60,7 @@ export const analyzeSentiment = async (req: Request): Promise<ApiResponse<Sentim
     analytics: {
       event: EventName.SENTIMENT_ANALYZED,
       userId: req.userId,
-      params: event
-    }
+      params: event,
+    },
   };
-}; 
+};
