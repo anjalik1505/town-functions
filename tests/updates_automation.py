@@ -93,7 +93,7 @@ def run_updates_tests():
             "emoji": emoji,
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
-            "all_village": True,
+            "all_village": False if i == 0 else True,
         }
         created_update = api.create_update(users[0]["email"], update_data)
         user1_updates.append(created_update)
