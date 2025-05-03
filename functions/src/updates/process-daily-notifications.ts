@@ -99,7 +99,10 @@ const processUserNotification = async (
       is_urgent: false,
     };
   } catch (error) {
-    logger.error(`Failed to generate/send notification for user ${userId}`, error);
+    logger.error(
+      `Failed to generate/send notification for user ${userId}`,
+      error,
+    );
     return {
       notification_all: false,
       notification_urgent: false,
@@ -136,7 +139,10 @@ export const processDailyNotifications = async (): Promise<void> => {
         profileDoc.ref,
       );
     } catch (error) {
-      logger.error(`Failed to process notification for user ${profileDoc.id}`, error);
+      logger.error(
+        `Failed to process notification for user ${profileDoc.id}`,
+        error,
+      );
       result = {
         notification_all: false,
         notification_urgent: false,
