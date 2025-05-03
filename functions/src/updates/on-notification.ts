@@ -166,26 +166,39 @@ const processUserNotification = async (
     // Calculate creator's age
     const creatorAge = calculateAge(creatorBirthday || '');
 
-    // Generate notification message using creator's information
-    const result = await generateNotificationMessageFlow({
-      updateContent: updateContent || '',
-      sentiment: sentiment || '',
-      score: score.toString(),
-      friendName: creatorName,
-      friendGender: creatorGender,
-      friendLocation: creatorLocation,
-      friendAge: creatorAge,
-    });
+    try {
+      const result = await generateNotificationMessageFlow({
+        updateContent: updateContent || '',
+        sentiment: sentiment || '',
+        score: score.toString(),
+        friendName: creatorName,
+        friendGender: creatorGender,
+        friendLocation: creatorLocation,
+        friendAge: creatorAge,
+      });
 
-    // Send the notification
-    await sendNotification(deviceId, 'New Update', result.message, {
-      type: 'update',
-      update_id: updateId,
-    });
+      await sendNotification(deviceId, 'New Update', result.message, {
+        type: 'update',
+        update_id: updateId,
+      });
 
-    logger.info(
-      `Sent notification to user ${targetUserId} for update ${updateId}`,
-    );
+      logger.info(
+        `Sent notification to user ${targetUserId} for update ${updateId}`,
+      );
+    } catch (error) {
+      logger.error(
+        `Failed to generate/send notification to user ${targetUserId} for update ${updateId}`,
+        error,
+      );
+      return {
+        notification_all: false,
+        notification_urgent: false,
+        no_notification: false,
+        no_device: false,
+        notification_length: 0,
+        is_urgent: score === 5 || score === 1,
+      };
+    }
   }
 
   return {
@@ -295,7 +308,20 @@ const processAllNotifications = async (
       creatorGender,
       creatorLocation,
       creatorBirthday,
-    ),
+    ).catch((error) => {
+      logger.error(
+        `Failed to process notification for user ${userId} update ${updateData[UpdateFields.ID]}`,
+        error,
+      );
+      return {
+        notification_all: false,
+        notification_urgent: false,
+        no_notification: false,
+        no_device: false,
+        notification_length: 0,
+        is_urgent: false,
+      };
+    }),
   );
 
   // Run all tasks in parallel and collect results
