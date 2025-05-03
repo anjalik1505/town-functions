@@ -37,7 +37,10 @@ try {
   }
 
   // Check if the flow exists in the flows module and is a function
-  if (!(flow in flows) || typeof (flows as Record<string, any>)[flow] !== 'function') {
+  if (
+    !(flow in flows) ||
+    typeof (flows as Record<string, any>)[flow] !== 'function'
+  ) {
     console.error(`Flow "${flow}" not found in flows.ts`);
     process.exit(1);
   }
@@ -71,6 +74,9 @@ try {
     process.exit(1);
   }
 } catch (error: unknown) {
-  console.error('Error reading or parsing test data file:', error instanceof Error ? error.message : error);
+  console.error(
+    'Error reading or parsing test data file:',
+    error instanceof Error ? error.message : error,
+  );
   process.exit(1);
 }

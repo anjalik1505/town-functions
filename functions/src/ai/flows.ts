@@ -301,12 +301,17 @@ export const generateQuestionFlow = async (params: {
   }
 
   const defaultOutput = {
-    question: "What's on your mind today?",
+    question: "How's your day going? Share with your Village!",
   };
 
   logger.error(
     `Generating question with params: ${JSON.stringify(params, null, 2)}`,
   );
+
+  // Short-circuit if user has no existing summary
+  if (!aiParams.existingSummary.trim()) {
+    return defaultOutput;
+  }
 
   return executeAIFlow(
     'generate_question',

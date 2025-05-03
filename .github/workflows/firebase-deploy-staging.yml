@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths:
-      - 'functions/**'
-      - 'web/**'
-      - '.firebaserc'
-      - '.firebase.json'
-      - '.github/**'
-      - 'firestore.rules'
-      - 'firestore.indexes.json'
+      - "functions/**"
+      - "web/**"
+      - ".firebaserc"
+      - ".firebase.json"
+      - ".github/**"
+      - "firestore.rules"
+      - "firestore.indexes.json"
 
 jobs:
   deploy:
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Check for Functions Changes
         id: functions-changes
@@ -89,4 +89,4 @@ jobs:
           args: deploy --only firestore
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
-          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }} 
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}

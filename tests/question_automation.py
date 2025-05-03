@@ -79,7 +79,7 @@ def run_question_tests():
 
     # Wait a bit for the AI to process the update
     logger.info("Waiting for AI to process the update...")
-    time.sleep(5)
+    time.sleep(10)
 
     # Get another question to verify context awareness
     logger.info("Getting another personalized question after update")
