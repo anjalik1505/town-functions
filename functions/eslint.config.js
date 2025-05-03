@@ -12,18 +12,19 @@ module.exports = [
       parser: require('@typescript-eslint/parser'),
       parserOptions: {
         ecmaVersion: 2022,
-        sourceType: 'module'
-      }
+        sourceType: 'module',
+      },
     },
     plugins: {
       '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
-      prettier: require('eslint-plugin-prettier')
+      prettier: require('eslint-plugin-prettier'),
     },
     rules: {
       // ts plugin recommended rules
       ...require('@typescript-eslint/eslint-plugin').configs.recommended.rules,
       // run Prettier as an ESLint rule
-      'prettier/prettier': ['error']
-    }
-  }
+      'prettier/prettier': ['error'],
+      'linebreak-style': ['error', 'unix'],
+    },
+  },
 ];

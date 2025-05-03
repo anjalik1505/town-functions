@@ -248,7 +248,7 @@ class VillageAPI:
         response = requests.post(
             f"{API_BASE_URL}/updates", headers=headers, json=update_data
         )
-        if response.status_code != 200:
+        if response.status_code != 201:
             logger.error(f"Failed to create update: {response.text}")
             response.raise_for_status()
 
