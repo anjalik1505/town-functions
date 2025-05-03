@@ -71,33 +71,44 @@ const processUserNotification = async (
   const insightsDoc = insightsSnapshot.docs[0];
   const insightsData = insightsDoc?.data() || {};
 
-  // Generate personalized message
-  const result = await generateDailyNotificationFlow({
-    name: profileData.name || profileData.username || 'Friend',
-    existingSummary: profileData.summary || '',
-    existingSuggestions: profileData.suggestions || '',
-    existingEmotionalOverview: insightsData.emotional_overview || '',
-    existingKeyMoments: insightsData.key_moments || '',
-    existingRecurringThemes: insightsData.recurring_themes || '',
-    existingProgressAndGrowth: insightsData.progress_and_growth || '',
-    gender: profileData.gender || 'unknown',
-    location: profileData.location || 'unknown',
-    age: calculateAge(profileData.birthday || ''),
-  });
+  // Generate and send notification with error handling
+  try {
+    const result = await generateDailyNotificationFlow({
+      name: profileData.name || profileData.username || 'Friend',
+      existingSummary: profileData.summary || '',
+      existingSuggestions: profileData.suggestions || '',
+      existingEmotionalOverview: insightsData.emotional_overview || '',
+      existingKeyMoments: insightsData.key_moments || '',
+      existingRecurringThemes: insightsData.recurring_themes || '',
+      existingProgressAndGrowth: insightsData.progress_and_growth || '',
+      gender: profileData.gender || 'unknown',
+      location: profileData.location || 'unknown',
+      age: calculateAge(profileData.birthday || ''),
+    });
 
-  // Send notification
-  await sendNotification(deviceId, result.title, result.message, {
-    type: 'daily',
-  });
+    await sendNotification(deviceId, result.title, result.message, {
+      type: 'daily',
+    });
 
-  return {
-    notification_all: hasAllSetting,
-    notification_urgent: hasUrgentSetting,
-    no_notification: notificationSettings.length === 0,
-    no_device: false,
-    notification_length: result.message.length,
-    is_urgent: false,
-  };
+    return {
+      notification_all: hasAllSetting,
+      notification_urgent: hasUrgentSetting,
+      no_notification: notificationSettings.length === 0,
+      no_device: false,
+      notification_length: result.message.length,
+      is_urgent: false,
+    };
+  } catch (error) {
+    logger.error(`Failed to generate/send notification for user ${userId}`, error);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: false,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false,
+    };
+  }
 };
 
 /**
@@ -116,12 +127,25 @@ export const processDailyNotifications = async (): Promise<void> => {
   const results: NotificationEventParams[] = [];
   for await (const profileDoc of profilesStream) {
     const profileData = profileDoc.data();
-    const result = await processUserNotification(
-      db,
-      profileDoc.id,
-      profileData,
-      profileDoc.ref,
-    );
+    let result: NotificationEventParams;
+    try {
+      result = await processUserNotification(
+        db,
+        profileDoc.id,
+        profileData,
+        profileDoc.ref,
+      );
+    } catch (error) {
+      logger.error(`Failed to process notification for user ${profileDoc.id}`, error);
+      result = {
+        notification_all: false,
+        notification_urgent: false,
+        no_notification: false,
+        no_device: false,
+        notification_length: 0,
+        is_urgent: false,
+      };
+    }
     results.push(result);
   }
 
