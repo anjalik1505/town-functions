@@ -94,16 +94,23 @@ export const onFriendshipCreated = async (
   const receiverId = friendshipData[FriendshipFields.RECEIVER_ID];
 
   // Run both sync directions in parallel
-  await Promise.all([
-    syncFriendshipDataForUser(senderId, receiverId, {
-      ...friendshipData,
-      id: event.data.id,
-    }),
-    syncFriendshipDataForUser(receiverId, senderId, {
-      ...friendshipData,
-      id: event.data.id,
-    }),
-  ]);
+  try {
+    await Promise.all([
+      syncFriendshipDataForUser(senderId, receiverId, {
+        ...friendshipData,
+        id: event.data.id,
+      }),
+      syncFriendshipDataForUser(receiverId, senderId, {
+        ...friendshipData,
+        id: event.data.id,
+      }),
+    ]);
+  } catch (error) {
+    logger.error(
+      `Failed to sync friendship data for event ${event.data.id}`,
+      error,
+    );
+  }
 
   // Send notification to the sender that their invitation was accepted
   try {
