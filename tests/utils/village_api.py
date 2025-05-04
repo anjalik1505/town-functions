@@ -346,7 +346,7 @@ class VillageAPI:
         response = requests.post(
             f"{API_BASE_URL}/invitations", headers=headers, json=payload
         )
-        if response.status_code != 200:
+        if response.status_code != 201:
             logger.error(f"Failed to create invitation: {response.text}")
             response.raise_for_status()
 
@@ -633,6 +633,22 @@ class VillageAPI:
         data = response.json()
         logger.info(f"Successfully created feedback for user: {email}")
         return data
+
+    def nudge_user(self, email: str, target_user_id: str) -> Dict[str, Any]:
+        """Nudge a user to send an update"""
+        logger.info(f"User {email} nudging user ID: {target_user_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/users/{target_user_id}/nudge", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to nudge user: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully nudged user ID: {target_user_id}")
+        return response.json()
 
     # Utility Methods
     def make_request_expecting_error(

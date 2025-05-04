@@ -1266,6 +1266,40 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 - 404: Profile not found
 - 500: Internal server error
 
+#### POST /users/{user_id}/nudge
+
+**Purpose**: Nudge another user to send an update. The authenticated user must be friends with the target user, and can only nudge the same user once per hour.
+
+**Analytics Events**:
+
+- USER_NUDGED: When a user successfully nudges another user
+
+  **Event Body:**
+
+  ```json
+  {
+    "target_user_id": "string"
+  }
+  ```
+
+**Input**: (None, uses auth token)
+
+**Output**:
+
+```json
+{
+  "message": "Nudge sent successfully"
+}
+```
+
+**Errors**:
+
+- 400: Target user ID is required
+- 400: You cannot nudge yourself
+- 403: You must be friends with this user to nudge them
+- 409: You can only nudge this user once per hour
+- 500: Internal server error
+
 ### Test Endpoints
 
 #### POST /test/notification
