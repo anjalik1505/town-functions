@@ -96,8 +96,8 @@ export const getSummaryContext = async (
     // Try to get name first, then username, then fall back to "Friend"
     creatorProfile = {
       name:
-        creatorProfileData[ProfileFields.NAME] ||
         creatorProfileData[ProfileFields.USERNAME] ||
+        creatorProfileData[ProfileFields.NAME] ||
         'Friend',
       gender: creatorProfileData[ProfileFields.GENDER] || 'unknown',
       location: creatorProfileData[ProfileFields.LOCATION] || 'unknown',
@@ -122,8 +122,8 @@ export const getSummaryContext = async (
     const friendProfileData = friendProfileDoc.data() || {};
     friendProfile = {
       name:
-        friendProfileData[ProfileFields.NAME] ||
         friendProfileData[ProfileFields.USERNAME] ||
+        friendProfileData[ProfileFields.NAME] ||
         'Friend',
       gender: friendProfileData[ProfileFields.GENDER] || 'unknown',
       location: friendProfileData[ProfileFields.LOCATION] || 'unknown',
