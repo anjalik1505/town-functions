@@ -36,6 +36,7 @@ export enum EventName {
   DAILY_NOTIFICATION_SENT = 'daily_notification_sent',
   SUMMARY_CREATED = 'summary_created',
   FRIEND_SUMMARY_CREATED = 'friend_summary_created',
+  USER_NUDGED = 'user_nudged',
 }
 
 // Base interface for all event parameters
@@ -194,6 +195,11 @@ export interface SummaryEventParams extends BaseEventParams {
 export interface FriendSummaryEventParams extends BaseEventParams {
   summary_length: number;
   suggestions_length: number;
+}
+
+// User nudge event parameters
+export interface UserNudgeEventParams extends BaseEventParams {
+  target_user_id: string;
 }
 
 // Delete profile event parameters

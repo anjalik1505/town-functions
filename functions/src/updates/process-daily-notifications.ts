@@ -74,9 +74,15 @@ const processUserNotification = async (
     .get();
   const lastDoc = recentSnapshot.docs[0];
   if (lastDoc) {
-    const lastTimestamp = (lastDoc.data()[UpdateFields.CREATED_AT] as FirebaseFirestore.Timestamp).toDate().getTime();
+    const lastTimestamp = (
+      lastDoc.data()[UpdateFields.CREATED_AT] as FirebaseFirestore.Timestamp
+    )
+      .toDate()
+      .getTime();
     if (Date.now() - lastTimestamp < 24 * 60 * 60 * 1000) {
-      logger.info(`Skipping daily notification for user ${userId} due to recent update`);
+      logger.info(
+        `Skipping daily notification for user ${userId} due to recent update`,
+      );
       return {
         notification_all: false,
         notification_urgent: false,

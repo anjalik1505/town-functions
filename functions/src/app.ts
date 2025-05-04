@@ -57,6 +57,7 @@ import { getComments } from './updates/get-comments';
 import { updateComment } from './updates/update-comment';
 import { getUserProfile } from './user_profile/get-user-profile';
 import { getUserUpdates } from './user_profile/get-user-updates';
+import { nudgeUser } from './user_profile/nudge-user';
 import { trackApiEvent } from './utils/analytics-utils';
 import {
   BadRequestError,
@@ -226,6 +227,11 @@ app.get(
     sendResponse(res, result);
   },
 );
+
+app.post('/users/:target_user_id/nudge', async (req, res) => {
+  const result = await nudgeUser(req);
+  sendResponse(res, result);
+});
 
 // Invitation routes
 app.get(

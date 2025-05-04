@@ -18,6 +18,7 @@ export const Collections = {
   FEEDBACK: 'feedback',
   USER_FEEDS: 'user_feeds',
   FEED: 'feed',
+  NUDGES: 'nudges',
 } as const;
 
 // Document names
@@ -178,6 +179,13 @@ export const FeedFields = {
   FRIEND_ID: 'friend_id',
   GROUP_IDS: 'group_ids',
   CREATED_BY: 'created_by',
+} as const;
+
+// Field names for Nudge documents
+export const NudgeFields = {
+  SENDER_ID: 'sender_id',
+  RECEIVER_ID: 'receiver_id',
+  TIMESTAMP: 'timestamp',
 } as const;
 
 // Options for notification settings
