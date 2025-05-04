@@ -10,6 +10,8 @@ import {
   DeviceFields,
   NotificationFields,
   ProfileFields,
+  UpdateFields,
+  QueryOperators,
 } from '../models/constants';
 import { trackApiEvents } from '../utils/analytics-utils';
 import { getLogger } from '../utils/logging-utils';
@@ -62,6 +64,29 @@ const processUserNotification = async (
   const hasUrgentSetting = notificationSettings.includes(
     NotificationFields.URGENT,
   );
+
+  // Skip if user created an update in the last 24 hours
+  const recentSnapshot = await db
+    .collection(Collections.UPDATES)
+    .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
+    .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC)
+    .limit(1)
+    .get();
+  const lastDoc = recentSnapshot.docs[0];
+  if (lastDoc) {
+    const lastTimestamp = (lastDoc.data()[UpdateFields.CREATED_AT] as FirebaseFirestore.Timestamp).toDate().getTime();
+    if (Date.now() - lastTimestamp < 24 * 60 * 60 * 1000) {
+      logger.info(`Skipping daily notification for user ${userId} due to recent update`);
+      return {
+        notification_all: false,
+        notification_urgent: false,
+        no_notification: false,
+        no_device: false,
+        notification_length: 0,
+        is_urgent: false,
+      };
+    }
+  }
 
   // Get insights data
   const insightsSnapshot = await profileRef
