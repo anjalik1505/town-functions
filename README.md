@@ -1,3 +1,153 @@
+# Setting Up the Functions Project
+
+1. **Install Node.js and npm**
+   - Download and install from [nodejs.org](https://nodejs.org/).
+
+2. **Install Project Dependencies**
+   ```sh
+   cd functions
+   npm install
+   ```
+
+3. **Build the Project**
+   - Compile TypeScript to JavaScript:
+     ```sh
+     npm run build
+     ```
+
+4. **Linting & Formatting (Recommended)**
+   - To lint code:
+     ```sh
+     npm run lint
+     ```
+   - To format code:
+     ```sh
+     npm run format
+     ```
+
+---
+
+# Running Automated Tests Locally
+
+Welcome! This guide will help you set up your environment to run the automated tests for this project. The tests interact with Firebase services and are designed to run against local emulators for safety and speed.
+
+## Prerequisites
+
+- **Python 3.x** (https://www.python.org/downloads/)
+- **pip** (comes with Python)
+- **Node.js & npm** (https://nodejs.org/)
+- **Firebase CLI**  
+  Install globally:  
+  ```sh
+  npm install -g firebase-tools
+  ```
+
+## 1. Install Python Dependencies
+
+From the project root:
+
+```sh
+cd tests
+pip install -r requirements.txt
+```
+
+## 2. Firebase Emulator Setup
+
+Start all required emulators (Firestore, Auth, Functions, Hosting):
+
+```sh
+cd ..
+firebase emulators:start
+```
+
+- This uses the configuration in `firebase.json`.
+- Ensure ports 8080 (Firestore), 9099 (Auth), 5001 (Functions), and 5000 (Hosting) are available.
+- The Emulator UI will be enabled for management.
+
+## 3. Firestore Credentials & Service Account Setup
+
+Some test scripts may require a Google service account JSON key (for `firebase_admin`).  
+**If using only the emulator:**  
+- Most scripts set `FIRESTORE_EMULATOR_HOST` to `localhost:8080` automatically.
+- For full compatibility, set the following environment variable before running tests:
+  ```sh
+  set GOOGLE_APPLICATION_CREDENTIALS=path\to\dummy-service-account.json   # Windows
+  export GOOGLE_APPLICATION_CREDENTIALS=path/to/dummy-service-account.json # Mac/Linux
+  ```
+- You can use a dummy JSON file for local emulator use. Example:
+  ```json
+  {
+    "type": "service_account",
+    "project_id": "demo-test",
+    "private_key_id": "dummy",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----\n",
+    "client_email": "dummy@demo-test.iam.gserviceaccount.com",
+    "client_id": "dummy",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/dummy%40demo-test.iam.gserviceaccount.com"
+  }
+  ```
+- Place this file somewhere safe and reference its path as shown above.
+
+## Note on AI Workflow Testing
+
+For testing AI flows, copy `functions/.env.example` to `functions/.env` and provide any required API keys (such as `GEMINI_API_KEY`). This is only needed for local AI workflow tests, not for running the main backend tests.
+
+## 4. Running the Tests
+
+From the `tests` directory, run any script you wish to test:
+
+```sh
+python comments_automation.py
+python deletion_automation.py
+# ...etc.
+```
+
+Each script is independent and targets specific functionality.
+
+## Deployment Process Overview
+
+### Staging Deployment
+
+- **Automatic:** Every time you push to the `main` branch, the latest code is automatically deployed to the staging environment.
+- **What gets deployed:** Any changes to backend functions, frontend code, Firestore rules, or configuration are picked up and deployed.
+- **Purpose:** Staging is where you can test your changes in an environment that closely matches production, before going live.
+
+### Production Deployment
+
+- **Manual:** Deployments to production are not automatic.
+- **How to deploy:**
+  1. **Create a Release:** In GitHub, create a new release and tag the commit you want to deploy.
+  2. **Trigger Deploy:** Go to the GitHub Actions tab, find the “Firebase Production Deploy” workflow, and run it manually. You’ll need to specify the release tag you just created.
+- **Purpose:** This ensures only reviewed and tagged versions are deployed to production, adding an extra layer of control and safety.
+
+If you’re new, always test your changes in staging first. Production deploys should only be done after creating a release and confirming everything works as expected in staging.
+
+## Managing Secrets for Deployment
+
+For production (and optionally staging), sensitive values such as API keys must be set as Firebase function secrets. For example, to set the `GEMINI_API_KEY`:
+
+```sh
+firebase functions:secrets:set GEMINI_API_KEY
+```
+
+You will be prompted to enter the value securely. These secrets are used by your deployed functions and are not stored in source code.
+
+## Troubleshooting
+
+- **Emulator not running:** Make sure `firebase emulators:start` is active before running tests.
+- **Service account errors:** Ensure `GOOGLE_APPLICATION_CREDENTIALS` points to a valid (even dummy) JSON file.
+- **Dependency issues:** Double-check your Python and npm installations.
+
+## Summary
+
+1. Install dependencies
+2. Start Firebase emulators
+3. Set up (dummy) service account JSON if needed
+4. Run tests from the `tests` directory
+
 # Village Functions
 
 This repository contains the backend functions for the Village application.
