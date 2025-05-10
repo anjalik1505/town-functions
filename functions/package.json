@@ -1,7 +1,11 @@
 {
   "name": "functions",
   "version": "1.0.0",
+  "type": "module",
   "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "build": "tsc",
     "lint": "eslint \"src/**/*.{ts,js}\" --fix",

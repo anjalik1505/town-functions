@@ -5,18 +5,22 @@ import {
   Collections,
   GroupFields,
   QueryOperators,
-} from '../models/constants';
-import { ChatMessage, ChatResponse } from '../models/data-models';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { ChatMessage, ChatResponse } from '../models/data-models.js';
+import { ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
+} from '../utils/pagination-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves chat messages for a specific group with pagination.

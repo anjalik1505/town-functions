@@ -4,28 +4,32 @@ import {
   ApiResponse,
   EventName,
   UpdateViewEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   FeedFields,
   FriendshipFields,
   QueryOperators,
   Status,
-} from '../models/constants';
-import { UpdatesResponse } from '../models/data-models';
-import { BadRequestError, ForbiddenError } from '../utils/errors';
-import { createFriendshipId } from '../utils/friendship-utils';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { UpdatesResponse } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError } from '../utils/errors.js';
+import { createFriendshipId } from '../utils/friendship-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
-import { getProfileDoc } from '../utils/profile-utils';
-import { fetchUpdatesReactions } from '../utils/reaction-utils';
-import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils';
+} from '../utils/pagination-utils.js';
+import { getProfileDoc } from '../utils/profile-utils.js';
+import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
+import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves paginated updates for a specific user.

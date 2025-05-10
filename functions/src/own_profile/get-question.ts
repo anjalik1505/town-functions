@@ -1,20 +1,24 @@
 import { Request } from 'express';
-import { generateQuestionFlow } from '../ai/flows';
+import { generateQuestionFlow } from '../ai/flows.js';
 import {
   ApiResponse,
   EventName,
   QuestionEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   InsightsFields,
   ProfileFields,
-} from '../models/constants';
-import { QuestionResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import { calculateAge, getProfileDoc } from '../utils/profile-utils';
+} from '../models/constants.js';
+import { QuestionResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { calculateAge, getProfileDoc } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Generates a personalized question to encourage the user to share an update.

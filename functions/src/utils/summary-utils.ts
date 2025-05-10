@@ -1,16 +1,20 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import { FriendSummaryEventParams } from '../models/analytics-events';
-import { calculateAge, createSummaryId } from './profile-utils';
+import { FriendSummaryEventParams } from '../models/analytics-events.js';
+import { calculateAge, createSummaryId } from './profile-utils.js';
 import {
   Collections,
   ProfileFields,
   UpdateFields,
   UserSummaryFields,
-} from '../models/constants';
-import { generateFriendProfileFlow } from '../ai/flows';
-import { getLogger } from './logging-utils';
+} from '../models/constants.js';
+import { generateFriendProfileFlow } from '../ai/flows.js';
+import { getLogger } from './logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Interface for profile data

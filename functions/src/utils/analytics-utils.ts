@@ -1,8 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
-import { BaseEventParams, EventName } from '../models/analytics-events';
-import { getLogger } from './logging-utils';
+import { BaseEventParams, EventName } from '../models/analytics-events.js';
+import { getLogger } from './logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 // Configuration
 const CONFIG = {

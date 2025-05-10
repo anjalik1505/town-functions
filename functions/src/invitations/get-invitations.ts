@@ -8,27 +8,31 @@ import {
   ApiResponse,
   EventName,
   InviteEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   InvitationFields,
   QueryOperators,
   Status,
-} from '../models/constants';
-import { Invitation, InvitationsResponse } from '../models/data-models';
-import { hasReachedCombinedLimit } from '../utils/friendship-utils';
+} from '../models/constants.js';
+import { Invitation, InvitationsResponse } from '../models/data-models.js';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
   formatInvitation,
   isInvitationExpired,
-} from '../utils/invitation-utils';
-import { getLogger } from '../utils/logging-utils';
+} from '../utils/invitation-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
+} from '../utils/pagination-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Gets all invitations for the current user, checking if any have expired.

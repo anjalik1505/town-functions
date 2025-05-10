@@ -4,21 +4,25 @@ import {
   ApiResponse,
   EventName,
   InviteEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   InvitationFields,
   ProfileFields,
   Status,
-} from '../models/constants';
-import { Invitation } from '../models/data-models';
-import { BadRequestError } from '../utils/errors';
-import { hasReachedCombinedLimit } from '../utils/friendship-utils';
-import { formatInvitation } from '../utils/invitation-utils';
-import { getLogger } from '../utils/logging-utils';
-import { getProfileDoc, hasLimitOverride } from '../utils/profile-utils';
+} from '../models/constants.js';
+import { Invitation } from '../models/data-models.js';
+import { BadRequestError } from '../utils/errors.js';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
+import { formatInvitation } from '../utils/invitation-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { getProfileDoc, hasLimitOverride } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a new invitation from the current user.

@@ -1,9 +1,13 @@
 import { Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { decodeCursor, encodeCursor } from './cursor-utils';
-import { BadRequestError } from './errors';
-import { getLogger } from './logging-utils';
+import { decodeCursor, encodeCursor } from './cursor-utils.js';
+import { BadRequestError } from './errors.js';
+import { getLogger } from './logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Applies cursor-based pagination to a Firestore query.

@@ -7,21 +7,24 @@ import express, {
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ZodError } from 'zod';
-import { getDevice } from './device/get-device';
-import { updateDevice } from './device/update-device';
-import { createFeedback } from './feedback/create-feedback';
-import { acceptInvitation } from './invitations/accept-invitation';
-import { createInvitation } from './invitations/create-invitation';
-import { getInvitation } from './invitations/get-invitation';
-import { getInvitations } from './invitations/get-invitations';
-import { rejectInvitation } from './invitations/reject-invitation';
-import { resendInvitation } from './invitations/resend-invitation';
-import { validateQueryParams, validateRequest } from './middleware/validation';
+import { getDevice } from './device/get-device.js';
+import { updateDevice } from './device/update-device.js';
+import { createFeedback } from './feedback/create-feedback.js';
+import { acceptInvitation } from './invitations/accept-invitation.js';
+import { createInvitation } from './invitations/create-invitation.js';
+import { getInvitation } from './invitations/get-invitation.js';
+import { getInvitations } from './invitations/get-invitations.js';
+import { rejectInvitation } from './invitations/reject-invitation.js';
+import { resendInvitation } from './invitations/resend-invitation.js';
+import {
+  validateQueryParams,
+  validateRequest,
+} from './middleware/validation.js';
 import {
   ApiResponse,
   ErrorResponse,
   EventName,
-} from './models/analytics-events';
+} from './models/analytics-events.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,
@@ -37,30 +40,30 @@ import {
   transcribeAudioSchema,
   updateCommentSchema,
   updateProfileSchema,
-} from './models/validation-schemas';
-import { createProfile } from './own_profile/create-my-profile';
-import { deleteProfile } from './own_profile/delete-my-profile';
-import { getFeeds } from './own_profile/get-my-feeds';
-import { getMyFriends } from './own_profile/get-my-friends';
-import { getProfile } from './own_profile/get-my-profile';
-import { getUpdates } from './own_profile/get-my-updates';
-import { getQuestion } from './own_profile/get-question';
-import { updateProfile } from './own_profile/update-my-profile';
-import { testNotification } from './test/test-notification';
-import { testPrompt } from './test/test-prompt';
-import { analyzeSentiment } from './updates/analyze-sentiment';
-import { createComment } from './updates/create-comment';
-import { createReaction } from './updates/create-reaction';
-import { createUpdate } from './updates/create-update';
-import { deleteComment } from './updates/delete-comment';
-import { deleteReaction } from './updates/delete-reaction';
-import { getComments } from './updates/get-comments';
-import { transcribeAudio } from './updates/transcribe-audio';
-import { updateComment } from './updates/update-comment';
-import { getUserProfile } from './user_profile/get-user-profile';
-import { getUserUpdates } from './user_profile/get-user-updates';
-import { nudgeUser } from './user_profile/nudge-user';
-import { trackApiEvent } from './utils/analytics-utils';
+} from './models/validation-schemas.js';
+import { createProfile } from './own_profile/create-my-profile.js';
+import { deleteProfile } from './own_profile/delete-my-profile.js';
+import { getFeeds } from './own_profile/get-my-feeds.js';
+import { getMyFriends } from './own_profile/get-my-friends.js';
+import { getProfile } from './own_profile/get-my-profile.js';
+import { getUpdates } from './own_profile/get-my-updates.js';
+import { getQuestion } from './own_profile/get-question.js';
+import { updateProfile } from './own_profile/update-my-profile.js';
+import { testNotification } from './test/test-notification.js';
+import { testPrompt } from './test/test-prompt.js';
+import { analyzeSentiment } from './updates/analyze-sentiment.js';
+import { createComment } from './updates/create-comment.js';
+import { createReaction } from './updates/create-reaction.js';
+import { createUpdate } from './updates/create-update.js';
+import { deleteComment } from './updates/delete-comment.js';
+import { deleteReaction } from './updates/delete-reaction.js';
+import { getComments } from './updates/get-comments.js';
+import { transcribeAudio } from './updates/transcribe-audio.js';
+import { updateComment } from './updates/update-comment.js';
+import { getUserProfile } from './user_profile/get-user-profile.js';
+import { getUserUpdates } from './user_profile/get-user-updates.js';
+import { nudgeUser } from './user_profile/nudge-user.js';
+import { trackApiEvent } from './utils/analytics-utils.js';
 import {
   BadRequestError,
   ConflictError,
@@ -69,7 +72,7 @@ import {
   isFirebaseAuthTokenExpiredError,
   NotFoundError,
   UnauthorizedError,
-} from './utils/errors';
+} from './utils/errors.js';
 
 // Response Handler
 const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {

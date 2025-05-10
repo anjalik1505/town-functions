@@ -3,21 +3,25 @@ import {
   ApiResponse,
   EventName,
   InviteEventParams,
-} from '../models/analytics-events';
-import { InvitationFields, Status } from '../models/constants';
-import { Invitation } from '../models/data-models';
-import { BadRequestError } from '../utils/errors';
-import { hasReachedCombinedLimit } from '../utils/friendship-utils';
+} from '../models/analytics-events.js';
+import { InvitationFields, Status } from '../models/constants.js';
+import { Invitation } from '../models/data-models.js';
+import { BadRequestError } from '../utils/errors.js';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
   canActOnInvitation,
   formatInvitation,
   getInvitationDoc,
   hasInvitationPermission,
   updateInvitationStatus,
-} from '../utils/invitation-utils';
-import { getLogger } from '../utils/logging-utils';
+} from '../utils/invitation-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Rejects an invitation by setting its status to rejected.

@@ -5,13 +5,13 @@ import {
 } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { app } from './app';
-import { Collections } from './models/constants';
-import { onFriendshipCreated } from './invitations/on-friendship-creation';
-import { onProfileDeleted } from './own_profile/on-deletion';
-import { onUpdateCreated } from './updates/on-creation';
-import { onUpdateNotification } from './updates/on-notification';
-import { processDailyNotifications } from './updates/process-daily-notifications';
+import { app } from './app.js';
+import { Collections } from './models/constants.js';
+import { onFriendshipCreated } from './invitations/on-friendship-creation.js';
+import { onProfileDeleted } from './own_profile/on-deletion.js';
+import { onUpdateCreated } from './updates/on-creation.js';
+import { onUpdateNotification } from './updates/on-notification.js';
+import { processDailyNotifications } from './updates/process-daily-notifications.js';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');

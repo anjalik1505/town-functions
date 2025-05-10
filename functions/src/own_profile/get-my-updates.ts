@@ -4,20 +4,28 @@ import {
   ApiResponse,
   EventName,
   UpdateViewEventParams,
-} from '../models/analytics-events';
-import { Collections, FeedFields, QueryOperators } from '../models/constants';
-import { UpdatesResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  FeedFields,
+  QueryOperators,
+} from '../models/constants.js';
+import { UpdatesResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
-import { getProfileDoc } from '../utils/profile-utils';
-import { fetchUpdatesReactions } from '../utils/reaction-utils';
-import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils';
+} from '../utils/pagination-utils.js';
+import { getProfileDoc } from '../utils/profile-utils.js';
+import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
+import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves the current user's updates in a paginated format.

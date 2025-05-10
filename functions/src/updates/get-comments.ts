@@ -4,25 +4,29 @@ import {
   ApiResponse,
   CommentViewEventParams,
   EventName,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   CommentFields,
   QueryOperators,
-} from '../models/constants';
-import { CommentsResponse } from '../models/data-models';
-import { processEnrichedComments } from '../utils/comment-utils';
-import { BadRequestError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { CommentsResponse } from '../models/data-models.js';
+import { processEnrichedComments } from '../utils/comment-utils.js';
+import { BadRequestError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
-import { fetchUsersProfiles } from '../utils/profile-utils';
-import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
+} from '../utils/pagination-utils.js';
+import { fetchUsersProfiles } from '../utils/profile-utils.js';
+import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves paginated comments for an update.

@@ -5,7 +5,7 @@ import {
   ApiResponse,
   EventName,
   UpdateEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -13,18 +13,22 @@ import {
   QueryOperators,
   Status,
   UpdateFields,
-} from '../models/constants';
-import { Update } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
-import { createFeedItem } from '../utils/update-utils';
+} from '../models/constants.js';
+import { Update } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
+import { createFeedItem } from '../utils/update-utils.js';
 import {
   createFriendVisibilityIdentifier,
   createFriendVisibilityIdentifiers,
   createGroupVisibilityIdentifiers,
-} from '../utils/visibility-utils';
+} from '../utils/visibility-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a new update for the current user and creates feed items for all users who should see it.

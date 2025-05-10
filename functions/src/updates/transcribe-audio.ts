@@ -1,18 +1,21 @@
 import { Request } from 'express';
 import { fileTypeFromBuffer } from 'file-type';
-import { transcribeAudioFlow } from '../ai/flows';
+import { transcribeAudioFlow } from '../ai/flows.js';
 import {
   ApiResponse,
   AudioTranscribedEventParams,
   EventName,
-} from '../models/analytics-events';
-import { TranscriptionResponse } from '../models/data-models';
-import { decompressData, isCompressedMimeType } from '../utils/compression'; // isCompressedMimeType checks against our limited list
-import { detectAndValidateAudioMimeType } from '../utils/file-validation';
-import { getLogger } from '../utils/logging-utils';
-import { BadRequestError } from '../utils/errors';
+} from '../models/analytics-events.js';
+import { TranscriptionResponse } from '../models/data-models.js';
+import { decompressData, isCompressedMimeType } from '../utils/compression.js'; // isCompressedMimeType checks against our limited list
+import { detectAndValidateAudioMimeType } from '../utils/file-validation.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { BadRequestError } from '../utils/errors.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
-const logger = getLogger(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Transcribes audio input.

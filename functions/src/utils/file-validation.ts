@@ -1,8 +1,12 @@
 import { fileTypeFromBuffer } from 'file-type';
-import { BadRequestError } from './errors';
-import { getLogger } from './logging-utils';
+import { BadRequestError } from './errors.js';
+import { getLogger } from './logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * List of supported audio MIME types for transcription, based on Gemini's capabilities.

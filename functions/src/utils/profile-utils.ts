@@ -4,17 +4,21 @@ import {
   Collections,
   InsightsFields,
   ProfileFields,
-} from '../models/constants';
+} from '../models/constants.js';
 import {
   FriendProfileResponse,
   Insights,
   ProfileResponse,
-} from '../models/data-models';
-import { BadRequestError, NotFoundError } from './errors';
-import { getLogger } from './logging-utils';
-import { formatTimestamp } from './timestamp-utils';
+} from '../models/data-models.js';
+import { BadRequestError, NotFoundError } from './errors.js';
+import { getLogger } from './logging-utils.js';
+import { formatTimestamp } from './timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Profile document result type

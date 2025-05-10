@@ -4,25 +4,29 @@ import {
   Timestamp,
 } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { generateCreatorProfileFlow } from '../ai/flows';
+import { generateCreatorProfileFlow } from '../ai/flows.js';
 import {
   EventName,
   FriendSummaryEventParams,
   SummaryEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   Documents,
   InsightsFields,
   ProfileFields,
   UpdateFields,
-} from '../models/constants';
-import { trackApiEvents } from '../utils/analytics-utils';
-import { getLogger } from '../utils/logging-utils';
-import { calculateAge } from '../utils/profile-utils';
-import { processFriendSummary } from '../utils/summary-utils';
+} from '../models/constants.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { calculateAge } from '../utils/profile-utils.js';
+import { processFriendSummary } from '../utils/summary-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Update the creator's own profile with summary, suggestions, and insights.

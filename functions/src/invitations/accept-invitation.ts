@@ -4,7 +4,7 @@ import {
   ApiResponse,
   EventName,
   InviteEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   FriendPlaceholderTemplates,
@@ -13,28 +13,32 @@ import {
   ProfileFields,
   Status,
   UserSummaryFields,
-} from '../models/constants';
-import { Friend } from '../models/data-models';
-import { BadRequestError, ForbiddenError } from '../utils/errors';
+} from '../models/constants.js';
+import { Friend } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import {
   createFriendshipId,
   hasReachedCombinedLimit,
-} from '../utils/friendship-utils';
+} from '../utils/friendship-utils.js';
 import {
   canActOnInvitation,
   getInvitationDoc,
   hasInvitationPermission,
   isInvitationExpired,
   updateInvitationStatus,
-} from '../utils/invitation-utils';
-import { getLogger } from '../utils/logging-utils';
+} from '../utils/invitation-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   createSummaryId,
   getProfileDoc,
   hasLimitOverride,
-} from '../utils/profile-utils';
+} from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Accepts an invitation and creates a friendship between the users.

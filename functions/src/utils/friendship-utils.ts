@@ -11,24 +11,27 @@ import {
   QueryOperators,
   Status,
   UpdateFields,
-} from '../models/constants';
-import { getLogger } from './logging-utils';
-import { createFeedItem } from './update-utils';
+} from '../models/constants.js';
+import { getLogger } from './logging-utils.js';
+import { createFeedItem } from './update-utils.js';
 import {
   generateFriendSummary,
   getSummaryContext,
   SummaryResult,
   writeFriendSummary,
-} from './summary-utils';
+} from './summary-utils.js';
 import {
   EventName,
   FriendSummaryEventParams,
-} from '../models/analytics-events';
-import { trackApiEvents } from './analytics-utils';
+} from '../models/analytics-events.js';
+import { trackApiEvents } from './analytics-utils.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 const MAX_COMBINED = 5;
 
-const logger = getLogger(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a consistent friendship ID by sorting user IDs.

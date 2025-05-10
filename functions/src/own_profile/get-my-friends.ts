@@ -4,22 +4,26 @@ import {
   ApiResponse,
   EventName,
   FriendEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
   QueryOperators,
   Status,
-} from '../models/constants';
-import { Friend, FriendsResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { Friend, FriendsResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
+} from '../utils/pagination-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves the current user's friends and pending friendship requests.

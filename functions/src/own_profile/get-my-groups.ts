@@ -4,12 +4,20 @@ import {
   QueryDocumentSnapshot,
   WhereFilterOp,
 } from 'firebase-admin/firestore';
-import { Collections, GroupFields, QueryOperators } from '../models/constants';
-import { Group, GroupsResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
+import {
+  Collections,
+  GroupFields,
+  QueryOperators,
+} from '../models/constants.js';
+import { Group, GroupsResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves all groups where the current user is a member.

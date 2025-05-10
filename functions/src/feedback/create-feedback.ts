@@ -5,13 +5,17 @@ import {
   ApiResponse,
   EventName,
   FeedbackEventParams,
-} from '../models/analytics-events';
-import { Collections } from '../models/constants';
-import { Feedback } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
+} from '../models/analytics-events.js';
+import { Collections } from '../models/constants.js';
+import { Feedback } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a new feedback entry from the current user.

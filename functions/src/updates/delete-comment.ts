@@ -4,14 +4,18 @@ import {
   ApiResponse,
   CommentEventParams,
   EventName,
-} from '../models/analytics-events';
-import { CommentFields } from '../models/constants';
-import { getCommentDoc } from '../utils/comment-utils';
-import { BadRequestError, ForbiddenError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
-import { getUpdateDoc } from '../utils/update-utils';
+} from '../models/analytics-events.js';
+import { CommentFields } from '../models/constants.js';
+import { getCommentDoc } from '../utils/comment-utils.js';
+import { BadRequestError, ForbiddenError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { getUpdateDoc } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Deletes a comment from an update.

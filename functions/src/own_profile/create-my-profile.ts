@@ -4,23 +4,27 @@ import {
   ApiResponse,
   EventName,
   ProfileEventParams,
-} from '../models/analytics-events';
+} from '../models/analytics-events.js';
 import {
   Collections,
   Documents,
   InsightsFields,
   Placeholders,
   ProfileFields,
-} from '../models/constants';
-import { Insights, ProfileResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { Insights, ProfileResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   formatProfileResponse,
   getProfileInsights,
   profileExists,
-} from '../utils/profile-utils';
+} from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a new profile for the authenticated user.

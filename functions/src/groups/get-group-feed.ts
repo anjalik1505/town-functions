@@ -6,21 +6,25 @@ import {
   ProfileFields,
   QueryOperators,
   UpdateFields,
-} from '../models/constants';
-import { FeedResponse } from '../models/data-models';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { FeedResponse } from '../models/data-models.js';
+import { ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 import {
   applyPagination,
   generateNextCursor,
   processQueryStream,
-} from '../utils/pagination-utils';
+} from '../utils/pagination-utils.js';
 import {
   fetchUpdatesByIds,
   processEnrichedFeedItems,
-} from '../utils/update-utils';
+} from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves all updates for a specific group, paginated.
