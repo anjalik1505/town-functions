@@ -203,3 +203,10 @@ export interface SentimentAnalysisResponse {
   score: number;
   emoji: string;
 }
+
+export interface TranscriptionResponse {
+  transcription: string;
+  sentiment: string;
+  score: number;
+  emoji: string;
+}

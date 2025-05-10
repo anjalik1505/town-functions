@@ -34,6 +34,7 @@ import {
   paginationSchema,
   testNotificationSchema,
   testPromptSchema,
+  transcribeAudioSchema,
   updateCommentSchema,
   updateProfileSchema,
 } from './models/validation-schemas';
@@ -54,6 +55,7 @@ import { createUpdate } from './updates/create-update';
 import { deleteComment } from './updates/delete-comment';
 import { deleteReaction } from './updates/delete-reaction';
 import { getComments } from './updates/get-comments';
+import { transcribeAudio } from './updates/transcribe-audio';
 import { updateComment } from './updates/update-comment';
 import { getUserProfile } from './user_profile/get-user-profile';
 import { getUserUpdates } from './user_profile/get-user-updates';
@@ -282,6 +284,15 @@ app.put('/device', validateRequest(deviceSchema), async (req, res) => {
 });
 
 // Update routes
+app.post(
+  '/updates/transcribe',
+  validateRequest(transcribeAudioSchema),
+  async (req, res) => {
+    const result = await transcribeAudio(req);
+    sendResponse(res, result);
+  },
+);
+
 app.post('/updates', validateRequest(createUpdateSchema), async (req, res) => {
   const result = await createUpdate(req);
   sendResponse(res, result);
