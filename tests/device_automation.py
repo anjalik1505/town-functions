@@ -50,7 +50,7 @@ def run_device_tests():
 
     # Verify device data
     assert (
-        updated_device["device_id"] == initial_device_data["device_id"]
+            updated_device["device_id"] == initial_device_data["device_id"]
     ), "Device ID mismatch"
     assert "updated_at" in updated_device, "updated_at field missing"
     logger.info("Device update verification successful")
@@ -61,7 +61,7 @@ def run_device_tests():
 
     # Verify device data matches what was created
     assert (
-        retrieved_device["device_id"] == initial_device_data["device_id"]
+            retrieved_device["device_id"] == initial_device_data["device_id"]
     ), "Device ID mismatch"
     assert "updated_at" in retrieved_device, "updated_at field missing"
     logger.info("Device retrieval verification successful")
@@ -75,7 +75,7 @@ def run_device_tests():
 
     # Verify updated device data
     assert (
-        updated_device_again["device_id"] == new_device_data["device_id"]
+            updated_device_again["device_id"] == new_device_data["device_id"]
     ), "Updated device ID mismatch"
     assert "updated_at" in updated_device_again, "updated_at field missing"
     logger.info("Second device update verification successful")
@@ -88,7 +88,7 @@ def run_device_tests():
 
     # Verify updated device data
     assert (
-        retrieved_updated_device["device_id"] == new_device_data["device_id"]
+            retrieved_updated_device["device_id"] == new_device_data["device_id"]
     ), "Updated device ID mismatch"
     assert "updated_at" in retrieved_updated_device, "updated_at field missing"
     logger.info("Updated device retrieval verification successful")

@@ -13,7 +13,6 @@ It creates two users, makes them friends, and tests the nudge functionality:
 
 import json
 import logging
-import time
 
 from utils.village_api import API_BASE_URL, VillageAPI
 
@@ -34,7 +33,7 @@ def run_nudge_tests():
         "password": "password123",
         "name": "Nudge Sender",
     }
-    
+
     user2 = {
         "email": "nudge_receiver@example.com",
         "password": "password123",
@@ -123,7 +122,7 @@ def run_nudge_tests():
 
     # Test 3: User tries to nudge a non-friend
     logger.info("Test 3: User tries to nudge a non-friend")
-    
+
     # Create a third user who is not friends with the others
     user3 = {
         "email": "non_friend@example.com",
@@ -142,7 +141,7 @@ def run_nudge_tests():
     }
     api.create_profile(user3["email"], profile3_data)
     user3_id = api.user_ids[user3["email"]]
-    
+
     # User1 tries to nudge User3 (not friends)
     api.make_request_expecting_error(
         "post",

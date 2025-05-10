@@ -61,7 +61,7 @@ def run_comments_tests():
             "username": user["email"].split("@")[0],
             "name": user["name"],
             "avatar": f"https://example.com/avatar_{user['name'].replace(' ', '_').lower()}.jpg",
-            "location": f"City {i+1}",
+            "location": f"City {i + 1}",
             "birthday": f"199{i}-01-01",
         }
         api.create_profile(user["email"], profile_data)
@@ -111,7 +111,7 @@ def run_comments_tests():
     # User 1 comments
     for i in range(TEST_CONFIG["initial_comments_count"]):
         comment = api.create_comment(
-            users[0]["email"], update_id, f"This is comment #{i+1} from user 1"
+            users[0]["email"], update_id, f"This is comment #{i + 1} from user 1"
         )
         comments.append(comment)
         logger.info(f"Created comment from user 1: {json.dumps(comment, indent=2)}")
@@ -120,7 +120,7 @@ def run_comments_tests():
     # User 2 comments
     for i in range(TEST_CONFIG["initial_comments_count"]):
         comment = api.create_comment(
-            users[1]["email"], update_id, f"This is comment #{i+1} from user 2"
+            users[1]["email"], update_id, f"This is comment #{i + 1} from user 2"
         )
         comments.append(comment)
         logger.info(f"Created comment from user 2: {json.dumps(comment, indent=2)}")
@@ -134,7 +134,7 @@ def run_comments_tests():
     # Verify comments were created
     assert "comments" in all_comments, "Response does not contain comments field"
     assert (
-        len(all_comments["comments"]) == TEST_CONFIG["initial_comments_count"] * 2
+            len(all_comments["comments"]) == TEST_CONFIG["initial_comments_count"] * 2
     ), "Incorrect number of comments"
     logger.info(f"✓ Found {len(all_comments['comments'])} comments")
 
@@ -155,7 +155,7 @@ def run_comments_tests():
     # Create additional comments for pagination testing
     for i in range(TEST_CONFIG["pagination_comments_count"]):
         comment = api.create_comment(
-            users[0]["email"], update_id, f"Pagination test comment #{i+1}"
+            users[0]["email"], update_id, f"Pagination test comment #{i + 1}"
         )
         comments.append(comment)
         logger.info(
@@ -171,7 +171,7 @@ def run_comments_tests():
 
     assert "next_cursor" in first_page, "Response missing next_cursor"
     assert (
-        len(first_page["comments"]) == TEST_CONFIG["pagination_limit"]
+            len(first_page["comments"]) == TEST_CONFIG["pagination_limit"]
     ), "Incorrect number of comments in first page"
 
     if first_page["next_cursor"]:
@@ -196,7 +196,7 @@ def run_comments_tests():
 
     assert updated_comment["content"] == updated_content, "Comment content not updated"
     assert (
-        updated_comment["comment_id"] == comment_to_update["comment_id"]
+            updated_comment["comment_id"] == comment_to_update["comment_id"]
     ), "Wrong comment updated"
     logger.info("✓ Comment update test passed")
 

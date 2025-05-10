@@ -13,6 +13,7 @@ from datetime import timedelta
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+
 from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
@@ -151,13 +152,13 @@ def run_invitation_demo():
 
         # Verify the invitation data matches
         assert (
-            single_invitation["invitation_id"] == first_invitation["invitation_id"]
+                single_invitation["invitation_id"] == first_invitation["invitation_id"]
         ), "Invitation IDs do not match"
         assert (
-            single_invitation["status"] == first_invitation["status"]
+                single_invitation["status"] == first_invitation["status"]
         ), "Invitation statuses do not match"
         assert (
-            single_invitation["receiver_name"] == first_invitation["receiver_name"]
+                single_invitation["receiver_name"] == first_invitation["receiver_name"]
         ), "Receiver names do not match"
         logger.info("✓ Single invitation retrieval test passed")
 
@@ -368,10 +369,10 @@ def run_invitation_demo():
         # Create additional invitations to reach exactly 5
         for i in range(invitations_to_create):
             invitation = api.create_invitation(
-                users[3]["email"], f"Test Receiver {i+7}"
+                users[3]["email"], f"Test Receiver {i + 7}"
             )
             logger.info(
-                f"Created invitation {i+1}/{invitations_to_create}: {json.dumps(invitation, indent=2)}"
+                f"Created invitation {i + 1}/{invitations_to_create}: {json.dumps(invitation, indent=2)}"
             )
 
     # Verify we have exactly 5 total (friends + active invitations)
@@ -472,9 +473,9 @@ def run_invitation_demo():
     for i in range(friends_to_create):
         # Create a new user for each friend
         friend_user = {
-            "email": f"friend{i+1}_test@example.com",
+            "email": f"friend{i + 1}_test@example.com",
             "password": "password123",
-            "name": f"Friend Test {i+1}",
+            "name": f"Friend Test {i + 1}",
         }
         api.create_user(
             friend_user["email"], friend_user["password"], friend_user["name"]
@@ -498,7 +499,7 @@ def run_invitation_demo():
             friend_user["email"], api.invitation_ids[user_with_most_friends["email"]]
         )
         logger.info(
-            f"Created and accepted friend {i+1}/{friends_to_create}: {json.dumps(accepted, indent=2)}"
+            f"Created and accepted friend {i + 1}/{friends_to_create}: {json.dumps(accepted, indent=2)}"
         )
 
     # Verify we have exactly 5 friends

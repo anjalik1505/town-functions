@@ -16,6 +16,7 @@ import json
 import logging
 
 import requests
+
 from utils.village_api import API_BASE_URL, VillageAPI
 
 # Configure logging
@@ -69,20 +70,20 @@ def run_profile_tests():
 
     # Verify profile data matches what was created
     assert (
-        retrieved_profile["username"] == initial_profile_data["username"]
+            retrieved_profile["username"] == initial_profile_data["username"]
     ), "Username mismatch"
     assert retrieved_profile["name"] == initial_profile_data["name"], "Name mismatch"
     assert (
-        retrieved_profile["avatar"] == initial_profile_data["avatar"]
+            retrieved_profile["avatar"] == initial_profile_data["avatar"]
     ), "Avatar mismatch"
     assert (
-        retrieved_profile["location"] == initial_profile_data["location"]
+            retrieved_profile["location"] == initial_profile_data["location"]
     ), "Location mismatch"
     assert (
-        retrieved_profile["birthday"] == initial_profile_data["birthday"]
+            retrieved_profile["birthday"] == initial_profile_data["birthday"]
     ), "Birthday mismatch"
     assert (
-        retrieved_profile["gender"] == initial_profile_data["gender"]
+            retrieved_profile["gender"] == initial_profile_data["gender"]
     ), "Gender mismatch"
     logger.info("Profile verification successful - all fields match")
 
@@ -107,23 +108,23 @@ def run_profile_tests():
 
     # Verify updated profile data
     assert (
-        retrieved_updated_profile["username"] == updated_profile_data["username"]
+            retrieved_updated_profile["username"] == updated_profile_data["username"]
     ), "Updated username mismatch"
     assert (
-        retrieved_updated_profile["name"] == updated_profile_data["name"]
+            retrieved_updated_profile["name"] == updated_profile_data["name"]
     ), "Updated name mismatch"
     assert (
-        retrieved_updated_profile["avatar"] == updated_profile_data["avatar"]
+            retrieved_updated_profile["avatar"] == updated_profile_data["avatar"]
     ), "Updated avatar mismatch"
     assert (
-        retrieved_updated_profile["location"] == updated_profile_data["location"]
+            retrieved_updated_profile["location"] == updated_profile_data["location"]
     ), "Updated location mismatch"
     assert (
-        retrieved_updated_profile["gender"] == updated_profile_data["gender"]
+            retrieved_updated_profile["gender"] == updated_profile_data["gender"]
     ), "Updated gender mismatch"
     # Birthday should be updated to the new value
     assert (
-        retrieved_updated_profile["birthday"] == updated_profile_data["birthday"]
+            retrieved_updated_profile["birthday"] == updated_profile_data["birthday"]
     ), "Birthday should be updated"
     logger.info("Updated profile verification successful - all fields match")
 
@@ -144,16 +145,16 @@ def run_profile_tests():
 
     # Verify that only the name and gender were updated
     assert (
-        retrieved_partial_profile["name"] == partial_update_data["name"]
+            retrieved_partial_profile["name"] == partial_update_data["name"]
     ), "Partially updated name mismatch"
     assert (
-        retrieved_partial_profile["gender"] == partial_update_data["gender"]
+            retrieved_partial_profile["gender"] == partial_update_data["gender"]
     ), "Partially updated gender mismatch"
     assert (
-        retrieved_partial_profile["username"] == updated_profile_data["username"]
+            retrieved_partial_profile["username"] == updated_profile_data["username"]
     ), "Username should be unchanged"
     assert (
-        retrieved_partial_profile["avatar"] == updated_profile_data["avatar"]
+            retrieved_partial_profile["avatar"] == updated_profile_data["avatar"]
     ), "Avatar should be unchanged"
     logger.info("Partial update verification successful")
 
@@ -342,7 +343,7 @@ def run_profile_tests():
             data="This is not valid JSON",
         )
         assert (
-            response.status_code == 400
+                response.status_code == 400
         ), f"Expected status code 400, got {response.status_code}"
         logger.info(f"✓ Invalid JSON test passed: Status code {response.status_code}")
     except Exception as e:
@@ -474,11 +475,11 @@ def run_profile_tests():
     )
     logger.info(f"Retrieved user 2 profile: {json.dumps(user2_profile, indent=2)}")
     assert (
-        user2_profile["username"] == second_user_profile_data["username"]
+            user2_profile["username"] == second_user_profile_data["username"]
     ), "Username mismatch"
     assert user2_profile["name"] == second_user_profile_data["name"], "Name mismatch"
     assert (
-        user2_profile["gender"] == second_user_profile_data["gender"]
+            user2_profile["gender"] == second_user_profile_data["gender"]
     ), "Gender mismatch"
     logger.info("✓ Friend profile access test passed")
 

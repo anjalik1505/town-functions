@@ -11,7 +11,6 @@ It creates a user, authenticates them, and tests the sentiment analysis endpoint
 
 import json
 import logging
-import time
 
 from utils.village_api import API_BASE_URL, VillageAPI
 

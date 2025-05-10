@@ -88,7 +88,7 @@ def run_question_tests():
 
     # Verify the new question is different from the first one
     assert (
-        new_question_data["question"] != question_data["question"]
+            new_question_data["question"] != question_data["question"]
     ), "Questions should be different"
     logger.info("✓ Context-aware question verification passed")
 
