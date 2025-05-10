@@ -1,19 +1,19 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  CommentEventParams,
-  EventName,
-} from '../models/analytics-events';
-import { Collections, CommentFields, ProfileFields } from '../models/constants';
-import { Comment } from '../models/data-models';
-import { formatComment } from '../utils/comment-utils';
-import { BadRequestError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
-import { getProfileDoc } from '../utils/profile-utils';
-import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
+import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import { Collections, CommentFields, ProfileFields } from '../models/constants.js';
+import { Comment } from '../models/data-models.js';
+import { formatComment } from '../utils/comment-utils.js';
+import { BadRequestError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { getProfileDoc } from '../utils/profile-utils.js';
+import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a new comment on an update.

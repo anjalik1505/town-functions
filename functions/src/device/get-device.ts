@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, DeviceFields } from '../models/constants';
-import { Device } from '../models/data-models';
-import { NotFoundError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
+import { Collections, DeviceFields } from '../models/constants.js';
+import { Device } from '../models/data-models.js';
+import { NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Get the device information for the authenticated user.

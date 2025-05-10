@@ -9,13 +9,17 @@ import {
   ProfileFields,
   QueryOperators,
   Status,
-} from '../models/constants';
-import { Group } from '../models/data-models';
-import { BadRequestError, NotFoundError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
+} from '../models/constants.js';
+import { Group } from '../models/data-models.js';
+import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Create a new group, ensuring the current user is in the members list.

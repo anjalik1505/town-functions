@@ -1,9 +1,13 @@
 import { getFirestore } from 'firebase-admin/firestore';
-import { Collections } from '../models/constants';
-import { ReactionGroup } from '../models/data-models';
-import { getLogger } from './logging-utils';
+import { Collections } from '../models/constants.js';
+import { ReactionGroup } from '../models/data-models.js';
+import { getLogger } from './logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Fetches and processes reactions for an update.

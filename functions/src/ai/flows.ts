@@ -1,10 +1,14 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { defineSecret } from 'firebase-functions/params';
 import { genkit } from 'genkit';
-import { FriendPlaceholderChecks, Placeholders } from '../models/constants';
-import { getLogger } from '../utils/logging-utils';
+import { FriendPlaceholderChecks, Placeholders } from '../models/constants.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 // Define the API key secret for Gemini
 export const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -65,10 +69,10 @@ const executeAIFlow = async <T>(
         error:
           error instanceof Error
             ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
             : error,
         params: params,
       });

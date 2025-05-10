@@ -1,9 +1,13 @@
-import { BadRequestError } from './errors';
-import { getLogger } from './logging-utils';
+import { BadRequestError } from './errors.js';
+import { getLogger } from './logging-utils.js';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 const gunzip = promisify(zlib.gunzip);
 const inflate = promisify(zlib.inflate);

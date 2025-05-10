@@ -1,23 +1,19 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events';
-import { Collections, InvitationFields, Status } from '../models/constants';
-import { Invitation } from '../models/data-models';
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from '../utils/errors';
-import { hasReachedCombinedLimit } from '../utils/friendship-utils';
-import { getLogger } from '../utils/logging-utils';
-import { formatTimestamp } from '../utils/timestamp-utils';
-import { hasLimitOverride } from '../utils/profile-utils';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import { Collections, InvitationFields, Status } from '../models/constants.js';
+import { Invitation } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
+import { hasLimitOverride } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Resends an invitation by resetting its created_at time and updating the expires_at time.

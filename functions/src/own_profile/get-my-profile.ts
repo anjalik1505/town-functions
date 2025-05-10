@@ -1,19 +1,15 @@
 import { Request } from 'express';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events';
-import { ProfileFields } from '../models/constants';
-import { ProfileResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import {
-  formatProfileResponse,
-  getProfileDoc,
-  getProfileInsights,
-} from '../utils/profile-utils';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import { ProfileFields } from '../models/constants.js';
+import { ProfileResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves the current user's profile with insights information.

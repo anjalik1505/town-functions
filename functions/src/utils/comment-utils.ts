@@ -1,12 +1,16 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { Collections, CommentFields } from '../models/constants';
-import { Comment } from '../models/data-models';
-import { NotFoundError } from './errors';
-import { getLogger } from './logging-utils';
-import { enrichWithProfile } from './profile-utils';
-import { formatTimestamp } from './timestamp-utils';
+import { Collections, CommentFields } from '../models/constants.js';
+import { Comment } from '../models/data-models.js';
+import { NotFoundError } from './errors.js';
+import { getLogger } from './logging-utils.js';
+import { enrichWithProfile } from './profile-utils.js';
+import { formatTimestamp } from './timestamp-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Format a comment document into a standard Comment object

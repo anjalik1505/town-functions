@@ -1,21 +1,17 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  ReactionEventParams,
-} from '../models/analytics-events';
-import { Collections, ReactionFields } from '../models/constants';
-import { ReactionGroup } from '../models/data-models';
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
-import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils';
+import { ApiResponse, EventName, ReactionEventParams, } from '../models/analytics-events.js';
+import { Collections, ReactionFields } from '../models/constants.js';
+import { ReactionGroup } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Deletes a reaction from an update.

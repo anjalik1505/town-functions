@@ -1,7 +1,11 @@
 import { getMessaging } from 'firebase-admin/messaging';
-import { getLogger } from './logging-utils';
+import { getLogger } from './logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Send a notification to a device

@@ -1,9 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import {
-  DeleteProfileEventParams,
-  EventName,
-} from '../models/analytics-events';
+import { DeleteProfileEventParams, EventName, } from '../models/analytics-events.js';
 import {
   Collections,
   FeedFields,
@@ -14,11 +11,15 @@ import {
   QueryOperators,
   UpdateFields,
   UserSummaryFields,
-} from '../models/constants';
-import { trackApiEvent } from '../utils/analytics-utils';
-import { getLogger } from '../utils/logging-utils';
+} from '../models/constants.js';
+import { trackApiEvent } from '../utils/analytics-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Helper function to stream and process a collection with batched writes.

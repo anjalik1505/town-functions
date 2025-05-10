@@ -1,17 +1,16 @@
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-  WriteBatch,
-} from 'firebase-admin/firestore';
-import { Collections, FeedFields, UpdateFields } from '../models/constants';
-import { EnrichedUpdate, Update } from '../models/data-models';
-import { ForbiddenError, NotFoundError } from './errors';
-import { getLogger } from './logging-utils';
-import { formatTimestamp } from './timestamp-utils';
-import { createFriendVisibilityIdentifier } from './visibility-utils';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch, } from 'firebase-admin/firestore';
+import { Collections, FeedFields, UpdateFields } from '../models/constants.js';
+import { EnrichedUpdate, Update } from '../models/data-models.js';
+import { ForbiddenError, NotFoundError } from './errors.js';
+import { getLogger } from './logging-utils.js';
+import { formatTimestamp } from './timestamp-utils.js';
+import { createFriendVisibilityIdentifier } from './visibility-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Format an update document into a standard Update object

@@ -3,7 +3,7 @@
 
 module.exports = [
   // ignore build output and deps
-  { ignores: ['lib/**', 'node_modules/**'] },
+  {ignores: ['lib/**', 'node_modules/**']},
 
   // TypeScript & Prettier for .ts/.js files
   {

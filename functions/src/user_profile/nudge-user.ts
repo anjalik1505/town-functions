@@ -1,27 +1,17 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  UserNudgeEventParams,
-} from '../models/analytics-events';
-import {
-  Collections,
-  FriendshipFields,
-  DeviceFields,
-  NudgeFields,
-  Status,
-} from '../models/constants';
-import {
-  BadRequestError,
-  ForbiddenError,
-  ConflictError,
-} from '../utils/errors';
-import { createFriendshipId } from '../utils/friendship-utils';
-import { getLogger } from '../utils/logging-utils';
-import { sendNotification } from '../utils/notification-utils';
+import { ApiResponse, EventName, UserNudgeEventParams, } from '../models/analytics-events.js';
+import { Collections, DeviceFields, FriendshipFields, NudgeFields, Status, } from '../models/constants.js';
+import { BadRequestError, ConflictError, ForbiddenError, } from '../utils/errors.js';
+import { createFriendshipId } from '../utils/friendship-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { sendNotification } from '../utils/notification-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 const NUDGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 
 /**

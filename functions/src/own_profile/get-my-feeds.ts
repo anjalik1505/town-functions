@@ -1,26 +1,19 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  FeedViewEventParams,
-} from '../models/analytics-events';
-import { Collections, FeedFields, QueryOperators } from '../models/constants';
-import { FeedResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils';
-import { fetchUsersProfiles, getProfileDoc } from '../utils/profile-utils';
-import { fetchUpdatesReactions } from '../utils/reaction-utils';
-import {
-  fetchUpdatesByIds,
-  processEnrichedFeedItems,
-} from '../utils/update-utils';
+import { ApiResponse, EventName, FeedViewEventParams, } from '../models/analytics-events.js';
+import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
+import { FeedResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { fetchUsersProfiles, getProfileDoc } from '../utils/profile-utils.js';
+import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
+import { fetchUpdatesByIds, processEnrichedFeedItems, } from '../utils/update-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves the user's feed of updates, paginated using cursor-based pagination.

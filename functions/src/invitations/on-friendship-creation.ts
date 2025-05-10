@@ -1,21 +1,17 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import {
-  EventName,
-  FriendshipAcceptanceEventParams,
-} from '../models/analytics-events';
-import {
-  Collections,
-  DeviceFields,
-  FriendshipFields,
-  Status,
-} from '../models/constants';
-import { getLogger } from '../utils/logging-utils';
-import { syncFriendshipDataForUser } from '../utils/friendship-utils';
-import { sendNotification } from '../utils/notification-utils';
-import { trackApiEvents } from '../utils/analytics-utils';
+import { EventName, FriendshipAcceptanceEventParams, } from '../models/analytics-events.js';
+import { Collections, DeviceFields, FriendshipFields, Status, } from '../models/constants.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
+import { sendNotification } from '../utils/notification-utils.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Creates a friendship acceptance event for analytics tracking

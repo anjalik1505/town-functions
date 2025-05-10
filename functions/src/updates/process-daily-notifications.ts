@@ -1,24 +1,24 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { generateDailyNotificationFlow } from '../ai/flows';
-import {
-  DailyNotificationsEventParams,
-  EventName,
-  NotificationEventParams,
-} from '../models/analytics-events';
+import { generateDailyNotificationFlow } from '../ai/flows.js';
+import { DailyNotificationsEventParams, EventName, NotificationEventParams, } from '../models/analytics-events.js';
 import {
   Collections,
   DeviceFields,
   NotificationFields,
   ProfileFields,
-  UpdateFields,
   QueryOperators,
-} from '../models/constants';
-import { trackApiEvents } from '../utils/analytics-utils';
-import { getLogger } from '../utils/logging-utils';
-import { sendNotification } from '../utils/notification-utils';
-import { calculateAge } from '../utils/profile-utils';
+  UpdateFields,
+} from '../models/constants.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { sendNotification } from '../utils/notification-utils.js';
+import { calculateAge } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Process notifications for a single user

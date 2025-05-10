@@ -1,18 +1,18 @@
 import { Request } from 'express';
 import { Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  CommentEventParams,
-  EventName,
-} from '../models/analytics-events';
-import { CommentFields, ProfileFields } from '../models/constants';
-import { Comment } from '../models/data-models';
-import { formatComment, getCommentDoc } from '../utils/comment-utils';
-import { BadRequestError, ForbiddenError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
-import { getProfileDoc } from '../utils/profile-utils';
+import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import { CommentFields, ProfileFields } from '../models/constants.js';
+import { Comment } from '../models/data-models.js';
+import { formatComment, getCommentDoc } from '../utils/comment-utils.js';
+import { BadRequestError, ForbiddenError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { getProfileDoc } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Updates an existing comment on an update.

@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { Collections, DeviceFields } from '../models/constants';
-import { NotificationResponse } from '../models/data-models';
-import { NotFoundError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
+import { Collections, DeviceFields } from '../models/constants.js';
+import { NotificationResponse } from '../models/data-models.js';
+import { NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Sends a test notification to the user's device.

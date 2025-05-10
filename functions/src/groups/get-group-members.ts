@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields } from '../models/constants';
-import { GroupMember, GroupMembersResponse } from '../models/data-models';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
+import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
+import { GroupMember, GroupMembersResponse } from '../models/data-models.js';
+import { ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves all members of a specific group with their basic profile information.

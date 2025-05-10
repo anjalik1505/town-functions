@@ -1,14 +1,15 @@
 import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
 import { genkit } from 'genkit';
-import {
-  friendProfileSchema,
-  ownProfileSchema,
-} from '../models/validation-schemas';
-import { InternalServerError } from '../utils/errors';
-import { getLogger } from '../utils/logging-utils';
+import { friendProfileSchema, ownProfileSchema, } from '../models/validation-schemas.js';
+import { InternalServerError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 // Configure a Genkit instance
 const ai = genkit({
@@ -53,14 +54,14 @@ export const testPrompt = async (
           prompt: `### CONTEXT:
                     - <SUMMARY>: ${summary}
                     - <SUGGESTIONS>: ${suggestions}${
-                      data.is_own_profile
-                        ? `
+            data.is_own_profile
+              ? `
                     - <EMOTIONAL_OVERVIEW>: ${existingEmotionalOverview}
                     - <KEY_MOMENTS>: ${existingKeyMoments}
                     - <RECURRING_THEMES>: ${existingRecurringThemes}
                     - <PROGRESS_AND_GROWTH>: ${existingProgressAndGrowth}`
-                        : ''
-                    }
+              : ''
+          }
                     - <GENDER>: ${gender}
                     - <LOCATION>: ${location}
                     

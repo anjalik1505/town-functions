@@ -1,8 +1,12 @@
 import { RequestHandler } from 'express';
 import { z } from 'zod';
-import { getLogger } from '../utils/logging-utils';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 export const validateRequest = <T extends z.ZodType>(
   schema: T,

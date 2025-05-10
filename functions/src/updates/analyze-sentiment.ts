@@ -1,14 +1,14 @@
 import { Request } from 'express';
-import { analyzeSentimentFlow } from '../ai/flows';
-import {
-  AnalyzeSentimentEventParams,
-  ApiResponse,
-  EventName,
-} from '../models/analytics-events';
-import { SentimentAnalysisResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
+import { analyzeSentimentFlow } from '../ai/flows.js';
+import { AnalyzeSentimentEventParams, ApiResponse, EventName, } from '../models/analytics-events.js';
+import { SentimentAnalysisResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Analyzes text input to determine sentiment, score, and generate an emoji.

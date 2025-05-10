@@ -1,14 +1,14 @@
 import { Request } from 'express';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events';
-import { Collections, Documents, ProfileFields } from '../models/constants';
-import { getLogger } from '../utils/logging-utils';
-import { getProfileDoc } from '../utils/profile-utils';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import { Collections, Documents, ProfileFields } from '../models/constants.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { getProfileDoc } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Deletes the profile of the authenticated user.

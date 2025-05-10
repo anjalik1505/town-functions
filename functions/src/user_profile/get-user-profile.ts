@@ -1,28 +1,18 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events';
-import {
-  Collections,
-  FriendshipFields,
-  ProfileFields,
-  Status,
-  UserSummaryFields,
-} from '../models/constants';
-import { FriendProfileResponse } from '../models/data-models';
-import { BadRequestError, ForbiddenError } from '../utils/errors';
-import { createFriendshipId } from '../utils/friendship-utils';
-import { getLogger } from '../utils/logging-utils';
-import {
-  createSummaryId,
-  formatFriendProfileResponse,
-  getProfileDoc,
-} from '../utils/profile-utils';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields, } from '../models/constants.js';
+import { FriendProfileResponse } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError } from '../utils/errors.js';
+import { createFriendshipId } from '../utils/friendship-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { createSummaryId, formatFriendProfileResponse, getProfileDoc, } from '../utils/profile-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves a user's profile with summary and suggestions.

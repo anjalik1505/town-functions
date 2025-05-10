@@ -1,25 +1,16 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  FriendEventParams,
-} from '../models/analytics-events';
-import {
-  Collections,
-  FriendshipFields,
-  QueryOperators,
-  Status,
-} from '../models/constants';
-import { Friend, FriendsResponse } from '../models/data-models';
-import { getLogger } from '../utils/logging-utils';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils';
+import { ApiResponse, EventName, FriendEventParams, } from '../models/analytics-events.js';
+import { Collections, FriendshipFields, QueryOperators, Status, } from '../models/constants.js';
+import { Friend, FriendsResponse } from '../models/data-models.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Retrieves the current user's friends and pending friendship requests.

@@ -1,34 +1,18 @@
 import { Request } from 'express';
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events';
-import {
-  Collections,
-  InvitationFields,
-  QueryOperators,
-  Status,
-} from '../models/constants';
-import { Invitation, InvitationsResponse } from '../models/data-models';
-import { hasReachedCombinedLimit } from '../utils/friendship-utils';
-import {
-  formatInvitation,
-  isInvitationExpired,
-} from '../utils/invitation-utils';
-import { getLogger } from '../utils/logging-utils';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import { Collections, InvitationFields, QueryOperators, Status, } from '../models/constants.js';
+import { Invitation, InvitationsResponse } from '../models/data-models.js';
+import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
+import { formatInvitation, isInvitationExpired, } from '../utils/invitation-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
 
-const logger = getLogger(__filename);
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Gets all invitations for the current user, checking if any have expired.
@@ -94,7 +78,7 @@ export const getInvitations = async (
     const status = invitationData[InvitationFields.STATUS];
     const expiresAt = invitationData?.[
       InvitationFields.EXPIRES_AT
-    ] as Timestamp;
+      ] as Timestamp;
 
     // Only update if the invitation is pending and has expired
     if (status === Status.PENDING && isInvitationExpired(expiresAt)) {
