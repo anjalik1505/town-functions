@@ -11,7 +11,6 @@ It creates a user, authenticates them, and performs feedback operations:
 
 import json
 import logging
-import time
 
 from utils.village_api import API_BASE_URL, VillageAPI
 

@@ -421,3 +421,27 @@ export const generateDailyNotificationFlow = async (params: {
     'Generating daily notification message',
   );
 };
+
+/**
+ * Transcribes audio.
+ */
+export const transcribeAudioFlow = async (params: {
+  audioData: string;
+  mimeType: string;
+}) => {
+  const defaultOutput = {
+    transcription: `I'm sorry, I couldn't transcribe that audio.`,
+    sentiment: 'neutral',
+    score: 3,
+    emoji: '😐',
+  };
+
+  logger.error(`Generating transcription with mime type ${params.mimeType}`);
+
+  return executeAIFlow(
+    'transcribe_audio',
+    params,
+    defaultOutput,
+    'Generating transcription and sentiment',
+  );
+};

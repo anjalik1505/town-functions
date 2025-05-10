@@ -37,6 +37,7 @@ export enum EventName {
   SUMMARY_CREATED = 'summary_created',
   FRIEND_SUMMARY_CREATED = 'friend_summary_created',
   USER_NUDGED = 'user_nudged',
+  AUDIO_TRANSCRIBED = 'audio_transcribed',
 }
 
 // Base interface for all event parameters
@@ -200,6 +201,15 @@ export interface FriendSummaryEventParams extends BaseEventParams {
 // User nudge event parameters
 export interface UserNudgeEventParams extends BaseEventParams {
   target_user_id: string;
+}
+
+// Audio Transcribed event parameters
+export interface AudioTranscribedEventParams extends BaseEventParams {
+  mime_type: string;
+  transcription_length_characters: number;
+  sentiment: string;
+  score: number;
+  emoji: string;
 }
 
 // Delete profile event parameters

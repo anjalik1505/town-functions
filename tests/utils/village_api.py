@@ -9,7 +9,6 @@ profile operations, friend connections, and various API endpoints.
 
 import json
 import logging
-import urllib.parse
 from typing import Any, Dict, Optional
 
 import requests
@@ -38,7 +37,7 @@ class VillageAPI:
 
     # User Management Methods
     def create_user(
-        self, email: str, password: str, display_name: str
+            self, email: str, password: str, display_name: str
     ) -> Dict[str, Any]:
         """Create a new user in Firebase Auth"""
         logger.info(f"Creating user with email: {email}")
@@ -56,8 +55,8 @@ class VillageAPI:
 
         # Check for EMAIL_EXISTS error
         if (
-            response.status_code == 400
-            and response_data.get("error", {}).get("message") == "EMAIL_EXISTS"
+                response.status_code == 400
+                and response_data.get("error", {}).get("message") == "EMAIL_EXISTS"
         ):
             logger.warning(f"User {email} already exists, authenticating instead")
             return self.authenticate_user(email, password)
@@ -101,7 +100,7 @@ class VillageAPI:
 
     # Profile Methods
     def create_profile(
-        self, email: str, profile_data: Dict[str, Any]
+            self, email: str, profile_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Create a user profile"""
         logger.info(f"Creating profile for user: {email}")
@@ -135,7 +134,7 @@ class VillageAPI:
         return response.json()
 
     def update_profile(
-        self, email: str, profile_data: Dict[str, Any]
+            self, email: str, profile_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Update a user profile"""
         logger.info(f"Updating profile for user: {email}")
@@ -170,7 +169,7 @@ class VillageAPI:
 
     # Friend Methods
     def get_friends(
-        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get user's friends"""
         logger.info(f"Getting friends for user: {email}")
@@ -193,7 +192,7 @@ class VillageAPI:
 
     # Feed and Update Methods
     def get_my_feed(
-        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get the user's feed (updates from friends and groups)"""
         logger.info(f"Getting feeds for user: {email}")
@@ -215,7 +214,7 @@ class VillageAPI:
         return response.json()
 
     def get_my_updates(
-        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get updates created by the current user"""
         logger.info(f"Getting updates for user: {email}")
@@ -272,11 +271,11 @@ class VillageAPI:
         return response.json()
 
     def get_user_updates(
-        self,
-        email: str,
-        target_user_id: str,
-        limit: int = 10,
-        after_cursor: Optional[str] = None,
+            self,
+            email: str,
+            target_user_id: str,
+            limit: int = 10,
+            after_cursor: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get updates created by another user"""
         logger.info(f"User {email} getting updates for user ID: {target_user_id}")
@@ -359,7 +358,7 @@ class VillageAPI:
         return data
 
     def get_invitations(
-        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get user's invitations"""
         logger.info(f"Getting invitations for user: {email}")
@@ -478,13 +477,34 @@ class VillageAPI:
         logger.info(f"Successfully analyzed sentiment")
         return response.json()
 
+    def transcribe_audio(self, email: str, audio_data: str) -> Dict[str, Any]:
+        """Transcribe audio data"""
+        logger.info(f"Transcribing audio...")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"audio_data": audio_data}
+
+        response = requests.post(
+            f"{API_BASE_URL}/updates/transcribe", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to transcribe audio: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully transcribed audio")
+        return response.json()
+
     # Comment Methods
     def get_comments(
-        self,
-        email: str,
-        update_id: str,
-        limit: int = 10,
-        after_cursor: Optional[str] = None,
+            self,
+            email: str,
+            update_id: str,
+            limit: int = 10,
+            after_cursor: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get comments for an update"""
         logger.info(f"Getting comments for update {update_id}")
@@ -505,7 +525,7 @@ class VillageAPI:
         return response.json()
 
     def create_comment(
-        self, email: str, update_id: str, content: str
+            self, email: str, update_id: str, content: str
     ) -> Dict[str, Any]:
         """Create a new comment on an update"""
         logger.info(f"Creating comment on update {update_id}")
@@ -530,7 +550,7 @@ class VillageAPI:
         return data
 
     def update_comment(
-        self, email: str, update_id: str, comment_id: str, content: str
+            self, email: str, update_id: str, comment_id: str, content: str
     ) -> Dict[str, Any]:
         """Update an existing comment"""
         logger.info(f"Updating comment {comment_id} on update {update_id}")
@@ -570,7 +590,7 @@ class VillageAPI:
 
     # Reaction Methods
     def create_reaction(
-        self, email: str, update_id: str, reaction_type: str
+            self, email: str, update_id: str, reaction_type: str
     ) -> Dict[str, Any]:
         """Create a new reaction on an update"""
         logger.info(f"Creating reaction on update {update_id}")
@@ -650,15 +670,14 @@ class VillageAPI:
         logger.info(f"Successfully nudged user ID: {target_user_id}")
         return response.json()
 
-    # Utility Methods
     def make_request_expecting_error(
-        self,
-        method: str,
-        url: str,
-        headers: Dict[str, str],
-        json_data: Optional[Dict[str, Any]] = None,
-        expected_status_code: int = None,
-        expected_error_message: str = None,
+            self,
+            method: str,
+            url: str,
+            headers: Dict[str, str],
+            json_data: Optional[Dict[str, Any]] = None,
+            expected_status_code: int = None,
+            expected_error_message: str = None,
     ) -> Dict[str, Any]:
         """Make a request expecting a specific error response"""
         logger.info(
@@ -686,7 +705,7 @@ class VillageAPI:
             # Verify status code if expected
             if expected_status_code:
                 assert (
-                    response.status_code == expected_status_code
+                        response.status_code == expected_status_code
                 ), f"Expected status code {expected_status_code}, got {response.status_code}"
                 logger.info(
                     f"✓ Status code verification passed: {response.status_code}"
@@ -696,7 +715,7 @@ class VillageAPI:
             if expected_error_message and response_data.get("error"):
                 error_message = response_data.get("error", {}).get("message", "")
                 assert (
-                    expected_error_message in error_message
+                        expected_error_message in error_message
                 ), f"Expected error message containing '{expected_error_message}', got '{error_message}'"
                 logger.info(f"✓ Error message verification passed: '{error_message}'")
 

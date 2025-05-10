@@ -663,6 +663,73 @@ _Note: group_ids, friend_ids, and all_village are optional. score and emoji are 
 - 400: Invalid request parameters
 - 500: Internal server error
 
+#### POST /updates/transcribe
+
+**Purpose**: Transcribes audio data to text, and provides sentiment analysis for the transcribed text. This is useful for generating content for a new update from an audio recording.
+
+**Analytics Events**:
+
+- `AUDIO_TRANSCRIBED`: When audio is successfully transcribed.
+
+  **Event Body:**
+
+  ```json
+  {
+    "mime_type": "audio/wav",
+    "transcription_length_characters": 150,
+    "sentiment": "positive",
+    "score": 4,
+    "emoji": "😊"
+  }
+  ```
+
+**Input**:
+
+```json
+{
+  "audio_data": "<base64_encoded_audio_string>"
+}
+```
+
+_Notes:_
+- `audio_data` (string, required): Base64 encoded audio data.
+- The raw audio data (before base64 encoding) can be uncompressed or compressed.
+- Supported compression formats (auto-detected from the MIME type of the base64 decoded data): `gzip`, `deflate`, `brotli`.
+  - Corresponding MIME types for compressed data: `application/gzip`, `application/x-gzip`, `application/deflate`, `application/brotli`.
+- Supported audio formats for the *actual audio content* (auto-detected after any decompression):
+  - `audio/x-aac` (AAC)
+  - `audio/flac` (FLAC)
+  - `audio/mp3` (MP3)
+  - `audio/m4a` (M4A / MP4 Audio)
+  - `audio/mpeg` (MPEG audio)
+  - `audio/mpga` (MPEG audio)
+  - `audio/mp4` (MP4 container with audio)
+  - `audio/opus` (Opus)
+  - `audio/pcm` (Raw PCM)
+  - `audio/wav` (WAV)
+  - `audio/webm` (WebM container with Opus/Vorbis audio)
+
+**Output (Success - 200)**:
+
+```json
+{
+  "transcription": "The transcribed text from the audio.",
+  "sentiment": "positive",
+  "score": 4,
+  "emoji": "😊"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`:
+  - If `audio_data` is missing or not a valid base64 string (Zod validation error).
+  - If the MIME type of the (potentially decompressed) audio data cannot be determined.
+  - If the (potentially decompressed) audio format is not supported.
+  - If a compressed audio format is provided but is not one of the supported compression types (`gzip`, `deflate`, `brotli`).
+  - If decompression fails (e.g., corrupted data).
+- `401 Unauthorized`: If the Firebase ID token is missing, invalid, or expired.
+- `500 Internal Server Error`: If the AI transcription flow fails or an unexpected server error occurs.
+
 ### Comments
 
 #### GET /updates/{update_id}/comments
@@ -1329,7 +1396,6 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
     "has_avatar": true,
     "has_location": true,
     "has_birthday": true,
-    "has_notification_settings": true,
     "has_gender": true
   }
   ```

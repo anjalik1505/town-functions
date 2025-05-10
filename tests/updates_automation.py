@@ -70,7 +70,7 @@ def run_updates_tests():
             "username": user["email"].split("@")[0],
             "name": user["name"],
             "avatar": f"https://example.com/avatar_{user['name'].replace(' ', '_').lower()}.jpg",
-            "location": f"City {i+1}",
+            "location": f"City {i + 1}",
             "birthday": f"199{i}-01-01",
         }
         api.create_profile(user["email"], profile_data)
@@ -87,7 +87,7 @@ def run_updates_tests():
         score = random.choice(SCORES)
         emoji = random.choice(EMOJIS)
         update_data = {
-            "content": f"This is update #{i+1} from user 1 with {sentiment} sentiment",
+            "content": f"This is update #{i + 1} from user 1 with {sentiment} sentiment",
             "sentiment": sentiment,
             "score": score,
             "emoji": emoji,
@@ -98,7 +98,7 @@ def run_updates_tests():
         created_update = api.create_update(users[0]["email"], update_data)
         user1_updates.append(created_update)
         logger.info(
-            f"Created update #{i+1} for user 1: {json.dumps(created_update, indent=2)}"
+            f"Created update #{i + 1} for user 1: {json.dumps(created_update, indent=2)}"
         )
 
         # Verify all_village field is present and has the correct value
@@ -124,7 +124,7 @@ def run_updates_tests():
             update["score"], int
         ), f"Score should be a number, got {type(update['score'])}"
         assert (
-            1 <= update["score"] <= 5
+                1 <= update["score"] <= 5
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
     logger.info("✓ Updates contain valid score and emoji fields")
@@ -137,7 +137,7 @@ def run_updates_tests():
         score = random.choice(SCORES)
         emoji = random.choice(EMOJIS)
         update_data = {
-            "content": f"This is update #{i+1} from user 2 with {sentiment} sentiment",
+            "content": f"This is update #{i + 1} from user 2 with {sentiment} sentiment",
             "sentiment": sentiment,
             "score": score,
             "emoji": emoji,
@@ -148,7 +148,7 @@ def run_updates_tests():
         created_update = api.create_update(users[1]["email"], update_data)
         user2_updates.append(created_update)
         logger.info(
-            f"Created update #{i+1} for user 2: {json.dumps(created_update, indent=2)}"
+            f"Created update #{i + 1} for user 2: {json.dumps(created_update, indent=2)}"
         )
 
         # Verify all_village field is present and has the correct value
@@ -199,7 +199,7 @@ def run_updates_tests():
         score = random.choice(SCORES)
         emoji = random.choice(EMOJIS)
         update_data = {
-            "content": f"This is update #{i+1} from user 2 shared with user 1, with {sentiment} sentiment",
+            "content": f"This is update #{i + 1} from user 2 shared with user 1, with {sentiment} sentiment",
             "sentiment": sentiment,
             "score": score,
             "emoji": emoji,
@@ -209,7 +209,7 @@ def run_updates_tests():
         created_update = api.create_update(users[1]["email"], update_data)
         user2_shared_updates.append(created_update)
         logger.info(
-            f"Created shared update #{i+1} for user 2: {json.dumps(created_update, indent=2)}"
+            f"Created shared update #{i + 1} for user 2: {json.dumps(created_update, indent=2)}"
         )
 
     # Step 7: Get user updates after becoming friends
@@ -252,21 +252,22 @@ def run_updates_tests():
         assert "emoji" in update, "Update missing emoji field"
         assert "all_village" in update, "Update missing all_village field"
         assert (
-            update["username"] == users[0]["email"].split("@")[0]
+                update["username"] == users[0]["email"].split("@")[0]
         ), "Incorrect username in update"
         assert update["name"] == users[0]["name"], "Incorrect name in update"
         assert (
-            update["avatar"]
-            == f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg"
+                update["avatar"]
+                == f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg"
         ), "Incorrect avatar in update"
         assert isinstance(
             update["score"], int
         ), f"Score should be a number, got {type(update['score'])}"
         assert (
-            1 <= update["score"] <= 5
+                1 <= update["score"] <= 5
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
-        assert isinstance(update["all_village"], bool), f"all_village should be a boolean, got {type(update['all_village'])}"
+        assert isinstance(update["all_village"],
+                          bool), f"all_village should be a boolean, got {type(update['all_village'])}"
     logger.info("✓ User's own updates contain correct enriched profile data")
 
     # Verify that friend's updates appear in the feed
@@ -289,21 +290,22 @@ def run_updates_tests():
         assert "emoji" in update, "Update missing emoji field"
         assert "all_village" in update, "Update missing all_village field"
         assert (
-            update["username"] == users[1]["email"].split("@")[0]
+                update["username"] == users[1]["email"].split("@")[0]
         ), "Incorrect username in update"
         assert update["name"] == users[1]["name"], "Incorrect name in update"
         assert (
-            update["avatar"]
-            == f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg"
+                update["avatar"]
+                == f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg"
         ), "Incorrect avatar in update"
         assert isinstance(
             update["score"], int
         ), f"Score should be a number, got {type(update['score'])}"
         assert (
-            1 <= update["score"] <= 5
+                1 <= update["score"] <= 5
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
-        assert isinstance(update["all_village"], bool), f"all_village should be a boolean, got {type(update['all_village'])}"
+        assert isinstance(update["all_village"],
+                          bool), f"all_village should be a boolean, got {type(update['all_village'])}"
 
     # Find the all_village update in the feed
     all_village_updates = [update for update in user2_updates if update.get("all_village") is True]
@@ -325,7 +327,7 @@ def run_updates_tests():
     # Verify we have exactly 3 updates (initial_updates_count)
     expected_updates = TEST_CONFIG["initial_updates_count"]
     assert (
-        total_updates == expected_updates
+            total_updates == expected_updates
     ), f"Expected {expected_updates} updates, got {total_updates}"
 
     # Test pagination for /me/updates
@@ -337,10 +339,10 @@ def run_updates_tests():
         f"Retrieved first page of /me/updates: {json.dumps(first_page, indent=2)}"
     )
     assert (
-        "next_cursor" in first_page
+            "next_cursor" in first_page
     ), "Response does not contain next_cursor field for pagination"
     assert (
-        len(first_page["updates"]) == TEST_CONFIG["pagination_limit"]
+            len(first_page["updates"]) == TEST_CONFIG["pagination_limit"]
     ), f"First page should have {TEST_CONFIG['pagination_limit']} items, got {len(first_page['updates'])}"
 
     if first_page["next_cursor"]:
@@ -372,7 +374,7 @@ def run_updates_tests():
         # Verify second page has exactly 1 item (3 total - 2 on first page)
         expected_second_page_items = expected_updates - TEST_CONFIG["pagination_limit"]
         assert (
-            len(second_page_updates) == expected_second_page_items
+                len(second_page_updates) == expected_second_page_items
         ), f"Second page should have {expected_second_page_items} item, got {len(second_page_updates)}"
 
         # Verify second page timestamps are in descending order
@@ -384,7 +386,7 @@ def run_updates_tests():
         first_page_ids = {update["update_id"] for update in first_page_updates}
         second_page_ids = {update["update_id"] for update in second_page_updates}
         assert not (
-            first_page_ids & second_page_ids
+                first_page_ids & second_page_ids
         ), "Found duplicate updates between pages"
 
         # Verify second page updates are older than first page updates
@@ -392,14 +394,14 @@ def run_updates_tests():
             newest_second_page = second_page_timestamps[0]
             oldest_first_page = first_page_timestamps[-1]
             assert (
-                newest_second_page < oldest_first_page
+                    newest_second_page < oldest_first_page
             ), "Second page updates are not older than first page updates"
 
         # Verify all updates were retrieved
         all_retrieved_ids = first_page_ids | second_page_ids
         all_update_ids = {update["update_id"] for update in all_updates["updates"]}
         assert (
-            all_retrieved_ids == all_update_ids
+                all_retrieved_ids == all_update_ids
         ), "Did not retrieve all updates across pages"
 
         logger.info(f"✓ /me/updates pagination test passed")
@@ -414,10 +416,11 @@ def run_updates_tests():
 
     # Verify we have exactly 4 feed items (3 own updates + 1 shared update)
     expected_feed_items = (
-        TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["shared_updates_count"]
+            TEST_CONFIG["initial_updates_count"] + TEST_CONFIG["initial_updates_count"] + TEST_CONFIG[
+        "shared_updates_count"]
     )
     assert (
-        total_feed_items == expected_feed_items
+            total_feed_items == expected_feed_items
     ), f"Expected {expected_feed_items} feed items, got {total_feed_items}"
 
     # Test with a limit of 2
@@ -428,13 +431,13 @@ def run_updates_tests():
         f"Retrieved first page of /me/feed with limit {TEST_CONFIG['pagination_limit']}: {json.dumps(first_page_feed, indent=2)}"
     )
     assert (
-        "next_cursor" in first_page_feed
+            "next_cursor" in first_page_feed
     ), "Response does not contain next_cursor field for feed pagination"
     assert (
-        len(first_page_feed["updates"]) == TEST_CONFIG["pagination_limit"]
+            len(first_page_feed["updates"]) == TEST_CONFIG["pagination_limit"]
     ), f"Expected {TEST_CONFIG['pagination_limit']} updates in first page, got {len(first_page_feed['updates'])}"
     assert (
-        first_page_feed["next_cursor"] is not None
+            first_page_feed["next_cursor"] is not None
     ), "next_cursor should not be null when we have more updates than the limit"
 
     if first_page_feed["next_cursor"]:
@@ -464,10 +467,10 @@ def run_updates_tests():
 
         # Verify second page has exactly 5 items (7 total - 2 on first page)
         expected_second_page_items = (
-            expected_feed_items - TEST_CONFIG["pagination_limit"]
+                expected_feed_items - TEST_CONFIG["pagination_limit"]
         )
         assert (
-            len(second_page_updates) == expected_second_page_items
+                len(second_page_updates) == expected_second_page_items
         ), f"Second page should have {expected_second_page_items} items, got {len(second_page_updates)}"
 
         # Verify second page timestamps are in descending order
@@ -479,7 +482,7 @@ def run_updates_tests():
         first_page_ids = {update["update_id"] for update in first_page_updates}
         second_page_ids = {update["update_id"] for update in second_page_updates}
         assert not (
-            first_page_ids & second_page_ids
+                first_page_ids & second_page_ids
         ), "Found duplicate updates between feed pages"
 
         # Verify second page updates are older than first page updates
@@ -487,14 +490,14 @@ def run_updates_tests():
             newest_second_page = second_page_timestamps[0]
             oldest_first_page = first_page_timestamps[-1]
             assert (
-                newest_second_page < oldest_first_page
+                    newest_second_page < oldest_first_page
             ), "Second page feed updates are not older than first page updates"
 
         # Verify all feed items were retrieved
         all_retrieved_ids = first_page_ids | second_page_ids
         all_feed_ids = {update["update_id"] for update in all_feed["updates"]}
         assert (
-            all_retrieved_ids == all_feed_ids
+                all_retrieved_ids == all_feed_ids
         ), "Did not retrieve all feed items across pages"
 
         logger.info(f"✓ /me/feed pagination test passed")
@@ -510,7 +513,7 @@ def run_updates_tests():
         f"Retrieved first page of user updates: {json.dumps(first_page_user, indent=2)}"
     )
     assert (
-        "next_cursor" in first_page_user
+            "next_cursor" in first_page_user
     ), "Response does not contain next_cursor field for user updates pagination"
 
     if first_page_user["next_cursor"]:
@@ -549,7 +552,7 @@ def run_updates_tests():
         first_page_ids = {update["update_id"] for update in first_page_updates}
         second_page_ids = {update["update_id"] for update in second_page_updates}
         assert not (
-            first_page_ids & second_page_ids
+                first_page_ids & second_page_ids
         ), "Found duplicate updates between user update pages"
 
         # Verify second page updates are older than first page updates
@@ -557,7 +560,7 @@ def run_updates_tests():
             newest_second_page = second_page_timestamps[0]
             oldest_first_page = first_page_timestamps[-1]
             assert (
-                newest_second_page < oldest_first_page
+                    newest_second_page < oldest_first_page
             ), "Second page user updates are not older than first page updates"
 
         logger.info("✓ /users/{user_id}/updates pagination test passed")
@@ -653,13 +656,13 @@ def run_updates_tests():
 
     # Verify user 1 profile has summary, suggestions, and updated_at fields
     assert (
-        "summary" in user1_own_profile
+            "summary" in user1_own_profile
     ), "User 1 profile does not contain summary field"
     assert (
-        "suggestions" in user1_own_profile
+            "suggestions" in user1_own_profile
     ), "User 1 profile does not contain suggestions field"
     assert (
-        "updated_at" in user1_own_profile
+            "updated_at" in user1_own_profile
     ), "User 1 profile does not contain updated_at field"
     logger.info(f"✓ User 1 own profile has been updated with summary and suggestions")
 
@@ -671,13 +674,13 @@ def run_updates_tests():
 
     # Verify user 2 profile has summary, suggestions, and updated_at fields
     assert (
-        "summary" in user2_own_profile
+            "summary" in user2_own_profile
     ), "User 2 profile does not contain summary field"
     assert (
-        "suggestions" in user2_own_profile
+            "suggestions" in user2_own_profile
     ), "User 2 profile does not contain suggestions field"
     assert (
-        "updated_at" in user2_own_profile
+            "updated_at" in user2_own_profile
     ), "User 2 profile does not contain updated_at field"
     logger.info(f"✓ User 2 own profile has been updated with summary and suggestions")
 
@@ -693,13 +696,13 @@ def run_updates_tests():
 
     # Verify the friend profile has summary, suggestions, and updated_at fields
     assert (
-        "summary" in user2_profile_from_user1
+            "summary" in user2_profile_from_user1
     ), "Friend profile does not contain summary field"
     assert (
-        "suggestions" in user2_profile_from_user1
+            "suggestions" in user2_profile_from_user1
     ), "Friend profile does not contain suggestions field"
     assert (
-        "updated_at" in user2_profile_from_user1
+            "updated_at" in user2_profile_from_user1
     ), "Friend profile does not contain updated_at field"
     logger.info(f"✓ Friend profile includes summary, suggestions, and updated_at")
 
@@ -713,13 +716,13 @@ def run_updates_tests():
 
     # Verify the friend profile has summary, suggestions, and updated_at fields
     assert (
-        "summary" in user1_profile_from_user2
+            "summary" in user1_profile_from_user2
     ), "Friend profile does not contain summary field"
     assert (
-        "suggestions" in user1_profile_from_user2
+            "suggestions" in user1_profile_from_user2
     ), "Friend profile does not contain suggestions field"
     assert (
-        "updated_at" in user1_profile_from_user2
+            "updated_at" in user1_profile_from_user2
     ), "Friend profile does not contain updated_at field"
     logger.info(f"✓ Friend profile includes summary, suggestions, and updated_at")
 

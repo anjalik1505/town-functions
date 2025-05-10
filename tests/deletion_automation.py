@@ -20,11 +20,11 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict
 
 import firebase_admin
 from firebase_admin import credentials, firestore
-from utils.village_api import API_BASE_URL, VillageAPI
+
+from utils.village_api import VillageAPI
 
 # Configure logging
 logging.basicConfig(
@@ -64,7 +64,7 @@ def run_deletion_test():
             "username": user["email"].split("@")[0],
             "name": user["name"],
             "avatar": f"https://example.com/avatar_{user['name'].replace(' ', '_').lower()}.jpg",
-            "location": f"City {i+1}",
+            "location": f"City {i + 1}",
             "birthday": f"199{i}-01-01",
         }
         api.create_profile(user["email"], profile_data)
@@ -135,7 +135,7 @@ def run_deletion_test():
         if update["created_by"] == api.user_ids[users[0]["email"]]
     ]
     assert (
-        len(user1_updates_in_feed) > 0
+            len(user1_updates_in_feed) > 0
     ), "User 1's update not found in User 2's feed before deletion"
     logger.info(
         f"User 2's feed contains {len(user1_updates_in_feed)} updates from User 1 before deletion"
@@ -166,7 +166,7 @@ def run_deletion_test():
         if update.get("created_by") == api.user_ids[users[0]["email"]]
     ]
     assert (
-        len(user1_updates_in_feed_after) == 0
+            len(user1_updates_in_feed_after) == 0
     ), "User 1's update found in User 2's feed after deletion"
     logger.info("User 2's feed doesn't contain any updates from User 1 after deletion")
 
@@ -201,7 +201,7 @@ def run_deletion_test():
     )
     updates_docs = list(updates_query.stream())
     assert (
-        len(updates_docs) == 0
+            len(updates_docs) == 0
     ), f"Found {len(updates_docs)} updates for User 1 in DB after deletion"
     logger.info("No updates found for User 1 in DB after deletion")
 
@@ -220,7 +220,7 @@ def run_deletion_test():
     )
     invitation_docs = list(invitations_query.stream())
     assert (
-        len(invitation_docs) == 0
+            len(invitation_docs) == 0
     ), f"Found {len(invitation_docs)} invitations for User 1 in DB after deletion"
     logger.info("No invitations found for User 1 in DB after deletion")
 
@@ -230,7 +230,7 @@ def run_deletion_test():
     )
     feed_docs = list(feed_query.stream())
     assert (
-        len(feed_docs) == 0
+            len(feed_docs) == 0
     ), f"Found {len(feed_docs)} feed items for User 1 in DB after deletion"
     logger.info("No feed items found for User 1 in DB after deletion")
 

@@ -146,3 +146,10 @@ export const createFeedbackSchema = z.object({
 export const analyzeSentimentSchema = z.object({
   content: z.string().min(1, 'Content is required'),
 });
+
+export const transcribeAudioSchema = z.object({
+  audio_data: z
+    .string()
+    .min(1, 'Audio data is required')
+    .base64({ message: 'Audio data must be a valid base64 string' }),
+});
