@@ -1,7 +1,15 @@
 import { Request } from 'express';
 import { generateQuestionFlow } from '../ai/flows.js';
-import { ApiResponse, EventName, QuestionEventParams, } from '../models/analytics-events.js';
-import { Collections, InsightsFields, ProfileFields, } from '../models/constants.js';
+import {
+  ApiResponse,
+  EventName,
+  QuestionEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  InsightsFields,
+  ProfileFields,
+} from '../models/constants.js';
 import { QuestionResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, getProfileDoc } from '../utils/profile-utils.js';

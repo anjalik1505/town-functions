@@ -1,4 +1,9 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch, } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  QueryDocumentSnapshot,
+  Timestamp,
+  WriteBatch,
+} from 'firebase-admin/firestore';
 import { Collections, FeedFields, UpdateFields } from '../models/constants.js';
 import { EnrichedUpdate, Update } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from './errors.js';

@@ -1,7 +1,12 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { FriendSummaryEventParams } from '../models/analytics-events.js';
 import { calculateAge, createSummaryId } from './profile-utils.js';
-import { Collections, ProfileFields, UpdateFields, UserSummaryFields, } from '../models/constants.js';
+import {
+  Collections,
+  ProfileFields,
+  UpdateFields,
+  UserSummaryFields,
+} from '../models/constants.js';
 import { generateFriendProfileFlow } from '../ai/flows.js';
 import { getLogger } from './logging-utils.js';
 

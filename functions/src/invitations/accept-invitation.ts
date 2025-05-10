@@ -1,6 +1,10 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  InviteEventParams,
+} from '../models/analytics-events.js';
 import {
   Collections,
   FriendPlaceholderTemplates,
@@ -12,7 +16,10 @@ import {
 } from '../models/constants.js';
 import { Friend } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import { createFriendshipId, hasReachedCombinedLimit, } from '../utils/friendship-utils.js';
+import {
+  createFriendshipId,
+  hasReachedCombinedLimit,
+} from '../utils/friendship-utils.js';
 import {
   canActOnInvitation,
   getInvitationDoc,
@@ -21,7 +28,11 @@ import {
   updateInvitationStatus,
 } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { createSummaryId, getProfileDoc, hasLimitOverride, } from '../utils/profile-utils.js';
+import {
+  createSummaryId,
+  getProfileDoc,
+  hasLimitOverride,
+} from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';

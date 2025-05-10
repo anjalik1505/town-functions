@@ -1,7 +1,15 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
-import { Collections, CommentFields, ProfileFields } from '../models/constants.js';
+import {
+  ApiResponse,
+  CommentEventParams,
+  EventName,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  CommentFields,
+  ProfileFields,
+} from '../models/constants.js';
 import { Comment } from '../models/data-models.js';
 import { formatComment } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';

@@ -1,6 +1,10 @@
 import { Request } from 'express';
 import { Timestamp } from 'firebase-admin/firestore';
-import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  CommentEventParams,
+  EventName,
+} from '../models/analytics-events.js';
 import { CommentFields, ProfileFields } from '../models/constants.js';
 import { Comment } from '../models/data-models.js';
 import { formatComment, getCommentDoc } from '../utils/comment-utils.js';

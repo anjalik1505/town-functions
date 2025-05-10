@@ -1,7 +1,11 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiResponse, EventName, FeedbackEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  FeedbackEventParams,
+} from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
 import { Feedback } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';

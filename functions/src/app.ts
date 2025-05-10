@@ -1,5 +1,9 @@
 import cors from 'cors';
-import express, { ErrorRequestHandler, RequestHandler, Response, } from 'express';
+import express, {
+  ErrorRequestHandler,
+  RequestHandler,
+  Response,
+} from 'express';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ZodError } from 'zod';
@@ -12,8 +16,15 @@ import { getInvitation } from './invitations/get-invitation.js';
 import { getInvitations } from './invitations/get-invitations.js';
 import { rejectInvitation } from './invitations/reject-invitation.js';
 import { resendInvitation } from './invitations/resend-invitation.js';
-import { validateQueryParams, validateRequest } from './middleware/validation.js';
-import { ApiResponse, ErrorResponse, EventName, } from './models/analytics-events.js';
+import {
+  validateQueryParams,
+  validateRequest,
+} from './middleware/validation.js';
+import {
+  ApiResponse,
+  ErrorResponse,
+  EventName,
+} from './models/analytics-events.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,

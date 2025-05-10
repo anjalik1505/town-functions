@@ -10,7 +10,11 @@ import {
   Status,
 } from '../models/constants.js';
 import { Group } from '../models/data-models.js';
-import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+} from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 

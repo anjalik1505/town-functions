@@ -1,7 +1,15 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { EventName, FriendshipAcceptanceEventParams, } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields, Status, } from '../models/constants.js';
+import {
+  EventName,
+  FriendshipAcceptanceEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  DeviceFields,
+  FriendshipFields,
+  Status,
+} from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';

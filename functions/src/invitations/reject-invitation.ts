@@ -1,5 +1,9 @@
 import { Request } from 'express';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  InviteEventParams,
+} from '../models/analytics-events.js';
 import { InvitationFields, Status } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';

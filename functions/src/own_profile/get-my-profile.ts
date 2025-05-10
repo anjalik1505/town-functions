@@ -1,9 +1,17 @@
 import { Request } from 'express';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events.js';
 import { ProfileFields } from '../models/constants.js';
 import { ProfileResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
+import {
+  formatProfileResponse,
+  getProfileDoc,
+  getProfileInsights,
+} from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';

@@ -1,6 +1,14 @@
 import { Request, Response } from 'express';
-import { getFirestore, QueryDocumentSnapshot, WhereFilterOp, } from 'firebase-admin/firestore';
-import { Collections, GroupFields, QueryOperators } from '../models/constants.js';
+import {
+  getFirestore,
+  QueryDocumentSnapshot,
+  WhereFilterOp,
+} from 'firebase-admin/firestore';
+import {
+  Collections,
+  GroupFields,
+  QueryOperators,
+} from '../models/constants.js';
 import { Group, GroupsResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';

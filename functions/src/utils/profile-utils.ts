@@ -1,7 +1,15 @@
 import { differenceInYears, parse } from 'date-fns';
 import { getFirestore } from 'firebase-admin/firestore';
-import { Collections, InsightsFields, ProfileFields, } from '../models/constants.js';
-import { FriendProfileResponse, Insights, ProfileResponse, } from '../models/data-models.js';
+import {
+  Collections,
+  InsightsFields,
+  ProfileFields,
+} from '../models/constants.js';
+import {
+  FriendProfileResponse,
+  Insights,
+  ProfileResponse,
+} from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';

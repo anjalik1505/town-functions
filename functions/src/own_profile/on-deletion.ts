@@ -1,6 +1,9 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { DeleteProfileEventParams, EventName, } from '../models/analytics-events.js';
+import {
+  DeleteProfileEventParams,
+  EventName,
+} from '../models/analytics-events.js';
 import {
   Collections,
   FeedFields,

@@ -1,6 +1,10 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  CommentEventParams,
+  EventName,
+} from '../models/analytics-events.js';
 import { CommentFields } from '../models/constants.js';
 import { getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';

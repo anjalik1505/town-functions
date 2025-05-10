@@ -1,10 +1,19 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ChatFields, Collections, GroupFields, QueryOperators, } from '../models/constants.js';
+import {
+  ChatFields,
+  Collections,
+  GroupFields,
+  QueryOperators,
+} from '../models/constants.js';
 import { ChatMessage, ChatResponse } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 
 import { fileURLToPath } from 'url';

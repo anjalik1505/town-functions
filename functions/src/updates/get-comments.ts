@@ -1,12 +1,24 @@
 import { Request } from 'express';
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, CommentViewEventParams, EventName, } from '../models/analytics-events.js';
-import { Collections, CommentFields, QueryOperators, } from '../models/constants.js';
+import {
+  ApiResponse,
+  CommentViewEventParams,
+  EventName,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  CommentFields,
+  QueryOperators,
+} from '../models/constants.js';
 import { CommentsResponse } from '../models/data-models.js';
 import { processEnrichedComments } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils.js';
 import { fetchUsersProfiles } from '../utils/profile-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 

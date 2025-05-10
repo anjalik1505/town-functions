@@ -1,6 +1,15 @@
 import { Request } from 'express';
-import { getFirestore, QueryDocumentSnapshot, Timestamp, WhereFilterOp, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import {
+  getFirestore,
+  QueryDocumentSnapshot,
+  Timestamp,
+  WhereFilterOp,
+} from 'firebase-admin/firestore';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -11,7 +20,11 @@ import {
 } from '../models/constants.js';
 import { ProfileResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
+import {
+  formatProfileResponse,
+  getProfileDoc,
+  getProfileInsights,
+} from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';

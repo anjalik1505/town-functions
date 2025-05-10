@@ -1,9 +1,17 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, ReactionEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  ReactionEventParams,
+} from '../models/analytics-events.js';
 import { Collections, ReactionFields } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
-import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+} from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 

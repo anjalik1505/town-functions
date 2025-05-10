@@ -1,7 +1,11 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiResponse, EventName, UpdateEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  UpdateEventParams,
+} from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -66,9 +70,9 @@ export const createUpdate = async (
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-    `all_village: ${allVillage}, ` +
-    `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
+      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+      `all_village: ${allVillage}, ` +
+      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
   );
 
   // Initialize Firestore client

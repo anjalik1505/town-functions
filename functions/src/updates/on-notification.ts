@@ -1,8 +1,18 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateNotificationMessageFlow } from '../ai/flows.js';
-import { EventName, NotificationEventParams, NotificationsEventParams, } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields, } from '../models/constants.js';
+import {
+  EventName,
+  NotificationEventParams,
+  NotificationsEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  DeviceFields,
+  NotificationFields,
+  ProfileFields,
+  UpdateFields,
+} from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';

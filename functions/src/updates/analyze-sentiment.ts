@@ -1,6 +1,10 @@
 import { Request } from 'express';
 import { analyzeSentimentFlow } from '../ai/flows.js';
-import { AnalyzeSentimentEventParams, ApiResponse, EventName, } from '../models/analytics-events.js';
+import {
+  AnalyzeSentimentEventParams,
+  ApiResponse,
+  EventName,
+} from '../models/analytics-events.js';
 import { SentimentAnalysisResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 

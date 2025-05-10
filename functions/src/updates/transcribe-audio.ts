@@ -1,7 +1,11 @@
 import { Request } from 'express';
 import { fileTypeFromBuffer } from 'file-type';
 import { transcribeAudioFlow } from '../ai/flows.js';
-import { ApiResponse, AudioTranscribedEventParams, EventName, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  AudioTranscribedEventParams,
+  EventName,
+} from '../models/analytics-events.js';
 import { TranscriptionResponse } from '../models/data-models.js';
 import { decompressData, isCompressedMimeType } from '../utils/compression.js'; // isCompressedMimeType checks against our limited list
 import { detectAndValidateAudioMimeType } from '../utils/file-validation.js';

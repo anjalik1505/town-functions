@@ -1,11 +1,24 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields, } from '../models/constants.js';
+import {
+  Collections,
+  GroupFields,
+  ProfileFields,
+  QueryOperators,
+  UpdateFields,
+} from '../models/constants.js';
 import { FeedResponse } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
-import { fetchUpdatesByIds, processEnrichedFeedItems, } from '../utils/update-utils.js';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils.js';
+import {
+  fetchUpdatesByIds,
+  processEnrichedFeedItems,
+} from '../utils/update-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';

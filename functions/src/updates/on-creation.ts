@@ -1,8 +1,22 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  QueryDocumentSnapshot,
+  Timestamp,
+} from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateCreatorProfileFlow } from '../ai/flows.js';
-import { EventName, FriendSummaryEventParams, SummaryEventParams, } from '../models/analytics-events.js';
-import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, } from '../models/constants.js';
+import {
+  EventName,
+  FriendSummaryEventParams,
+  SummaryEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  Documents,
+  InsightsFields,
+  ProfileFields,
+  UpdateFields,
+} from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
@@ -124,8 +138,8 @@ const updateCreatorProfile = async (
   const insightsRef = insightsDoc
     ? insightsDoc.ref
     : profileRef
-      .collection(Collections.INSIGHTS)
-      .doc(Documents.DEFAULT_INSIGHTS);
+        .collection(Collections.INSIGHTS)
+        .doc(Documents.DEFAULT_INSIGHTS);
 
   // Add insights update to batch
   batch.set(insightsRef, insightsData, { merge: true });

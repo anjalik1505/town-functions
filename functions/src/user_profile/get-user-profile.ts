@@ -1,12 +1,26 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields, } from '../models/constants.js';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  FriendshipFields,
+  ProfileFields,
+  Status,
+  UserSummaryFields,
+} from '../models/constants.js';
 import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { createSummaryId, formatFriendProfileResponse, getProfileDoc, } from '../utils/profile-utils.js';
+import {
+  createSummaryId,
+  formatFriendProfileResponse,
+  getProfileDoc,
+} from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';

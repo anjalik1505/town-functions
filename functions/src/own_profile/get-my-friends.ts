@@ -1,10 +1,23 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, FriendEventParams, } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, QueryOperators, Status, } from '../models/constants.js';
+import {
+  ApiResponse,
+  EventName,
+  FriendEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  FriendshipFields,
+  QueryOperators,
+  Status,
+} from '../models/constants.js';
 import { Friend, FriendsResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';

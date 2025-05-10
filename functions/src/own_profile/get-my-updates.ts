@@ -1,10 +1,22 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, UpdateViewEventParams, } from '../models/analytics-events.js';
-import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
+import {
+  ApiResponse,
+  EventName,
+  UpdateViewEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  FeedFields,
+  QueryOperators,
+} from '../models/constants.js';
 import { UpdatesResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import {
+  applyPagination,
+  generateNextCursor,
+  processQueryStream,
+} from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
 import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';

@@ -1,7 +1,16 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
-import { Collections, InvitationFields, ProfileFields, Status, } from '../models/constants.js';
+import {
+  ApiResponse,
+  EventName,
+  InviteEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  InvitationFields,
+  ProfileFields,
+  Status,
+} from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';

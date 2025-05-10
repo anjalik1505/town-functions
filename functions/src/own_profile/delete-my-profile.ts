@@ -1,5 +1,9 @@
 import { Request } from 'express';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  ProfileEventParams,
+} from '../models/analytics-events.js';
 import { Collections, Documents, ProfileFields } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';

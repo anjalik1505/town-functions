@@ -1,8 +1,16 @@
 import { Request } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiResponse, EventName, ReactionEventParams, } from '../models/analytics-events.js';
-import { Collections, QueryOperators, ReactionFields, } from '../models/constants.js';
+import {
+  ApiResponse,
+  EventName,
+  ReactionEventParams,
+} from '../models/analytics-events.js';
+import {
+  Collections,
+  QueryOperators,
+  ReactionFields,
+} from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
