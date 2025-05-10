@@ -1,5 +1,8 @@
 ---
 model: googleai/gemini-2.0-flash-lite
+config:
+  temperature: 0.0
+  maxOutputTokens: 1000
 input:
   schema:
     updateContent: string;
