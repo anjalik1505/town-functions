@@ -1,5 +1,8 @@
 ---
-model: googleai/gemini-2.0-flash-lite
+model: googleai/gemini-2.0-flash
+config:
+  temperature: 0.0
+  maxOutputTokens: 1000
 input:
   schema:
     updateContent: string
@@ -99,6 +102,5 @@ For times when the <SCORE> is 2,3 or 4 Generate a notification message that is:
         * Focuses on personal connection and discovery.
     * Avoid generic phrases like "<FRIEND_NAME> has shared a new update."
     * Use an emoji that indicates the emotional state they are in 
-
 
 Generate one unique notification line based on these guidelines.

@@ -1,5 +1,8 @@
 ---
-model: googleai/gemini-2.0-flash-lite
+model: googleai/gemini-2.0-flash
+config:
+  temperature: 0.0
+  maxOutputTokens: 1000
 input:
   schema:
     name: string
@@ -57,4 +60,4 @@ Consider for both:
 * Their key moments for context
 * Their recurring themes for relevance
 * Their progress and growth for encouragement
-* Their age and gender for appropriate language 
+* Their age and gender for appropriate language

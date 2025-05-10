@@ -1,5 +1,8 @@
 ---
-model: googleai/gemini-2.0-flash-lite
+model: googleai/gemini-2.0-flash
+config:
+  temperature: 0.0
+  maxOutputTokens: 1000
 input:
   schema:
     existingSummary: string
@@ -53,7 +56,6 @@ Update the user's Village profile sections based on their latest update. Integra
 - Tone of voice: Adapt based on the `<SENTIMENT>` value, aiming for consistency with the existing `<SUMMARY>` while reflecting significant shifts.
 - Limitation: Maximum 500 characters including spaces. Stay within this limit.
 - Format: Short paragraph.
-
 
 **Suggestions:**
 - Objective: Generate up to 3 distinct, actionable suggestions primarily inspired by the `<LATEST_UPDATE>` content and `<SENTIMENT>`, while considering the overall context from the `<SUMMARY>` content. The goal is to offer relevant support or ideas for mental well-being and processing life events, avoiding obvious statements.

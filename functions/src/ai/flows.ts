@@ -20,12 +20,6 @@ const ai = genkit({
   ],
 });
 
-// Default configuration for AI calls
-const globalConfig = {
-  maxOutputTokens: 1000,
-  temperature: 0.0,
-};
-
 /**
  * Generic function to execute an AI flow with retry logic
  *
@@ -33,7 +27,6 @@ const globalConfig = {
  * @param params - The parameters to pass to the prompt
  * @param defaultOutput - The default output to return if all retries fail
  * @param logPrefix - Prefix for log messages
- * @param overrideConfig - Optional configuration to override globalConfig
  * @returns The output from the AI flow
  */
 const executeAIFlow = async <T>(
@@ -41,7 +34,6 @@ const executeAIFlow = async <T>(
   params: Record<string, any>,
   defaultOutput: T,
   logPrefix: string,
-  overrideConfig?: Record<string, any>,
 ): Promise<T> => {
   logger.info(`${logPrefix}: ${JSON.stringify(params, null, 2)}`);
 
@@ -52,8 +44,6 @@ const executeAIFlow = async <T>(
   // Configure with the actual API key at runtime
   const config = {
     apiKey: process.env.GEMINI_API_KEY,
-    ...globalConfig,
-    ...overrideConfig,
   };
 
   while (!success && retryCount < maxRetries) {
@@ -321,7 +311,6 @@ export const generateQuestionFlow = async (params: {
     aiParams,
     defaultOutput,
     'Generating personalized question',
-    { temperature: 0.0 },
   );
 };
 
