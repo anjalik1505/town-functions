@@ -1,18 +1,8 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateNotificationMessageFlow } from '../ai/flows.js';
-import {
-  EventName,
-  NotificationEventParams,
-  NotificationsEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  DeviceFields,
-  NotificationFields,
-  ProfileFields,
-  UpdateFields,
-} from '../models/constants.js';
+import { EventName, NotificationEventParams, NotificationsEventParams, } from '../models/analytics-events.js';
+import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields, } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -39,7 +29,7 @@ const logger = getLogger(path.basename(__filename));
  */
 const processUserNotification = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
   creatorId: string,
   targetUserId: string,
   creatorName: string,
@@ -132,10 +122,10 @@ const processUserNotification = async (
   }
 
   // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT];
-  const sentiment = updateData[UpdateFields.SENTIMENT];
-  const updateId = updateData[UpdateFields.ID];
-  const score = updateData[UpdateFields.SCORE] || 3;
+  const updateContent = updateData[UpdateFields.CONTENT] as string;
+  const sentiment = updateData[UpdateFields.SENTIMENT] as string;
+  const updateId = updateData[UpdateFields.ID] as string;
+  const score = (updateData[UpdateFields.SCORE] as number) || 3;
 
   // Determine if we should send a notification based on user settings
   let shouldSendNotification = false;
@@ -224,15 +214,15 @@ const processUserNotification = async (
  */
 const processAllNotifications = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
 ): Promise<{
   notifications: NotificationsEventParams;
   notificationEvents: NotificationEventParams[];
 }> => {
   // Get the creator ID and friend IDs
-  const creatorId = updateData[UpdateFields.CREATED_BY];
-  const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
-  const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
+  const creatorId = updateData[UpdateFields.CREATED_BY] as string;
+  const friendIds = (updateData[UpdateFields.FRIEND_IDS] as string[]) || [];
+  const groupIds = (updateData[UpdateFields.GROUP_IDS] as string[]) || [];
 
   if (!creatorId) {
     logger.error('Update has no creator ID');

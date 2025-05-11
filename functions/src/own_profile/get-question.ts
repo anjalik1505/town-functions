@@ -1,15 +1,7 @@
 import { Request } from 'express';
 import { generateQuestionFlow } from '../ai/flows.js';
-import {
-  ApiResponse,
-  EventName,
-  QuestionEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  InsightsFields,
-  ProfileFields,
-} from '../models/constants.js';
+import { ApiResponse, EventName, QuestionEventParams, } from '../models/analytics-events.js';
+import { Collections, InsightsFields, ProfileFields, } from '../models/constants.js';
 import { QuestionResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, getProfileDoc } from '../utils/profile-utils.js';
@@ -51,7 +43,7 @@ export const getQuestion = async (
   const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
   logger.info(`Retrieved profile data for user: ${currentUserId}`);
 
-  // Get insights data from the profile's insights subcollection
+  // Get insight data from the profile's insight subcollection
   const insightsSnapshot = await profileRef
     .collection(Collections.INSIGHTS)
     .limit(1)

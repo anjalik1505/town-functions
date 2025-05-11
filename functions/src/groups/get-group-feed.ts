@@ -1,24 +1,11 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import {
-  Collections,
-  GroupFields,
-  ProfileFields,
-  QueryOperators,
-  UpdateFields,
-} from '../models/constants.js';
-import { FeedResponse } from '../models/data-models.js';
+import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields, } from '../models/constants.js';
+import { FeedResponse, PaginationPayload, ReactionGroup, } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils.js';
-import {
-  fetchUpdatesByIds,
-  processEnrichedFeedItems,
-} from '../utils/update-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { fetchUpdatesByIds, processEnrichedFeedItems, } from '../utils/update-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -67,7 +54,7 @@ export const getGroupFeed = async (
   const db = getFirestore();
 
   // Get pagination parameters from the validated request
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as PaginationPayload;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
@@ -101,7 +88,7 @@ export const getGroupFeed = async (
     .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS, groupId)
     .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC);
 
-  // Apply cursor-based pagination - errors will be automatically caught by Express
+  // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process updates using streaming
@@ -133,7 +120,7 @@ export const getGroupFeed = async (
   }
 
   // No reactions fetched for now (empty map)
-  const reactionsMap = new Map<string, any[]>();
+  const reactionsMap = new Map<string, ReactionGroup[]>();
 
   // Use util to enrich updates
   const enrichedUpdates = processEnrichedFeedItems(

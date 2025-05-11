@@ -1,10 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { generateDailyNotificationFlow } from '../ai/flows.js';
-import {
-  DailyNotificationsEventParams,
-  EventName,
-  NotificationEventParams,
-} from '../models/analytics-events.js';
+import { DailyNotificationsEventParams, EventName, NotificationEventParams, } from '../models/analytics-events.js';
 import {
   Collections,
   DeviceFields,

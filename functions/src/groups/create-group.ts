@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Collections,
@@ -10,7 +10,7 @@ import {
   QueryOperators,
   Status,
 } from '../models/constants.js';
-import { Group } from '../models/data-models.js';
+import { CreateGroupPayload, Group } from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -47,13 +47,12 @@ export const createGroup = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  logger.info(`Creating new group with name: ${req.validated_params.name}`);
-
   // Get the current user ID from the request (set by authentication middleware)
   const currentUserId = req.userId;
 
   // Get the validated request data
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as CreateGroupPayload;
+  logger.info(`Creating new group with name: ${validatedParams.name}`);
 
   // Extract group data
   const name = validatedParams.name;
@@ -134,8 +133,8 @@ export const createGroup = async (
     // Initialize all possible member pairs as not friends
     for (let i = 0; i < members.length; i++) {
       for (let j = i + 1; j < members.length; j++) {
-        const member1 = members[i];
-        const member2 = members[j];
+        const member1 = members[i]!;
+        const member2 = members[j]!;
         const pair =
           member1 < member2 ? `${member1}_${member2}` : `${member2}_${member1}`;
         friendshipExists[pair] = false;
@@ -152,7 +151,7 @@ export const createGroup = async (
         .collection(Collections.FRIENDSHIPS)
         .where(
           FriendshipFields.MEMBERS,
-          QueryOperators.ARRAY_CONTAINS_ANY as any,
+          QueryOperators.ARRAY_CONTAINS_ANY,
           batchMembers,
         )
         .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
@@ -177,8 +176,8 @@ export const createGroup = async (
         if (friendshipGroupMembers.length >= 2) {
           for (let x = 0; x < friendshipGroupMembers.length; x++) {
             for (let y = x + 1; y < friendshipGroupMembers.length; y++) {
-              const member1 = friendshipGroupMembers[x];
-              const member2 = friendshipGroupMembers[y];
+              const member1 = friendshipGroupMembers[x]!;
+              const member2 = friendshipGroupMembers[y]!;
               const pair =
                 member1 < member2
                   ? `${member1}_${member2}`
@@ -194,8 +193,8 @@ export const createGroup = async (
 
     // Check if any member pairs are not friends
     const notFriends = Object.entries(friendshipExists)
-      .filter(([_, exists]) => !exists)
-      .map(([pair]) => pair.split('_'));
+      .filter((entry) => !entry[1])
+      .map((entry) => entry[0].split('_'));
 
     if (notFriends.length > 0) {
       // Format the error message
@@ -221,7 +220,7 @@ export const createGroup = async (
   const currentTime = Timestamp.now();
 
   // Prepare group data
-  const groupData = {
+  const groupData: UpdateData<DocumentData> = {
     [GroupFields.NAME]: name,
     [GroupFields.ICON]: icon,
     [GroupFields.MEMBERS]: members,
@@ -239,9 +238,10 @@ export const createGroup = async (
   // Add the group ID to each member's profile
   for (const memberId of members) {
     const profileRef = db.collection(Collections.PROFILES).doc(memberId);
-    batch.update(profileRef, {
+    const profileUpdate: UpdateData<DocumentData> = {
       [ProfileFields.GROUP_IDS]: FieldValue.arrayUnion(groupId),
-    });
+    };
+    batch.update(profileRef, profileUpdate);
     logger.info(
       `Adding group ${groupId} to member ${memberId}'s profile in batch`,
     );
@@ -257,7 +257,7 @@ export const createGroup = async (
   const response: Group = {
     group_id: groupId,
     name,
-    icon,
+    icon: icon || '', // Ensure icon is always a string for the response
     members,
     member_profiles: memberProfiles,
     created_at: formatTimestamp(currentTime),

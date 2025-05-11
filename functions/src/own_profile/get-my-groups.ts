@@ -1,14 +1,6 @@
 import { Request, Response } from 'express';
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  WhereFilterOp,
-} from 'firebase-admin/firestore';
-import {
-  Collections,
-  GroupFields,
-  QueryOperators,
-} from '../models/constants.js';
+import { getFirestore, QueryDocumentSnapshot, WhereFilterOp, } from 'firebase-admin/firestore';
+import { Collections, GroupFields, QueryOperators, } from '../models/constants.js';
 import { Group, GroupsResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -22,8 +14,8 @@ const logger = getLogger(path.basename(__filename));
 /**
  * Retrieves all groups where the current user is a member.
  *
- * This function queries the groups collection to find all groups that have the
- * authenticated user's ID in their members array. For each group, it retrieves
+ * This function queries the group collection to find all groups that have the
+ * authenticated user's ID in their member array. For each group, it retrieves
  * the basic information (groupId, name, icon, created_at).
  *
  * @param req - The Express request object containing:
@@ -42,7 +34,7 @@ export const getMyGroups = async (
 
   const db = getFirestore();
 
-  // Get all groups where user is a member
+  // Get all groups where the user is a member
   const groupsQuery = db
     .collection(Collections.GROUPS)
     .where(

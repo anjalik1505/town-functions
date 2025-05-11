@@ -1,24 +1,12 @@
 import { Request } from 'express';
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  CommentViewEventParams,
-  EventName,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  CommentFields,
-  QueryOperators,
-} from '../models/constants.js';
-import { CommentsResponse } from '../models/data-models.js';
+import { ApiResponse, CommentViewEventParams, EventName, } from '../models/analytics-events.js';
+import { Collections, CommentFields, QueryOperators, } from '../models/constants.js';
+import { CommentsResponse, PaginationPayload } from '../models/data-models.js';
 import { processEnrichedComments } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
 import { fetchUsersProfiles } from '../utils/profile-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
@@ -59,7 +47,7 @@ export const getComments = async (
   logger.info(`Retrieving comments for update: ${updateId}`);
 
   // Get pagination parameters
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as PaginationPayload;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
@@ -76,7 +64,7 @@ export const getComments = async (
     .collection(Collections.COMMENTS)
     .orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
 
-  // Apply cursor-based pagination - errors will be automatically caught by Express
+  // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process comments using streaming

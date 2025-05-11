@@ -1,11 +1,7 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  ApiResponse,
-  EventName,
-  UpdateEventParams,
-} from '../models/analytics-events.js';
+import { ApiResponse, EventName, UpdateEventParams, } from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -14,7 +10,7 @@ import {
   Status,
   UpdateFields,
 } from '../models/constants.js';
-import { Update } from '../models/data-models.js';
+import { CreateUpdatePayload, Update } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 import { createFeedItem } from '../utils/update-utils.js';
@@ -34,7 +30,7 @@ const logger = getLogger(path.basename(__filename));
  * Creates a new update for the current user and creates feed items for all users who should see it.
  *
  * This function:
- * 1. Creates a new update in the Firestore database
+ * 1. Creates a new update in Firestore database
  * 2. Creates feed items for all users who should see the update (friends and group members)
  * 3. Handles cases where a user might see the update through multiple channels
  *
@@ -59,7 +55,7 @@ export const createUpdate = async (
   const currentUserId = req.userId;
 
   // Get validated data from the request
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as CreateUpdatePayload;
   const content = validatedParams.content || '';
   const sentiment = validatedParams.sentiment || '';
   const score = validatedParams.score || '3';
@@ -70,9 +66,9 @@ export const createUpdate = async (
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-      `all_village: ${allVillage}, ` +
-      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
+    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+    `all_village: ${allVillage}, ` +
+    `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
   );
 
   // Initialize Firestore client
@@ -122,7 +118,7 @@ export const createUpdate = async (
     // Deduplicate friendIds after extraction
     friendIds = Array.from(new Set(friendIds));
 
-    // Get all groups where user is a member
+    // Get all groups where the user is a member
     const groupsQuery = db
       .collection(Collections.GROUPS)
       .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
@@ -151,7 +147,7 @@ export const createUpdate = async (
   // Prepare the visible_to array for efficient querying
   const visibleTo: string[] = [];
 
-  // Add creator to visible_to array
+  // Add creator to a visible_to array
   visibleTo.push(createFriendVisibilityIdentifier(currentUserId));
 
   // Add friend visibility identifiers
@@ -161,7 +157,7 @@ export const createUpdate = async (
   visibleTo.push(...createGroupVisibilityIdentifiers(groupIds));
 
   // Create the update document
-  const updateData = {
+  const updateData: UpdateData<DocumentData> = {
     [UpdateFields.CREATED_BY]: currentUserId,
     [UpdateFields.CONTENT]: content,
     [UpdateFields.SENTIMENT]: sentiment,
@@ -252,7 +248,7 @@ export const createUpdate = async (
     created_by: currentUserId,
     content: content,
     sentiment: sentiment,
-    score: score,
+    score: String(score),
     emoji: emoji,
     created_at: formatTimestamp(createdAt),
     group_ids: groupIds,
@@ -266,7 +262,7 @@ export const createUpdate = async (
   const event: UpdateEventParams = {
     content_length: content.length,
     sentiment: sentiment,
-    score: score,
+    score: String(score),
     friend_count: friendIds.length,
     group_count: groupIds.length,
     all_village: allVillage,

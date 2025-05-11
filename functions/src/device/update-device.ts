@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
 import { Collections, DeviceFields } from '../models/constants.js';
-import { Device } from '../models/data-models.js';
+import { Device, DevicePayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 
@@ -30,7 +30,7 @@ export const updateDevice = async (
   logger.info(`Updating device for user ${currentUserId}`);
 
   // Get validated data from request
-  const deviceDataInput = req.validated_params;
+  const deviceDataInput = req.validated_params as DevicePayload;
 
   const currentTime = Timestamp.now();
 
@@ -39,7 +39,7 @@ export const updateDevice = async (
   const deviceRef = db.collection(Collections.DEVICES).doc(currentUserId);
 
   // Create or update the device document
-  const deviceData = {
+  const deviceData: UpdateData<DocumentData> = {
     [DeviceFields.DEVICE_ID]: deviceDataInput.device_id,
     [DeviceFields.UPDATED_AT]: currentTime,
   };

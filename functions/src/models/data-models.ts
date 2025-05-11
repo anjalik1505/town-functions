@@ -1,3 +1,26 @@
+import { z } from 'zod';
+import {
+  addGroupMembersSchema,
+  analyzeSentimentSchema,
+  createChatMessageSchema,
+  createCommentSchema,
+  createFeedbackSchema,
+  createGroupSchema,
+  createInvitationSchema,
+  createProfileSchema,
+  createReactionSchema,
+  createUpdateSchema,
+  deviceSchema,
+  friendProfileSchema,
+  ownProfileSchema,
+  paginationSchema,
+  testNotificationSchema,
+  testPromptSchema,
+  transcribeAudioSchema,
+  updateCommentSchema,
+  updateProfileSchema,
+} from './validation-schemas.js';
+
 export interface Insights {
   emotional_overview: string;
   key_moments: string;
@@ -129,9 +152,8 @@ export interface GroupsResponse {
   groups: Group[];
 }
 
-export interface GroupMember extends BaseUser {
-  // Group member with basic profile information
-}
+// Group member with basic profile information
+export type GroupMember = BaseUser;
 
 export interface GroupMembersResponse {
   members: GroupMember[];
@@ -210,3 +232,24 @@ export interface TranscriptionResponse {
   score: number;
   emoji: string;
 }
+
+// Inferred types from Zod validation schemas
+export type CreateProfilePayload = z.infer<typeof createProfileSchema>;
+export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
+export type PaginationPayload = z.infer<typeof paginationSchema>;
+export type DevicePayload = z.infer<typeof deviceSchema>;
+export type CreateUpdatePayload = z.infer<typeof createUpdateSchema>;
+export type CreateChatMessagePayload = z.infer<typeof createChatMessageSchema>;
+export type CreateGroupPayload = z.infer<typeof createGroupSchema>;
+export type AddGroupMembersPayload = z.infer<typeof addGroupMembersSchema>;
+export type OwnProfilePayload = z.infer<typeof ownProfileSchema>;
+export type FriendProfilePayload = z.infer<typeof friendProfileSchema>;
+export type TestPromptPayload = z.infer<typeof testPromptSchema>;
+export type TestNotificationPayload = z.infer<typeof testNotificationSchema>;
+export type CreateInvitationPayload = z.infer<typeof createInvitationSchema>;
+export type CreateCommentPayload = z.infer<typeof createCommentSchema>;
+export type UpdateCommentPayload = z.infer<typeof updateCommentSchema>;
+export type CreateReactionPayload = z.infer<typeof createReactionSchema>;
+export type CreateFeedbackPayload = z.infer<typeof createFeedbackSchema>;
+export type AnalyzeSentimentPayload = z.infer<typeof analyzeSentimentSchema>;
+export type TranscribeAudioPayload = z.infer<typeof transcribeAudioSchema>;

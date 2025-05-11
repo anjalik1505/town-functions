@@ -7,7 +7,7 @@ import { NotificationFields } from './constants.js';
 const birthdaySchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Birthday must be in yyyy-mm-dd format')
-  .refine((val: any) => {
+  .refine((val: string) => {
     // Use date-fns to parse and validate the date
     const parsedDate = parse(val, 'yyyy-MM-dd', new Date());
     return isValid(parsedDate);
@@ -63,7 +63,7 @@ export const createUpdateSchema = z.object({
   emoji: z
     .string()
     .min(1, 'Sentiment emoji is required')
-    .refine((val: any) => {
+    .refine((val: string) => {
       const regex = emojiRegex();
       return regex.test(val);
     }, 'Must be a valid emoji'),

@@ -1,22 +1,8 @@
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateCreatorProfileFlow } from '../ai/flows.js';
-import {
-  EventName,
-  FriendSummaryEventParams,
-  SummaryEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  Documents,
-  InsightsFields,
-  ProfileFields,
-  UpdateFields,
-} from '../models/constants.js';
+import { EventName, FriendSummaryEventParams, SummaryEventParams, } from '../models/analytics-events.js';
+import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
@@ -39,7 +25,7 @@ const logger = getLogger(path.basename(__filename));
  */
 const updateCreatorProfile = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
   creatorId: string,
   batch: FirebaseFirestore.WriteBatch,
 ): Promise<{
@@ -82,9 +68,9 @@ const updateCreatorProfile = async (
   const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
 
   // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT];
-  const sentiment = updateData[UpdateFields.SENTIMENT];
-  const updateId = updateData[UpdateFields.ID];
+  const updateContent = updateData[UpdateFields.CONTENT] as string;
+  const sentiment = updateData[UpdateFields.SENTIMENT] as string;
+  const updateId = updateData[UpdateFields.ID] as string;
 
   // Get insight data from the profile's insight subcollection
   const insightsSnapshot = await profileRef
@@ -138,8 +124,8 @@ const updateCreatorProfile = async (
   const insightsRef = insightsDoc
     ? insightsDoc.ref
     : profileRef
-        .collection(Collections.INSIGHTS)
-        .doc(Documents.DEFAULT_INSIGHTS);
+      .collection(Collections.INSIGHTS)
+      .doc(Documents.DEFAULT_INSIGHTS);
 
   // Add insight update to batch
   batch.set(insightsRef, insightsData, { merge: true });
@@ -169,14 +155,14 @@ const updateCreatorProfile = async (
  */
 const processAllSummaries = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
 ): Promise<{
   mainSummary: SummaryEventParams;
   friendSummaries: FriendSummaryEventParams[];
 }> => {
   // Get the creator ID and friend IDs
-  const creatorId = updateData[UpdateFields.CREATED_BY];
-  const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
+  const creatorId = updateData[UpdateFields.CREATED_BY] as string;
+  const friendIds = (updateData[UpdateFields.FRIEND_IDS] as string[]) || [];
 
   if (!creatorId) {
     logger.error('Update has no creator ID');
@@ -247,8 +233,9 @@ const processAllSummaries = async (
   // Return all analytics data
   return {
     mainSummary: {
-      update_length: (updateData[UpdateFields.CONTENT] || '').length,
-      update_sentiment: updateData[UpdateFields.SENTIMENT] || '',
+      update_length: ((updateData[UpdateFields.CONTENT] as string) || '')
+        .length,
+      update_sentiment: (updateData[UpdateFields.SENTIMENT] as string) || '',
       summary_length: creatorResult.summary_length,
       suggestions_length: creatorResult.suggestions_length,
       emotional_overview_length: creatorResult.emotional_overview_length,

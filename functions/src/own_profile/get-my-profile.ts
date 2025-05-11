@@ -1,17 +1,9 @@
 import { Request } from 'express';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events.js';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
 import { ProfileFields } from '../models/constants.js';
 import { ProfileResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  formatProfileResponse,
-  getProfileDoc,
-  getProfileInsights,
-} from '../utils/profile-utils.js';
+import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -20,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Retrieves the current user's profile with insights information.
+ * Retrieves the current user's profile with insight information.
  *
  * This function:
  * 1. Fetches the authenticated user's profile data from Firestore

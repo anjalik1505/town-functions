@@ -1,11 +1,7 @@
 import { Request } from 'express';
 import { analyzeSentimentFlow } from '../ai/flows.js';
-import {
-  AnalyzeSentimentEventParams,
-  ApiResponse,
-  EventName,
-} from '../models/analytics-events.js';
-import { SentimentAnalysisResponse } from '../models/data-models.js';
+import { AnalyzeSentimentEventParams, ApiResponse, EventName, } from '../models/analytics-events.js';
+import { AnalyzeSentimentPayload, SentimentAnalysisResponse, } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 import { fileURLToPath } from 'url';
@@ -18,8 +14,8 @@ const logger = getLogger(path.basename(__filename));
  * Analyzes text input to determine sentiment, score, and generate an emoji.
  *
  * This function:
- * 1. Takes text input from the request
- * 2. Uses AI to analyze the sentiment, generate a score, and select an emoji
+ * 1. Takes text input from request
+ * 2. Uses AI to analyze the sentiment, generate a score, and select emoji
  * 3. Returns the analysis results
  *
  * @param req - The Express request object containing:
@@ -32,7 +28,7 @@ const logger = getLogger(path.basename(__filename));
 export const analyzeSentiment = async (
   req: Request,
 ): Promise<ApiResponse<SentimentAnalysisResponse>> => {
-  const { content } = req.validated_params;
+  const { content } = req.validated_params as AnalyzeSentimentPayload;
   logger.info(
     `Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
   );

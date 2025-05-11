@@ -1,17 +1,9 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
 import { Collections, InvitationFields, Status } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from '../utils/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -100,11 +92,12 @@ export const resendInvitation = async (
   );
 
   // Update the invitation with new timestamps
-  await invitationRef.update({
+  const updatePayload: UpdateData<DocumentData> = {
     [InvitationFields.CREATED_AT]: currentTime,
     [InvitationFields.EXPIRES_AT]: expiresAt,
     [InvitationFields.STATUS]: Status.PENDING,
-  });
+  };
+  await invitationRef.update(updatePayload);
 
   logger.info(`User ${currentUserId} resent invitation ${invitationId}`);
 

@@ -1,17 +1,8 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  InvitationFields,
-  ProfileFields,
-  Status,
-} from '../models/constants.js';
-import { Invitation } from '../models/data-models.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import { Collections, InvitationFields, ProfileFields, Status, } from '../models/constants.js';
+import { CreateInvitationPayload, Invitation } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import { formatInvitation } from '../utils/invitation-utils.js';
@@ -27,7 +18,7 @@ const logger = getLogger(path.basename(__filename));
 /**
  * Creates a new invitation from the current user.
  *
- * This function creates a new invitation document in the invitations collection.
+ * This function creates a new invitation document in the invitation collection.
  * The invitation will have a pending status and will expire after 1 day.
  *
  * Validates that:
@@ -67,15 +58,15 @@ export const createInvitation = async (
   // Initialize Firestore client
   const db = getFirestore();
 
-  // Get current user's profile for name and avatar
+  // Get the current user's profile for name and avatar
   const { data: currentUserProfile } = await getProfileDoc(currentUserId);
 
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as CreateInvitationPayload;
 
   // Create a new invitation document
   const invitationRef = db.collection(Collections.INVITATIONS).doc();
 
-  // Set expiration time (1 day from now)
+  // Set the expiration time (1 day from now)
   const currentTime = Timestamp.now();
   const expiresAt = new Timestamp(
     currentTime.seconds + 24 * 60 * 60, // Add 24 hours in seconds
@@ -83,7 +74,7 @@ export const createInvitation = async (
   );
 
   // Create invitation data
-  const invitationData = {
+  const invitationData: UpdateData<DocumentData> = {
     [InvitationFields.SENDER_ID]: currentUserId,
     [InvitationFields.USERNAME]:
       currentUserProfile[ProfileFields.USERNAME] || '',

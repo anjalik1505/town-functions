@@ -1,9 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import {
-  DeleteProfileEventParams,
-  EventName,
-} from '../models/analytics-events.js';
+import { DeleteProfileEventParams, EventName, } from '../models/analytics-events.js';
 import {
   Collections,
   FeedFields,
@@ -20,12 +17,13 @@ import { getLogger } from '../utils/logging-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { GroupMember } from '../models/data-models.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Helper function to stream and process a collection with batched writes.
+ * Helper functions to stream and process a collection with batched writings.
  *
  * @param query - Firestore query to stream
  * @param processDocument - Function to process each document
@@ -87,7 +85,7 @@ const streamAndProcessCollection = async (
       logger.info(`Committed batch with ${batchCount} ${operationName}`);
     }
 
-    // Run final operation if provided
+    // Run the final operation if provided
     if (finalOperation) {
       await finalOperation();
     }
@@ -217,15 +215,17 @@ const exitGroups = async (
     const members = groupData[GroupFields.MEMBERS] || [];
     const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
 
-    // Remove the user from the members array
+    // Remove the user from the member array
     const updatedMembers = members.filter(
       (memberId: string) => memberId !== userId,
     );
 
     // Remove the user's profile from the member_profiles array
-    const updatedMemberProfiles = memberProfiles.filter((profile: any) => {
-      return profile.user_id !== userId;
-    });
+    const updatedMemberProfiles = memberProfiles.filter(
+      (profile: GroupMember) => {
+        return profile.user_id !== userId;
+      },
+    );
 
     // Update the group document
     batch.update(groupDoc.ref, {
@@ -278,7 +278,7 @@ const deleteDeviceInfo = async (
 /**
  * Delete all feed data and updates for a user.
  * This function streams updates created by the user, for each update collects and deletes
- * feed items from all users (including the user's own feed), and then deletes the update itself.
+ * feed items from all users (including the user's own feed) and then deletes the update itself.
  *
  * @param db - Firestore client
  * @param userId - The ID of the user whose profile was deleted
@@ -330,7 +330,7 @@ const deleteUpdateAndFeedData = async (
       totalFeedEntriesDeleted++;
       batchCount++;
 
-      // Commit batch if it reaches the maximum size
+      // Commit a batch if it reaches the maximum size
       if (batchCount >= MAX_BATCH_OPERATIONS) {
         await batch.commit();
         logger.info(`Committed batch with ${batchCount} operations`);
@@ -345,7 +345,7 @@ const deleteUpdateAndFeedData = async (
       totalUpdatesDeleted++;
       batchCount++;
 
-      // Commit batch if it reaches the maximum size
+      // Commit a batch if it reaches the maximum size
       if (batchCount >= MAX_BATCH_OPERATIONS) {
         await batch.commit();
         logger.info(`Committed batch with ${batchCount} operations`);

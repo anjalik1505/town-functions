@@ -1,10 +1,6 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import {
-  Collections,
-  GroupFields,
-  ProfileFields,
-} from '../models/constants.js';
+import { Collections, GroupFields, ProfileFields, } from '../models/constants.js';
 import { GroupMember, GroupMembersResponse } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';

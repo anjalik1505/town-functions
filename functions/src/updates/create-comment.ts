@@ -1,16 +1,8 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  CommentEventParams,
-  EventName,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  CommentFields,
-  ProfileFields,
-} from '../models/constants.js';
-import { Comment } from '../models/data-models.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import { Collections, CommentFields, ProfileFields, } from '../models/constants.js';
+import { Comment, CreateCommentPayload } from '../models/data-models.js';
 import { formatComment } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -29,7 +21,7 @@ const logger = getLogger(path.basename(__filename));
  * This function:
  * 1. Verifies the user has access to the update using visibility identifiers
  * 2. Creates a new comment document
- * 3. Updates the comment count on the update
+ * 3. Updates the comment count on update
  * 4. Returns the created comment with profile data
  *
  * @param req - The Express request object containing:
@@ -58,15 +50,17 @@ export const createComment = async (
     throw new BadRequestError('Update ID is required');
   }
 
+  const validatedData = req.validated_params as CreateCommentPayload;
+
   // Get the update document to check access
   const updateResult = await getUpdateDoc(updateId);
   const updateData = updateResult.data;
   hasUpdateAccess(updateData, currentUserId);
 
   // Create the comment
-  const commentData = {
+  const commentData: UpdateData<DocumentData> = {
     [CommentFields.CREATED_BY]: currentUserId,
-    [CommentFields.CONTENT]: req.validated_params.content,
+    [CommentFields.CONTENT]: validatedData.content,
     [CommentFields.CREATED_AT]: Timestamp.now(),
     [CommentFields.UPDATED_AT]: Timestamp.now(),
   };
@@ -75,9 +69,11 @@ export const createComment = async (
   const batch = db.batch();
   const commentRef = updateResult.ref.collection(Collections.COMMENTS).doc();
   batch.set(commentRef, commentData);
-  batch.update(updateResult.ref, {
+
+  const updateCountData: UpdateData<DocumentData> = {
     comment_count: (updateData.comment_count || 0) + 1,
-  });
+  };
+  batch.update(updateResult.ref, updateCountData);
 
   await batch.commit();
 
@@ -93,9 +89,9 @@ export const createComment = async (
   comment.name = profileData[ProfileFields.NAME] || '';
   comment.avatar = profileData[ProfileFields.AVATAR] || '';
 
-  // Create analytics event with the updated comment count
+  // Create an analytics event with the updated comment count
   const event: CommentEventParams = {
-    comment_length: req.validated_params.content.length,
+    comment_length: validatedData.content.length,
     comment_count: (updateData.comment_count || 0) + 1,
     reaction_count: updateData.reaction_count || 0,
   };

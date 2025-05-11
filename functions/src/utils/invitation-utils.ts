@@ -74,7 +74,7 @@ export const hasInvitationPermission = (
  */
 export const formatInvitation = (
   invitationId: string,
-  invitationData: any,
+  invitationData: Record<string, unknown>,
 ): Invitation => {
   const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
   const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
@@ -83,12 +83,13 @@ export const formatInvitation = (
     invitation_id: invitationId,
     created_at: createdAt ? formatTimestamp(createdAt) : '',
     expires_at: expiresAt ? formatTimestamp(expiresAt) : '',
-    sender_id: invitationData[InvitationFields.SENDER_ID] || '',
-    status: invitationData[InvitationFields.STATUS] || '',
-    username: invitationData[InvitationFields.USERNAME] || '',
-    name: invitationData[InvitationFields.NAME] || '',
-    avatar: invitationData[InvitationFields.AVATAR] || '',
-    receiver_name: invitationData[InvitationFields.RECEIVER_NAME] || '',
+    sender_id: (invitationData[InvitationFields.SENDER_ID] as string) || '',
+    status: (invitationData[InvitationFields.STATUS] as string) || '',
+    username: (invitationData[InvitationFields.USERNAME] as string) || '',
+    name: (invitationData[InvitationFields.NAME] as string) || '',
+    avatar: (invitationData[InvitationFields.AVATAR] as string) || '',
+    receiver_name:
+      (invitationData[InvitationFields.RECEIVER_NAME] as string) || '',
   };
 };
 

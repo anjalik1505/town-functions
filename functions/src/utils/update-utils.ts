@@ -1,11 +1,6 @@
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-  WriteBatch,
-} from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch, } from 'firebase-admin/firestore';
 import { Collections, FeedFields, UpdateFields } from '../models/constants.js';
-import { EnrichedUpdate, Update } from '../models/data-models.js';
+import { EnrichedUpdate, ReactionGroup, Update, } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -29,7 +24,7 @@ export const formatUpdate = (
   updateId: string,
   updateData: FirebaseFirestore.DocumentData,
   createdBy: string,
-  reactions: any[] = [],
+  reactions: ReactionGroup[] = [],
 ): Update => {
   return {
     update_id: updateId,
@@ -61,7 +56,7 @@ export const formatEnrichedUpdate = (
   updateId: string,
   updateData: FirebaseFirestore.DocumentData,
   createdBy: string,
-  reactions: any[] = [],
+  reactions: ReactionGroup[] = [],
   profile: { username: string; name: string; avatar: string } | null = null,
 ): EnrichedUpdate => {
   const update = formatUpdate(updateId, updateData, createdBy, reactions);
@@ -86,7 +81,7 @@ export const formatEnrichedUpdate = (
 export const processFeedItems = (
   feedDocs: QueryDocumentSnapshot[],
   updateMap: Map<string, FirebaseFirestore.DocumentData>,
-  reactionsMap: Map<string, any[]>,
+  reactionsMap: Map<string, ReactionGroup[]>,
   currentUserId: string,
 ): Update[] => {
   return feedDocs
@@ -121,7 +116,7 @@ export const processFeedItems = (
 export const processEnrichedFeedItems = (
   feedDocs: QueryDocumentSnapshot[],
   updateMap: Map<string, FirebaseFirestore.DocumentData>,
-  reactionsMap: Map<string, any[]>,
+  reactionsMap: Map<string, ReactionGroup[]>,
   profiles: Map<string, { username: string; name: string; avatar: string }>,
 ): EnrichedUpdate[] => {
   return feedDocs
@@ -163,7 +158,7 @@ export const fetchUpdatesByIds = async (
   );
   const updateSnapshots = await Promise.all(updatePromises);
 
-  // Create a map of update data for easy lookup
+  // Create a map of update data for an easy lookup
   return new Map(
     updateSnapshots
       .filter((doc) => doc.exists)

@@ -1,9 +1,5 @@
 import cors from 'cors';
-import express, {
-  ErrorRequestHandler,
-  RequestHandler,
-  Response,
-} from 'express';
+import express, { ErrorRequestHandler, RequestHandler, Response, } from 'express';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ZodError } from 'zod';
@@ -16,15 +12,8 @@ import { getInvitation } from './invitations/get-invitation.js';
 import { getInvitations } from './invitations/get-invitations.js';
 import { rejectInvitation } from './invitations/reject-invitation.js';
 import { resendInvitation } from './invitations/resend-invitation.js';
-import {
-  validateQueryParams,
-  validateRequest,
-} from './middleware/validation.js';
-import {
-  ApiResponse,
-  ErrorResponse,
-  EventName,
-} from './models/analytics-events.js';
+import { validateQueryParams, validateRequest, } from './middleware/validation.js';
+import { ApiResponse, ErrorResponse, EventName, } from './models/analytics-events.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,
@@ -67,6 +56,7 @@ import { trackApiEvent } from './utils/analytics-utils.js';
 import {
   BadRequestError,
   ConflictError,
+  ErrorWithStatus,
   ForbiddenError,
   InternalServerError,
   isFirebaseAuthTokenExpiredError,
@@ -110,13 +100,10 @@ const ensureJsonResponse: RequestHandler = (req, res, next) => {
 // Apply content type middleware
 app.use(ensureJsonResponse);
 
-// Extend Express Request type to include userId and validated_params
-declare global {
-  namespace Express {
-    interface Request {
-      userId: string; // Changed from optional to required since it's always set by auth middleware
-      validated_params?: any; // This will be properly typed by the validation middleware
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    userId: string;
+    validated_params?: unknown;
   }
 }
 
@@ -429,6 +416,8 @@ app.use((req, res) => {
 });
 
 // Global error handler
+// Next attribute is required for Express
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
   // Log the error with request context
   console.error(`Error during ${req.method} ${req.path}:`, err);
@@ -473,12 +462,13 @@ const global_error_handler: ErrorRequestHandler = (err, req, res, next) => {
     err &&
     typeof err === 'object' &&
     'statusCode' in err &&
-    typeof (err as any).statusCode === 'number'
+    typeof (err as { statusCode: unknown }).statusCode === 'number'
   ) {
     // Handle generic errors that might have a statusCode attached
-    statusCode = (err as any).statusCode;
-    errorName = (err as any).name || 'Error';
-    errorDescription = (err as any).message || 'An error occurred.';
+    const typedErr = err as ErrorWithStatus;
+    statusCode = typedErr.statusCode;
+    errorName = typedErr.name || 'Error';
+    errorDescription = typedErr.message || 'An error occurred.';
   }
 
   const response: ApiResponse<ErrorResponse> = {
