@@ -1,9 +1,5 @@
 import { Request } from 'express';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events.js';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
 import { Collections, Documents, ProfileFields } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
@@ -19,7 +15,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Checks if a profile exists for the authenticated user
- * 2. If it exists, deletes the insights subcollection
+ * 2. If it exists, deletes insights subcollection
  * 3. Then deletes the profile document
  *
  * Note: The actual deletion of related data (updates, friendships, etc.) is handled by a Firestore trigger
@@ -44,7 +40,7 @@ export const deleteProfile = async (
   const { ref: profileRef, data: profileData } =
     await getProfileDoc(currentUserId);
 
-  // Delete the insights subcollection first
+  // Delete the insight subcollection first
   const insightsRef = profileRef
     .collection(Collections.INSIGHTS)
     .doc(Documents.DEFAULT_INSIGHTS);

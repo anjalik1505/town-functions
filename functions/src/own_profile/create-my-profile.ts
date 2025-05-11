@@ -1,24 +1,10 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  Documents,
-  InsightsFields,
-  Placeholders,
-  ProfileFields,
-} from '../models/constants.js';
-import { Insights, ProfileResponse } from '../models/data-models.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import { Collections, Documents, InsightsFields, Placeholders, ProfileFields, } from '../models/constants.js';
+import { CreateProfilePayload, Insights, ProfileResponse, } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  formatProfileResponse,
-  getProfileInsights,
-  profileExists,
-} from '../utils/profile-utils.js';
+import { formatProfileResponse, getProfileInsights, profileExists, } from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -36,7 +22,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
- *              - validated_params: Profile data including:
+ *              - validated_params: Profile data including
  *                - username: Mandatory username for the user
  *                - name: Optional display name
  *                - avatar: Optional avatar URL
@@ -59,17 +45,17 @@ export const createProfile = async (
   logger.info(`Starting add_user operation for user ID: ${currentUserId}`);
 
   const db = getFirestore();
-  const profileData = req.validated_params;
+  const profileData = req.validated_params as CreateProfilePayload;
 
-  // Check if profile already exists using the utility function
+  // Check if a profile already exists using the utility function
   await profileExists(currentUserId);
 
   logger.info(`Creating new profile for user ${currentUserId}`);
 
   const updatedAt = Timestamp.now();
 
-  // Create profile with provided data
-  const profileDataToSave = {
+  // Create a profile with provided data
+  const profileDataToSave: UpdateData<DocumentData> = {
     [ProfileFields.USERNAME]: profileData.username,
     [ProfileFields.NAME]: profileData.name || '',
     [ProfileFields.AVATAR]: profileData.avatar || '',
@@ -82,6 +68,7 @@ export const createProfile = async (
     [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
     [ProfileFields.GROUP_IDS]: [],
     [ProfileFields.UPDATED_AT]: updatedAt,
+    [ProfileFields.CREATED_AT]: updatedAt,
   };
 
   // Create the profile document
@@ -89,7 +76,7 @@ export const createProfile = async (
   await profileRef.set(profileDataToSave);
   logger.info(`Profile document created for user ${currentUserId}`);
 
-  // Create an empty insights subcollection document with placeholders
+  // Create an empty insight subcollection document with placeholders
   const insightsRef = profileRef
     .collection(Collections.INSIGHTS)
     .doc(Documents.DEFAULT_INSIGHTS);
@@ -102,7 +89,7 @@ export const createProfile = async (
   await insightsRef.set(insightsData);
   logger.info(`Insights document created for user ${currentUserId}`);
 
-  // Get the insights data using the utility function
+  // Get the insight data using the utility function
   const insights = await getProfileInsights(profileRef);
 
   // Format and return the response using the utility function

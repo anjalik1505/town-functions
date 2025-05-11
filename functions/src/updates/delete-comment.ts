@@ -1,10 +1,6 @@
 import { Request } from 'express';
-import { getFirestore } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  CommentEventParams,
-  EventName,
-} from '../models/analytics-events.js';
+import { DocumentData, getFirestore, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
 import { CommentFields } from '../models/constants.js';
 import { getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
@@ -21,8 +17,8 @@ const logger = getLogger(path.basename(__filename));
  * Deletes a comment from an update.
  *
  * This function:
- * 1. Verifies the user is the comment creator
- * 2. Deletes the comment document
+ * 1. Verifies the user is comment creator
+ * 2. Deletes comment document
  * 3. Updates the comment count on the update
  *
  * @param req - The Express request object containing:
@@ -60,7 +56,7 @@ export const deleteComment = async (
   const commentResult = await getCommentDoc(updateId, commentId);
   const commentData = commentResult.data;
 
-  // Check if user is the comment creator
+  // Check if the user is the comment creator
   if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
     logger.warn(
       `User ${currentUserId} attempted to delete comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`,
@@ -68,12 +64,14 @@ export const deleteComment = async (
     throw new ForbiddenError('You can only delete your own comments');
   }
 
-  // Delete comment and update comment count in a batch
+  // Delete comment and update the comment count in a batch
   const batch = db.batch();
   batch.delete(commentResult.ref);
-  batch.update(updateResult.ref, {
+
+  const updateCountData: UpdateData<DocumentData> = {
     comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1),
-  });
+  };
+  batch.update(updateResult.ref, updateCountData);
 
   await batch.commit();
 

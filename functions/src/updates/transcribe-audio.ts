@@ -1,12 +1,8 @@
 import { Request } from 'express';
 import { fileTypeFromBuffer } from 'file-type';
 import { transcribeAudioFlow } from '../ai/flows.js';
-import {
-  ApiResponse,
-  AudioTranscribedEventParams,
-  EventName,
-} from '../models/analytics-events.js';
-import { TranscriptionResponse } from '../models/data-models.js';
+import { ApiResponse, AudioTranscribedEventParams, EventName, } from '../models/analytics-events.js';
+import { TranscribeAudioPayload, TranscriptionResponse, } from '../models/data-models.js';
 import { decompressData, isCompressedMimeType } from '../utils/compression.js'; // isCompressedMimeType checks against our limited list
 import { detectAndValidateAudioMimeType } from '../utils/file-validation.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -39,7 +35,7 @@ const logger = getLogger(path.basename(__filename));
 export const transcribeAudio = async (
   req: Request,
 ): Promise<ApiResponse<TranscriptionResponse>> => {
-  const { audio_data } = req.validated_params;
+  const { audio_data } = req.validated_params as TranscribeAudioPayload;
 
   logger.info(
     `Received audio data for transcription, data length: ${audio_data.length}`,
@@ -48,7 +44,7 @@ export const transcribeAudio = async (
   let workingAudioBuffer = Buffer.from(audio_data, 'base64');
   let finalAudioMimeType: string;
 
-  // 1. Detect initial file type
+  // 1. Detect the initial file type
   const initialFileType = await fileTypeFromBuffer(workingAudioBuffer);
   const initialMimeType = initialFileType?.mime;
 

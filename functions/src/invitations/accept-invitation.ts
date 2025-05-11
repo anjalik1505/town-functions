@@ -1,10 +1,6 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
 import {
   Collections,
   FriendPlaceholderTemplates,
@@ -16,10 +12,7 @@ import {
 } from '../models/constants.js';
 import { Friend } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import {
-  createFriendshipId,
-  hasReachedCombinedLimit,
-} from '../utils/friendship-utils.js';
+import { createFriendshipId, hasReachedCombinedLimit, } from '../utils/friendship-utils.js';
 import {
   canActOnInvitation,
   getInvitationDoc,
@@ -28,11 +21,7 @@ import {
   updateInvitationStatus,
 } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  createSummaryId,
-  getProfileDoc,
-  hasLimitOverride,
-} from '../utils/profile-utils.js';
+import { createSummaryId, getProfileDoc, hasLimitOverride, } from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -45,7 +34,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Checks if the invitation exists and is still valid
- * 2. Creates a new friendship document between the accepting user and the sender
+ * 2. Creates a new friendship document between the accepting user and sender
  * 3. Deletes the invitation document
  *
  * Validates that:
@@ -91,10 +80,10 @@ export const acceptInvitation = async (
   const status = invitationData[InvitationFields.STATUS];
   canActOnInvitation(status, 'accept');
 
-  // Check if invitation has expired
+  // Check if the invitation has expired
   const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
   if (isInvitationExpired(expiresAt)) {
-    // Update invitation status to expired
+    // Update invitation status to expire
     await updateInvitationStatus(invitationRef, Status.EXPIRED);
     throw new ForbiddenError('Invitation has expired');
   }
@@ -120,7 +109,7 @@ export const acceptInvitation = async (
     }
   }
 
-  // Check combined limit for the sender (excluding this invitation)
+  // Check the combined limit for the sender (excluding this invitation)
   const { hasReachedLimit: senderHasReachedLimit } =
     await hasReachedCombinedLimit(senderId, invitationId);
   if (senderHasReachedLimit) {
@@ -203,7 +192,7 @@ export const acceptInvitation = async (
 
   // Create the friendship document using profile data directly
   const currentTime = Timestamp.now();
-  const friendshipData = {
+  const friendshipData: UpdateData<DocumentData> = {
     [FriendshipFields.SENDER_ID]: senderId,
     [FriendshipFields.SENDER_NAME]: senderProfile[ProfileFields.NAME] || '',
     [FriendshipFields.SENDER_USERNAME]:
@@ -240,7 +229,7 @@ export const acceptInvitation = async (
   const summaryRefForCurrentUser = db
     .collection(Collections.USER_SUMMARIES)
     .doc(summaryIdForCurrentUser);
-  const summaryDataForCurrentUser = {
+  const summaryDataForCurrentUser: UpdateData<DocumentData> = {
     [UserSummaryFields.CREATOR_ID]: senderId,
     [UserSummaryFields.TARGET_ID]: currentUserId,
     [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace(
@@ -259,12 +248,12 @@ export const acceptInvitation = async (
   };
   batch.set(summaryRefForCurrentUser, summaryDataForCurrentUser);
 
-  // Create summary for sender about current user
+  // Create a summary for sender about the current user
   const summaryIdForSender = createSummaryId(senderId, currentUserId);
   const summaryRefForSender = db
     .collection(Collections.USER_SUMMARIES)
     .doc(summaryIdForSender);
-  const summaryDataForSender = {
+  const summaryDataForSender: UpdateData<DocumentData> = {
     [UserSummaryFields.CREATOR_ID]: currentUserId,
     [UserSummaryFields.TARGET_ID]: senderId,
     [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace(

@@ -1,22 +1,8 @@
 import { Request } from 'express';
-import { getFirestore } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  UserNudgeEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  DeviceFields,
-  FriendshipFields,
-  NudgeFields,
-  Status,
-} from '../models/constants.js';
-import {
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-} from '../utils/errors.js';
+import { DocumentData, getFirestore, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, UserNudgeEventParams, } from '../models/analytics-events.js';
+import { Collections, DeviceFields, FriendshipFields, NudgeFields, Status, } from '../models/constants.js';
+import { BadRequestError, ConflictError, ForbiddenError, } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -139,7 +125,7 @@ export const nudgeUser = async (
         await sendNotification(
           deviceId,
           'Update Nudge',
-          `${currentUserName} is nudging you to share an update!`,
+          `${currentUserName} is checking in and curious about how you're doing!`,
           {
             type: 'nudge',
             sender_id: currentUserId,
@@ -158,11 +144,12 @@ export const nudgeUser = async (
   }
 
   // Record the nudge with the current timestamp
-  await nudgeRef.set({
+  const nudgeData: UpdateData<DocumentData> = {
     [NudgeFields.SENDER_ID]: currentUserId,
     [NudgeFields.RECEIVER_ID]: targetUserId,
     [NudgeFields.TIMESTAMP]: new Date(),
-  });
+  };
+  await nudgeRef.set(nudgeData);
 
   const analyticsParams: UserNudgeEventParams = {
     target_user_id: targetUserId,

@@ -1,10 +1,8 @@
 import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
 import { genkit } from 'genkit';
-import {
-  friendProfileSchema,
-  ownProfileSchema,
-} from '../models/validation-schemas.js';
+import { TestPromptPayload } from '../models/data-models.js';
+import { friendProfileSchema, ownProfileSchema, } from '../models/validation-schemas.js';
 import { InternalServerError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 
@@ -29,7 +27,7 @@ export const testPrompt = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const data = req.validated_params;
+    const data = req.validated_params as TestPromptPayload;
     const summary = data.summary;
     const suggestions = data.suggestions;
     const existingEmotionalOverview = data.emotional_overview;
@@ -57,14 +55,14 @@ export const testPrompt = async (
           prompt: `### CONTEXT:
                     - <SUMMARY>: ${summary}
                     - <SUGGESTIONS>: ${suggestions}${
-                      data.is_own_profile
-                        ? `
+            data.is_own_profile
+              ? `
                     - <EMOTIONAL_OVERVIEW>: ${existingEmotionalOverview}
                     - <KEY_MOMENTS>: ${existingKeyMoments}
                     - <RECURRING_THEMES>: ${existingRecurringThemes}
                     - <PROGRESS_AND_GROWTH>: ${existingProgressAndGrowth}`
-                        : ''
-                    }
+              : ''
+          }
                     - <GENDER>: ${gender}
                     - <LOCATION>: ${location}
                     

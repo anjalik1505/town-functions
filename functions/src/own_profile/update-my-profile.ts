@@ -1,15 +1,13 @@
 import { Request } from 'express';
 import {
+  DocumentData,
   getFirestore,
   QueryDocumentSnapshot,
   Timestamp,
+  UpdateData,
   WhereFilterOp,
 } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  ProfileEventParams,
-} from '../models/analytics-events.js';
+import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -18,13 +16,9 @@ import {
   ProfileFields,
   QueryOperators,
 } from '../models/constants.js';
-import { ProfileResponse } from '../models/data-models.js';
+import { ProfileResponse, UpdateProfilePayload, } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  formatProfileResponse,
-  getProfileDoc,
-  getProfileInsights,
-} from '../utils/profile-utils.js';
+import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -67,14 +61,14 @@ export const updateProfile = async (
   );
 
   const db = getFirestore();
-  const profileData = req.validated_params;
+  const profileData = req.validated_params as UpdateProfilePayload;
 
   // Get the profile document using the utility function
   const { ref: profileRef, data: currentProfileData } =
     await getProfileDoc(currentUserId);
   logger.info(`Retrieved current profile data for user ${currentUserId}`);
 
-  // Check if username, name, or avatar has changed
+  // Check if the username, name, or avatar has changed
   const usernameChanged =
     profileData.username !== undefined &&
     profileData.username !== currentProfileData[ProfileFields.USERNAME];
@@ -88,7 +82,7 @@ export const updateProfile = async (
     profileData.avatar !== currentProfileData[ProfileFields.AVATAR];
 
   // Prepare update data
-  const profileUpdates: Record<string, any> = {};
+  const profileUpdates: UpdateData<DocumentData> = {};
 
   // Only update fields that are provided in the request
   if (profileData.username !== undefined) {
@@ -137,7 +131,7 @@ export const updateProfile = async (
 
     for await (const doc of invitationsQuery.stream()) {
       const invitationDoc = doc as unknown as QueryDocumentSnapshot;
-      const invitationUpdates: Record<string, any> = {};
+      const invitationUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
         invitationUpdates[InvitationFields.USERNAME] =
@@ -157,14 +151,14 @@ export const updateProfile = async (
       }
     }
 
-    // 2. Update friendships where user is sender
+    // 2. Update friendships where the user is sender
     const friendshipsAsSenderQuery = db
       .collection(Collections.FRIENDSHIPS)
       .where(FriendshipFields.SENDER_ID, QueryOperators.EQUALS, currentUserId);
 
     for await (const doc of friendshipsAsSenderQuery.stream()) {
       const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
-      const friendshipUpdates: Record<string, any> = {};
+      const friendshipUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
         friendshipUpdates[FriendshipFields.SENDER_USERNAME] =
@@ -184,7 +178,7 @@ export const updateProfile = async (
       }
     }
 
-    // 3. Update friendships where user is receiver
+    // 3. Update friendships where the user is receiver
     const friendshipsAsReceiverQuery = db
       .collection(Collections.FRIENDSHIPS)
       .where(
@@ -195,7 +189,7 @@ export const updateProfile = async (
 
     for await (const doc of friendshipsAsReceiverQuery.stream()) {
       const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
-      const friendshipUpdates: Record<string, any> = {};
+      const friendshipUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
         friendshipUpdates[FriendshipFields.RECEIVER_USERNAME] =
@@ -215,7 +209,7 @@ export const updateProfile = async (
       }
     }
 
-    // 4. Update groups where user is a member
+    // 4. Update groups where the user is a member
     const groupsQuery = db
       .collection(Collections.GROUPS)
       .where(
@@ -229,27 +223,36 @@ export const updateProfile = async (
       const groupData = groupDoc.data();
       const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
 
-      // Find and update the user's profile in member_profiles array
+      // Find and update the user's profile in the member_profiles array
       for (let i = 0; i < memberProfiles.length; i++) {
         const memberProfile = memberProfiles[i];
         if (memberProfile[ProfileFields.USER_ID] === currentUserId) {
-          if (usernameChanged) {
-            batch.update(groupDoc.ref, {
-              [`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.USERNAME}`]:
-                profileUpdates[ProfileFields.USERNAME],
-            });
+          const groupMemberSpecificUpdate: UpdateData<DocumentData> = {};
+
+          if (
+            usernameChanged &&
+            profileUpdates[ProfileFields.USERNAME] !== undefined
+          ) {
+            groupMemberSpecificUpdate[
+              `${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.USERNAME}`
+              ] = profileUpdates[ProfileFields.USERNAME];
           }
-          if (nameChanged) {
-            batch.update(groupDoc.ref, {
-              [`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.NAME}`]:
-                profileUpdates[ProfileFields.NAME],
-            });
+          if (nameChanged && profileUpdates[ProfileFields.NAME] !== undefined) {
+            groupMemberSpecificUpdate[
+              `${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.NAME}`
+              ] = profileUpdates[ProfileFields.NAME];
           }
-          if (avatarChanged) {
-            batch.update(groupDoc.ref, {
-              [`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.AVATAR}`]:
-                profileUpdates[ProfileFields.AVATAR],
-            });
+          if (
+            avatarChanged &&
+            profileUpdates[ProfileFields.AVATAR] !== undefined
+          ) {
+            groupMemberSpecificUpdate[
+              `${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.AVATAR}`
+              ] = profileUpdates[ProfileFields.AVATAR];
+          }
+
+          if (Object.keys(groupMemberSpecificUpdate).length > 0) {
+            batch.update(groupDoc.ref, groupMemberSpecificUpdate);
           }
           break;
         }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { DocumentData, FieldValue, getFirestore, UpdateData, } from 'firebase-admin/firestore';
 import {
   Collections,
   FriendshipFields,
@@ -9,12 +9,8 @@ import {
   QueryOperators,
   Status,
 } from '../models/constants.js';
-import { Group } from '../models/data-models.js';
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from '../utils/errors.js';
+import { AddGroupMembersPayload, Group } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 
@@ -28,7 +24,7 @@ const logger = getLogger(path.basename(__filename));
  * Add new members to an existing group.
  *
  * This function:
- * 1. Verifies the group exists and the current user is a member
+ * 1. Verifies the group exists and the current user is member
  * 2. Validates that all new members exist
  * 3. Ensures all members are friends with each other
  * 4. Updates the group and member profiles in a batch operation
@@ -58,7 +54,7 @@ export const addMembersToGroup = async (
   const currentUserId = req.userId;
 
   // Get the validated request data
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as AddGroupMembersPayload;
 
   // Extract new members to add
   const newMembers = validatedParams?.members || [];
@@ -149,12 +145,12 @@ export const addMembersToGroup = async (
   for (let i = 0; i < allMembersToCheck.length; i += MAX_BATCH_SIZE) {
     const batchMembers = allMembersToCheck.slice(i, i + MAX_BATCH_SIZE);
 
-    // Fetch all friendships where any of the batch members is in the members array
+    // Fetch all friendships where any of the batch members is in the member array
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
       .where(
         FriendshipFields.MEMBERS,
-        QueryOperators.ARRAY_CONTAINS_ANY as any,
+        QueryOperators.ARRAY_CONTAINS_ANY,
         batchMembers,
       )
       .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
@@ -187,8 +183,8 @@ export const addMembersToGroup = async (
 
   // Check if any required member pairs are not friends
   const notFriends = Object.entries(friendshipExists)
-    .filter(([_, exists]) => !exists)
-    .map(([pair]) => pair.split('_'));
+    .filter((entry) => !entry[1])
+    .map((entry) => entry[0].split('_'));
 
   if (notFriends.length) {
     // Format the error message
@@ -232,10 +228,11 @@ export const addMembersToGroup = async (
   ];
 
   // Update the group document with both members array and denormalized profiles
-  batch.update(groupRef, {
+  const groupUpdate: UpdateData<DocumentData> = {
     [GroupFields.MEMBERS]: updatedMembers,
     [GroupFields.MEMBER_PROFILES]: updatedMemberProfiles,
-  });
+  };
+  batch.update(groupRef, groupUpdate);
   logger.info(
     `Adding ${newMembersToAdd.length} new members to group ${groupId}`,
   );
@@ -243,9 +240,10 @@ export const addMembersToGroup = async (
   // Add the group ID to each new member's profile
   for (const memberId of newMembersToAdd) {
     const profileRef = db.collection(Collections.PROFILES).doc(memberId);
-    batch.update(profileRef, {
+    const profileUpdate: UpdateData<DocumentData> = {
       [ProfileFields.GROUP_IDS]: FieldValue.arrayUnion(groupId),
-    });
+    };
+    batch.update(profileRef, profileUpdate);
     logger.info(`Adding group ${groupId} to member ${memberId}'s profile`);
   }
 

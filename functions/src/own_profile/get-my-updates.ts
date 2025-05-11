@@ -1,22 +1,10 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  UpdateViewEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  FeedFields,
-  QueryOperators,
-} from '../models/constants.js';
-import { UpdatesResponse } from '../models/data-models.js';
+import { ApiResponse, EventName, UpdateViewEventParams, } from '../models/analytics-events.js';
+import { Collections, FeedFields, QueryOperators, } from '../models/constants.js';
+import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
 import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';
@@ -50,7 +38,7 @@ export const getUpdates = async (
   const db = getFirestore();
 
   // Get pagination parameters from the validated request
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as PaginationPayload;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
@@ -69,7 +57,7 @@ export const getUpdates = async (
     .where(FeedFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
     .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
 
-  // Apply cursor-based pagination - errors will be automatically caught by Express
+  // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming

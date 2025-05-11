@@ -6,6 +6,13 @@ export interface FirebaseAuthError extends Error {
   message: string;
 }
 
+// Interface for errors that include an HTTP status code
+export interface ErrorWithStatus {
+  statusCode: number;
+  name?: string;
+  message?: string;
+}
+
 // Utility function to check if an error is a Firebase Auth token expiration error
 export function isFirebaseAuthTokenExpiredError(
   error: unknown,

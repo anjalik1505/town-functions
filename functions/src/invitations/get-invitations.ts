@@ -1,32 +1,12 @@
 import { Request } from 'express';
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  InvitationFields,
-  QueryOperators,
-  Status,
-} from '../models/constants.js';
-import { Invitation, InvitationsResponse } from '../models/data-models.js';
+import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import { Collections, InvitationFields, QueryOperators, Status, } from '../models/constants.js';
+import { Invitation, InvitationsResponse, PaginationPayload, } from '../models/data-models.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import {
-  formatInvitation,
-  isInvitationExpired,
-} from '../utils/invitation-utils.js';
+import { formatInvitation, isInvitationExpired, } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -38,7 +18,7 @@ const logger = getLogger(path.basename(__filename));
  * Gets all invitations for the current user, checking if any have expired.
  *
  * This function:
- * 1. Retrieves all invitations where the current user is the sender
+ * 1. Retrieves all invitations where the current user is sender
  * 2. Checks if any pending invitations have expired and updates their status
  * 3. Returns all invitations to the user
  *
@@ -48,7 +28,7 @@ const logger = getLogger(path.basename(__filename));
  *                - limit: Maximum number of invitations to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  *
- * @returns An ApiResponse containing the invitations response and analytics
+ * @returns An ApiResponse containing the invitation response and analytics
  */
 export const getInvitations = async (
   req: Request,
@@ -60,7 +40,7 @@ export const getInvitations = async (
   const db = getFirestore();
 
   // Get pagination parameters from the validated request
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as PaginationPayload;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
@@ -74,7 +54,7 @@ export const getInvitations = async (
     .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, currentUserId)
     .orderBy(InvitationFields.CREATED_AT, QueryOperators.DESC);
 
-  // Apply cursor-based pagination - errors will be automatically caught by Express
+  // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process invitations using streaming
@@ -94,23 +74,26 @@ export const getInvitations = async (
     const invitationData = doc.data();
     const invitationId = doc.id;
 
-    // Check if pending invitation has expired
+    // Check if the pending invitation has expired
     const status = invitationData[InvitationFields.STATUS];
     const expiresAt = invitationData?.[
       InvitationFields.EXPIRES_AT
-    ] as Timestamp;
+      ] as Timestamp;
 
     // Only update if the invitation is pending and has expired
     if (status === Status.PENDING && isInvitationExpired(expiresAt)) {
       // Use the document reference directly from the query
-      batch.update(doc.ref, { [InvitationFields.STATUS]: Status.EXPIRED });
+      const updatePayload: UpdateData<DocumentData> = {
+        [InvitationFields.STATUS]: Status.EXPIRED,
+      };
+      batch.update(doc.ref, updatePayload);
       batchUpdated = true;
 
       // Update status for the response
       invitationData[InvitationFields.STATUS] = Status.EXPIRED;
     }
 
-    // Create Invitation object
+    // Create an Invitation object
     const invitation = formatInvitation(invitationId, invitationData);
     invitations.push(invitation);
   }
@@ -138,7 +121,7 @@ export const getInvitations = async (
     invitation_count: activeInvitationCount,
   };
 
-  // Return the invitations response with pagination info
+  // Return the invitation response with pagination info
   const response: InvitationsResponse = {
     invitations,
     next_cursor: nextCursor,

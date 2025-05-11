@@ -1,12 +1,8 @@
 import { Request } from 'express';
-import { Timestamp } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  CommentEventParams,
-  EventName,
-} from '../models/analytics-events.js';
+import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
 import { CommentFields, ProfileFields } from '../models/constants.js';
-import { Comment } from '../models/data-models.js';
+import { Comment, UpdateCommentPayload } from '../models/data-models.js';
 import { formatComment, getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -22,8 +18,8 @@ const logger = getLogger(path.basename(__filename));
  * Updates an existing comment on an update.
  *
  * This function:
- * 1. Verifies the user is the comment creator
- * 2. Updates the comment content
+ * 1. Verifies the user is comment creator
+ * 2. Updates comment content
  * 3. Returns the updated comment with profile data
  *
  * @param req - The Express request object containing:
@@ -57,11 +53,13 @@ export const updateComment = async (
     throw new BadRequestError('Comment ID is required');
   }
 
+  const validatedPayload = req.validated_params as UpdateCommentPayload;
+
   // Get the update document to check if it exists
   const commentResult = await getCommentDoc(updateId, commentId);
   const commentData = commentResult.data;
 
-  // Check if user is the comment creator
+  // Check if the user is the comment creator
   if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
     logger.warn(
       `User ${currentUserId} attempted to update comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`,
@@ -70,8 +68,8 @@ export const updateComment = async (
   }
 
   // Update the comment
-  const updatedData = {
-    [CommentFields.CONTENT]: req.validated_params.content,
+  const updatedData: UpdateData<DocumentData> = {
+    [CommentFields.CONTENT]: validatedPayload.content,
     [CommentFields.UPDATED_AT]: Timestamp.now(),
   };
 
@@ -95,7 +93,7 @@ export const updateComment = async (
 
   // Create analytics event
   const event: CommentEventParams = {
-    comment_length: req.validated_params.content.length,
+    comment_length: validatedPayload.content.length,
     comment_count: commentData.comment_count || 0,
     reaction_count: commentData.reaction_count || 0,
   };

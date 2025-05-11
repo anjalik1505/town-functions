@@ -1,22 +1,8 @@
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateCreatorProfileFlow } from '../ai/flows.js';
-import {
-  EventName,
-  FriendSummaryEventParams,
-  SummaryEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  Documents,
-  InsightsFields,
-  ProfileFields,
-  UpdateFields,
-} from '../models/constants.js';
+import { EventName, FriendSummaryEventParams, SummaryEventParams, } from '../models/analytics-events.js';
+import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
@@ -39,7 +25,7 @@ const logger = getLogger(path.basename(__filename));
  */
 const updateCreatorProfile = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
   creatorId: string,
   batch: FirebaseFirestore.WriteBatch,
 ): Promise<{
@@ -82,11 +68,11 @@ const updateCreatorProfile = async (
   const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
 
   // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT];
-  const sentiment = updateData[UpdateFields.SENTIMENT];
-  const updateId = updateData[UpdateFields.ID];
+  const updateContent = updateData[UpdateFields.CONTENT] as string;
+  const sentiment = updateData[UpdateFields.SENTIMENT] as string;
+  const updateId = updateData[UpdateFields.ID] as string;
 
-  // Get insights data from the profile's insights subcollection
+  // Get insight data from the profile's insight subcollection
   const insightsSnapshot = await profileRef
     .collection(Collections.INSIGHTS)
     .limit(1)
@@ -94,7 +80,7 @@ const updateCreatorProfile = async (
   const insightsDoc = insightsSnapshot.docs[0];
   const existingInsights = insightsDoc?.data() || {};
 
-  // Calculate age from birthday
+  // Calculate age from the birthday
   const age = calculateAge(profileData[ProfileFields.BIRTHDAY] || '');
 
   // Use the creator profile flow to generate insights
@@ -127,7 +113,7 @@ const updateCreatorProfile = async (
   batch.update(profileRef, profileUpdate);
   logger.info(`Added profile update for user ${creatorId} to batch`);
 
-  // Update or create insights document
+  // Update or create the insights document
   const insightsData = {
     [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview || '',
     [InsightsFields.KEY_MOMENTS]: result.key_moments || '',
@@ -138,10 +124,10 @@ const updateCreatorProfile = async (
   const insightsRef = insightsDoc
     ? insightsDoc.ref
     : profileRef
-        .collection(Collections.INSIGHTS)
-        .doc(Documents.DEFAULT_INSIGHTS);
+      .collection(Collections.INSIGHTS)
+      .doc(Documents.DEFAULT_INSIGHTS);
 
-  // Add insights update to batch
+  // Add insight update to batch
   batch.set(insightsRef, insightsData, { merge: true });
   logger.info(`Added insights update for user ${creatorId} to batch`);
 
@@ -169,14 +155,14 @@ const updateCreatorProfile = async (
  */
 const processAllSummaries = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
 ): Promise<{
   mainSummary: SummaryEventParams;
   friendSummaries: FriendSummaryEventParams[];
 }> => {
   // Get the creator ID and friend IDs
-  const creatorId = updateData[UpdateFields.CREATED_BY];
-  const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
+  const creatorId = updateData[UpdateFields.CREATED_BY] as string;
+  const friendIds = (updateData[UpdateFields.FRIEND_IDS] as string[]) || [];
 
   if (!creatorId) {
     logger.error('Update has no creator ID');
@@ -207,7 +193,7 @@ const processAllSummaries = async (
   // Create tasks for all friends and the creator
   const tasks = [];
 
-  // Add task for updating the creator's profile
+  // Add a task for updating the creator's profile
   tasks.push(updateCreatorProfile(db, updateData, creatorId, batch));
 
   // Add tasks for all friends
@@ -247,8 +233,9 @@ const processAllSummaries = async (
   // Return all analytics data
   return {
     mainSummary: {
-      update_length: (updateData[UpdateFields.CONTENT] || '').length,
-      update_sentiment: updateData[UpdateFields.SENTIMENT] || '',
+      update_length: ((updateData[UpdateFields.CONTENT] as string) || '')
+        .length,
+      update_sentiment: (updateData[UpdateFields.SENTIMENT] as string) || '',
       summary_length: creatorResult.summary_length,
       suggestions_length: creatorResult.suggestions_length,
       emotional_overview_length: creatorResult.emotional_overview_length,

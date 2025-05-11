@@ -8,7 +8,7 @@ const LogLevel = {
   ERROR: 3,
 } as const;
 
-// Set minimum log level here
+// Set the minimum log level here
 const MIN_LOG_LEVEL = LogLevel.WARN;
 
 /**
@@ -25,7 +25,7 @@ export const getLogger = (name: string) => {
   const formattedName = name.split('/').pop()?.replace('.ts', '') || name;
 
   return {
-    info: (message: string, ...args: any[]) => {
+    info: (message: string, ...args: unknown[]) => {
       if (MIN_LOG_LEVEL <= LogLevel.INFO) {
         const timestamp = new Date().toISOString();
         console.log(
@@ -34,7 +34,7 @@ export const getLogger = (name: string) => {
         );
       }
     },
-    warn: (message: string, ...args: any[]) => {
+    warn: (message: string, ...args: unknown[]) => {
       if (MIN_LOG_LEVEL <= LogLevel.WARN) {
         const timestamp = new Date().toISOString();
         console.warn(
@@ -43,7 +43,7 @@ export const getLogger = (name: string) => {
         );
       }
     },
-    error: (message: string, ...args: any[]) => {
+    error: (message: string, ...args: unknown[]) => {
       if (MIN_LOG_LEVEL <= LogLevel.ERROR) {
         const timestamp = new Date().toISOString();
         console.error(
@@ -52,7 +52,7 @@ export const getLogger = (name: string) => {
         );
       }
     },
-    debug: (message: string, ...args: any[]) => {
+    debug: (message: string, ...args: unknown[]) => {
       if (MIN_LOG_LEVEL <= LogLevel.DEBUG) {
         const timestamp = new Date().toISOString();
         console.debug(

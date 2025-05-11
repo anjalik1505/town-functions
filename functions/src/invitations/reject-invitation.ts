@@ -1,9 +1,5 @@
 import { Request } from 'express';
-import {
-  ApiResponse,
-  EventName,
-  InviteEventParams,
-} from '../models/analytics-events.js';
+import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
 import { InvitationFields, Status } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
@@ -24,7 +20,7 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Rejects an invitation by setting its status to rejected.
+ * Rejects an invitation by setting its status to reject.
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -56,7 +52,7 @@ export const rejectInvitation = async (
   const status = invitationData[InvitationFields.STATUS];
   canActOnInvitation(status, 'reject');
 
-  // Get the sender's user ID and ensure current user is not the sender
+  // Get the sender's user ID and ensure the current user is not the sender
   const senderId = invitationData[InvitationFields.SENDER_ID];
   hasInvitationPermission(senderId, currentUserId, 'reject');
 

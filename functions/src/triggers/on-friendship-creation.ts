@@ -1,15 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import {
-  EventName,
-  FriendshipAcceptanceEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  DeviceFields,
-  FriendshipFields,
-  Status,
-} from '../models/constants.js';
+import { EventName, FriendshipAcceptanceEventParams, } from '../models/analytics-events.js';
+import { Collections, DeviceFields, FriendshipFields, Status, } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -30,7 +22,7 @@ const logger = getLogger(path.basename(__filename));
  * @returns FriendshipAcceptanceEventParams object for analytics
  */
 const createFriendshipAcceptanceEvent = (
-  friendshipData: Record<string, any>,
+  friendshipData: Record<string, unknown>,
   hasDevice: boolean,
   senderId: string,
 ): void => {
@@ -166,7 +158,7 @@ export const onFriendshipCreated = async (
         `No device found for user ${senderId}, skipping notification`,
       );
 
-      // Track event for skipped notification due to missing device
+      // Track event for skipped notification due to a missing device
       createFriendshipAcceptanceEvent(friendshipData, false, senderId);
 
       logger.info(`Tracked no-device event for friendship acceptance`);

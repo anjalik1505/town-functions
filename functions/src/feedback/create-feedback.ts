@@ -1,13 +1,9 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  ApiResponse,
-  EventName,
-  FeedbackEventParams,
-} from '../models/analytics-events.js';
+import { ApiResponse, EventName, FeedbackEventParams, } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
-import { Feedback } from '../models/data-models.js';
+import { CreateFeedbackPayload, Feedback } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 
@@ -39,7 +35,8 @@ export const createFeedback = async (
   const currentUserId = req.userId;
 
   // Get validated data from the request
-  const content = req.validated_params.content;
+  const validatedParams = req.validated_params as CreateFeedbackPayload;
+  const content = validatedParams.content;
 
   logger.info(`Feedback details - content length: ${content.length}`);
 
@@ -53,7 +50,7 @@ export const createFeedback = async (
   const createdAt = Timestamp.now();
 
   // Create the feedback document
-  const feedbackData = {
+  const feedbackData: UpdateData<DocumentData> = {
     created_by: currentUserId,
     content: content,
     created_at: createdAt,

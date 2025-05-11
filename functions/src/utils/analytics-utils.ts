@@ -136,7 +136,7 @@ export class GA4MeasurementClient {
   }
 
   private createBatches(events: GA4Event[]): GA4Event[][] {
-    // Optimize for single event
+    // Optimize for the single event
     if (events.length === 1) {
       return [events];
     }
@@ -170,7 +170,7 @@ export class GA4MeasurementClient {
       }
 
       if (events[i]) {
-        const event = events[i] as GA4Event; // Type assertion to ensure TypeScript knows event is not undefined
+        const event = events[i] as GA4Event; // Type assertion to ensure TypeScript knows the event is not undefined
         currentBatch.push(event);
         currentSize += eventSize || 0;
       }

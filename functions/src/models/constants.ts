@@ -1,6 +1,7 @@
 // Constants for query operations
 export const MAX_BATCH_SIZE = 10;
 export const MAX_BATCH_OPERATIONS = 500;
+export const SYSTEM_USER = 'system';
 
 // Collection names
 export const Collections = {
@@ -52,6 +53,7 @@ export const ProfileFields = {
   SUGGESTIONS: 'suggestions',
   LAST_UPDATE_ID: 'last_update_id',
   UPDATED_AT: 'updated_at',
+  CREATED_AT: 'created_at',
   LIMIT_OVERRIDE: 'limit_override',
 } as const;
 

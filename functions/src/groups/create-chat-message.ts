@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
 import { ChatFields, Collections, GroupFields } from '../models/constants.js';
-import { ChatMessage } from '../models/data-models.js';
+import { ChatMessage, CreateChatMessagePayload, } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -43,7 +43,7 @@ export const createGroupChatMessage = async (
   const currentUserId = req.userId;
 
   // Get the validated request data
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as CreateChatMessagePayload;
   const text = validatedParams.text;
   const attachments = validatedParams.attachments ?? [];
 
@@ -76,7 +76,7 @@ export const createGroupChatMessage = async (
   const currentTime = Timestamp.now();
 
   // Prepare the message data
-  const messageData = {
+  const messageData: UpdateData<DocumentData> = {
     [ChatFields.SENDER_ID]: currentUserId,
     [ChatFields.TEXT]: text,
     [ChatFields.CREATED_AT]: currentTime,

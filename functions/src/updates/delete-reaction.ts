@@ -1,17 +1,9 @@
 import { Request } from 'express';
-import { getFirestore } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  ReactionEventParams,
-} from '../models/analytics-events.js';
+import { DocumentData, getFirestore, UpdateData, } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, ReactionEventParams, } from '../models/analytics-events.js';
 import { Collections, ReactionFields } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from '../utils/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
@@ -25,9 +17,9 @@ const logger = getLogger(path.basename(__filename));
  * Deletes a reaction from an update.
  *
  * This function:
- * 1. Verifies the user has access to the update
+ * 1. Verifies the user has access to update
  * 2. Verifies the user created the reaction
- * 3. Deletes the reaction document
+ * 3. Deletes reaction document
  * 4. Updates the reaction count on the update document
  *
  * @param req - The Express request object containing:
@@ -39,7 +31,7 @@ const logger = getLogger(path.basename(__filename));
  * @returns An ApiResponse containing the reaction group and analytics
  *
  * @throws 404: Update or reaction not found
- * @throws 403: You don't have access to this update or you can only delete your own reactions
+ * @throws 403: You don't have access to this update, or you can only delete your own reactions
  */
 export const deleteReaction = async (
   req: Request,
@@ -92,9 +84,10 @@ export const deleteReaction = async (
   batch.delete(reactionRef);
 
   // Update the reaction count
-  batch.update(updateResult.ref, {
+  const updateCountData: UpdateData<DocumentData> = {
     reaction_count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
-  });
+  };
+  batch.update(updateResult.ref, updateCountData);
 
   // Commit the batch
   await batch.commit();
@@ -102,7 +95,7 @@ export const deleteReaction = async (
     `Successfully deleted reaction ${reactionId} from update ${updateId}`,
   );
 
-  // Return the reaction group with updated count
+  // Return the reaction group with the updated count
   const response: ReactionGroup = {
     type: reactionData?.[ReactionFields.TYPE] || '',
     count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),

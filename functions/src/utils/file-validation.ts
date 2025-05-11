@@ -55,7 +55,7 @@ export const ensureSupportedAudioMimeType = async (
 };
 
 /**
- * Attempts to detect the MIME type of a buffer and validates if it's supported.
+ * Attempts to detect the MIME type of buffer and validates if it's supported.
  * This function can be used after decompression or on initial data.
  *
  * @param dataBuffer The data buffer to inspect.

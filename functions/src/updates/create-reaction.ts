@@ -1,17 +1,9 @@
 import { Request } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  ApiResponse,
-  EventName,
-  ReactionEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  QueryOperators,
-  ReactionFields,
-} from '../models/constants.js';
-import { ReactionGroup } from '../models/data-models.js';
+import { ApiResponse, EventName, ReactionEventParams, } from '../models/analytics-events.js';
+import { Collections, QueryOperators, ReactionFields, } from '../models/constants.js';
+import { CreateReactionPayload, ReactionGroup } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
@@ -26,9 +18,9 @@ const logger = getLogger(path.basename(__filename));
  * Creates a new reaction on an update.
  *
  * This function:
- * 1. Verifies the user has access to the update
+ * 1. Verifies the user has access to update
  * 2. Checks if the user has already reacted with this type
- * 3. Creates a new reaction in the reactions subcollection
+ * 3. Creates a new reaction in reactions subcollection
  * 4. Updates the reaction count on the update document
  *
  * @param req - The Express request object containing:
@@ -49,7 +41,8 @@ export const createReaction = async (
 ): Promise<ApiResponse<ReactionGroup>> => {
   const currentUserId = req.userId;
   const updateId = req.params.update_id;
-  const reactionType = req.validated_params.type;
+  const validatedData = req.validated_params as CreateReactionPayload;
+  const reactionType = validatedData.type;
 
   logger.info(
     `Creating ${reactionType} reaction on update ${updateId} by user ${currentUserId}`,
@@ -65,7 +58,7 @@ export const createReaction = async (
   const updateResult = await getUpdateDoc(updateId);
   hasUpdateAccess(updateResult.data, currentUserId);
 
-  // Check if user has already reacted with this type
+  // Check if a user has already reacted with this type
   const existingReactionSnapshot = await updateResult.ref
     .collection(Collections.REACTIONS)
     .where(ReactionFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
@@ -83,7 +76,7 @@ export const createReaction = async (
   const reactionId = uuidv4();
   const createdAt = Timestamp.now();
 
-  const reactionData = {
+  const reactionData: UpdateData<DocumentData> = {
     [ReactionFields.CREATED_BY]: currentUserId,
     [ReactionFields.TYPE]: reactionType,
     [ReactionFields.CREATED_AT]: createdAt,
@@ -99,9 +92,10 @@ export const createReaction = async (
   );
 
   // Update the reaction count
-  batch.update(updateResult.ref, {
+  const updateCountData: UpdateData<DocumentData> = {
     reaction_count: (updateResult.data.reaction_count || 0) + 1,
-  });
+  };
+  batch.update(updateResult.ref, updateCountData);
 
   // Commit the batch
   await batch.commit();
@@ -109,7 +103,7 @@ export const createReaction = async (
     `Successfully created reaction ${reactionId} on update ${updateId}`,
   );
 
-  // Return the reaction group with updated count
+  // Return the reaction group with an updated count
   const response: ReactionGroup = {
     type: reactionType,
     count: (updateResult.data.reaction_count || 0) + 1,

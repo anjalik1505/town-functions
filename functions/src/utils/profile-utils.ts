@@ -1,15 +1,7 @@
 import { differenceInYears, parse } from 'date-fns';
-import { getFirestore } from 'firebase-admin/firestore';
-import {
-  Collections,
-  InsightsFields,
-  ProfileFields,
-} from '../models/constants.js';
-import {
-  FriendProfileResponse,
-  Insights,
-  ProfileResponse,
-} from '../models/data-models.js';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Collections, InsightsFields, ProfileFields, } from '../models/constants.js';
+import { FriendProfileResponse, Insights, ProfileResponse, } from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -188,17 +180,20 @@ export const getProfileInsights = async (
  * @param profileData The profile data
  * @returns Common profile fields
  */
-const formatCommonProfileFields = (userId: string, profileData: any) => {
+const formatCommonProfileFields = (
+  userId: string,
+  profileData: Record<string, unknown>,
+) => {
   return {
     user_id: userId,
-    username: profileData[ProfileFields.USERNAME] || '',
-    name: profileData[ProfileFields.NAME] || '',
-    avatar: profileData[ProfileFields.AVATAR] || '',
-    location: profileData[ProfileFields.LOCATION] || '',
-    birthday: profileData[ProfileFields.BIRTHDAY] || '',
-    gender: profileData[ProfileFields.GENDER] || '',
+    username: (profileData[ProfileFields.USERNAME] as string) || '',
+    name: (profileData[ProfileFields.NAME] as string) || '',
+    avatar: (profileData[ProfileFields.AVATAR] as string) || '',
+    location: (profileData[ProfileFields.LOCATION] as string) || '',
+    birthday: (profileData[ProfileFields.BIRTHDAY] as string) || '',
+    gender: (profileData[ProfileFields.GENDER] as string) || '',
     updated_at: profileData[ProfileFields.UPDATED_AT]
-      ? formatTimestamp(profileData[ProfileFields.UPDATED_AT])
+      ? formatTimestamp(profileData[ProfileFields.UPDATED_AT] as Timestamp)
       : '',
   };
 };
@@ -212,7 +207,7 @@ const formatCommonProfileFields = (userId: string, profileData: any) => {
  */
 export const formatProfileResponse = (
   userId: string,
-  profileData: any,
+  profileData: Record<string, unknown>,
   insightsData: Insights,
 ): ProfileResponse => {
   const commonFields = formatCommonProfileFields(userId, profileData);
@@ -220,9 +215,9 @@ export const formatProfileResponse = (
   return {
     ...commonFields,
     notification_settings:
-      profileData[ProfileFields.NOTIFICATION_SETTINGS] || [],
-    summary: profileData[ProfileFields.SUMMARY] || '',
-    suggestions: profileData[ProfileFields.SUGGESTIONS] || '',
+      (profileData[ProfileFields.NOTIFICATION_SETTINGS] as string[]) || [],
+    summary: (profileData[ProfileFields.SUMMARY] as string) || '',
+    suggestions: (profileData[ProfileFields.SUGGESTIONS] as string) || '',
     insights: insightsData,
   };
 };
@@ -237,7 +232,7 @@ export const formatProfileResponse = (
  */
 export const formatFriendProfileResponse = (
   userId: string,
-  profileData: any,
+  profileData: Record<string, unknown>,
   summary: string = '',
   suggestions: string = '',
 ): FriendProfileResponse => {

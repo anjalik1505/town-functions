@@ -1,12 +1,7 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { FriendSummaryEventParams } from '../models/analytics-events.js';
 import { calculateAge, createSummaryId } from './profile-utils.js';
-import {
-  Collections,
-  ProfileFields,
-  UpdateFields,
-  UserSummaryFields,
-} from '../models/constants.js';
+import { Collections, ProfileFields, UpdateFields, UserSummaryFields, } from '../models/constants.js';
 import { generateFriendProfileFlow } from '../ai/flows.js';
 import { getLogger } from './logging-utils.js';
 
@@ -158,12 +153,12 @@ export const getSummaryContext = async (
  */
 export const generateFriendSummary = async (
   context: SummaryContext,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
 ): Promise<SummaryResult> => {
   // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT] || '';
-  const sentiment = updateData[UpdateFields.SENTIMENT] || '';
-  const updateId = updateData[UpdateFields.ID];
+  const updateContent = (updateData[UpdateFields.CONTENT] as string) || '';
+  const sentiment = (updateData[UpdateFields.SENTIMENT] as string) || '';
+  const updateId = updateData[UpdateFields.ID] as string;
 
   // Use the friend profile flow to generate summary and suggestions
   const result = await generateFriendProfileFlow({
@@ -211,7 +206,7 @@ export const writeFriendSummary = (
 ): void => {
   // Prepare the summary document
   const now = Timestamp.now();
-  const summaryUpdateData: Record<string, any> = {
+  const summaryUpdateData: UpdateData<DocumentData> = {
     [UserSummaryFields.CREATOR_ID]: creatorId,
     [UserSummaryFields.TARGET_ID]: friendId,
     [UserSummaryFields.SUMMARY]: result.summary,
@@ -243,7 +238,7 @@ export const writeFriendSummary = (
  */
 export const processFriendSummary = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, any>,
+  updateData: Record<string, unknown>,
   creatorId: string,
   friendId: string,
   batch: FirebaseFirestore.WriteBatch,

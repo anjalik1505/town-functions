@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { Collections, DeviceFields } from '../models/constants.js';
-import { NotificationResponse } from '../models/data-models.js';
+import { NotificationResponse, TestNotificationPayload, } from '../models/data-models.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 
@@ -34,7 +34,7 @@ export const testNotification = async (
   logger.info(`Sending test notification to user ${currentUserId}`);
 
   // Get validated data from request
-  const { title, body } = req.validated_params;
+  const { title, body } = req.validated_params as TestNotificationPayload;
 
   // Initialize Firestore client
   const db = getFirestore();

@@ -1,23 +1,10 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import {
-  ApiResponse,
-  EventName,
-  FriendEventParams,
-} from '../models/analytics-events.js';
-import {
-  Collections,
-  FriendshipFields,
-  QueryOperators,
-  Status,
-} from '../models/constants.js';
-import { Friend, FriendsResponse } from '../models/data-models.js';
+import { ApiResponse, EventName, FriendEventParams, } from '../models/analytics-events.js';
+import { Collections, FriendshipFields, QueryOperators, Status, } from '../models/constants.js';
+import { Friend, FriendsResponse, PaginationPayload, } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import {
-  applyPagination,
-  generateNextCursor,
-  processQueryStream,
-} from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -29,7 +16,7 @@ const logger = getLogger(path.basename(__filename));
  * Retrieves the current user's friends and pending friendship requests.
  *
  * This function fetches all accepted and pending friendships where the current user
- * is in the members array, and returns the friend's information with status.
+ * is in the member array and returns the friend's information with status.
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -37,7 +24,7 @@ const logger = getLogger(path.basename(__filename));
  *                - limit: Maximum number of friends to return (default: 20, min: 1, max: 100)
  *                - after_cursor: Cursor for pagination (base64 encoded document path)
  *
- * @returns An ApiResponse containing the friends response and analytics
+ * @returns An ApiResponse containing the friend's response and analytics
  */
 export const getMyFriends = async (
   req: Request,
@@ -50,7 +37,7 @@ export const getMyFriends = async (
   );
 
   // Get pagination parameters from the validated request
-  const validatedParams = req.validated_params;
+  const validatedParams = req.validated_params as PaginationPayload;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
@@ -72,7 +59,7 @@ export const getMyFriends = async (
     ])
     .orderBy(FriendshipFields.CREATED_AT, QueryOperators.DESC);
 
-  // Apply cursor-based pagination - errors will be automatically caught by Express
+  // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process friendships using streaming

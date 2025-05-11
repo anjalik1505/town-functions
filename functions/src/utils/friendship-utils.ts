@@ -1,8 +1,4 @@
-import {
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
 import {
   Collections,
   FriendshipFields,
@@ -14,16 +10,8 @@ import {
 } from '../models/constants.js';
 import { getLogger } from './logging-utils.js';
 import { createFeedItem } from './update-utils.js';
-import {
-  generateFriendSummary,
-  getSummaryContext,
-  SummaryResult,
-  writeFriendSummary,
-} from './summary-utils.js';
-import {
-  EventName,
-  FriendSummaryEventParams,
-} from '../models/analytics-events.js';
+import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary, } from './summary-utils.js';
+import { EventName, FriendSummaryEventParams, } from '../models/analytics-events.js';
 import { trackApiEvents } from './analytics-utils.js';
 import { fileURLToPath } from 'url';
 import path from 'path';

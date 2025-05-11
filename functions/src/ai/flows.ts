@@ -35,7 +35,7 @@ const ai = genkit({
  */
 const executeAIFlow = async <T>(
   promptName: string,
-  params: Record<string, any>,
+  params: Record<string, string>,
   defaultOutput: T,
   logPrefix: string,
 ): Promise<T> => {
@@ -69,10 +69,10 @@ const executeAIFlow = async <T>(
         error:
           error instanceof Error
             ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
             : error,
         params: params,
       });
