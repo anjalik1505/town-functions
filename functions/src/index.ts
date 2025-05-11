@@ -7,11 +7,12 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app.js';
 import { Collections } from './models/constants.js';
-import { onFriendshipCreated } from './invitations/on-friendship-creation.js';
-import { onProfileDeleted } from './own_profile/on-deletion.js';
-import { onUpdateCreated } from './updates/on-creation.js';
-import { onUpdateNotification } from './updates/on-notification.js';
-import { processDailyNotifications } from './updates/process-daily-notifications.js';
+import { onFriendshipCreated } from './triggers/on-friendship-creation.js';
+import { onProfileDeleted } from './triggers/on-profile-deletion.js';
+import { onUpdateCreated } from './triggers/on-update-creation.js';
+import { onUpdateNotification } from './triggers/on-update-notification.js';
+import { processDailyNotifications } from './triggers/process-daily-notifications.js';
+import { processInvitationNotifications } from './triggers/process-invitation-notifications.js';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -19,7 +20,7 @@ const ga4MeasurementId = defineSecret('GA4_MEASUREMENT_ID');
 const ga4ApiSecret = defineSecret('GA4_API_SECRET');
 const g4ClientId = defineSecret('GA4_SERVER_CLIENT_ID');
 
-// Export the main HTTP API function with proper configuration
+// Export the main HTTP API function with the proper configuration
 export const api = onRequest(
   {
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
@@ -53,6 +54,17 @@ export const process_daily_notifications = onSchedule(
   },
   async () => {
     await processDailyNotifications();
+  },
+);
+
+// Export the scheduled function for no-friends notifications
+export const process_no_friends_notifications = onSchedule(
+  {
+    schedule: '0 12 */3 * *',
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  async () => {
+    await processInvitationNotifications();
   },
 );
 

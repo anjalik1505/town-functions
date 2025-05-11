@@ -11,6 +11,7 @@ import {
   NotificationFields,
   ProfileFields,
   QueryOperators,
+  SYSTEM_USER,
   UpdateFields,
 } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
@@ -61,7 +62,7 @@ const processUserNotification = async (
     };
   }
 
-  // Get notification settings from profile
+  // Get notification settings from the profile
   const notificationSettings =
     profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
   const hasAllSetting = notificationSettings.includes(NotificationFields.ALL);
@@ -69,7 +70,7 @@ const processUserNotification = async (
     NotificationFields.URGENT,
   );
 
-  // Skip if user created an update in the last 24 hours
+  // Skip if the user created an update in the last 24 hours
   const recentSnapshot = await db
     .collection(Collections.UPDATES)
     .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
@@ -220,7 +221,7 @@ export const processDailyNotifications = async (): Promise<void> => {
     })),
   ];
 
-  trackApiEvents(events, 'system');
+  trackApiEvents(events, SYSTEM_USER);
   logger.info(`Tracked ${events.length} analytics events`);
 
   logger.info('Completed daily notification processing');

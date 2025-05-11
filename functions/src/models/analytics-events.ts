@@ -38,20 +38,13 @@ export enum EventName {
   FRIEND_SUMMARY_CREATED = 'friend_summary_created',
   USER_NUDGED = 'user_nudged',
   AUDIO_TRANSCRIBED = 'audio_transcribed',
+  INVITATION_NOTIFICATION_SENT = 'invitation_notification_sent',
+  INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
 }
 
 // Base interface for all event parameters
 export interface BaseEventParams {
   [key: string]: string | number | boolean;
-}
-
-// API Error event parameters
-export interface ApiErrorEventParams extends BaseEventParams {
-  error_type: string;
-  error_message: string;
-  error_code: number;
-  path: string;
-  method: string;
 }
 
 // Profile Created event parameters
@@ -116,7 +109,7 @@ export interface CommentViewEventParams extends BaseEventParams {
   unique_creators: number;
 }
 
-// Reactions event parameters
+// Reaction event parameters
 export interface ReactionEventParams extends BaseEventParams {
   reaction_count: number;
   comment_count: number;
@@ -137,7 +130,7 @@ export interface FeedbackEventParams extends BaseEventParams {
 // Notifications event parameters
 export interface NotificationsEventParams extends BaseEventParams {
   total_users_count: number;
-  notification_all_acount: number;
+  notification_all_account: number;
   notification_urgent_count: number;
   no_notification_count: number;
   friend_count: number;
@@ -163,6 +156,24 @@ export interface DailyNotificationsEventParams extends BaseEventParams {
   notification_urgent_count: number;
   no_notification_count: number;
   no_device_count: number;
+}
+
+// Invitation notifications event parameters
+export interface InvitationNotificationsEventParams extends BaseEventParams {
+  total_users_count: number;
+  notified_count: number;
+  has_friends_count: number;
+  no_timestamp_count: number;
+  profile_too_new_count: number;
+  no_device_count: number;
+}
+
+// Invitation notification event parameters for a single user
+export interface InvitationNotificationEventParams extends BaseEventParams {
+  has_friends: boolean;
+  has_timestamp: boolean;
+  profile_too_new: boolean;
+  has_device: boolean;
 }
 
 // Friendship acceptance event parameters
