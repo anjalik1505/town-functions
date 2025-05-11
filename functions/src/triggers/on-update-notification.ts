@@ -76,12 +76,12 @@ const processUserNotification = async (
     };
   }
 
-  // Get notification settings from profile
+  // Get notification settings from the profile
   const profileData = profileDoc.data() || {};
   const notificationSettings =
     profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
 
-  // If user has no notification settings, skip
+  // If the user has no notification settings, skip
   if (!notificationSettings || notificationSettings.length === 0) {
     logger.info(
       `User ${targetUserId} has no notification settings, skipping notification`,
@@ -239,7 +239,7 @@ const processAllNotifications = async (
     return {
       notifications: {
         total_users_count: 0,
-        notification_all_acount: 0,
+        notification_all_account: 0,
         notification_urgent_count: 0,
         no_notification_count: 0,
         friend_count: 0,
@@ -343,7 +343,7 @@ const processAllNotifications = async (
   return {
     notifications: {
       total_users_count: usersToNotify.size,
-      notification_all_acount: userAllCount,
+      notification_all_account: userAllCount,
       notification_urgent_count: usersUrgentCount,
       no_notification_count: noNotificationCount,
       friend_count: friendIds.length,

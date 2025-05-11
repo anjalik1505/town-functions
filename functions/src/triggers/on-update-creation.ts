@@ -86,7 +86,7 @@ const updateCreatorProfile = async (
   const sentiment = updateData[UpdateFields.SENTIMENT];
   const updateId = updateData[UpdateFields.ID];
 
-  // Get insights data from the profile's insights subcollection
+  // Get insight data from the profile's insight subcollection
   const insightsSnapshot = await profileRef
     .collection(Collections.INSIGHTS)
     .limit(1)
@@ -94,7 +94,7 @@ const updateCreatorProfile = async (
   const insightsDoc = insightsSnapshot.docs[0];
   const existingInsights = insightsDoc?.data() || {};
 
-  // Calculate age from birthday
+  // Calculate age from the birthday
   const age = calculateAge(profileData[ProfileFields.BIRTHDAY] || '');
 
   // Use the creator profile flow to generate insights
@@ -127,7 +127,7 @@ const updateCreatorProfile = async (
   batch.update(profileRef, profileUpdate);
   logger.info(`Added profile update for user ${creatorId} to batch`);
 
-  // Update or create insights document
+  // Update or create the insights document
   const insightsData = {
     [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview || '',
     [InsightsFields.KEY_MOMENTS]: result.key_moments || '',
@@ -141,7 +141,7 @@ const updateCreatorProfile = async (
         .collection(Collections.INSIGHTS)
         .doc(Documents.DEFAULT_INSIGHTS);
 
-  // Add insights update to batch
+  // Add insight update to batch
   batch.set(insightsRef, insightsData, { merge: true });
   logger.info(`Added insights update for user ${creatorId} to batch`);
 
@@ -207,7 +207,7 @@ const processAllSummaries = async (
   // Create tasks for all friends and the creator
   const tasks = [];
 
-  // Add task for updating the creator's profile
+  // Add a task for updating the creator's profile
   tasks.push(updateCreatorProfile(db, updateData, creatorId, batch));
 
   // Add tasks for all friends
