@@ -414,7 +414,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
-      "score": "5",
+      "score": 5,
       "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00"
     }
@@ -497,7 +497,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
-      "score": "5",
+      "score": 5,
       "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00",
       "username": "johndoe",
@@ -577,7 +577,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
   {
     "content_length": 0,
     "sentiment": "string",
-    "score": "string",
+    "score": 3,
     "friend_count": 0,
     "group_count": 0,
     "all_village": false
@@ -590,7 +590,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 {
   "content": "Hello world!",
   "sentiment": "happy",
-  "score": "5",
+  "score": 5,
   "emoji": "😊",
   "group_ids": ["group123"],
   "friend_ids": ["friend123"],
@@ -610,7 +610,7 @@ _Note: group_ids, friend_ids, and all_village are optional. score and emoji are 
   "group_ids": ["group123"],
   "friend_ids": ["friend123"],
   "sentiment": "happy",
-  "score": "5",
+  "score": 5,
   "emoji": "😊",
   "created_at": "2025-01-01T00:00:00.000+00:00",
   "all_village": false
@@ -653,7 +653,7 @@ _Note: group_ids, friend_ids, and all_village are optional. score and emoji are 
 ```json
 {
   "sentiment": "happy",
-  "score": "5",
+  "score": 5,
   "emoji": "😊"
 }
 ```
@@ -1464,7 +1464,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "group_ids": [],
       "friend_ids": [],
       "sentiment": "happy",
-      "score": "5",
+      "score": 5,
       "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00"
     }
