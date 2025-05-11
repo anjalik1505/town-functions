@@ -1653,39 +1653,6 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
   }
   ```
 
-### Daily Notifications (Scheduled Function)
-
-- **Trigger**: Runs daily at 14:00 UTC.
-- **Analytics Events**:
-
-  - `DAILY_NOTIFICATIONS_SENT`: When daily notifications are sent to all users.
-
-  **Event Body:**
-
-  ```json
-  {
-    "total_users_count": 0,
-    "notification_all_count": 0,
-    "notification_urgent_count": 0,
-    "no_notification_count": 0,
-    "no_device_count": 0
-  }
-  ```
-
-  - `DAILY_NOTIFICATION_SENT`: When a daily notification is sent to a user.
-
-  **Event Body:**
-
-  ```json
-  {
-    "total_users_count": 0,
-    "notification_all_count": 0,
-    "notification_urgent_count": 0,
-    "no_notification_count": 0,
-    "no_device_count": 0
-  }
-  ```
-
 ### Profile Deleted (Firestore Trigger)
 
 - **Trigger**: When a document is deleted in the `profiles` collection.
@@ -1706,3 +1673,81 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
     "invitation_count": 0
   }
   ```
+### Friendship Accepted (Firestore Trigger)
+
+- **Trigger**: When a new document is created in the `friendships` collection with `status: "ACCEPTED"`.
+- **Analytics Events**:
+
+    - `FRIENDSHIP_ACCEPTED`: When a friendship invitation is accepted and a notification is sent (or attempted) to the sender.
+
+  **Event Body:**
+
+  ```json
+  {
+    "sender_has_name": true,
+    "sender_has_avatar": true,
+    "receiver_has_name": true,
+    "receiver_has_avatar": true,
+    "has_device": true
+  }
+  ```
+
+### Daily Notifications (Scheduled Function)
+
+- **Trigger**: Runs daily at 14:00 UTC.
+- **Analytics Events**:
+
+    - `DAILY_NOTIFICATIONS_SENT`: When daily notifications are sent to all users.
+
+  **Event Body:**
+
+  ```json
+  {
+    "total_users_count": 0,
+    "notification_all_count": 0,
+    "notification_urgent_count": 0,
+    "no_notification_count": 0,
+    "no_device_count": 0
+  }
+  ```
+
+    - `DAILY_NOTIFICATION_SENT`: When a daily notification is sent to a user.
+
+  **Event Body:**
+
+  ```json
+  {
+    "total_users_count": 0,
+    "notification_all_count": 0,
+    "notification_urgent_count": 0,
+    "no_notification_count": 0,
+    "no_device_count": 0
+  }
+  ```
+
+### Invitation Reminder Notification (Scheduled Function)
+
+- **Trigger**: Runs at 12:00 PM UTC on every 3rd day of the month (cron: `0 12 */3 * *`).
+- **Analytics Events**:
+  - `INVITATION_NOTIFICATIONS_SENT` (Event Name in code: `EventName.INVITATION_NOTIFICATIONS_SENT`): An aggregate event summarizing the outcome of each scheduled run.
+    **Event Body:**
+    ```json
+    {
+      "total_users_count": 0,
+      "notified_count": 0,
+      "has_friends_count": 0,
+      "no_timestamp_count": 0,
+      "profile_too_new_count": 0,
+      "no_device_count": 0
+    }
+    ```
+  - `INVITATION_NOTIFICATION_SENT` (Event Name in code: `EventName.INVITATION_NOTIFICATION_SENT`): An event logged for each user profile processed.
+    **Event Body:**
+    ```json
+    {
+      "has_friends": true,
+      "has_timestamp": true,
+      "profile_too_new": false,
+      "has_device": true
+    }
+    ```
