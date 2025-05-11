@@ -82,6 +82,7 @@ export const createProfile = async (
     [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
     [ProfileFields.GROUP_IDS]: [],
     [ProfileFields.UPDATED_AT]: updatedAt,
+    [ProfileFields.CREATED_AT]: updatedAt,
   };
 
   // Create the profile document
