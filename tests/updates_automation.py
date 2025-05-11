@@ -102,6 +102,15 @@ def run_updates_tests():
         )
 
         # Verify all_village field is present and has the correct value
+        assert "score" in created_update, "Update missing score field"
+        assert "emoji" in created_update, "Update missing emoji field"
+        assert isinstance(
+            created_update["score"], int
+        ), f"Score should be a number, got {type(created_update['score'])}"
+        assert (
+                1 <= created_update["score"] <= 5
+        ), f"Score should be between 1 and 5, got {created_update['score']}"
+        assert created_update["emoji"] in EMOJIS, f"Invalid emoji value: {created_update['emoji']}"
         assert "all_village" in created_update, "Update missing all_village field"
         assert created_update["all_village"] is True, "all_village should be True"
         logger.info("✓ all_village field is present and set to True in the response")

@@ -12,8 +12,7 @@ import {
 } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatTimestamp } from '../utils/timestamp-utils.js';
-import { createFeedItem } from '../utils/update-utils.js';
+import { createFeedItem, formatUpdate } from '../utils/update-utils.js';
 import {
   createFriendVisibilityIdentifier,
   createFriendVisibilityIdentifiers,
@@ -58,7 +57,7 @@ export const createUpdate = async (
   const validatedParams = req.validated_params as CreateUpdatePayload;
   const content = validatedParams.content || '';
   const sentiment = validatedParams.sentiment || '';
-  const score = validatedParams.score || '3';
+  const score = validatedParams.score || 3;
   const emoji = validatedParams.emoji || '😐';
   let allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
@@ -243,26 +242,12 @@ export const createUpdate = async (
   );
 
   // Return the created update (without the internal visible_to field)
-  const response: Update = {
-    update_id: updateId,
-    created_by: currentUserId,
-    content: content,
-    sentiment: sentiment,
-    score: String(score),
-    emoji: emoji,
-    created_at: formatTimestamp(createdAt),
-    group_ids: groupIds,
-    friend_ids: friendIds,
-    comment_count: 0,
-    reaction_count: 0,
-    reactions: [],
-    all_village: allVillage,
-  };
+  const response = formatUpdate(updateId, updateData, currentUserId, []);
 
   const event: UpdateEventParams = {
     content_length: content.length,
     sentiment: sentiment,
-    score: String(score),
+    score: score,
     friend_count: friendIds.length,
     group_count: groupIds.length,
     all_village: allVillage,

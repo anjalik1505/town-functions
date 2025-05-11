@@ -61,7 +61,7 @@ export interface ProfileEventParams extends BaseEventParams {
 export interface UpdateEventParams extends BaseEventParams {
   content_length: number;
   sentiment: string;
-  score: string;
+  score: number;
   friend_count: number;
   group_count: number;
   all_village: boolean;
