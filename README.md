@@ -1729,25 +1729,31 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
 
 - **Trigger**: Runs at 12:00 PM UTC on every 3rd day of the month (cron: `0 12 */3 * *`).
 - **Analytics Events**:
-  - `INVITATION_NOTIFICATIONS_SENT` (Event Name in code: `EventName.INVITATION_NOTIFICATIONS_SENT`): An aggregate event summarizing the outcome of each scheduled run.
-    **Event Body:**
-    ```json
-    {
-      "total_users_count": 0,
-      "notified_count": 0,
-      "has_friends_count": 0,
-      "no_timestamp_count": 0,
-      "profile_too_new_count": 0,
-      "no_device_count": 0
-    }
-    ```
-  - `INVITATION_NOTIFICATION_SENT` (Event Name in code: `EventName.INVITATION_NOTIFICATION_SENT`): An event logged for each user profile processed.
-    **Event Body:**
-    ```json
-    {
-      "has_friends": true,
-      "has_timestamp": true,
-      "profile_too_new": false,
-      "has_device": true
-    }
-    ```
+
+    - `INVITATION_NOTIFICATIONS_SENT` (Event Name in code: `EventName.INVITATION_NOTIFICATIONS_SENT`): An aggregate event summarizing the outcome of each scheduled run.
+
+  **Event Body:**
+
+  ```json
+  {
+    "total_users_count": 0,
+    "notified_count": 0,
+    "has_friends_count": 0,
+    "no_timestamp_count": 0,
+    "profile_too_new_count": 0,
+    "no_device_count": 0
+  }
+  ```
+
+    - `INVITATION_NOTIFICATION_SENT` (Event Name in code: `EventName.INVITATION_NOTIFICATION_SENT`): An event logged for each user profile processed.
+
+  **Event Body:**
+
+  ```json
+  {
+    "has_friends": true,
+    "has_timestamp": true,
+    "profile_too_new": false,
+    "has_device": true
+  }
+  ```
