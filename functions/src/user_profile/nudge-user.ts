@@ -124,7 +124,7 @@ export const nudgeUser = async (
       try {
         await sendNotification(
           deviceId,
-          'Update Nudge',
+          'You’ve been on someone’s mind',
           `${currentUserName} is checking in and curious about how you're doing!`,
           {
             type: 'nudge',
