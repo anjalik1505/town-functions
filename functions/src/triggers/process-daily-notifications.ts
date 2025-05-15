@@ -28,7 +28,6 @@ const processUserNotification = async (
   db: FirebaseFirestore.Firestore,
   userId: string,
   profileData: FirebaseFirestore.DocumentData,
-  profileRef: FirebaseFirestore.DocumentReference,
 ): Promise<NotificationEventParams> => {
   // Get the user's device
   const deviceDoc = await db.collection(Collections.DEVICES).doc(userId).get();
@@ -95,24 +94,10 @@ const processUserNotification = async (
     }
   }
 
-  // Get insights data
-  const insightsSnapshot = await profileRef
-    .collection(Collections.INSIGHTS)
-    .limit(1)
-    .get();
-  const insightsDoc = insightsSnapshot.docs[0];
-  const insightsData = insightsDoc?.data() || {};
-
   // Generate and send notification with error handling
   try {
     const result = await generateDailyNotificationFlow({
       name: profileData.name || profileData.username || 'Friend',
-      existingSummary: profileData.summary || '',
-      existingSuggestions: profileData.suggestions || '',
-      existingEmotionalOverview: insightsData.emotional_overview || '',
-      existingKeyMoments: insightsData.key_moments || '',
-      existingRecurringThemes: insightsData.recurring_themes || '',
-      existingProgressAndGrowth: insightsData.progress_and_growth || '',
       gender: profileData.gender || 'unknown',
       location: profileData.location || 'unknown',
       age: calculateAge(profileData.birthday || ''),
@@ -164,12 +149,7 @@ export const processDailyNotifications = async (): Promise<void> => {
     const profileData = profileDoc.data();
     let result: NotificationEventParams;
     try {
-      result = await processUserNotification(
-        db,
-        profileDoc.id,
-        profileData,
-        profileDoc.ref,
-      );
+      result = await processUserNotification(db, profileDoc.id, profileData);
     } catch (error) {
       logger.error(
         `Failed to process notification for user ${profileDoc.id}`,
