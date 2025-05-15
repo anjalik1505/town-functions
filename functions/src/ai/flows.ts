@@ -399,12 +399,6 @@ export const analyzeSentimentFlow = async (params: { content: string }) => {
  */
 export const generateDailyNotificationFlow = async (params: {
   name: string;
-  existingSummary: string;
-  existingSuggestions: string;
-  existingEmotionalOverview: string;
-  existingKeyMoments: string;
-  existingRecurringThemes: string;
-  existingProgressAndGrowth: string;
   gender: string;
   location: string;
   age: string;
