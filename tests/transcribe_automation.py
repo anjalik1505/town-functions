@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Path to the audio file for testing
-AUDIO_FILE_PATH = os.path.join(os.path.dirname(__file__), "resources", "audio.wav")
+AUDIO_FILE_PATH = os.path.join(os.path.dirname(__file__), "resources", "audio2.mp3")
 
 
 def compress_data(data: bytes, compression_type: str = "gzip") -> bytes:

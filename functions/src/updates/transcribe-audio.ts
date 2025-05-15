@@ -81,7 +81,7 @@ export const transcribeAudio = async (
   const audioDataForTranscription = workingAudioBuffer.toString('base64');
 
   const result = await transcribeAudioFlow({
-    audioData: audioDataForTranscription,
+    audioUri: `data:${finalAudioMimeType};base64,${audioDataForTranscription}`,
     mimeType: finalAudioMimeType,
   });
 

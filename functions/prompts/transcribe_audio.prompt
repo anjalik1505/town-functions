@@ -5,8 +5,8 @@ config:
   maxOutputTokens: 1000
 input:
   schema:
-    audio_data_base64: string
-    audio_mime_type: string
+    audioUri: string
+    mimeType: string
 output:
   schema:
     transcription: string
@@ -16,6 +16,8 @@ output:
 ---
 ### TASK:
 You must perform both transcription and sentiment analysis as described below.
+
+Audio file: {{media url=audioUri contentType=mimeType}}
 
 **Summary:**
  - Generate a transcription from the provided audio file outputting the exact words.

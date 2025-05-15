@@ -424,7 +424,7 @@ export const generateDailyNotificationFlow = async (params: {
  * Transcribes audio.
  */
 export const transcribeAudioFlow = async (params: {
-  audioData: string;
+  audioUri: string;
   mimeType: string;
 }) => {
   const defaultOutput = {
