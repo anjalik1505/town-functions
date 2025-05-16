@@ -5,6 +5,7 @@ import { Collections, InvitationFields, Status } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
+import { calculateExpirationTime } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 import { hasLimitOverride } from '../utils/profile-utils.js';
@@ -86,10 +87,7 @@ export const resendInvitation = async (
 
   // Set new timestamps
   const currentTime = Timestamp.now();
-  const expiresAt = new Timestamp(
-    currentTime.seconds + 24 * 60 * 60, // Add 24 hours in seconds
-    currentTime.nanoseconds,
-  );
+  const expiresAt = calculateExpirationTime();
 
   // Update the invitation with new timestamps
   const updatePayload: UpdateData<DocumentData> = {

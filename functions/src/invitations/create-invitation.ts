@@ -5,7 +5,7 @@ import { Collections, InvitationFields, ProfileFields, Status, } from '../models
 import { CreateInvitationPayload, Invitation } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { formatInvitation } from '../utils/invitation-utils.js';
+import { calculateExpirationTime, formatInvitation, } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc, hasLimitOverride } from '../utils/profile-utils.js';
 
@@ -68,10 +68,7 @@ export const createInvitation = async (
 
   // Set the expiration time (1 day from now)
   const currentTime = Timestamp.now();
-  const expiresAt = new Timestamp(
-    currentTime.seconds + 24 * 60 * 60, // Add 24 hours in seconds
-    currentTime.nanoseconds,
-  );
+  const expiresAt = calculateExpirationTime();
 
   // Create invitation data
   const invitationData: UpdateData<DocumentData> = {

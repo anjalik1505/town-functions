@@ -37,6 +37,17 @@ export const getInvitationDoc = async (invitationId: string) => {
 };
 
 /**
+ * Calculates the expiration timestamp for an invitation (24 hours from now)
+ * @returns A Timestamp representing the expiration time
+ */
+export const calculateExpirationTime = (): Timestamp => {
+  const now = new Date();
+  const HOURS_24_IN_MS = 24 * 60 * 60 * 1000;
+  const expirationDate = new Date(now.getTime() + HOURS_24_IN_MS);
+  return Timestamp.fromDate(expirationDate);
+};
+
+/**
  * Checks if an invitation has expired
  * @param expiresAt The expiration timestamp
  * @returns True if the invitation has expired
