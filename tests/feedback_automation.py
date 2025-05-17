@@ -45,7 +45,6 @@ def run_feedback_tests():
         "username": user["email"].split("@")[0],
         "name": user["name"],
         "avatar": f"https://example.com/avatar_{user['name'].replace(' ', '_').lower()}.jpg",
-        "location": "Test City",
         "birthday": "1990-01-01",
     }
     api.create_profile(user["email"], profile_data)

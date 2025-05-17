@@ -64,7 +64,6 @@ def run_invitation_demo():
         "username": users[0]["email"].split("@")[0],
         "name": users[0]["name"],
         "avatar": f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "New York",
         "birthday": "1990-01-01",
     }
     api.create_profile(users[0]["email"], profile_data)
@@ -90,7 +89,6 @@ def run_invitation_demo():
         "username": users[1]["email"].split("@")[0],
         "name": users[1]["name"],
         "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "San Francisco",
         "birthday": "1992-02-02",
     }
     api.create_profile(users[1]["email"], profile_data)
@@ -178,7 +176,6 @@ def run_invitation_demo():
         "username": users[2]["email"].split("@")[0],
         "name": users[2]["name"],
         "avatar": f"https://example.com/avatar_{users[2]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "Chicago",
         "birthday": "1988-03-03",
     }
     api.create_profile(users[2]["email"], profile_data)
@@ -211,7 +208,6 @@ def run_invitation_demo():
         "username": users[3]["email"].split("@")[0],
         "name": users[3]["name"],
         "avatar": f"https://example.com/avatar_{users[3]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "Berlin",
         "birthday": "1995-04-04",
     }
     api.create_profile(users[3]["email"], profile_data)
@@ -486,7 +482,6 @@ def run_invitation_demo():
             "username": friend_user["email"].split("@")[0],
             "name": friend_user["name"],
             "avatar": f"https://example.com/avatar_{friend_user['name'].replace(' ', '_').lower()}.jpg",
-            "location": "Test City",
             "birthday": "1990-01-01",
         }
         api.create_profile(friend_user["email"], profile_data)

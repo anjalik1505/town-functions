@@ -20,6 +20,7 @@ export const Collections = {
   USER_FEEDS: 'user_feeds',
   FEED: 'feed',
   NUDGES: 'nudges',
+  TIME_BUCKETS: 'time_buckets',
 } as const;
 
 // Document names
@@ -55,6 +56,7 @@ export const ProfileFields = {
   UPDATED_AT: 'updated_at',
   CREATED_AT: 'created_at',
   LIMIT_OVERRIDE: 'limit_override',
+  TIMEZONE: 'timezone',
 } as const;
 
 // Field names for Friendship documents
@@ -188,6 +190,17 @@ export const NudgeFields = {
   SENDER_ID: 'sender_id',
   RECEIVER_ID: 'receiver_id',
   TIMESTAMP: 'timestamp',
+} as const;
+
+// Field names for Time Bucket documents
+export const TimeBucketFields = {
+  BUCKET_HOUR: 'bucket_hour',
+  UPDATED_AT: 'updated_at',
+} as const;
+
+// Subcollection names for Time Buckets
+export const TimeBucketCollections = {
+  USERS: 'users',
 } as const;
 
 // Options for notification settings

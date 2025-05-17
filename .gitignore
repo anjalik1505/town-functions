@@ -250,3 +250,6 @@ nject_staging.sh
 /.env.backup
 .env.deploy
 *.rdb
+
+# Editor backup files — any file whose name ends with "~"
+*~

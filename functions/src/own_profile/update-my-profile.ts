@@ -20,8 +20,8 @@ import { ProfileResponse, UpdateProfilePayload, } from '../models/data-models.js
 import { getLogger } from '../utils/logging-utils.js';
 import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -93,9 +93,6 @@ export const updateProfile = async (
   }
   if (profileData.avatar !== undefined) {
     profileUpdates[ProfileFields.AVATAR] = profileData.avatar;
-  }
-  if (profileData.location !== undefined) {
-    profileUpdates[ProfileFields.LOCATION] = profileData.location;
   }
   if (profileData.birthday !== undefined) {
     profileUpdates[ProfileFields.BIRTHDAY] = profileData.birthday;
