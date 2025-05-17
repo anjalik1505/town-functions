@@ -6,8 +6,8 @@ import { CreateProfilePayload, Insights, ProfileResponse, } from '../models/data
 import { getLogger } from '../utils/logging-utils.js';
 import { formatProfileResponse, getProfileInsights, profileExists, } from '../utils/profile-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -59,11 +59,12 @@ export const createProfile = async (
     [ProfileFields.USERNAME]: profileData.username,
     [ProfileFields.NAME]: profileData.name || '',
     [ProfileFields.AVATAR]: profileData.avatar || '',
-    [ProfileFields.LOCATION]: profileData.location || '',
+    [ProfileFields.LOCATION]: '',
     [ProfileFields.BIRTHDAY]: profileData.birthday || '',
     [ProfileFields.NOTIFICATION_SETTINGS]:
       profileData.notification_settings || [],
     [ProfileFields.GENDER]: profileData.gender || '',
+    [ProfileFields.TIMEZONE]: '',
     [ProfileFields.SUMMARY]: Placeholders.SUMMARY,
     [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
     [ProfileFields.GROUP_IDS]: [],
@@ -107,7 +108,7 @@ export const createProfile = async (
   const event: ProfileEventParams = {
     has_name: !!profileData.name,
     has_avatar: !!profileData.avatar,
-    has_location: !!profileData.location,
+    has_location: false,
     has_birthday: !!profileData.birthday,
     has_notification_settings:
       Array.isArray(profileData.notification_settings) &&

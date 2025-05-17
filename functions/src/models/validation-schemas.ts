@@ -1,4 +1,5 @@
 import { isValid, parse } from 'date-fns';
+import { getTimezoneOffset } from 'date-fns-tz';
 import emojiRegex from 'emoji-regex';
 import { z } from 'zod';
 import { NotificationFields } from './constants.js';
@@ -19,7 +20,6 @@ export const createProfileSchema = z.object({
   username: z.string().min(1),
   name: z.string().optional(),
   avatar: z.string().optional(),
-  location: z.string().optional(),
   birthday: birthdaySchema,
   notification_settings: z
     .array(z.enum([NotificationFields.ALL, NotificationFields.URGENT]))
@@ -31,7 +31,6 @@ export const updateProfileSchema = z.object({
   username: z.string().min(1).optional(),
   name: z.string().optional(),
   avatar: z.string().optional(),
-  location: z.string().optional(),
   birthday: birthdaySchema,
   notification_settings: z
     .array(z.enum([NotificationFields.ALL, NotificationFields.URGENT]))
@@ -152,4 +151,69 @@ export const transcribeAudioSchema = z.object({
     .string()
     .min(1, 'Audio data is required')
     .base64({ message: 'Audio data must be a valid base64 string' }),
+});
+
+// Timezone schema with validation using date-fns-tz
+export const timezoneSchema = z.object({
+  timezone: z
+    .string()
+    .min(1, 'Timezone is required')
+    .refine(
+      (tz) => {
+        // For valid timezones, getTimezoneOffset returns a number that's not NaN
+        // For invalid timezones like "New York", it returns NaN
+        const offset = getTimezoneOffset(tz);
+
+        // Special case: empty string returns 0, not NaN, but is invalid
+        if (tz.trim() === '') return false;
+
+        return !isNaN(offset);
+      },
+      {
+        message:
+          'Invalid timezone. Must be a valid IANA timezone identifier (e.g., America/New_York)',
+      },
+    ),
+});
+
+// Location schema with City, Country format validation using country-state-city
+export const locationSchema = z.object({
+  location: z
+    .string()
+    .min(1, 'Location is required')
+    .regex(
+      /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/,
+      'Location must be in the format "City, Country"',
+    )
+  // .refine(
+  //   (loc) => {
+  //     try {
+  //       const parts = loc.split(',').map((part) => part.trim());
+  //       if (parts.length !== 2) return false;
+
+  //       // Since we've checked parts.length === 2, these values will exist
+  //       const cityName = parts[0]!;
+  //       const countryName = parts[1]!;
+
+  //       // Validate country exists
+  //       const country = Country.getAllCountries().find(
+  //         (c) => c.name.toLowerCase() === countryName.toLowerCase(),
+  //       );
+  //       if (!country) return false;
+
+  //       // Get cities for this country
+  //       const cities = City.getCitiesOfCountry(country.isoCode) || [];
+
+  //       // Check if city exists in this country (case insensitive)
+  //       return cities.some(
+  //         (city) => city.name.toLowerCase() === cityName.toLowerCase(),
+  //       );
+  //     } catch {
+  //       return false;
+  //     }
+  //   },
+  //   {
+  //     message: 'Invalid location. Must use a valid country name with a city',
+  //   },
+  // ),
 });

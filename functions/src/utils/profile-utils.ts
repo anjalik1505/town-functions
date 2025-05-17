@@ -192,6 +192,7 @@ const formatCommonProfileFields = (
     location: (profileData[ProfileFields.LOCATION] as string) || '',
     birthday: (profileData[ProfileFields.BIRTHDAY] as string) || '',
     gender: (profileData[ProfileFields.GENDER] as string) || '',
+    timezone: (profileData[ProfileFields.TIMEZONE] as string) || '',
     updated_at: profileData[ProfileFields.UPDATED_AT]
       ? formatTimestamp(profileData[ProfileFields.UPDATED_AT] as Timestamp)
       : '',

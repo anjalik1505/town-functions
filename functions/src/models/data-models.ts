@@ -12,10 +12,12 @@ import {
   createUpdateSchema,
   deviceSchema,
   friendProfileSchema,
+  locationSchema,
   ownProfileSchema,
   paginationSchema,
   testNotificationSchema,
   testPromptSchema,
+  timezoneSchema,
   transcribeAudioSchema,
   updateCommentSchema,
   updateProfileSchema,
@@ -44,6 +46,7 @@ export interface ProfileResponse extends BaseUser {
   insights: Insights;
   suggestions: string;
   updated_at: string;
+  timezone: string;
 }
 
 export interface FriendProfileResponse {
@@ -57,6 +60,7 @@ export interface FriendProfileResponse {
   summary: string;
   suggestions: string;
   updated_at: string;
+  timezone: string;
 }
 
 export interface ReactionGroup {
@@ -136,6 +140,16 @@ export interface InvitationsResponse {
 
 export interface Device {
   device_id: string;
+  updated_at: string;
+}
+
+export interface Location {
+  location: string;
+  updated_at: string;
+}
+
+export interface Timezone {
+  timezone: string;
   updated_at: string;
 }
 
@@ -253,3 +267,5 @@ export type CreateReactionPayload = z.infer<typeof createReactionSchema>;
 export type CreateFeedbackPayload = z.infer<typeof createFeedbackSchema>;
 export type AnalyzeSentimentPayload = z.infer<typeof analyzeSentimentSchema>;
 export type TranscribeAudioPayload = z.infer<typeof transcribeAudioSchema>;
+export type TimezonePayload = z.infer<typeof timezoneSchema>;
+export type LocationPayload = z.infer<typeof locationSchema>;

@@ -23,9 +23,11 @@ import {
   createReactionSchema,
   createUpdateSchema,
   deviceSchema,
+  locationSchema,
   paginationSchema,
   testNotificationSchema,
   testPromptSchema,
+  timezoneSchema,
   transcribeAudioSchema,
   updateCommentSchema,
   updateProfileSchema,
@@ -37,7 +39,9 @@ import { getMyFriends } from './own_profile/get-my-friends.js';
 import { getProfile } from './own_profile/get-my-profile.js';
 import { getUpdates } from './own_profile/get-my-updates.js';
 import { getQuestion } from './own_profile/get-question.js';
+import { updateLocation } from './own_profile/update-location.js';
 import { updateProfile } from './own_profile/update-my-profile.js';
+import { updateTimezone } from './own_profile/update-timezone.js';
 import { testNotification } from './test/test-notification.js';
 import { testPrompt } from './test/test-prompt.js';
 import { analyzeSentiment } from './updates/analyze-sentiment.js';
@@ -174,6 +178,22 @@ app.put(
   async (req, res) => {
     const result = await updateProfile(req);
     sendResponse(res, result);
+  },
+);
+
+app.put(
+  '/me/timezone',
+  validateRequest(timezoneSchema),
+  async (req, res: Response) => {
+    await updateTimezone(req, res);
+  },
+);
+
+app.put(
+  '/me/location',
+  validateRequest(locationSchema),
+  async (req, res: Response) => {
+    await updateLocation(req, res);
   },
 );
 

@@ -56,7 +56,7 @@ def run_profile_tests():
         "username": users[0]["email"].split("@")[0],
         "name": users[0]["name"],
         "avatar": f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "New York",
+        "location": "New York", # making sure it is ignored
         "birthday": "1990-01-01",
         "notification_settings": ["all"],
         "gender": "male",
@@ -76,9 +76,11 @@ def run_profile_tests():
     assert (
             retrieved_profile["avatar"] == initial_profile_data["avatar"]
     ), "Avatar mismatch"
-    assert (
-            retrieved_profile["location"] == initial_profile_data["location"]
-    ), "Location mismatch"
+    # Location is now empty since it's managed by a separate endpoint
+    assert retrieved_profile["location"] == "", "Location should be empty"
+    # Check that timezone field exists and is empty
+    assert "timezone" in retrieved_profile, "Timezone field missing"
+    assert retrieved_profile["timezone"] == "", "Timezone should be empty"
     assert (
             retrieved_profile["birthday"] == initial_profile_data["birthday"]
     ), "Birthday mismatch"
@@ -92,7 +94,6 @@ def run_profile_tests():
         "username": f"{users[0]['email'].split('@')[0]}_updated",
         "name": f"{users[0]['name']} Updated",
         "avatar": f"https://example.com/new_avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "San Francisco",
         "notification_settings": ["urgent"],
         "gender": "female",
         "birthday": "1995-12-25",  # Valid date in yyyy-mm-dd format
@@ -116,9 +117,10 @@ def run_profile_tests():
     assert (
             retrieved_updated_profile["avatar"] == updated_profile_data["avatar"]
     ), "Updated avatar mismatch"
-    assert (
-            retrieved_updated_profile["location"] == updated_profile_data["location"]
-    ), "Updated location mismatch"
+    # Location should remain empty (managed by separate endpoint)
+    assert retrieved_updated_profile["location"] == "", "Location should remain empty"
+    # Timezone should remain empty (managed by separate endpoint)
+    assert retrieved_updated_profile["timezone"] == "", "Timezone should remain empty"
     assert (
             retrieved_updated_profile["gender"] == updated_profile_data["gender"]
     ), "Updated gender mismatch"
@@ -425,7 +427,6 @@ def run_profile_tests():
         "username": users[1]["email"].split("@")[0],
         "name": users[1]["name"],
         "avatar": f"https://example.com/avatar_{users[1]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "Los Angeles",
         "birthday": "1992-05-15",
         "gender": "female",
     }

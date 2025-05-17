@@ -297,8 +297,10 @@ class VillageAPI:
         return response.json()
 
     # Device Methods
-    def update_device(self, email: str, device_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a device for a user"""
+    def update_device(
+            self, email: str, device_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a user's device"""
         logger.info(f"Updating device for user: {email}")
 
         headers = {
@@ -314,6 +316,48 @@ class VillageAPI:
             response.raise_for_status()
 
         logger.info(f"Device updated for user: {email}")
+        return response.json()
+
+    def update_timezone(
+            self, email: str, timezone_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a user's timezone"""
+        logger.info(f"Updating timezone for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.put(
+            f"{API_BASE_URL}/me/timezone", headers=headers, json=timezone_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update timezone: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Timezone updated for user: {email}")
+        return response.json()
+
+    def update_location(
+            self, email: str, location_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a user's location"""
+        logger.info(f"Updating location for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.put(
+            f"{API_BASE_URL}/me/location", headers=headers, json=location_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update location: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Location updated for user: {email}")
         return response.json()
 
     def get_device(self, email: str) -> Dict[str, Any]:

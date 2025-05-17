@@ -45,7 +45,6 @@ def run_question_tests():
         "username": user["email"].split("@")[0],
         "name": user["name"],
         "avatar": f"https://example.com/avatar_{user['name'].replace(' ', '_').lower()}.jpg",
-        "location": "New York",
         "birthday": "1990-01-01",
         "notification_settings": ["all"],
         "gender": "male",
