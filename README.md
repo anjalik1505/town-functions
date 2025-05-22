@@ -416,7 +416,17 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "sentiment": "happy",
       "score": 5,
       "emoji": "😊",
-      "created_at": "2025-01-01T00:00:00.000+00:00"
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "comment_count": 0,
+      "reaction_count": 0,
+      "reactions": [
+        {
+          "type": "like",
+          "count": 1,
+          "reaction_id": "1234"
+        }
+      ],
+      "all_village": false
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -500,6 +510,16 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "score": 5,
       "emoji": "😊",
       "created_at": "2025-01-01T00:00:00.000+00:00",
+      "comment_count": 0,
+      "reaction_count": 0,
+      "reactions": [
+        {
+          "type": "like",
+          "count": 1, 
+          "reaction_id": "1234"
+        }
+      ],
+      "all_village": false,
       "username": "johndoe",
       "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg"
@@ -613,6 +633,15 @@ _Note: group_ids, friend_ids, and all_village are optional. score and emoji are 
   "score": 5,
   "emoji": "😊",
   "created_at": "2025-01-01T00:00:00.000+00:00",
+  "comment_count": 0,
+  "reaction_count": 0,
+  "reactions": [
+    {
+      "type": "like",
+      "count": 1,
+      "reaction_id": "1234"
+    }
+  ],
   "all_village": false
 }
 ```
@@ -1335,6 +1364,64 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 - 404: Device not found
 - 500: Internal server error
 
+#### PATCH /me/location
+
+**Purpose**: Update the authenticated user's location information.
+
+**Input**:
+
+```json
+{
+  "location": "San Francisco, USA"
+}
+```
+
+_Note: Location must be in the format "City, Country"._
+
+**Output**:
+
+```json
+{
+  "location": "San Francisco, USA",
+  "updated_at": "2025-01-15T00:00:00.000+00:00"
+}
+```
+
+**Errors**:
+
+- 400: Invalid request parameters
+- 401: Authentication required
+- 500: Internal server error
+
+#### PATCH /me/timezone
+
+**Purpose**: Update the authenticated user's timezone and manage time bucket membership.
+
+**Input**:
+
+```json
+{
+  "timezone": "America/Los_Angeles"
+}
+```
+
+_Note: Timezone must be a valid IANA timezone identifier (e.g., America/New_York, Asia/Dubai)._
+
+**Output**:
+
+```json
+{
+  "timezone": "America/Los_Angeles",
+  "updated_at": "2025-01-15T00:00:00.000+00:00"
+}
+```
+
+**Errors**:
+
+- 400: Invalid request parameters
+- 401: Authentication required
+- 500: Internal server error
+
 ### Feedback
 
 #### POST /feedback
@@ -1466,7 +1553,17 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "sentiment": "happy",
       "score": 5,
       "emoji": "😊",
-      "created_at": "2025-01-01T00:00:00.000+00:00"
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "comment_count": 0,
+      "reaction_count": 0,
+      "reactions": [
+        {
+          "type": "like",
+          "count": 1,
+          "reaction_id": "1234"
+        }
+      ],
+      "all_village": false
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
