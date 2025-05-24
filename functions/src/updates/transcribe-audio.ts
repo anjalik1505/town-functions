@@ -1,8 +1,8 @@
 import { Request } from 'express';
 import { fileTypeFromBuffer } from 'file-type';
 import { transcribeAudioFlow } from '../ai/flows.js';
-import { ApiResponse, AudioTranscribedEventParams, EventName, } from '../models/analytics-events.js';
-import { TranscribeAudioPayload, TranscriptionResponse, } from '../models/data-models.js';
+import { ApiResponse, AudioTranscribedEventParams, EventName } from '../models/analytics-events.js';
+import { TranscribeAudioPayload, TranscriptionResponse } from '../models/data-models.js';
 import { decompressData, isCompressedMimeType } from '../utils/compression.js'; // isCompressedMimeType checks against our limited list
 import { detectAndValidateAudioMimeType } from '../utils/file-validation.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -32,14 +32,10 @@ const logger = getLogger(path.basename(__filename));
  *
  * @throws 400: Invalid request parameters (handled by validation middleware) or unsupported file types.
  */
-export const transcribeAudio = async (
-  req: Request,
-): Promise<ApiResponse<TranscriptionResponse>> => {
+export const transcribeAudio = async (req: Request): Promise<ApiResponse<TranscriptionResponse>> => {
   const { audio_data } = req.validated_params as TranscribeAudioPayload;
 
-  logger.info(
-    `Received audio data for transcription, data length: ${audio_data.length}`,
-  );
+  logger.info(`Received audio data for transcription, data length: ${audio_data.length}`);
 
   let workingAudioBuffer = Buffer.from(audio_data, 'base64');
   let finalAudioMimeType: string;
@@ -52,27 +48,18 @@ export const transcribeAudio = async (
 
   // 2. Handle if compressed (and supported compression type)
   if (initialMimeType && isCompressedMimeType(initialMimeType)) {
-    logger.info(
-      `Initial type ${initialMimeType} is a supported compression format. Attempting decompression.`,
-    );
-    workingAudioBuffer = await decompressData(
-      workingAudioBuffer,
-      initialMimeType,
-    );
+    logger.info(`Initial type ${initialMimeType} is a supported compression format. Attempting decompression.`);
+    workingAudioBuffer = await decompressData(workingAudioBuffer, initialMimeType);
     logger.info(`Decompression successful for ${initialMimeType}.`);
     // After decompression, detect the actual audio type
     logger.info('Detecting MIME type of decompressed data.');
-    finalAudioMimeType =
-      await detectAndValidateAudioMimeType(workingAudioBuffer);
+    finalAudioMimeType = await detectAndValidateAudioMimeType(workingAudioBuffer);
   } else {
     if (!initialMimeType) {
       logger.warn(`MIME type could not be detected from the provided data.`);
-      throw new BadRequestError(
-        'Could not determine file type. Please provide valid audio data.',
-      );
+      throw new BadRequestError('Could not determine file type. Please provide valid audio data.');
     }
-    finalAudioMimeType =
-      await detectAndValidateAudioMimeType(workingAudioBuffer);
+    finalAudioMimeType = await detectAndValidateAudioMimeType(workingAudioBuffer);
   }
 
   logger.info(`Final audio MIME type for transcription: ${finalAudioMimeType}`);

@@ -7,7 +7,7 @@ import {
   UpdateData,
   WhereFilterOp,
 } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -16,9 +16,9 @@ import {
   ProfileFields,
   QueryOperators,
 } from '../models/constants.js';
-import { ProfileResponse, UpdateProfilePayload, } from '../models/data-models.js';
+import { ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatProfileResponse, getProfileDoc, getProfileInsights, } from '../utils/profile-utils.js';
+import { formatProfileResponse, getProfileDoc, getProfileInsights } from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -52,34 +52,25 @@ const logger = getLogger(path.basename(__filename));
  *
  * @throws 404: Profile not found
  */
-export const updateProfile = async (
-  req: Request,
-): Promise<ApiResponse<ProfileResponse>> => {
+export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileResponse>> => {
   const currentUserId = req.userId;
-  logger.info(
-    `Starting update_profile operation for user ID: ${currentUserId}`,
-  );
+  logger.info(`Starting update_profile operation for user ID: ${currentUserId}`);
 
   const db = getFirestore();
   const profileData = req.validated_params as UpdateProfilePayload;
 
   // Get the profile document using the utility function
-  const { ref: profileRef, data: currentProfileData } =
-    await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: currentProfileData } = await getProfileDoc(currentUserId);
   logger.info(`Retrieved current profile data for user ${currentUserId}`);
 
   // Check if the username, name, or avatar has changed
   const usernameChanged =
-    profileData.username !== undefined &&
-    profileData.username !== currentProfileData[ProfileFields.USERNAME];
+    profileData.username !== undefined && profileData.username !== currentProfileData[ProfileFields.USERNAME];
 
-  const nameChanged =
-    profileData.name !== undefined &&
-    profileData.name !== currentProfileData[ProfileFields.NAME];
+  const nameChanged = profileData.name !== undefined && profileData.name !== currentProfileData[ProfileFields.NAME];
 
   const avatarChanged =
-    profileData.avatar !== undefined &&
-    profileData.avatar !== currentProfileData[ProfileFields.AVATAR];
+    profileData.avatar !== undefined && profileData.avatar !== currentProfileData[ProfileFields.AVATAR];
 
   // Prepare update data
   const profileUpdates: UpdateData<DocumentData> = {};
@@ -98,8 +89,7 @@ export const updateProfile = async (
     profileUpdates[ProfileFields.BIRTHDAY] = profileData.birthday;
   }
   if (profileData.notification_settings !== undefined) {
-    profileUpdates[ProfileFields.NOTIFICATION_SETTINGS] =
-      profileData.notification_settings;
+    profileUpdates[ProfileFields.NOTIFICATION_SETTINGS] = profileData.notification_settings;
   }
   if (profileData.gender !== undefined) {
     profileUpdates[ProfileFields.GENDER] = profileData.gender;
@@ -117,9 +107,7 @@ export const updateProfile = async (
 
   // If username, name, or avatar changed, update references in other collections
   if (usernameChanged || nameChanged || avatarChanged) {
-    logger.info(
-      `Updating username/name/avatar references for user ${currentUserId}`,
-    );
+    logger.info(`Updating username/name/avatar references for user ${currentUserId}`);
 
     // 1. Update all invitations created by this user
     const invitationsQuery = db
@@ -131,16 +119,13 @@ export const updateProfile = async (
       const invitationUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
-        invitationUpdates[InvitationFields.USERNAME] =
-          profileUpdates[ProfileFields.USERNAME];
+        invitationUpdates[InvitationFields.USERNAME] = profileUpdates[ProfileFields.USERNAME];
       }
       if (nameChanged) {
-        invitationUpdates[InvitationFields.NAME] =
-          profileUpdates[ProfileFields.NAME];
+        invitationUpdates[InvitationFields.NAME] = profileUpdates[ProfileFields.NAME];
       }
       if (avatarChanged) {
-        invitationUpdates[InvitationFields.AVATAR] =
-          profileUpdates[ProfileFields.AVATAR];
+        invitationUpdates[InvitationFields.AVATAR] = profileUpdates[ProfileFields.AVATAR];
       }
 
       if (Object.keys(invitationUpdates).length > 0) {
@@ -158,16 +143,13 @@ export const updateProfile = async (
       const friendshipUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
-        friendshipUpdates[FriendshipFields.SENDER_USERNAME] =
-          profileUpdates[ProfileFields.USERNAME];
+        friendshipUpdates[FriendshipFields.SENDER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
       }
       if (nameChanged) {
-        friendshipUpdates[FriendshipFields.SENDER_NAME] =
-          profileUpdates[ProfileFields.NAME];
+        friendshipUpdates[FriendshipFields.SENDER_NAME] = profileUpdates[ProfileFields.NAME];
       }
       if (avatarChanged) {
-        friendshipUpdates[FriendshipFields.SENDER_AVATAR] =
-          profileUpdates[ProfileFields.AVATAR];
+        friendshipUpdates[FriendshipFields.SENDER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
       }
 
       if (Object.keys(friendshipUpdates).length > 0) {
@@ -178,27 +160,20 @@ export const updateProfile = async (
     // 3. Update friendships where the user is receiver
     const friendshipsAsReceiverQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(
-        FriendshipFields.RECEIVER_ID,
-        QueryOperators.EQUALS,
-        currentUserId,
-      );
+      .where(FriendshipFields.RECEIVER_ID, QueryOperators.EQUALS, currentUserId);
 
     for await (const doc of friendshipsAsReceiverQuery.stream()) {
       const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
       const friendshipUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
-        friendshipUpdates[FriendshipFields.RECEIVER_USERNAME] =
-          profileUpdates[ProfileFields.USERNAME];
+        friendshipUpdates[FriendshipFields.RECEIVER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
       }
       if (nameChanged) {
-        friendshipUpdates[FriendshipFields.RECEIVER_NAME] =
-          profileUpdates[ProfileFields.NAME];
+        friendshipUpdates[FriendshipFields.RECEIVER_NAME] = profileUpdates[ProfileFields.NAME];
       }
       if (avatarChanged) {
-        friendshipUpdates[FriendshipFields.RECEIVER_AVATAR] =
-          profileUpdates[ProfileFields.AVATAR];
+        friendshipUpdates[FriendshipFields.RECEIVER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
       }
 
       if (Object.keys(friendshipUpdates).length > 0) {
@@ -209,11 +184,7 @@ export const updateProfile = async (
     // 4. Update groups where the user is a member
     const groupsQuery = db
       .collection(Collections.GROUPS)
-      .where(
-        GroupFields.MEMBERS,
-        QueryOperators.ARRAY_CONTAINS as WhereFilterOp,
-        currentUserId,
-      );
+      .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
 
     for await (const doc of groupsQuery.stream()) {
       const groupDoc = doc as unknown as QueryDocumentSnapshot;
@@ -226,26 +197,17 @@ export const updateProfile = async (
         if (memberProfile[ProfileFields.USER_ID] === currentUserId) {
           const groupMemberSpecificUpdate: UpdateData<DocumentData> = {};
 
-          if (
-            usernameChanged &&
-            profileUpdates[ProfileFields.USERNAME] !== undefined
-          ) {
-            groupMemberSpecificUpdate[
-              `${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.USERNAME}`
-              ] = profileUpdates[ProfileFields.USERNAME];
+          if (usernameChanged && profileUpdates[ProfileFields.USERNAME] !== undefined) {
+            groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.USERNAME}`] =
+              profileUpdates[ProfileFields.USERNAME];
           }
           if (nameChanged && profileUpdates[ProfileFields.NAME] !== undefined) {
-            groupMemberSpecificUpdate[
-              `${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.NAME}`
-              ] = profileUpdates[ProfileFields.NAME];
+            groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.NAME}`] =
+              profileUpdates[ProfileFields.NAME];
           }
-          if (
-            avatarChanged &&
-            profileUpdates[ProfileFields.AVATAR] !== undefined
-          ) {
-            groupMemberSpecificUpdate[
-              `${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.AVATAR}`
-              ] = profileUpdates[ProfileFields.AVATAR];
+          if (avatarChanged && profileUpdates[ProfileFields.AVATAR] !== undefined) {
+            groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.AVATAR}`] =
+              profileUpdates[ProfileFields.AVATAR];
           }
 
           if (Object.keys(groupMemberSpecificUpdate).length > 0) {
@@ -261,12 +223,7 @@ export const updateProfile = async (
   }
 
   // Commit all the updates in a single atomic operation
-  if (
-    Object.keys(profileUpdates).length > 0 ||
-    usernameChanged ||
-    nameChanged ||
-    avatarChanged
-  ) {
+  if (Object.keys(profileUpdates).length > 0 || usernameChanged || nameChanged || avatarChanged) {
     await batch.commit();
   }
 
@@ -278,11 +235,7 @@ export const updateProfile = async (
   const insightsData = await getProfileInsights(profileRef);
 
   // Format and return the response
-  const response = formatProfileResponse(
-    currentUserId,
-    updatedProfileData,
-    insightsData,
-  );
+  const response = formatProfileResponse(currentUserId, updatedProfileData, insightsData);
 
   // Track profile update event
   const event: ProfileEventParams = {

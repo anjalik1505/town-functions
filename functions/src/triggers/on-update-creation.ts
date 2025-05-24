@@ -1,8 +1,8 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateCreatorProfileFlow } from '../ai/flows.js';
-import { EventName, FriendSummaryEventParams, SummaryEventParams, } from '../models/analytics-events.js';
-import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields, } from '../models/constants.js';
+import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
+import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
@@ -73,10 +73,7 @@ const updateCreatorProfile = async (
   const updateId = updateData[UpdateFields.ID] as string;
 
   // Get insight data from the profile's insight subcollection
-  const insightsSnapshot = await profileRef
-    .collection(Collections.INSIGHTS)
-    .limit(1)
-    .get();
+  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
   const insightsDoc = insightsSnapshot.docs[0];
   const existingInsights = insightsDoc?.data() || {};
 
@@ -87,13 +84,10 @@ const updateCreatorProfile = async (
   const result = await generateCreatorProfileFlow({
     existingSummary: existingSummary || '',
     existingSuggestions: existingSuggestions || '',
-    existingEmotionalOverview:
-      existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
+    existingEmotionalOverview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
     existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || '',
-    existingRecurringThemes:
-      existingInsights[InsightsFields.RECURRING_THEMES] || '',
-    existingProgressAndGrowth:
-      existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
+    existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || '',
+    existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
     updateContent: updateContent || '',
     sentiment: sentiment || '',
     gender: profileData[ProfileFields.GENDER] || 'unknown',
@@ -123,9 +117,7 @@ const updateCreatorProfile = async (
 
   const insightsRef = insightsDoc
     ? insightsDoc.ref
-    : profileRef
-      .collection(Collections.INSIGHTS)
-      .doc(Documents.DEFAULT_INSIGHTS);
+    : profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
 
   // Add insight update to batch
   batch.set(insightsRef, insightsData, { merge: true });
@@ -198,9 +190,7 @@ const processAllSummaries = async (
 
   // Add tasks for all friends
   for (const friendId of friendIds) {
-    tasks.push(
-      processFriendSummary(db, updateData, creatorId, friendId, batch),
-    );
+    tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch));
   }
 
   // Run all tasks in parallel
@@ -233,8 +223,7 @@ const processAllSummaries = async (
   // Return all analytics data
   return {
     mainSummary: {
-      update_length: ((updateData[UpdateFields.CONTENT] as string) || '')
-        .length,
+      update_length: ((updateData[UpdateFields.CONTENT] as string) || '').length,
       update_sentiment: (updateData[UpdateFields.SENTIMENT] as string) || '',
       summary_length: creatorResult.summary_length,
       suggestions_length: creatorResult.suggestions_length,
@@ -281,9 +270,7 @@ export const onUpdateCreated = async (
 
   // Check if the update has the required fields
   if (!updateData || Object.keys(updateData).length === 0) {
-    logger.error(
-      `Update ${updateData[UpdateFields.ID] || 'unknown'} has no data`,
-    );
+    logger.error(`Update ${updateData[UpdateFields.ID] || 'unknown'} has no data`);
     return;
   }
 
@@ -291,13 +278,8 @@ export const onUpdateCreated = async (
   const db = getFirestore();
 
   try {
-    const { mainSummary, friendSummaries } = await processAllSummaries(
-      db,
-      updateData,
-    );
-    logger.info(
-      `Successfully processed update ${updateData[UpdateFields.ID] || 'unknown'}`,
-    );
+    const { mainSummary, friendSummaries } = await processAllSummaries(db, updateData);
+    logger.info(`Successfully processed update ${updateData[UpdateFields.ID] || 'unknown'}`);
 
     // Track all events at once
     const events = [
@@ -315,9 +297,7 @@ export const onUpdateCreated = async (
 
     logger.info(`Tracked ${events.length} analytics events`);
   } catch (error) {
-    logger.error(
-      `Error processing update ${updateData[UpdateFields.ID] || 'unknown'}: ${error}`,
-    );
+    logger.error(`Error processing update ${updateData[UpdateFields.ID] || 'unknown'}: ${error}`);
     // In a production environment, we would implement retry logic here
   }
 };

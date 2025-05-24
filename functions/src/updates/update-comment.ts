@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
 import { CommentFields, ProfileFields } from '../models/constants.js';
 import { Comment, UpdateCommentPayload } from '../models/data-models.js';
 import { formatComment, getCommentDoc } from '../utils/comment-utils.js';
@@ -37,9 +37,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: Update not found
  * @throws 404: Comment not found
  */
-export const updateComment = async (
-  req: Request,
-): Promise<ApiResponse<Comment>> => {
+export const updateComment = async (req: Request): Promise<ApiResponse<Comment>> => {
   const updateId = req.params.update_id;
   const commentId = req.params.comment_id;
   const currentUserId = req.userId;
@@ -82,11 +80,7 @@ export const updateComment = async (
   // Get the creator's profile
   const { data: profileData } = await getProfileDoc(currentUserId);
 
-  const comment = formatComment(
-    commentResult.ref.id,
-    updatedCommentData,
-    currentUserId,
-  );
+  const comment = formatComment(commentResult.ref.id, updatedCommentData, currentUserId);
   comment.username = profileData[ProfileFields.USERNAME] || '';
   comment.name = profileData[ProfileFields.NAME] || '';
   comment.avatar = profileData[ProfileFields.AVATAR] || '';

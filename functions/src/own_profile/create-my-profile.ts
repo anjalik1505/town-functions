@@ -1,10 +1,10 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
-import { Collections, Documents, InsightsFields, Placeholders, ProfileFields, } from '../models/constants.js';
-import { CreateProfilePayload, Insights, ProfileResponse, } from '../models/data-models.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
+import { Collections, Documents, InsightsFields, Placeholders, ProfileFields } from '../models/constants.js';
+import { CreateProfilePayload, Insights, ProfileResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatProfileResponse, getProfileInsights, profileExists, } from '../utils/profile-utils.js';
+import { formatProfileResponse, getProfileInsights, profileExists } from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -38,9 +38,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @throws 400: Profile already exists for user {user_id}
  */
-export const createProfile = async (
-  req: Request,
-): Promise<ApiResponse<ProfileResponse>> => {
+export const createProfile = async (req: Request): Promise<ApiResponse<ProfileResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Starting add_user operation for user ID: ${currentUserId}`);
 
@@ -61,8 +59,7 @@ export const createProfile = async (
     [ProfileFields.AVATAR]: profileData.avatar || '',
     [ProfileFields.LOCATION]: '',
     [ProfileFields.BIRTHDAY]: profileData.birthday || '',
-    [ProfileFields.NOTIFICATION_SETTINGS]:
-      profileData.notification_settings || [],
+    [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
     [ProfileFields.GENDER]: profileData.gender || '',
     [ProfileFields.TIMEZONE]: '',
     [ProfileFields.SUMMARY]: Placeholders.SUMMARY,
@@ -78,9 +75,7 @@ export const createProfile = async (
   logger.info(`Profile document created for user ${currentUserId}`);
 
   // Create an empty insight subcollection document with placeholders
-  const insightsRef = profileRef
-    .collection(Collections.INSIGHTS)
-    .doc(Documents.DEFAULT_INSIGHTS);
+  const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
   const insightsData: Insights = {
     [InsightsFields.EMOTIONAL_OVERVIEW]: Placeholders.EMOTIONAL_OVERVIEW,
     [InsightsFields.KEY_MOMENTS]: Placeholders.KEY_MOMENTS,
@@ -94,15 +89,9 @@ export const createProfile = async (
   const insights = await getProfileInsights(profileRef);
 
   // Format and return the response using the utility function
-  const response = formatProfileResponse(
-    currentUserId,
-    profileDataToSave,
-    insights,
-  );
+  const response = formatProfileResponse(currentUserId, profileDataToSave, insights);
 
-  logger.info(
-    `User profile creation completed successfully for user ${currentUserId}`,
-  );
+  logger.info(`User profile creation completed successfully for user ${currentUserId}`);
 
   // Track profile creation event
   const event: ProfileEventParams = {
@@ -111,8 +100,7 @@ export const createProfile = async (
     has_location: false,
     has_birthday: !!profileData.birthday,
     has_notification_settings:
-      Array.isArray(profileData.notification_settings) &&
-      profileData.notification_settings.length > 0,
+      Array.isArray(profileData.notification_settings) && profileData.notification_settings.length > 0,
     has_gender: !!profileData.gender,
   };
 

@@ -1,10 +1,10 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, UpdateViewEventParams, } from '../models/analytics-events.js';
-import { Collections, FeedFields, QueryOperators, } from '../models/constants.js';
+import { ApiResponse, EventName, UpdateViewEventParams } from '../models/analytics-events.js';
+import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
 import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
 import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';
@@ -29,9 +29,7 @@ const logger = getLogger(path.basename(__filename));
  * - A list of updates belonging to the current user
  * - A next_cursor for pagination (if more results are available)
  */
-export const getUpdates = async (
-  req: Request,
-): Promise<ApiResponse<UpdatesResponse>> => {
+export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Retrieving updates for user: ${currentUserId}`);
 
@@ -42,9 +40,7 @@ export const getUpdates = async (
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
-  logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // Get the user's profile first to verify existence
   await getProfileDoc(currentUserId);
@@ -61,12 +57,11 @@ export const getUpdates = async (
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const { items: feedDocs, lastDoc } =
-    await processQueryStream<QueryDocumentSnapshot>(
-      paginatedQuery,
-      (doc) => doc,
-      limit,
-    );
+  const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc) => doc,
+    limit,
+  );
 
   if (feedDocs.length === 0) {
     logger.info(`No updates found for user ${currentUserId}`);
@@ -95,12 +90,7 @@ export const getUpdates = async (
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create updates
-  const updates = processFeedItems(
-    feedDocs,
-    updateMap,
-    updateReactionsMap,
-    currentUserId,
-  );
+  const updates = processFeedItems(feedDocs, updateMap, updateReactionsMap, currentUserId);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);

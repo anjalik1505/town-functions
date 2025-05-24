@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
+import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
 import { CommentFields } from '../models/constants.js';
 import { getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
@@ -33,9 +33,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: Comment not found
  * @throws 403: You can only delete your own comments
  */
-export const deleteComment = async (
-  req: Request,
-): Promise<ApiResponse<null>> => {
+export const deleteComment = async (req: Request): Promise<ApiResponse<null>> => {
   const updateId = req.params.update_id;
   const commentId = req.params.comment_id;
   const currentUserId = req.userId;

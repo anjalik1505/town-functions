@@ -1,7 +1,7 @@
 import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { FriendSummaryEventParams } from '../models/analytics-events.js';
 import { calculateAge, createSummaryId } from './profile-utils.js';
-import { Collections, ProfileFields, UpdateFields, UserSummaryFields, } from '../models/constants.js';
+import { Collections, ProfileFields, UpdateFields, UserSummaryFields } from '../models/constants.js';
 import { generateFriendProfileFlow } from '../ai/flows.js';
 import { getLogger } from './logging-utils.js';
 
@@ -94,10 +94,7 @@ export const getSummaryContext = async (
     const creatorProfileData = creatorProfileDoc.data() || {};
     // Try to get name first, then username, then fall back to "Friend"
     creatorProfile = {
-      name:
-        creatorProfileData[ProfileFields.USERNAME] ||
-        creatorProfileData[ProfileFields.NAME] ||
-        'Friend',
+      name: creatorProfileData[ProfileFields.USERNAME] || creatorProfileData[ProfileFields.NAME] || 'Friend',
       gender: creatorProfileData[ProfileFields.GENDER] || 'unknown',
       location: creatorProfileData[ProfileFields.LOCATION] || 'unknown',
       age: calculateAge(creatorProfileData[ProfileFields.BIRTHDAY] || ''),
@@ -120,10 +117,7 @@ export const getSummaryContext = async (
   if (friendProfileDoc.exists) {
     const friendProfileData = friendProfileDoc.data() || {};
     friendProfile = {
-      name:
-        friendProfileData[ProfileFields.USERNAME] ||
-        friendProfileData[ProfileFields.NAME] ||
-        'Friend',
+      name: friendProfileData[ProfileFields.USERNAME] || friendProfileData[ProfileFields.NAME] || 'Friend',
       gender: friendProfileData[ProfileFields.GENDER] || 'unknown',
       location: friendProfileData[ProfileFields.LOCATION] || 'unknown',
       age: calculateAge(friendProfileData[ProfileFields.BIRTHDAY] || ''),

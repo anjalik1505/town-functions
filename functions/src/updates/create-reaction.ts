@@ -1,8 +1,8 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiResponse, EventName, ReactionEventParams, } from '../models/analytics-events.js';
-import { Collections, QueryOperators, ReactionFields, } from '../models/constants.js';
+import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
+import { Collections, QueryOperators, ReactionFields } from '../models/constants.js';
 import { CreateReactionPayload, ReactionGroup } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -36,17 +36,13 @@ const logger = getLogger(path.basename(__filename));
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const createReaction = async (
-  req: Request,
-): Promise<ApiResponse<ReactionGroup>> => {
+export const createReaction = async (req: Request): Promise<ApiResponse<ReactionGroup>> => {
   const currentUserId = req.userId;
   const updateId = req.params.update_id;
   const validatedData = req.validated_params as CreateReactionPayload;
   const reactionType = validatedData.type;
 
-  logger.info(
-    `Creating ${reactionType} reaction on update ${updateId} by user ${currentUserId}`,
-  );
+  logger.info(`Creating ${reactionType} reaction on update ${updateId} by user ${currentUserId}`);
 
   const db = getFirestore();
 
@@ -66,9 +62,7 @@ export const createReaction = async (
     .get();
 
   if (!existingReactionSnapshot.empty) {
-    logger.warn(
-      `User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`,
-    );
+    logger.warn(`User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`);
     throw new BadRequestError('You have already reacted with this type');
   }
 
@@ -86,10 +80,7 @@ export const createReaction = async (
   const batch = db.batch();
 
   // Add the reaction document
-  batch.set(
-    updateResult.ref.collection(Collections.REACTIONS).doc(reactionId),
-    reactionData,
-  );
+  batch.set(updateResult.ref.collection(Collections.REACTIONS).doc(reactionId), reactionData);
 
   // Update the reaction count
   const updateCountData: UpdateData<DocumentData> = {
@@ -99,9 +90,7 @@ export const createReaction = async (
 
   // Commit the batch
   await batch.commit();
-  logger.info(
-    `Successfully created reaction ${reactionId} on update ${updateId}`,
-  );
+  logger.info(`Successfully created reaction ${reactionId} on update ${updateId}`);
 
   // Return the reaction group with an updated count
   const response: ReactionGroup = {

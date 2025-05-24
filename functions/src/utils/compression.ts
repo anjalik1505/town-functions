@@ -17,10 +17,7 @@ const brotliDecompress = promisify(zlib.brotliDecompress);
  * Supported compression formats and their corresponding zlib algorithm names.
  * We only support formats natively handled by Node.js's zlib.
  */
-export const COMPRESSION_MIME_TYPES: Record<
-  string,
-  'gzip' | 'deflate' | 'brotli'
-> = {
+export const COMPRESSION_MIME_TYPES: Record<string, 'gzip' | 'deflate' | 'brotli'> = {
   'application/gzip': 'gzip',
   'application/x-gzip': 'gzip',
   'application/deflate': 'deflate',
@@ -45,21 +42,13 @@ export function isCompressedMimeType(mimeType: string): boolean {
  * @returns A Promise resolving to the decompressed data buffer
  * @throws BadRequestError if decompression fails or the format is unsupported
  */
-export async function decompressData(
-  compressedData: Buffer,
-  mimeType: string,
-): Promise<Buffer> {
+export async function decompressData(compressedData: Buffer, mimeType: string): Promise<Buffer> {
   if (!Object.prototype.hasOwnProperty.call(COMPRESSION_MIME_TYPES, mimeType)) {
-    throw new BadRequestError(
-      `Unsupported or unrecognized compression format: ${mimeType}`,
-    );
+    throw new BadRequestError(`Unsupported or unrecognized compression format: ${mimeType}`);
   }
-  const compressionAlgorithm =
-    COMPRESSION_MIME_TYPES[mimeType as keyof typeof COMPRESSION_MIME_TYPES];
+  const compressionAlgorithm = COMPRESSION_MIME_TYPES[mimeType as keyof typeof COMPRESSION_MIME_TYPES];
 
-  logger.info(
-    `Decompressing data with format: ${compressionAlgorithm} (from MIME type: ${mimeType})`,
-  );
+  logger.info(`Decompressing data with format: ${compressionAlgorithm} (from MIME type: ${mimeType})`);
 
   switch (compressionAlgorithm) {
     case 'gzip':
@@ -69,8 +58,6 @@ export async function decompressData(
     case 'brotli':
       return await brotliDecompress(compressedData);
     default:
-      throw new BadRequestError(
-        `Internal error: Unhandled compression algorithm for ${mimeType}`,
-      );
+      throw new BadRequestError(`Internal error: Unhandled compression algorithm for ${mimeType}`);
   }
 }

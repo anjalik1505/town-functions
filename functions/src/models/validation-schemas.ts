@@ -21,9 +21,7 @@ export const createProfileSchema = z.object({
   name: z.string().optional(),
   avatar: z.string().optional(),
   birthday: birthdaySchema,
-  notification_settings: z
-    .array(z.enum([NotificationFields.ALL, NotificationFields.URGENT]))
-    .optional(),
+  notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
   gender: z.string().optional(),
 });
 
@@ -32,9 +30,7 @@ export const updateProfileSchema = z.object({
   name: z.string().optional(),
   avatar: z.string().optional(),
   birthday: birthdaySchema,
-  notification_settings: z
-    .array(z.enum([NotificationFields.ALL, NotificationFields.URGENT]))
-    .optional(),
+  notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
   gender: z.string().optional(),
 });
 
@@ -170,8 +166,7 @@ export const timezoneSchema = z.object({
         return !isNaN(offset);
       },
       {
-        message:
-          'Invalid timezone. Must be a valid IANA timezone identifier (e.g., America/New_York)',
+        message: 'Invalid timezone. Must be a valid IANA timezone identifier (e.g., America/New_York)',
       },
     ),
 });
@@ -181,10 +176,7 @@ export const locationSchema = z.object({
   location: z
     .string()
     .min(1, 'Location is required')
-    .regex(
-      /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/,
-      'Location must be in the format "City, Country"',
-    )
+    .regex(/^[A-Za-z\s]+,\s*[A-Za-z\s]+$/, 'Location must be in the format "City, Country"'),
   // .refine(
   //   (loc) => {
   //     try {

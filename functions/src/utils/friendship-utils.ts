@@ -1,4 +1,4 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp, } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
 import {
   Collections,
   FriendshipFields,
@@ -10,8 +10,8 @@ import {
 } from '../models/constants.js';
 import { getLogger } from './logging-utils.js';
 import { createFeedItem } from './update-utils.js';
-import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary, } from './summary-utils.js';
-import { EventName, FriendSummaryEventParams, } from '../models/analytics-events.js';
+import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
+import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import { trackApiEvents } from './analytics-utils.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -29,10 +29,7 @@ const logger = getLogger(path.basename(__filename));
  * @param userId2 - Second user ID
  * @returns A consistent friendship ID in the format "user1_user2" where user1 and user2 are sorted alphabetically
  */
-export const createFriendshipId = (
-  userId1: string,
-  userId2: string,
-): string => {
+export const createFriendshipId = (userId1: string, userId2: string): string => {
   const userIds = [userId1, userId2].sort();
   return `${userIds[0]}_${userIds[1]}`;
 };
@@ -79,11 +76,7 @@ export const hasReachedCombinedLimit = async (
     const status = invitationData[InvitationFields.STATUS];
     const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
 
-    if (
-      status === Status.PENDING &&
-      expiresAt &&
-      expiresAt.toDate() > currentTime.toDate()
-    ) {
+    if (status === Status.PENDING && expiresAt && expiresAt.toDate() > currentTime.toDate()) {
       activeInvitationCount++;
     }
   }
@@ -147,17 +140,7 @@ export async function syncFriendshipDataForUser(
       }
 
       // Use the utility function to create the feed item
-      createFeedItem(
-        db,
-        batch,
-        targetUserId,
-        updateId,
-        createdAt,
-        true,
-        sourceUserId,
-        [],
-        sourceUserId,
-      );
+      createFeedItem(db, batch, targetUserId, updateId, createdAt, true, sourceUserId, [], sourceUserId);
 
       batchCount++;
       totalProcessed++;
@@ -178,9 +161,7 @@ export async function syncFriendshipDataForUser(
       logger.info(`Committed final batch with ${batchCount} feed items`);
     }
 
-    logger.info(
-      `Created ${totalProcessed} feed items for receiver ${targetUserId}`,
-    );
+    logger.info(`Created ${totalProcessed} feed items for receiver ${targetUserId}`);
 
     if (totalProcessed === 0) {
       logger.info(`No all_village updates found for sender ${sourceUserId}`);
@@ -192,11 +173,7 @@ export async function syncFriendshipDataForUser(
     lastUpdates.reverse();
 
     // Get the summary context once at the beginning
-    const summaryContext = await getSummaryContext(
-      db,
-      sourceUserId,
-      targetUserId,
-    );
+    const summaryContext = await getSummaryContext(db, sourceUserId, targetUserId);
 
     // Create a single batch for all summary updates
     const summaryBatch = db.batch();
@@ -210,10 +187,7 @@ export async function syncFriendshipDataForUser(
     // Process each update for friend summary
     for (const updateData of lastUpdates) {
       // Generate the summary
-      const summaryResult = await generateFriendSummary(
-        summaryContext,
-        updateData,
-      );
+      const summaryResult = await generateFriendSummary(summaryContext, updateData);
 
       summaryContext.existingSummary = summaryResult.summary;
       summaryContext.existingSuggestions = summaryResult.suggestions;
@@ -226,19 +200,11 @@ export async function syncFriendshipDataForUser(
 
     // Write the final summary to the database
     if (latestSummaryResult) {
-      writeFriendSummary(
-        summaryContext,
-        latestSummaryResult,
-        sourceUserId,
-        targetUserId,
-        summaryBatch,
-      );
+      writeFriendSummary(summaryContext, latestSummaryResult, sourceUserId, targetUserId, summaryBatch);
 
       // Commit the batch with the final summary
       await summaryBatch.commit();
-      logger.info(
-        `Processed friend summaries for ${lastUpdates.length} updates`,
-      );
+      logger.info(`Processed friend summaries for ${lastUpdates.length} updates`);
 
       // Track all the friend summary events
       trackApiEvents(

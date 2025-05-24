@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields, } from '../models/constants.js';
+import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
 import { GroupMember, GroupMembersResponse } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -29,11 +29,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupMembers = async (
-  req: Request,
-  res: Response,
-  groupId: string,
-): Promise<void> => {
+export const getGroupMembers = async (req: Request, res: Response, groupId: string): Promise<void> => {
   logger.info(`Retrieving members for group: ${groupId}`);
 
   // Get the authenticated user ID from the request
@@ -57,9 +53,7 @@ export const getGroupMembers = async (
   // Check if the current user is a member of the group
   if (!membersIds.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-    throw new ForbiddenError(
-      'You must be a member of the group to view its members',
-    );
+    throw new ForbiddenError('You must be a member of the group to view its members');
   }
 
   const members: GroupMember[] = [];

@@ -1,5 +1,5 @@
 import cors from 'cors';
-import express, { ErrorRequestHandler, RequestHandler, Response, } from 'express';
+import express, { ErrorRequestHandler, RequestHandler, Response } from 'express';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ZodError } from 'zod';
@@ -12,8 +12,8 @@ import { getInvitation } from './invitations/get-invitation.js';
 import { getInvitations } from './invitations/get-invitations.js';
 import { rejectInvitation } from './invitations/reject-invitation.js';
 import { resendInvitation } from './invitations/resend-invitation.js';
-import { validateQueryParams, validateRequest, } from './middleware/validation.js';
-import { ApiResponse, ErrorResponse, EventName, } from './models/analytics-events.js';
+import { validateQueryParams, validateRequest } from './middleware/validation.js';
+import { ApiResponse, ErrorResponse, EventName } from './models/analytics-events.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,
@@ -116,14 +116,10 @@ const authenticate_request: RequestHandler = async (req, res, next) => {
   try {
     const auth_header = req.headers.authorization;
     if (!auth_header) {
-      throw new UnauthorizedError(
-        'Authentication required: valid Firebase ID token needed',
-      );
+      throw new UnauthorizedError('Authentication required: valid Firebase ID token needed');
     }
 
-    const token = auth_header.startsWith('Bearer ')
-      ? auth_header.split('Bearer ')[1]
-      : auth_header;
+    const token = auth_header.startsWith('Bearer ') ? auth_header.split('Bearer ')[1] : auth_header;
 
     if (!token) {
       throw new UnauthorizedError('Authentication token is required');
@@ -163,67 +159,43 @@ app.get('/me/question', async (req, res) => {
   sendResponse(res, result);
 });
 
-app.post(
-  '/me/profile',
-  validateRequest(createProfileSchema),
-  async (req, res) => {
-    const result = await createProfile(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/me/profile', validateRequest(createProfileSchema), async (req, res) => {
+  const result = await createProfile(req);
+  sendResponse(res, result);
+});
 
-app.put(
-  '/me/profile',
-  validateRequest(updateProfileSchema),
-  async (req, res) => {
-    const result = await updateProfile(req);
-    sendResponse(res, result);
-  },
-);
+app.put('/me/profile', validateRequest(updateProfileSchema), async (req, res) => {
+  const result = await updateProfile(req);
+  sendResponse(res, result);
+});
 
-app.put(
-  '/me/timezone',
-  validateRequest(timezoneSchema),
-  async (req, res: Response) => {
-    await updateTimezone(req, res);
-  },
-);
+app.put('/me/timezone', validateRequest(timezoneSchema), async (req, res: Response) => {
+  await updateTimezone(req, res);
+});
 
-app.put(
-  '/me/location',
-  validateRequest(locationSchema),
-  async (req, res: Response) => {
-    await updateLocation(req, res);
-  },
-);
+app.put('/me/location', validateRequest(locationSchema), async (req, res: Response) => {
+  await updateLocation(req, res);
+});
 
 app.delete('/me/profile', async (req, res) => {
   const result = await deleteProfile(req);
   sendResponse(res, result);
 });
 
-app.get(
-  '/me/updates',
-  validateQueryParams(paginationSchema),
-  async (req, res) => {
-    const result = await getUpdates(req);
-    sendResponse(res, result);
-  },
-);
+app.get('/me/updates', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getUpdates(req);
+  sendResponse(res, result);
+});
 
 app.get('/me/feed', validateQueryParams(paginationSchema), async (req, res) => {
   const result = await getFeeds(req);
   sendResponse(res, result);
 });
 
-app.get(
-  '/me/friends',
-  validateQueryParams(paginationSchema),
-  async (req, res) => {
-    const result = await getMyFriends(req);
-    sendResponse(res, result);
-  },
-);
+app.get('/me/friends', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getMyFriends(req);
+  sendResponse(res, result);
+});
 
 // User profile routes
 app.get('/users/:target_user_id/profile', async (req, res) => {
@@ -231,14 +203,10 @@ app.get('/users/:target_user_id/profile', async (req, res) => {
   sendResponse(res, result);
 });
 
-app.get(
-  '/users/:target_user_id/updates',
-  validateQueryParams(paginationSchema),
-  async (req, res) => {
-    const result = await getUserUpdates(req);
-    sendResponse(res, result);
-  },
-);
+app.get('/users/:target_user_id/updates', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getUserUpdates(req);
+  sendResponse(res, result);
+});
 
 app.post('/users/:target_user_id/nudge', async (req, res) => {
   const result = await nudgeUser(req);
@@ -246,28 +214,20 @@ app.post('/users/:target_user_id/nudge', async (req, res) => {
 });
 
 // Invitation routes
-app.get(
-  '/invitations',
-  validateQueryParams(paginationSchema),
-  async (req, res) => {
-    const result = await getInvitations(req);
-    sendResponse(res, result);
-  },
-);
+app.get('/invitations', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getInvitations(req);
+  sendResponse(res, result);
+});
 
 app.get('/invitations/:invitation_id', async (req, res) => {
   const result = await getInvitation(req);
   sendResponse(res, result);
 });
 
-app.post(
-  '/invitations',
-  validateRequest(createInvitationSchema),
-  async (req, res) => {
-    const result = await createInvitation(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/invitations', validateRequest(createInvitationSchema), async (req, res) => {
+  const result = await createInvitation(req);
+  sendResponse(res, result);
+});
 
 app.post('/invitations/:invitation_id/accept', async (req, res) => {
   const result = await acceptInvitation(req);
@@ -294,14 +254,10 @@ app.put('/device', validateRequest(deviceSchema), async (req, res) => {
 });
 
 // Update routes
-app.post(
-  '/updates/transcribe',
-  validateRequest(transcribeAudioSchema),
-  async (req, res) => {
-    const result = await transcribeAudio(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/updates/transcribe', validateRequest(transcribeAudioSchema), async (req, res) => {
+  const result = await transcribeAudio(req);
+  sendResponse(res, result);
+});
 
 app.post('/updates', validateRequest(createUpdateSchema), async (req, res) => {
   const result = await createUpdate(req);
@@ -309,32 +265,20 @@ app.post('/updates', validateRequest(createUpdateSchema), async (req, res) => {
 });
 
 // Comment routes
-app.get(
-  '/updates/:update_id/comments',
-  validateQueryParams(paginationSchema),
-  async (req, res) => {
-    const result = await getComments(req);
-    sendResponse(res, result);
-  },
-);
+app.get('/updates/:update_id/comments', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getComments(req);
+  sendResponse(res, result);
+});
 
-app.post(
-  '/updates/:update_id/comments',
-  validateRequest(createCommentSchema),
-  async (req, res) => {
-    const result = await createComment(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/updates/:update_id/comments', validateRequest(createCommentSchema), async (req, res) => {
+  const result = await createComment(req);
+  sendResponse(res, result);
+});
 
-app.put(
-  '/updates/:update_id/comments/:comment_id',
-  validateRequest(updateCommentSchema),
-  async (req, res) => {
-    const result = await updateComment(req);
-    sendResponse(res, result);
-  },
-);
+app.put('/updates/:update_id/comments/:comment_id', validateRequest(updateCommentSchema), async (req, res) => {
+  const result = await updateComment(req);
+  sendResponse(res, result);
+});
 
 app.delete('/updates/:update_id/comments/:comment_id', async (req, res) => {
   const result = await deleteComment(req);
@@ -342,14 +286,10 @@ app.delete('/updates/:update_id/comments/:comment_id', async (req, res) => {
 });
 
 // Reaction routes
-app.post(
-  '/updates/:update_id/reactions',
-  validateRequest(createReactionSchema),
-  async (req, res) => {
-    const result = await createReaction(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/updates/:update_id/reactions', validateRequest(createReactionSchema), async (req, res) => {
+  const result = await createReaction(req);
+  sendResponse(res, result);
+});
 
 app.delete('/updates/:update_id/reactions/:reaction_id', async (req, res) => {
   const result = await deleteReaction(req);
@@ -357,14 +297,10 @@ app.delete('/updates/:update_id/reactions/:reaction_id', async (req, res) => {
 });
 
 // Sentiment analysis endpoint
-app.post(
-  '/updates/sentiment',
-  validateRequest(analyzeSentimentSchema),
-  async (req, res) => {
-    const result = await analyzeSentiment(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/updates/sentiment', validateRequest(analyzeSentimentSchema), async (req, res) => {
+  const result = await analyzeSentiment(req);
+  sendResponse(res, result);
+});
 
 // // Group routes
 // app.get("/me/groups", handle_errors(false), async (req, res) => {
@@ -396,32 +332,20 @@ app.post(
 // });
 
 // Test prompt endpoint
-app.post(
-  '/test/prompt',
-  validateRequest(testPromptSchema),
-  async (req, res) => {
-    await testPrompt(req, res);
-  },
-);
+app.post('/test/prompt', validateRequest(testPromptSchema), async (req, res) => {
+  await testPrompt(req, res);
+});
 
 // Test notification endpoint
-app.post(
-  '/test/notification',
-  validateRequest(testNotificationSchema),
-  async (req, res) => {
-    await testNotification(req, res);
-  },
-);
+app.post('/test/notification', validateRequest(testNotificationSchema), async (req, res) => {
+  await testNotification(req, res);
+});
 
 // Feedback endpoint
-app.post(
-  '/feedback',
-  validateRequest(createFeedbackSchema),
-  async (req, res) => {
-    const result = await createFeedback(req);
-    sendResponse(res, result);
-  },
-);
+app.post('/feedback', validateRequest(createFeedbackSchema), async (req, res) => {
+  const result = await createFeedback(req);
+  sendResponse(res, result);
+});
 
 // Catch-all route handler for unmatched routes
 app.use((req, res) => {

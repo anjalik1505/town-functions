@@ -51,10 +51,7 @@ export function calculateTimeBucket(timezone: string): number {
     return bucket;
   } catch (error) {
     // If there's an error (e.g., invalid timezone), default to bucket 0
-    logger.error(
-      `Error calculating time bucket for timezone ${timezone}:`,
-      error,
-    );
+    logger.error(`Error calculating time bucket for timezone ${timezone}:`, error);
     return 0;
   }
 }

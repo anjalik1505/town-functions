@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, CommentEventParams, EventName, } from '../models/analytics-events.js';
-import { Collections, CommentFields, ProfileFields, } from '../models/constants.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
+import { Collections, CommentFields, ProfileFields } from '../models/constants.js';
 import { Comment, CreateCommentPayload } from '../models/data-models.js';
 import { formatComment } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
@@ -37,9 +37,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 403: You don't have access to this update
  * @throws 404: Update not found
  */
-export const createComment = async (
-  req: Request,
-): Promise<ApiResponse<Comment>> => {
+export const createComment = async (req: Request): Promise<ApiResponse<Comment>> => {
   const updateId = req.params.update_id;
   const currentUserId = req.userId;
   logger.info(`Creating comment on update: ${updateId}`);

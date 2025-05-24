@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { Collections, DeviceFields } from '../models/constants.js';
 import { Device, DevicePayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -22,10 +22,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns A Device object containing the updated device information
  */
-export const updateDevice = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const updateDevice = async (req: Request, res: Response): Promise<void> => {
   const currentUserId = req.userId;
   logger.info(`Updating device for user ${currentUserId}`);
 

@@ -69,10 +69,10 @@ const executeAIFlow = async <T>(
         error:
           error instanceof Error
             ? {
-              name: error.name,
-              message: error.message,
-              stack: error.stack,
-            }
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
             : error,
         params: params,
       });
@@ -87,9 +87,7 @@ const executeAIFlow = async <T>(
   }
 
   if (!success) {
-    logger.error(
-      `Failed to execute ${logPrefix} after ${maxRetries} attempts. Using default output.`,
-    );
+    logger.error(`Failed to execute ${logPrefix} after ${maxRetries} attempts. Using default output.`);
     return defaultOutput;
   }
 
@@ -144,9 +142,7 @@ export const generateCreatorProfileFlow = async (params: {
     progress_and_growth: originalParams.existingProgressAndGrowth,
   };
 
-  logger.error(
-    `Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
   const aiResult = await executeAIFlow<{
     summary: string;
@@ -155,17 +151,11 @@ export const generateCreatorProfileFlow = async (params: {
     key_moments: string;
     recurring_themes: string;
     progress_and_growth: string;
-  }>(
-    'creator_profile',
-    aiParams,
-    defaultOutput,
-    'Generating creator profile insights',
-  );
+  }>('creator_profile', aiParams, defaultOutput, 'Generating creator profile insights');
 
   const finalResult = { ...aiResult };
 
-  const isEmpty = (str: string | null | undefined) =>
-    !str || str.trim().length === 0;
+  const isEmpty = (str: string | null | undefined) => !str || str.trim().length === 0;
 
   if (isEmpty(finalResult.summary)) {
     finalResult.summary = originalParams.existingSummary;
@@ -186,9 +176,7 @@ export const generateCreatorProfileFlow = async (params: {
     finalResult.progress_and_growth = originalParams.existingProgressAndGrowth;
   }
 
-  logger.info(
-    `Post-processed creator profile insights: ${JSON.stringify(finalResult, null, 2)}`,
-  );
+  logger.info(`Post-processed creator profile insights: ${JSON.stringify(finalResult, null, 2)}`);
 
   return finalResult;
 };
@@ -217,11 +205,7 @@ export const generateFriendProfileFlow = async (params: {
   if (aiParams.existingSummary?.includes(FriendPlaceholderChecks.SUMMARY_END)) {
     aiParams.existingSummary = '';
   }
-  if (
-    aiParams.existingSuggestions?.includes(
-      FriendPlaceholderChecks.SUGGESTIONS_END,
-    )
-  ) {
+  if (aiParams.existingSuggestions?.includes(FriendPlaceholderChecks.SUGGESTIONS_END)) {
     aiParams.existingSuggestions = '';
   }
 
@@ -230,24 +214,16 @@ export const generateFriendProfileFlow = async (params: {
     suggestions: originalParams.existingSuggestions,
   };
 
-  logger.error(
-    `Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
   const aiResult = await executeAIFlow<{
     summary: string;
     suggestions: string;
-  }>(
-    'friend_profile',
-    aiParams,
-    defaultOutput,
-    'Generating friend profile insights',
-  );
+  }>('friend_profile', aiParams, defaultOutput, 'Generating friend profile insights');
 
   const finalResult = { ...aiResult };
 
-  const isEmpty = (str: string | null | undefined) =>
-    !str || str.trim().length === 0;
+  const isEmpty = (str: string | null | undefined) => !str || str.trim().length === 0;
 
   if (isEmpty(finalResult.summary)) {
     finalResult.summary = originalParams.existingSummary;
@@ -256,9 +232,7 @@ export const generateFriendProfileFlow = async (params: {
     finalResult.suggestions = originalParams.existingSuggestions;
   }
 
-  logger.info(
-    `Post-processed friend profile insights: ${JSON.stringify(finalResult, null, 2)}`,
-  );
+  logger.info(`Post-processed friend profile insights: ${JSON.stringify(finalResult, null, 2)}`);
 
   return finalResult;
 };
@@ -301,21 +275,14 @@ export const generateQuestionFlow = async (params: {
     question: "How's your day going? Share with your Village!",
   };
 
-  logger.error(
-    `Generating question with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Generating question with params: ${JSON.stringify(params, null, 2)}`);
 
   // Short-circuit if user has no existing summary
   if (!aiParams.existingSummary.trim()) {
     return defaultOutput;
   }
 
-  return executeAIFlow(
-    'generate_question',
-    aiParams,
-    defaultOutput,
-    'Generating personalized question',
-  );
+  return executeAIFlow('generate_question', aiParams, defaultOutput, 'Generating personalized question');
 };
 
 /**
@@ -334,16 +301,9 @@ export const generateNotificationMessageFlow = async (params: {
     message: `${params.friendName} shared an update with you.`,
   };
 
-  logger.error(
-    `Generating notification message with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Generating notification message with params: ${JSON.stringify(params, null, 2)}`);
 
-  return executeAIFlow(
-    'notification_message',
-    params,
-    defaultOutput,
-    'Generating notification message',
-  );
+  return executeAIFlow('notification_message', params, defaultOutput, 'Generating notification message');
 };
 
 /**
@@ -360,16 +320,9 @@ export const determineUrgencyFlow = async (params: {
     is_urgent: false,
   };
 
-  logger.error(
-    `Determining urgency with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Determining urgency with params: ${JSON.stringify(params, null, 2)}`);
 
-  return executeAIFlow(
-    'determine_urgency',
-    params,
-    defaultOutput,
-    'Determining update urgency',
-  );
+  return executeAIFlow('determine_urgency', params, defaultOutput, 'Determining update urgency');
 };
 
 /**
@@ -382,16 +335,9 @@ export const analyzeSentimentFlow = async (params: { content: string }) => {
     emoji: '😐',
   };
 
-  logger.error(
-    `Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`);
 
-  return executeAIFlow(
-    'analyze_sentiment',
-    params,
-    defaultOutput,
-    'Analyzing text sentiment',
-  );
+  return executeAIFlow('analyze_sentiment', params, defaultOutput, 'Analyzing text sentiment');
 };
 
 /**
@@ -408,25 +354,15 @@ export const generateDailyNotificationFlow = async (params: {
     message: `Hey ${params.name}, how are you doing today?`,
   };
 
-  logger.error(
-    `Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`,
-  );
+  logger.error(`Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`);
 
-  return executeAIFlow(
-    'daily_notification',
-    params,
-    defaultOutput,
-    'Generating daily notification message',
-  );
+  return executeAIFlow('daily_notification', params, defaultOutput, 'Generating daily notification message');
 };
 
 /**
  * Transcribes audio.
  */
-export const transcribeAudioFlow = async (params: {
-  audioUri: string;
-  mimeType: string;
-}) => {
+export const transcribeAudioFlow = async (params: { audioUri: string; mimeType: string }) => {
   const defaultOutput = {
     transcription: `I'm sorry, I couldn't transcribe that audio.`,
     sentiment: 'neutral',
@@ -436,10 +372,5 @@ export const transcribeAudioFlow = async (params: {
 
   logger.error(`Generating transcription with mime type ${params.mimeType}`);
 
-  return executeAIFlow(
-    'transcribe_audio',
-    params,
-    defaultOutput,
-    'Generating transcription and sentiment',
-  );
+  return executeAIFlow('transcribe_audio', params, defaultOutput, 'Generating transcription and sentiment');
 };

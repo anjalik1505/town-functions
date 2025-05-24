@@ -1,6 +1,6 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch, } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import { Collections, FeedFields, UpdateFields } from '../models/constants.js';
-import { EnrichedUpdate, ReactionGroup, Update, } from '../models/data-models.js';
+import { EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -95,12 +95,7 @@ export const processFeedItems = (
         return null;
       }
 
-      return formatUpdate(
-        updateId,
-        updateData,
-        currentUserId,
-        reactionsMap.get(updateId) || [],
-      );
+      return formatUpdate(updateId, updateData, currentUserId, reactionsMap.get(updateId) || []);
     })
     .filter((update): update is Update => update !== null);
 };
@@ -147,22 +142,16 @@ export const processEnrichedFeedItems = (
  * @param updateIds Array of update IDs to fetch
  * @returns Map of update IDs to update data
  */
-export const fetchUpdatesByIds = async (
-  updateIds: string[],
-): Promise<Map<string, FirebaseFirestore.DocumentData>> => {
+export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string, FirebaseFirestore.DocumentData>> => {
   const db = getFirestore();
 
   // Fetch all updates in parallel
-  const updatePromises = updateIds.map((updateId) =>
-    db.collection(Collections.UPDATES).doc(updateId).get(),
-  );
+  const updatePromises = updateIds.map((updateId) => db.collection(Collections.UPDATES).doc(updateId).get());
   const updateSnapshots = await Promise.all(updatePromises);
 
   // Create a map of update data for an easy lookup
   return new Map(
-    updateSnapshots
-      .filter((doc) => doc.exists)
-      .map((doc) => [doc.id, doc.data() as FirebaseFirestore.DocumentData]),
+    updateSnapshots.filter((doc) => doc.exists).map((doc) => [doc.id, doc.data() as FirebaseFirestore.DocumentData]),
   );
 };
 
@@ -199,10 +188,7 @@ export const getUpdateDoc = async (
  * @param userId The ID of the user to check access for
  * @throws ForbiddenError if the user doesn't have access to the update
  */
-export const hasUpdateAccess = (
-  updateData: FirebaseFirestore.DocumentData,
-  userId: string,
-): void => {
+export const hasUpdateAccess = (updateData: FirebaseFirestore.DocumentData, userId: string): void => {
   const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
   const friendVisibility = createFriendVisibilityIdentifier(userId);
   if (!visibleTo.includes(friendVisibility)) {
@@ -234,11 +220,7 @@ export const createFeedItem = (
   groupIds: string[],
   createdBy: string,
 ): void => {
-  const feedItemRef = db
-    .collection(Collections.USER_FEEDS)
-    .doc(userId)
-    .collection(Collections.FEED)
-    .doc(updateId);
+  const feedItemRef = db.collection(Collections.USER_FEEDS).doc(userId).collection(Collections.FEED).doc(updateId);
 
   const feedItemData = {
     [FeedFields.UPDATE_ID]: updateId,

@@ -1,11 +1,11 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
-import { Collections, InvitationFields, ProfileFields, Status, } from '../models/constants.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
+import { Collections, InvitationFields, ProfileFields, Status } from '../models/constants.js';
 import { CreateInvitationPayload, Invitation } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { calculateExpirationTime, formatInvitation, } from '../utils/invitation-utils.js';
+import { calculateExpirationTime, formatInvitation } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc, hasLimitOverride } from '../utils/profile-utils.js';
 
@@ -34,24 +34,17 @@ const logger = getLogger(path.basename(__filename));
  * @throws 400: User has reached the maximum number of friends and active invitations
  * @throws 404: User profile not found
  */
-export const createInvitation = async (
-  req: Request,
-): Promise<ApiResponse<Invitation>> => {
+export const createInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
   logger.info(`Creating invitation for user ${currentUserId}`);
 
   // Check combined limit
-  const { friendCount, activeInvitationCount, hasReachedLimit } =
-    await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
   if (hasReachedLimit) {
     const override = await hasLimitOverride(currentUserId);
     if (!override) {
-      logger.warn(
-        `User ${currentUserId} has reached the maximum number of friends and active invitations`,
-      );
-      throw new BadRequestError(
-        'You have reached the maximum number of friends and active invitations',
-      );
+      logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
+      throw new BadRequestError('You have reached the maximum number of friends and active invitations');
     }
   }
 
@@ -73,8 +66,7 @@ export const createInvitation = async (
   // Create invitation data
   const invitationData: UpdateData<DocumentData> = {
     [InvitationFields.SENDER_ID]: currentUserId,
-    [InvitationFields.USERNAME]:
-      currentUserProfile[ProfileFields.USERNAME] || '',
+    [InvitationFields.USERNAME]: currentUserProfile[ProfileFields.USERNAME] || '',
     [InvitationFields.NAME]: currentUserProfile[ProfileFields.NAME] || '',
     [InvitationFields.AVATAR]: currentUserProfile[ProfileFields.AVATAR] || '',
     [InvitationFields.STATUS]: Status.PENDING,

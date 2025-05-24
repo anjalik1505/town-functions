@@ -24,14 +24,9 @@ const logger = getLogger('update-location');
  *
  * @returns An ApiResponse with success status and the updated location
  */
-export const updateLocation = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const updateLocation = async (req: Request, res: Response): Promise<void> => {
   const currentUserId = req.userId;
-  logger.info(
-    `Starting update_location operation for user ID: ${currentUserId}`,
-  );
+  logger.info(`Starting update_location operation for user ID: ${currentUserId}`);
 
   const locationData = req.validated_params as LocationPayload;
   const newLocation = locationData.location;
@@ -52,9 +47,7 @@ export const updateLocation = async (
 
   // Commit the batch
   await batch.commit();
-  logger.info(
-    `Batch operation completed successfully for user ${currentUserId}`,
-  );
+  logger.info(`Batch operation completed successfully for user ${currentUserId}`);
 
   const location: Location = {
     location: newLocation,

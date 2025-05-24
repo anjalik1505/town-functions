@@ -1,6 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { DeleteProfileEventParams, EventName, } from '../models/analytics-events.js';
+import { DeleteProfileEventParams, EventName } from '../models/analytics-events.js';
 import {
   Collections,
   FeedFields,
@@ -106,10 +106,7 @@ const streamAndProcessCollection = async (
  * @param userId - The ID of the user whose profile was deleted
  * @returns The number of friendships deleted
  */
-const deleteFriendships = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-): Promise<number> => {
+const deleteFriendships = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
   logger.info(`Deleting friendships for user ${userId}`);
 
   // Get all friendships involving the user
@@ -118,10 +115,7 @@ const deleteFriendships = async (
     .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
 
   // Process each friendship document
-  const processFriendshipDoc = (
-    friendshipDoc: QueryDocumentSnapshot,
-    batch: FirebaseFirestore.WriteBatch,
-  ) => {
+  const processFriendshipDoc = (friendshipDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
     batch.delete(friendshipDoc.ref);
   };
 
@@ -144,10 +138,7 @@ const deleteFriendships = async (
  * @param userId - The ID of the user whose profile was deleted
  * @returns The number of user summaries deleted
  */
-const deleteUserSummaries = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-): Promise<number> => {
+const deleteUserSummaries = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
   logger.info(`Deleting user summaries for user ${userId}`);
 
   // Get all user summaries where the user is either the creator or the target
@@ -160,10 +151,7 @@ const deleteUserSummaries = async (
     .where(UserSummaryFields.TARGET_ID, QueryOperators.EQUALS, userId);
 
   // Process each summary document
-  const processSummaryDoc = (
-    summaryDoc: QueryDocumentSnapshot,
-    batch: FirebaseFirestore.WriteBatch,
-  ) => {
+  const processSummaryDoc = (summaryDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
     batch.delete(summaryDoc.ref);
   };
 
@@ -195,10 +183,7 @@ const deleteUserSummaries = async (
  * @param userId - The ID of the user whose profile was deleted
  * @returns The number of groups the user was removed from
  */
-const exitGroups = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-): Promise<number> => {
+const exitGroups = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
   logger.info(`Removing user ${userId} from groups`);
 
   // Get all groups the user is a member of
@@ -207,25 +192,18 @@ const exitGroups = async (
     .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
 
   // Process each group document
-  const processGroupDoc = (
-    groupDoc: QueryDocumentSnapshot,
-    batch: FirebaseFirestore.WriteBatch,
-  ) => {
+  const processGroupDoc = (groupDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
     const groupData = groupDoc.data();
     const members = groupData[GroupFields.MEMBERS] || [];
     const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
 
     // Remove the user from the member array
-    const updatedMembers = members.filter(
-      (memberId: string) => memberId !== userId,
-    );
+    const updatedMembers = members.filter((memberId: string) => memberId !== userId);
 
     // Remove the user's profile from the member_profiles array
-    const updatedMemberProfiles = memberProfiles.filter(
-      (profile: GroupMember) => {
-        return profile.user_id !== userId;
-      },
-    );
+    const updatedMemberProfiles = memberProfiles.filter((profile: GroupMember) => {
+      return profile.user_id !== userId;
+    });
 
     // Update the group document
     batch.update(groupDoc.ref, {
@@ -235,12 +213,7 @@ const exitGroups = async (
   };
 
   // Stream and process the groups
-  const totalUpdated = await streamAndProcessCollection(
-    groupsQuery,
-    processGroupDoc,
-    db,
-    'group updates',
-  );
+  const totalUpdated = await streamAndProcessCollection(groupsQuery, processGroupDoc, db, 'group updates');
 
   logger.info(`Removed user ${userId} from ${totalUpdated} groups`);
   return totalUpdated;
@@ -253,10 +226,7 @@ const exitGroups = async (
  * @param userId - The ID of the user whose profile was deleted
  * @returns The number of device records deleted (0 or 1)
  */
-const deleteDeviceInfo = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-): Promise<number> => {
+const deleteDeviceInfo = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
   logger.info(`Deleting device information for user ${userId}`);
 
   // Get the device document
@@ -319,9 +289,7 @@ const deleteUpdateAndFeedData = async (
     const chunk = updateIds.slice(i, i + CHUNK_SIZE);
 
     // 4. Query all feed entries that reference any of these updates
-    const feedEntriesQuery = db
-      .collectionGroup(Collections.FEED)
-      .where(FeedFields.UPDATE_ID, QueryOperators.IN, chunk);
+    const feedEntriesQuery = db.collectionGroup(Collections.FEED).where(FeedFields.UPDATE_ID, QueryOperators.IN, chunk);
 
     // Process feed entries
     for await (const doc of feedEntriesQuery.stream()) {
@@ -370,9 +338,7 @@ const deleteUpdateAndFeedData = async (
     logger.info(`Deleted user feed document for user ${userId}`);
   }
 
-  logger.info(
-    `Deleted ${totalFeedEntriesDeleted} feed entries and ${totalUpdatesDeleted} updates for user ${userId}`,
-  );
+  logger.info(`Deleted ${totalFeedEntriesDeleted} feed entries and ${totalUpdatesDeleted} updates for user ${userId}`);
   return {
     updateCount: totalUpdatesDeleted,
     feedCount: totalFeedEntriesDeleted,
@@ -386,10 +352,7 @@ const deleteUpdateAndFeedData = async (
  * @param userId - The ID of the user whose profile was deleted
  * @returns The number of invitations deleted
  */
-const deleteInvitations = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-): Promise<number> => {
+const deleteInvitations = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
   logger.info(`Deleting invitations for user ${userId}`);
 
   // Get all invitations sent by the user
@@ -398,10 +361,7 @@ const deleteInvitations = async (
     .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId);
 
   // Process each invitation document
-  const processInvitationDoc = (
-    invitationDoc: QueryDocumentSnapshot,
-    batch: FirebaseFirestore.WriteBatch,
-  ) => {
+  const processInvitationDoc = (invitationDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
     batch.delete(invitationDoc.ref);
   };
 
@@ -423,21 +383,11 @@ const deleteInvitations = async (
  * @param db - Firestore client
  * @param userId - The ID of the user whose profile was deleted
  */
-const deleteAllUserData = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-): Promise<void> => {
+const deleteAllUserData = async (db: FirebaseFirestore.Firestore, userId: string): Promise<void> => {
   logger.info(`Starting deletion of all data for user ${userId}`);
 
   // Run all deletion tasks in parallel
-  const [
-    updateData,
-    friendCount,
-    summaryCount,
-    groupCount,
-    deviceCount,
-    invitationCount,
-  ] = await Promise.all([
+  const [updateData, friendCount, summaryCount, groupCount, deviceCount, invitationCount] = await Promise.all([
     deleteUpdateAndFeedData(db, userId),
     deleteFriendships(db, userId),
     deleteUserSummaries(db, userId),
@@ -492,9 +442,7 @@ export const onProfileDeleted = async (
     await deleteAllUserData(db, userId);
     logger.info(`Successfully processed profile deletion for user ${userId}`);
   } catch (error) {
-    logger.error(
-      `Error processing profile deletion for user ${userId}: ${error}`,
-    );
+    logger.error(`Error processing profile deletion for user ${userId}: ${error}`);
     // In a production environment, we would implement retry logic here
   }
 };

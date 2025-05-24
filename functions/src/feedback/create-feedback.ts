@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiResponse, EventName, FeedbackEventParams, } from '../models/analytics-events.js';
+import { ApiResponse, EventName, FeedbackEventParams } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
 import { CreateFeedbackPayload, Feedback } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -26,9 +26,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns An ApiResponse containing the created feedback and analytics
  */
-export const createFeedback = async (
-  req: Request,
-): Promise<ApiResponse<Feedback>> => {
+export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback>> => {
   logger.info(`Creating feedback for user: ${req.userId}`);
 
   // Get the authenticated user ID from the request

@@ -31,27 +31,19 @@ export const SUPPORTED_AUDIO_MIME_TYPES: readonly string[] = [
  * @param detectedMimeType - The MIME type detected by file-type or similar.
  * @throws BadRequestError if the detected MIME type is not supported.
  */
-export const ensureSupportedAudioMimeType = async (
-  detectedMimeType: string | undefined,
-): Promise<void> => {
+export const ensureSupportedAudioMimeType = async (detectedMimeType: string | undefined): Promise<void> => {
   if (!detectedMimeType) {
     logger.warn('MIME type could not be detected from the provided data.');
-    throw new BadRequestError(
-      'Could not determine file type. Please provide valid audio data.',
-    );
+    throw new BadRequestError('Could not determine file type. Please provide valid audio data.');
   }
 
   if (!SUPPORTED_AUDIO_MIME_TYPES.includes(detectedMimeType)) {
-    logger.warn(
-      `Detected MIME type ${detectedMimeType} is not in the list of Gemini-supported audio types.`,
-    );
+    logger.warn(`Detected MIME type ${detectedMimeType} is not in the list of Gemini-supported audio types.`);
     throw new BadRequestError(
       `Unsupported audio format: ${detectedMimeType}. Supported formats by the transcription service are: ${SUPPORTED_AUDIO_MIME_TYPES.join(', ')}`,
     );
   }
-  logger.info(
-    `Detected MIME type ${detectedMimeType} is supported for transcription.`,
-  );
+  logger.info(`Detected MIME type ${detectedMimeType} is supported for transcription.`);
 };
 
 /**
@@ -62,9 +54,7 @@ export const ensureSupportedAudioMimeType = async (
  * @returns The detected and supported audio MIME type.
  * @throws BadRequestError if the type cannot be detected or is not supported.
  */
-export const detectAndValidateAudioMimeType = async (
-  dataBuffer: Buffer,
-): Promise<string> => {
+export const detectAndValidateAudioMimeType = async (dataBuffer: Buffer): Promise<string> => {
   const fileTypeResult = await fileTypeFromBuffer(dataBuffer);
   const detectedMime = fileTypeResult?.mime;
 

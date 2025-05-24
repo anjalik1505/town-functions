@@ -1,7 +1,7 @@
 import { differenceInYears, parse } from 'date-fns';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, InsightsFields, ProfileFields, } from '../models/constants.js';
-import { FriendProfileResponse, Insights, ProfileResponse, } from '../models/data-models.js';
+import { Collections, InsightsFields, ProfileFields } from '../models/constants.js';
+import { FriendProfileResponse, Insights, ProfileResponse } from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -78,10 +78,7 @@ export const fetchUserProfile = async (userId: string) => {
  * @returns Map of user IDs to their profile data
  */
 export const fetchUsersProfiles = async (userIds: string[]) => {
-  const profiles = new Map<
-    string,
-    { username: string; name: string; avatar: string }
-  >();
+  const profiles = new Map<string, { username: string; name: string; avatar: string }>();
   const uniqueUserIds = Array.from(new Set(userIds));
 
   // Fetch profiles in parallel
@@ -103,9 +100,7 @@ export const fetchUsersProfiles = async (userIds: string[]) => {
  * @param profile - The profile data to add
  * @returns The enriched item
  */
-export const enrichWithProfile = <
-  T extends { username?: string; name?: string; avatar?: string },
->(
+export const enrichWithProfile = <T extends { username?: string; name?: string; avatar?: string }>(
   item: T,
   profile: { username: string; name: string; avatar: string } | null,
 ): T => {
@@ -127,9 +122,7 @@ export const enrichWithProfile = <
  * @returns The profile document and data
  * @throws NotFoundError if the profile doesn't exist
  */
-export const getProfileDoc = async (
-  userId: string,
-): Promise<ProfileDocumentResult> => {
+export const getProfileDoc = async (userId: string): Promise<ProfileDocumentResult> => {
   const result = await getProfileDocument(userId, true);
   // This should never be null because getProfileDocument will throw if not found
   return result as ProfileDocumentResult;
@@ -156,13 +149,8 @@ export const profileExists = async (userId: string): Promise<void> => {
  * @param profileRef The reference to the profile document
  * @returns The insights data
  */
-export const getProfileInsights = async (
-  profileRef: FirebaseFirestore.DocumentReference,
-): Promise<Insights> => {
-  const insightsSnapshot = await profileRef
-    .collection(Collections.INSIGHTS)
-    .limit(1)
-    .get();
+export const getProfileInsights = async (profileRef: FirebaseFirestore.DocumentReference): Promise<Insights> => {
+  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
   const insightsDoc = insightsSnapshot.docs[0];
   const insightsData = insightsDoc?.data() || {};
 
@@ -180,10 +168,7 @@ export const getProfileInsights = async (
  * @param profileData The profile data
  * @returns Common profile fields
  */
-const formatCommonProfileFields = (
-  userId: string,
-  profileData: Record<string, unknown>,
-) => {
+const formatCommonProfileFields = (userId: string, profileData: Record<string, unknown>) => {
   return {
     user_id: userId,
     username: (profileData[ProfileFields.USERNAME] as string) || '',
@@ -215,8 +200,7 @@ export const formatProfileResponse = (
 
   return {
     ...commonFields,
-    notification_settings:
-      (profileData[ProfileFields.NOTIFICATION_SETTINGS] as string[]) || [],
+    notification_settings: (profileData[ProfileFields.NOTIFICATION_SETTINGS] as string[]) || [],
     summary: (profileData[ProfileFields.SUMMARY] as string) || '',
     suggestions: (profileData[ProfileFields.SUGGESTIONS] as string) || '',
     insights: insightsData,

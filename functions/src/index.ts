@@ -1,5 +1,5 @@
 import { defineSecret } from 'firebase-functions/params';
-import { onDocumentCreated, onDocumentDeleted, } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app.js';

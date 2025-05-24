@@ -1,6 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { generateDailyNotificationFlow } from '../ai/flows.js';
-import { DailyNotificationsEventParams, EventName, NotificationEventParams, } from '../models/analytics-events.js';
+import { DailyNotificationsEventParams, EventName, NotificationEventParams } from '../models/analytics-events.js';
 import {
   Collections,
   DeviceFields,
@@ -58,12 +58,9 @@ const processUserNotification = async (
   }
 
   // Get notification settings from the profile
-  const notificationSettings =
-    profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
+  const notificationSettings = profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
   const hasAllSetting = notificationSettings.includes(NotificationFields.ALL);
-  const hasUrgentSetting = notificationSettings.includes(
-    NotificationFields.URGENT,
-  );
+  const hasUrgentSetting = notificationSettings.includes(NotificationFields.URGENT);
 
   // Skip if the user created an update in the last 24 hours
   const recentSnapshot = await db
@@ -74,15 +71,9 @@ const processUserNotification = async (
     .get();
   const lastDoc = recentSnapshot.docs[0];
   if (lastDoc) {
-    const lastTimestamp = (
-      lastDoc.data()[UpdateFields.CREATED_AT] as FirebaseFirestore.Timestamp
-    )
-      .toDate()
-      .getTime();
+    const lastTimestamp = (lastDoc.data()[UpdateFields.CREATED_AT] as FirebaseFirestore.Timestamp).toDate().getTime();
     if (Date.now() - lastTimestamp < 24 * 60 * 60 * 1000) {
-      logger.info(
-        `Skipping daily notification for user ${userId} due to recent update`,
-      );
+      logger.info(`Skipping daily notification for user ${userId} due to recent update`);
       return {
         notification_all: false,
         notification_urgent: false,
@@ -116,10 +107,7 @@ const processUserNotification = async (
       is_urgent: false,
     };
   } catch (error) {
-    logger.error(
-      `Failed to generate/send notification for user ${userId}`,
-      error,
-    );
+    logger.error(`Failed to generate/send notification for user ${userId}`, error);
     return {
       notification_all: false,
       notification_urgent: false,
@@ -139,9 +127,7 @@ export const processDailyNotifications = async (): Promise<void> => {
   logger.info('Starting daily notification processing');
 
   // Stream all profiles
-  const profilesStream = db
-    .collection(Collections.PROFILES)
-    .stream() as AsyncIterable<QueryDocumentSnapshot>;
+  const profilesStream = db.collection(Collections.PROFILES).stream() as AsyncIterable<QueryDocumentSnapshot>;
 
   // Process all users and collect results
   const results: NotificationEventParams[] = [];
@@ -151,10 +137,7 @@ export const processDailyNotifications = async (): Promise<void> => {
     try {
       result = await processUserNotification(db, profileDoc.id, profileData);
     } catch (error) {
-      logger.error(
-        `Failed to process notification for user ${profileDoc.id}`,
-        error,
-      );
+      logger.error(`Failed to process notification for user ${profileDoc.id}`, error);
       result = {
         notification_all: false,
         notification_urgent: false,
@@ -170,9 +153,7 @@ export const processDailyNotifications = async (): Promise<void> => {
   // Aggregate analytics data
   const totalUsers = results.length;
   const notificationAllCount = results.filter((r) => r.notification_all).length;
-  const notificationUrgentCount = results.filter(
-    (r) => r.notification_urgent,
-  ).length;
+  const notificationUrgentCount = results.filter((r) => r.notification_urgent).length;
   const noNotificationCount = results.filter((r) => r.no_notification).length;
   const noDeviceCount = results.filter((r) => r.no_device).length;
 

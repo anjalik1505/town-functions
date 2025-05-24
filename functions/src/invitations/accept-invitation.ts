@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import {
   Collections,
   FriendPlaceholderTemplates,
@@ -12,7 +12,7 @@ import {
 } from '../models/constants.js';
 import { Friend } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import { createFriendshipId, hasReachedCombinedLimit, } from '../utils/friendship-utils.js';
+import { createFriendshipId, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
   canActOnInvitation,
   getInvitationDoc,
@@ -21,7 +21,7 @@ import {
   updateInvitationStatus,
 } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { createSummaryId, getProfileDoc, hasLimitOverride, } from '../utils/profile-utils.js';
+import { createSummaryId, getProfileDoc, hasLimitOverride } from '../utils/profile-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -57,9 +57,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: User profile not found
  * @throws 404: Sender profile not found
  */
-export const acceptInvitation = async (
-  req: Request,
-): Promise<ApiResponse<Friend>> => {
+export const acceptInvitation = async (req: Request): Promise<ApiResponse<Friend>> => {
   const currentUserId = req.userId;
   const invitationId = req.params.invitation_id;
 
@@ -73,8 +71,7 @@ export const acceptInvitation = async (
   }
 
   // Get the invitation document
-  const { ref: invitationRef, data: invitationData } =
-    await getInvitationDoc(invitationId);
+  const { ref: invitationRef, data: invitationData } = await getInvitationDoc(invitationId);
 
   // Check invitation status
   const status = invitationData[InvitationFields.STATUS];
@@ -103,21 +100,16 @@ export const acceptInvitation = async (
   if (hasReachedLimit) {
     const override = await hasLimitOverride(currentUserId);
     if (!override) {
-      throw new BadRequestError(
-        'You have reached the maximum number of friends and active invitations',
-      );
+      throw new BadRequestError('You have reached the maximum number of friends and active invitations');
     }
   }
 
   // Check the combined limit for the sender (excluding this invitation)
-  const { hasReachedLimit: senderHasReachedLimit } =
-    await hasReachedCombinedLimit(senderId, invitationId);
+  const { hasReachedLimit: senderHasReachedLimit } = await hasReachedCombinedLimit(senderId, invitationId);
   if (senderHasReachedLimit) {
     const override = await hasLimitOverride(senderId);
     if (!override) {
-      throw new BadRequestError(
-        'Sender has reached the maximum number of friends and active invitations',
-      );
+      throw new BadRequestError('Sender has reached the maximum number of friends and active invitations');
     }
   }
 
@@ -134,9 +126,7 @@ export const acceptInvitation = async (
   const friendshipId = createFriendshipId(currentUserId, senderId);
 
   // Check if friendship already exists
-  const friendshipRef = db
-    .collection(Collections.FRIENDSHIPS)
-    .doc(friendshipId);
+  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
   const friendshipDoc = await friendshipRef.get();
 
   if (friendshipDoc.exists) {
@@ -160,8 +150,7 @@ export const acceptInvitation = async (
         friendAvatar = friendshipData[FriendshipFields.SENDER_AVATAR] || '';
       } else {
         friendName = friendshipData[FriendshipFields.RECEIVER_NAME] || '';
-        friendUsername =
-          friendshipData[FriendshipFields.RECEIVER_USERNAME] || '';
+        friendUsername = friendshipData[FriendshipFields.RECEIVER_USERNAME] || '';
         friendAvatar = friendshipData[FriendshipFields.RECEIVER_AVATAR] || '';
       }
 
@@ -195,16 +184,12 @@ export const acceptInvitation = async (
   const friendshipData: UpdateData<DocumentData> = {
     [FriendshipFields.SENDER_ID]: senderId,
     [FriendshipFields.SENDER_NAME]: senderProfile[ProfileFields.NAME] || '',
-    [FriendshipFields.SENDER_USERNAME]:
-      senderProfile[ProfileFields.USERNAME] || '',
+    [FriendshipFields.SENDER_USERNAME]: senderProfile[ProfileFields.USERNAME] || '',
     [FriendshipFields.SENDER_AVATAR]: senderProfile[ProfileFields.AVATAR] || '',
     [FriendshipFields.RECEIVER_ID]: currentUserId,
-    [FriendshipFields.RECEIVER_NAME]:
-      currentUserProfile[ProfileFields.NAME] || '',
-    [FriendshipFields.RECEIVER_USERNAME]:
-      currentUserProfile[ProfileFields.USERNAME] || '',
-    [FriendshipFields.RECEIVER_AVATAR]:
-      currentUserProfile[ProfileFields.AVATAR] || '',
+    [FriendshipFields.RECEIVER_NAME]: currentUserProfile[ProfileFields.NAME] || '',
+    [FriendshipFields.RECEIVER_USERNAME]: currentUserProfile[ProfileFields.USERNAME] || '',
+    [FriendshipFields.RECEIVER_AVATAR]: currentUserProfile[ProfileFields.AVATAR] || '',
     [FriendshipFields.STATUS]: Status.ACCEPTED,
     [FriendshipFields.CREATED_AT]: currentTime,
     [FriendshipFields.UPDATED_AT]: currentTime,
@@ -215,32 +200,18 @@ export const acceptInvitation = async (
   batch.set(friendshipRef, friendshipData);
   batch.delete(invitationRef);
 
-  const senderName =
-    senderProfile[ProfileFields.NAME] ||
-    senderProfile[ProfileFields.USERNAME] ||
-    'Friend';
+  const senderName = senderProfile[ProfileFields.NAME] || senderProfile[ProfileFields.USERNAME] || 'Friend';
   const currentUserName =
-    currentUserProfile[ProfileFields.NAME] ||
-    currentUserProfile[ProfileFields.USERNAME] ||
-    'Friend';
+    currentUserProfile[ProfileFields.NAME] || currentUserProfile[ProfileFields.USERNAME] || 'Friend';
 
   // Create summary for current user about sender
   const summaryIdForCurrentUser = createSummaryId(currentUserId, senderId);
-  const summaryRefForCurrentUser = db
-    .collection(Collections.USER_SUMMARIES)
-    .doc(summaryIdForCurrentUser);
+  const summaryRefForCurrentUser = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForCurrentUser);
   const summaryDataForCurrentUser: UpdateData<DocumentData> = {
     [UserSummaryFields.CREATOR_ID]: senderId,
     [UserSummaryFields.TARGET_ID]: currentUserId,
-    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace(
-      '<FRIEND_NAME>',
-      senderName,
-    ),
-    [UserSummaryFields.SUGGESTIONS]:
-      FriendPlaceholderTemplates.SUGGESTIONS.replace(
-        '<FRIEND_NAME>',
-        senderName,
-      ),
+    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace('<FRIEND_NAME>', senderName),
+    [UserSummaryFields.SUGGESTIONS]: FriendPlaceholderTemplates.SUGGESTIONS.replace('<FRIEND_NAME>', senderName),
     [UserSummaryFields.LAST_UPDATE_ID]: '',
     [UserSummaryFields.UPDATE_COUNT]: 0,
     [UserSummaryFields.CREATED_AT]: currentTime,
@@ -250,21 +221,12 @@ export const acceptInvitation = async (
 
   // Create a summary for sender about the current user
   const summaryIdForSender = createSummaryId(senderId, currentUserId);
-  const summaryRefForSender = db
-    .collection(Collections.USER_SUMMARIES)
-    .doc(summaryIdForSender);
+  const summaryRefForSender = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForSender);
   const summaryDataForSender: UpdateData<DocumentData> = {
     [UserSummaryFields.CREATOR_ID]: currentUserId,
     [UserSummaryFields.TARGET_ID]: senderId,
-    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace(
-      '<FRIEND_NAME>',
-      currentUserName,
-    ),
-    [UserSummaryFields.SUGGESTIONS]:
-      FriendPlaceholderTemplates.SUGGESTIONS.replace(
-        '<FRIEND_NAME>',
-        currentUserName,
-      ),
+    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace('<FRIEND_NAME>', currentUserName),
+    [UserSummaryFields.SUGGESTIONS]: FriendPlaceholderTemplates.SUGGESTIONS.replace('<FRIEND_NAME>', currentUserName),
     [UserSummaryFields.LAST_UPDATE_ID]: '',
     [UserSummaryFields.UPDATE_COUNT]: 0,
     [UserSummaryFields.CREATED_AT]: currentTime,
@@ -275,9 +237,7 @@ export const acceptInvitation = async (
   // Commit the batch
   await batch.commit();
 
-  logger.info(
-    `User ${currentUserId} accepted invitation ${invitationId} from ${senderId}`,
-  );
+  logger.info(`User ${currentUserId} accepted invitation ${invitationId} from ${senderId}`);
 
   // Return the friend object using sender's profile data
   const friend: Friend = {

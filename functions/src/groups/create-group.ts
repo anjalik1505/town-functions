@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Collections,
@@ -43,10 +43,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: Member profile not found
  * @throws 500: Internal server error
  */
-export const createGroup = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const createGroup = async (req: Request, res: Response): Promise<void> => {
   // Get the current user ID from the request (set by authentication middleware)
   const currentUserId = req.userId;
 
@@ -67,18 +64,13 @@ export const createGroup = async (
   const db = getFirestore();
 
   // Skip current user in validation since we know they exist
-  const membersToValidate = members.filter(
-    (memberId: string) => memberId !== currentUserId,
-  );
+  const membersToValidate = members.filter((memberId: string) => memberId !== currentUserId);
 
   // Store profile data for denormalization
   const memberProfiles = [];
 
   // First, add the current user's profile (we know they exist)
-  const currentUserProfile = await db
-    .collection(Collections.PROFILES)
-    .doc(currentUserId)
-    .get();
+  const currentUserProfile = await db.collection(Collections.PROFILES).doc(currentUserId).get();
   if (currentUserProfile.exists) {
     const profileData = currentUserProfile.data() || {};
     memberProfiles.push({
@@ -117,9 +109,7 @@ export const createGroup = async (
     if (missingMembers.length > 0) {
       const missingMembersStr = missingMembers.join(', ');
       logger.warn(`Member profiles not found: ${missingMembersStr}`);
-      throw new NotFoundError(
-        `Member profiles not found: ${missingMembersStr}`,
-      );
+      throw new NotFoundError(`Member profiles not found: ${missingMembersStr}`);
     }
 
     // 2. Optimized friendship check using batch fetching
@@ -135,8 +125,7 @@ export const createGroup = async (
       for (let j = i + 1; j < members.length; j++) {
         const member1 = members[i]!;
         const member2 = members[j]!;
-        const pair =
-          member1 < member2 ? `${member1}_${member2}` : `${member2}_${member1}`;
+        const pair = member1 < member2 ? `${member1}_${member2}` : `${member2}_${member1}`;
         friendshipExists[pair] = false;
       }
     }
@@ -149,28 +138,19 @@ export const createGroup = async (
       // Fetch all friendships where any of the batch members is in the members array
       const friendshipsQuery = db
         .collection(Collections.FRIENDSHIPS)
-        .where(
-          FriendshipFields.MEMBERS,
-          QueryOperators.ARRAY_CONTAINS_ANY,
-          batchMembers,
-        )
+        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers)
         .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
 
       const friendshipsSnapshot = await friendshipsQuery.get();
-      logger.info(
-        `Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`,
-      );
+      logger.info(`Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`);
 
       // Process each friendship to mark member pairs as friends
       for (const doc of friendshipsSnapshot.docs) {
         const friendshipData = doc.data();
-        const membersInFriendship =
-          friendshipData[FriendshipFields.MEMBERS] || [];
+        const membersInFriendship = friendshipData[FriendshipFields.MEMBERS] || [];
 
         // Check which group members are in this friendship
-        const friendshipGroupMembers = members.filter((m: string) =>
-          membersInFriendship.includes(m),
-        );
+        const friendshipGroupMembers = members.filter((m: string) => membersInFriendship.includes(m));
 
         // If we found at least 2 group members in this friendship, mark them as friends
         if (friendshipGroupMembers.length >= 2) {
@@ -178,10 +158,7 @@ export const createGroup = async (
             for (let y = x + 1; y < friendshipGroupMembers.length; y++) {
               const member1 = friendshipGroupMembers[x]!;
               const member2 = friendshipGroupMembers[y]!;
-              const pair =
-                member1 < member2
-                  ? `${member1}_${member2}`
-                  : `${member2}_${member1}`;
+              const pair = member1 < member2 ? `${member1}_${member2}` : `${member2}_${member1}`;
               if (pair in friendshipExists) {
                 friendshipExists[pair] = true;
               }
@@ -198,13 +175,9 @@ export const createGroup = async (
 
     if (notFriends.length > 0) {
       // Format the error message
-      const notFriendsStr = notFriends
-        .map(([id1, id2]) => `${id1} and ${id2}`)
-        .join(', ');
+      const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(', ');
       logger.warn(`Members are not friends: ${notFriendsStr}`);
-      throw new BadRequestError(
-        'All members must be friends with each other to be in the same group',
-      );
+      throw new BadRequestError('All members must be friends with each other to be in the same group');
     }
   }
 
@@ -242,16 +215,12 @@ export const createGroup = async (
       [ProfileFields.GROUP_IDS]: FieldValue.arrayUnion(groupId),
     };
     batch.update(profileRef, profileUpdate);
-    logger.info(
-      `Adding group ${groupId} to member ${memberId}'s profile in batch`,
-    );
+    logger.info(`Adding group ${groupId} to member ${memberId}'s profile in batch`);
   }
 
   // Execute the batch operation
   await batch.commit();
-  logger.info(
-    `Batch committed successfully: created group ${groupId} and updated all member profiles`,
-  );
+  logger.info(`Batch committed successfully: created group ${groupId} and updated all member profiles`);
 
   // Return the created group data
   const response: Group = {

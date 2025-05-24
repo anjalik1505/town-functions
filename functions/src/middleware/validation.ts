@@ -8,9 +8,7 @@ import path from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
-export const validateRequest = <T extends z.ZodType>(
-  schema: T,
-): RequestHandler => {
+export const validateRequest = <T extends z.ZodType>(schema: T): RequestHandler => {
   return (req, res, next) => {
     try {
       // Validate and attach validated data to request with proper typing
@@ -28,9 +26,7 @@ export const validateRequest = <T extends z.ZodType>(
   };
 };
 
-export const validateQueryParams = <T extends z.ZodType>(
-  schema: T,
-): RequestHandler => {
+export const validateQueryParams = <T extends z.ZodType>(schema: T): RequestHandler => {
   return (req, res, next) => {
     try {
       // Validate and attach validated data to request with proper typing

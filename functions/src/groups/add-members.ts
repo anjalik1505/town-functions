@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DocumentData, FieldValue, getFirestore, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, FieldValue, getFirestore, UpdateData } from 'firebase-admin/firestore';
 import {
   Collections,
   FriendshipFields,
@@ -10,7 +10,7 @@ import {
   Status,
 } from '../models/constants.js';
 import { AddGroupMembersPayload, Group } from '../models/data-models.js';
-import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 
@@ -43,11 +43,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: Group not found or member profile not found
  * @throws 500: Internal server error
  */
-export const addMembersToGroup = async (
-  req: Request,
-  res: Response,
-  groupId: string,
-): Promise<void> => {
+export const addMembersToGroup = async (req: Request, res: Response, groupId: string): Promise<void> => {
   logger.info(`Adding members to group: ${groupId}`);
 
   // Get the current user ID from the request (set by authentication middleware)
@@ -80,15 +76,11 @@ export const addMembersToGroup = async (
 
   if (!currentMembers.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-    throw new ForbiddenError(
-      'You must be a member of the group to add new members',
-    );
+    throw new ForbiddenError('You must be a member of the group to add new members');
   }
 
   // 2. Filter out members who are already in the group
-  const newMembersToAdd = newMembers.filter(
-    (memberId: string) => !currentMembers.includes(memberId),
-  );
+  const newMembersToAdd = newMembers.filter((memberId: string) => !currentMembers.includes(memberId));
 
   if (!newMembersToAdd.length) {
     logger.warn('All provided members are already in the group');
@@ -129,17 +121,13 @@ export const addMembersToGroup = async (
       }
       // Ensure consistent ordering of the pair
       const pair =
-        newMemberId < currentMemberId
-          ? `${newMemberId}_${currentMemberId}`
-          : `${currentMemberId}_${newMemberId}`;
+        newMemberId < currentMemberId ? `${newMemberId}_${currentMemberId}` : `${currentMemberId}_${newMemberId}`;
       friendshipExists[pair] = false;
     }
   }
 
   // Combine all members that need to be checked
-  const allMembersToCheck = [
-    ...new Set([...newMembersToAdd, ...currentMembers]),
-  ];
+  const allMembersToCheck = [...new Set([...newMembersToAdd, ...currentMembers])];
   // Firestore allows up to 10 values in array_contains_any
   // We'll process members in batches of 10 if needed
   for (let i = 0; i < allMembersToCheck.length; i += MAX_BATCH_SIZE) {
@@ -148,23 +136,16 @@ export const addMembersToGroup = async (
     // Fetch all friendships where any of the batch members is in the member array
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(
-        FriendshipFields.MEMBERS,
-        QueryOperators.ARRAY_CONTAINS_ANY,
-        batchMembers,
-      )
+      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers)
       .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
 
     const friendshipsSnapshot = await friendshipsQuery.get();
-    logger.info(
-      `Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`,
-    );
+    logger.info(`Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`);
 
     // Process each friendship to mark member pairs as friends
     for (const doc of friendshipsSnapshot.docs) {
       const friendshipData = doc.data();
-      const membersInFriendship =
-        friendshipData[FriendshipFields.MEMBERS] || [];
+      const membersInFriendship = friendshipData[FriendshipFields.MEMBERS] || [];
 
       // Check which members are in this friendship
       for (const member1 of membersInFriendship) {
@@ -188,13 +169,9 @@ export const addMembersToGroup = async (
 
   if (notFriends.length) {
     // Format the error message
-    const notFriendsStr = notFriends
-      .map(([id1, id2]) => `${id1} and ${id2}`)
-      .join(', ');
+    const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(', ');
     logger.warn(`Members are not friends: ${notFriendsStr}`);
-    throw new BadRequestError(
-      'All members must be friends with each other to be in the same group',
-    );
+    throw new BadRequestError('All members must be friends with each other to be in the same group');
   }
 
   // All validations passed, now update the group
@@ -222,10 +199,7 @@ export const addMembersToGroup = async (
     });
 
   // Combine existing and new member profiles
-  const updatedMemberProfiles = [
-    ...existingMemberProfiles,
-    ...newMemberProfileData,
-  ];
+  const updatedMemberProfiles = [...existingMemberProfiles, ...newMemberProfileData];
 
   // Update the group document with both members array and denormalized profiles
   const groupUpdate: UpdateData<DocumentData> = {
@@ -233,9 +207,7 @@ export const addMembersToGroup = async (
     [GroupFields.MEMBER_PROFILES]: updatedMemberProfiles,
   };
   batch.update(groupRef, groupUpdate);
-  logger.info(
-    `Adding ${newMembersToAdd.length} new members to group ${groupId}`,
-  );
+  logger.info(`Adding ${newMembersToAdd.length} new members to group ${groupId}`);
 
   // Add the group ID to each new member's profile
   for (const memberId of newMembersToAdd) {
@@ -249,9 +221,7 @@ export const addMembersToGroup = async (
 
   // Execute the batch operation
   await batch.commit();
-  logger.info(
-    `Batch committed successfully: updated group ${groupId} and member profiles`,
-  );
+  logger.info(`Batch committed successfully: updated group ${groupId} and member profiles`);
 
   // Get the updated group data
   const updatedGroupDoc = await groupRef.get();

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { getFirestore, QueryDocumentSnapshot, WhereFilterOp, } from 'firebase-admin/firestore';
-import { Collections, GroupFields, QueryOperators, } from '../models/constants.js';
+import { getFirestore, QueryDocumentSnapshot, WhereFilterOp } from 'firebase-admin/firestore';
+import { Collections, GroupFields, QueryOperators } from '../models/constants.js';
 import { Group, GroupsResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -25,10 +25,7 @@ const logger = getLogger(path.basename(__filename));
  * @returns A GroupsResponse containing:
  * - A list of Group objects with basic information for each group
  */
-export const getMyGroups = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getMyGroups = async (req: Request, res: Response): Promise<void> => {
   const currentUserId = req.userId;
   logger.info(`Retrieving groups for user: ${currentUserId}`);
 
@@ -37,11 +34,7 @@ export const getMyGroups = async (
   // Get all groups where the user is a member
   const groupsQuery = db
     .collection(Collections.GROUPS)
-    .where(
-      GroupFields.MEMBERS,
-      QueryOperators.ARRAY_CONTAINS as WhereFilterOp,
-      currentUserId,
-    );
+    .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
 
   logger.info(`Querying groups for user: ${currentUserId}`);
 
@@ -60,9 +53,7 @@ export const getMyGroups = async (
       name: groupData[GroupFields.NAME] || '',
       icon: groupData[GroupFields.ICON] || '',
       members: groupData[GroupFields.MEMBERS] || [],
-      created_at: groupData[GroupFields.CREATED_AT]
-        ? formatTimestamp(groupData[GroupFields.CREATED_AT])
-        : '',
+      created_at: groupData[GroupFields.CREATED_AT] ? formatTimestamp(groupData[GroupFields.CREATED_AT]) : '',
       member_profiles: memberProfiles,
     });
     logger.info(`Added group ${groupId} to results`);

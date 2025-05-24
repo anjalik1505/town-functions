@@ -2,7 +2,7 @@ import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
 import { genkit } from 'genkit';
 import { TestPromptPayload } from '../models/data-models.js';
-import { friendProfileSchema, ownProfileSchema, } from '../models/validation-schemas.js';
+import { friendProfileSchema, ownProfileSchema } from '../models/validation-schemas.js';
 import { InternalServerError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 
@@ -22,10 +22,7 @@ const ai = genkit({
   model: gemini20FlashLite,
 });
 
-export const testPrompt = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const testPrompt = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = req.validated_params as TestPromptPayload;
     const summary = data.summary;
@@ -55,14 +52,14 @@ export const testPrompt = async (
           prompt: `### CONTEXT:
                     - <SUMMARY>: ${summary}
                     - <SUGGESTIONS>: ${suggestions}${
-            data.is_own_profile
-              ? `
+                      data.is_own_profile
+                        ? `
                     - <EMOTIONAL_OVERVIEW>: ${existingEmotionalOverview}
                     - <KEY_MOMENTS>: ${existingKeyMoments}
                     - <RECURRING_THEMES>: ${existingRecurringThemes}
                     - <PROGRESS_AND_GROWTH>: ${existingProgressAndGrowth}`
-              : ''
-          }
+                        : ''
+                    }
                     - <GENDER>: ${gender}
                     - <LOCATION>: ${location}
                     
@@ -72,9 +69,7 @@ export const testPrompt = async (
                     
                     ${data.prompt}`,
           output: {
-            schema: data.is_own_profile
-              ? ownProfileSchema
-              : friendProfileSchema,
+            schema: data.is_own_profile ? ownProfileSchema : friendProfileSchema,
           },
           config,
         });
@@ -85,9 +80,7 @@ export const testPrompt = async (
           res.json(output);
         }
       } catch (error) {
-        logger.error(
-          `Error generating creator profile insights (attempt ${retryCount + 1}): ${error}`,
-        );
+        logger.error(`Error generating creator profile insights (attempt ${retryCount + 1}): ${error}`);
       }
 
       retryCount++;
@@ -99,9 +92,7 @@ export const testPrompt = async (
     }
 
     // Return error if all retries failed
-    throw new InternalServerError(
-      'Failed to generate response after all retries',
-    );
+    throw new InternalServerError('Failed to generate response after all retries');
   } catch (error) {
     logger.error('Error in test/prompt:', error);
     throw new InternalServerError('Failed to generate response');

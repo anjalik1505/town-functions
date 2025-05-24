@@ -18,11 +18,7 @@ const logger = getLogger(path.basename(__filename));
  * @param limit - Optional maximum number of items to return
  * @returns The modified query with pagination applied
  */
-export const applyPagination = async (
-  query: Query,
-  afterCursor: string | undefined,
-  limit: number,
-): Promise<Query> => {
+export const applyPagination = async (query: Query, afterCursor: string | undefined, limit: number): Promise<Query> => {
   if (!afterCursor) {
     return limit ? query.limit(limit + 1) : query;
   }

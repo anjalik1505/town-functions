@@ -14,9 +14,7 @@ export interface ErrorWithStatus {
 }
 
 // Utility function to check if an error is a Firebase Auth token expiration error
-export function isFirebaseAuthTokenExpiredError(
-  error: unknown,
-): error is FirebaseAuthError {
+export function isFirebaseAuthTokenExpiredError(error: unknown): error is FirebaseAuthError {
   return (
     error instanceof Error &&
     ((error as FirebaseAuthError).code?.includes('auth/id-token-expired') ||

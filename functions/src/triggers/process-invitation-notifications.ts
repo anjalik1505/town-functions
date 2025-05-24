@@ -67,9 +67,7 @@ const processUserNoFriendsNotification = async (
     .get();
 
   if (!friendsQuery.empty) {
-    logger.info(
-      `User ${userId} has friends, skipping no-friends notification.`,
-    );
+    logger.info(`User ${userId} has friends, skipping no-friends notification.`);
     return {
       has_friends: true,
       has_timestamp: true,
@@ -79,9 +77,7 @@ const processUserNoFriendsNotification = async (
   }
 
   // Check profile age
-  const profileTimestamp =
-    profileData[ProfileFields.CREATED_AT] ||
-    profileData[ProfileFields.UPDATED_AT];
+  const profileTimestamp = profileData[ProfileFields.CREATED_AT] || profileData[ProfileFields.UPDATED_AT];
   if (!profileTimestamp) {
     logger.warn(`User ${userId} has no created_at or updated_at timestamp.`);
     return {
@@ -140,9 +136,7 @@ export const processInvitationNotifications = async (): Promise<void> => {
   logger.info('Starting no-friends notification processing');
 
   // Stream all profiles
-  const profilesStream = db
-    .collection(Collections.PROFILES)
-    .stream() as AsyncIterable<QueryDocumentSnapshot>;
+  const profilesStream = db.collection(Collections.PROFILES).stream() as AsyncIterable<QueryDocumentSnapshot>;
 
   // Process all users and collect results
   const results: InvitationNotificationEventParams[] = [];
@@ -150,16 +144,9 @@ export const processInvitationNotifications = async (): Promise<void> => {
     const profileData = profileDoc.data();
     let result: InvitationNotificationEventParams;
     try {
-      result = await processUserNoFriendsNotification(
-        db,
-        profileDoc.id,
-        profileData,
-      );
+      result = await processUserNoFriendsNotification(db, profileDoc.id, profileData);
     } catch (error) {
-      logger.error(
-        `Failed to process no-friends notification for user ${profileDoc.id}`,
-        error,
-      );
+      logger.error(`Failed to process no-friends notification for user ${profileDoc.id}`, error);
       result = {
         has_friends: false,
         has_timestamp: false,
@@ -173,8 +160,7 @@ export const processInvitationNotifications = async (): Promise<void> => {
   // Aggregate analytics data
   const totalUsers = results.length;
   const notifiedCount = results.filter(
-    (r) =>
-      !r.has_friends && r.has_timestamp && !r.profile_too_new && r.has_device,
+    (r) => !r.has_friends && r.has_timestamp && !r.profile_too_new && r.has_device,
   ).length;
   const hasFriendsCount = results.filter((r) => r.has_friends).length;
   const noTimestampCount = results.filter((r) => !r.has_timestamp).length;

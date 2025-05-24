@@ -1,12 +1,12 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
-import { Collections, InvitationFields, QueryOperators, Status, } from '../models/constants.js';
-import { Invitation, InvitationsResponse, PaginationPayload, } from '../models/data-models.js';
+import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
+import { Collections, InvitationFields, QueryOperators, Status } from '../models/constants.js';
+import { Invitation, InvitationsResponse, PaginationPayload } from '../models/data-models.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { formatInvitation, isInvitationExpired, } from '../utils/invitation-utils.js';
+import { formatInvitation, isInvitationExpired } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -30,9 +30,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns An ApiResponse containing the invitation response and analytics
  */
-export const getInvitations = async (
-  req: Request,
-): Promise<ApiResponse<InvitationsResponse>> => {
+export const getInvitations = async (req: Request): Promise<ApiResponse<InvitationsResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Getting invitations for user ${currentUserId}`);
 
@@ -44,9 +42,7 @@ export const getInvitations = async (
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
-  logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // Build the query
   let query = db
@@ -58,12 +54,11 @@ export const getInvitations = async (
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process invitations using streaming
-  const { items: invitationDocs, lastDoc } =
-    await processQueryStream<QueryDocumentSnapshot>(
-      paginatedQuery,
-      (doc) => doc,
-      limit,
-    );
+  const { items: invitationDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc) => doc,
+    limit,
+  );
 
   const invitations: Invitation[] = [];
   const batch = db.batch();
@@ -76,9 +71,7 @@ export const getInvitations = async (
 
     // Check if the pending invitation has expired
     const status = invitationData[InvitationFields.STATUS];
-    const expiresAt = invitationData?.[
-      InvitationFields.EXPIRES_AT
-      ] as Timestamp;
+    const expiresAt = invitationData?.[InvitationFields.EXPIRES_AT] as Timestamp;
 
     // Only update if the invitation is pending and has expired
     if (status === Status.PENDING && isInvitationExpired(expiresAt)) {
@@ -107,13 +100,10 @@ export const getInvitations = async (
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, invitations.length, limit);
 
-  logger.info(
-    `Retrieved ${invitations.length} invitations for user ${currentUserId}`,
-  );
+  logger.info(`Retrieved ${invitations.length} invitations for user ${currentUserId}`);
 
   // Get current friend and invitation counts for analytics
-  const { friendCount, activeInvitationCount } =
-    await hasReachedCombinedLimit(currentUserId);
+  const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
 
   // Create analytics event
   const event: InviteEventParams = {

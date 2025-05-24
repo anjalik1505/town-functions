@@ -1,9 +1,9 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, InviteEventParams, } from '../models/analytics-events.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import { Collections, InvitationFields, Status } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
-import { BadRequestError, ForbiddenError, NotFoundError, } from '../utils/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import { calculateExpirationTime } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -33,9 +33,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws {403} You can only resend your own invitations
  * @throws {404} Invitation not found
  */
-export const resendInvitation = async (
-  req: Request,
-): Promise<ApiResponse<Invitation>> => {
+export const resendInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
   const invitationId = req.params.invitation_id;
   logger.info(`User ${currentUserId} resending invitation ${invitationId}`);
@@ -48,9 +46,7 @@ export const resendInvitation = async (
   }
 
   // Get the invitation document
-  const invitationRef = db
-    .collection(Collections.INVITATIONS)
-    .doc(invitationId);
+  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
   const invitationDoc = await invitationRef.get();
 
   // Check if the invitation exists
@@ -64,24 +60,20 @@ export const resendInvitation = async (
   // Check if the current user is the sender of the invitation
   const senderId = invitationData?.[InvitationFields.SENDER_ID];
   if (senderId !== currentUserId) {
-    logger.warn(
-      `User ${currentUserId} is not the sender of invitation ${invitationId}`,
-    );
+    logger.warn(`User ${currentUserId} is not the sender of invitation ${invitationId}`);
     throw new ForbiddenError('You can only resend your own invitations');
   }
 
   // Check combined limit (excluding the current invitation)
-  const { friendCount, activeInvitationCount, hasReachedLimit } =
-    await hasReachedCombinedLimit(currentUserId, invitationId);
+  const { friendCount, activeInvitationCount, hasReachedLimit } = await hasReachedCombinedLimit(
+    currentUserId,
+    invitationId,
+  );
   if (hasReachedLimit) {
     const override = await hasLimitOverride(currentUserId);
     if (!override) {
-      logger.warn(
-        `User ${currentUserId} has reached the maximum number of friends and active invitations`,
-      );
-      throw new BadRequestError(
-        'You have reached the maximum number of friends and active invitations',
-      );
+      logger.warn(`User ${currentUserId} has reached the maximum number of friends and active invitations`);
+      throw new BadRequestError('You have reached the maximum number of friends and active invitations');
     }
   }
 

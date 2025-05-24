@@ -1,12 +1,12 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, UpdateViewEventParams, } from '../models/analytics-events.js';
-import { Collections, FeedFields, FriendshipFields, QueryOperators, Status, } from '../models/constants.js';
+import { ApiResponse, EventName, UpdateViewEventParams } from '../models/analytics-events.js';
+import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from '../models/constants.js';
 import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
 import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';
@@ -37,15 +37,11 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: Profile not found
  * @throws 403: You must be friends with this user to view their updates
  */
-export const getUserUpdates = async (
-  req: Request,
-): Promise<ApiResponse<UpdatesResponse>> => {
+export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesResponse>> => {
   const currentUserId = req.userId;
   const targetUserId = req.params.target_user_id;
 
-  logger.info(
-    `Retrieving updates for user ${targetUserId} requested by ${currentUserId}`,
-  );
+  logger.info(`Retrieving updates for user ${targetUserId} requested by ${currentUserId}`);
 
   const db = getFirestore();
 
@@ -55,12 +51,8 @@ export const getUserUpdates = async (
 
   // Redirect users to the appropriate endpoint for their own updates
   if (currentUserId === targetUserId) {
-    logger.warn(
-      `User ${currentUserId} attempted to view their own updates through /user endpoint`,
-    );
-    throw new BadRequestError(
-      'Use /me/updates endpoint to view your own updates',
-    );
+    logger.warn(`User ${currentUserId} attempted to view their own updates through /user endpoint`);
+    throw new BadRequestError('Use /me/updates endpoint to view your own updates');
   }
 
   // Get pagination parameters from the validated request
@@ -68,9 +60,7 @@ export const getUserUpdates = async (
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
-  logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // Get the target user's profile
   await getProfileDoc(targetUserId);
@@ -80,27 +70,16 @@ export const getUserUpdates = async (
 
   // Check if users are friends using the unified friendships collection
   const friendshipId = createFriendshipId(currentUserId, targetUserId);
-  const friendshipRef = db
-    .collection(Collections.FRIENDSHIPS)
-    .doc(friendshipId);
+  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
-  if (
-    !friendshipDoc.exists ||
-    friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED
-  ) {
-    logger.warn(
-      `User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`,
-    );
-    throw new ForbiddenError(
-      'You must be friends with this user to view their updates',
-    );
+  if (!friendshipDoc.exists || friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED) {
+    logger.warn(`User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`);
+    throw new ForbiddenError('You must be friends with this user to view their updates');
   }
 
-  logger.info(
-    `Friendship verified between ${currentUserId} and ${targetUserId}`,
-  );
+  logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
 
   // Initialize the feed query
   let feedQuery = db
@@ -114,12 +93,11 @@ export const getUserUpdates = async (
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const { items: feedDocs, lastDoc } =
-    await processQueryStream<QueryDocumentSnapshot>(
-      paginatedQuery,
-      (doc) => doc,
-      limit,
-    );
+  const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc) => doc,
+    limit,
+  );
 
   if (feedDocs.length === 0) {
     logger.info(`No updates found for user ${targetUserId}`);
@@ -148,12 +126,7 @@ export const getUserUpdates = async (
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create updates
-  const updates = processFeedItems(
-    feedDocs,
-    updateMap,
-    updateReactionsMap,
-    targetUserId,
-  );
+  const updates = processFeedItems(feedDocs, updateMap, updateReactionsMap, targetUserId);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);

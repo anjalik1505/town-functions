@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields, } from '../models/constants.js';
-import { FeedResponse, PaginationPayload, ReactionGroup, } from '../models/data-models.js';
+import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from '../models/constants.js';
+import { FeedResponse, PaginationPayload, ReactionGroup } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
-import { fetchUpdatesByIds, processEnrichedFeedItems, } from '../utils/update-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
+import { fetchUpdatesByIds, processEnrichedFeedItems } from '../utils/update-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -40,11 +40,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 403: User is not a member of the group
  * @throws 500: Internal server error
  */
-export const getGroupFeed = async (
-  req: Request,
-  res: Response,
-  groupId: string,
-): Promise<void> => {
+export const getGroupFeed = async (req: Request, res: Response, groupId: string): Promise<void> => {
   logger.info(`Retrieving feed for group: ${groupId}`);
 
   // Get the authenticated user ID from the request
@@ -58,9 +54,7 @@ export const getGroupFeed = async (
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
-  logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // First, check if the group exists and if the user is a member
   const groupRef = db.collection(Collections.GROUPS).doc(groupId);
@@ -77,9 +71,7 @@ export const getGroupFeed = async (
   // Check if the current user is a member of the group
   if (!members.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-    throw new ForbiddenError(
-      'You must be a member of the group to view its feed',
-    );
+    throw new ForbiddenError('You must be a member of the group to view its feed');
   }
 
   // Build the query for updates from this group
@@ -92,12 +84,11 @@ export const getGroupFeed = async (
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process updates using streaming
-  const { items: updateDocs, lastDoc } =
-    await processQueryStream<QueryDocumentSnapshot>(
-      paginatedQuery,
-      (doc) => doc,
-      limit,
-    );
+  const { items: updateDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc) => doc,
+    limit,
+  );
 
   // Get all update IDs from the query results
   const updateIds = updateDocs.map((updateDoc) => updateDoc.id);
@@ -107,10 +98,7 @@ export const getGroupFeed = async (
 
   // Prepare a map of user IDs to profile data from group memberProfiles
   const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
-  const profilesMap = new Map<
-    string,
-    { username: string; name: string; avatar: string }
-  >();
+  const profilesMap = new Map<string, { username: string; name: string; avatar: string }>();
   for (const profile of memberProfiles) {
     profilesMap.set(profile[ProfileFields.USER_ID], {
       username: profile[ProfileFields.USERNAME] || '',
@@ -123,21 +111,14 @@ export const getGroupFeed = async (
   const reactionsMap = new Map<string, ReactionGroup[]>();
 
   // Use util to enrich updates
-  const enrichedUpdates = processEnrichedFeedItems(
-    updateDocs,
-    updateMap,
-    reactionsMap,
-    profilesMap,
-  );
+  const enrichedUpdates = processEnrichedFeedItems(updateDocs, updateMap, reactionsMap, profilesMap);
 
   logger.info('Query executed successfully');
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, enrichedUpdates.length, limit);
 
-  logger.info(
-    `Retrieved ${enrichedUpdates.length} updates for group: ${groupId}`,
-  );
+  logger.info(`Retrieved ${enrichedUpdates.length} updates for group: ${groupId}`);
 
   // Return the response
   const response: FeedResponse = {

@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { analyzeSentimentFlow } from '../ai/flows.js';
-import { AnalyzeSentimentEventParams, ApiResponse, EventName, } from '../models/analytics-events.js';
-import { AnalyzeSentimentPayload, SentimentAnalysisResponse, } from '../models/data-models.js';
+import { AnalyzeSentimentEventParams, ApiResponse, EventName } from '../models/analytics-events.js';
+import { AnalyzeSentimentPayload, SentimentAnalysisResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 import { fileURLToPath } from 'url';
@@ -25,13 +25,9 @@ const logger = getLogger(path.basename(__filename));
  *
  * @throws 400: Invalid request parameters
  */
-export const analyzeSentiment = async (
-  req: Request,
-): Promise<ApiResponse<SentimentAnalysisResponse>> => {
+export const analyzeSentiment = async (req: Request): Promise<ApiResponse<SentimentAnalysisResponse>> => {
   const { content } = req.validated_params as AnalyzeSentimentPayload;
-  logger.info(
-    `Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-  );
+  logger.info(`Analyzing sentiment for content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`);
 
   // Use the sentiment analysis flow to analyze the text
   const result = await analyzeSentimentFlow({

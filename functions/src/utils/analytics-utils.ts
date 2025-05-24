@@ -84,11 +84,7 @@ export class GA4MeasurementClient {
       return;
     }
 
-    if (
-      !process.env.GA4_MEASUREMENT_ID ||
-      !process.env.GA4_API_SECRET ||
-      !process.env.GA4_SERVER_CLIENT_ID
-    ) {
+    if (!process.env.GA4_MEASUREMENT_ID || !process.env.GA4_API_SECRET || !process.env.GA4_SERVER_CLIENT_ID) {
       logger.warn('Missing GA4 credentials');
       return;
     }
@@ -146,18 +142,13 @@ export class GA4MeasurementClient {
     let currentSize = 0;
 
     // Pre-calculate event sizes
-    const eventSizes = events.map(
-      (event) => new TextEncoder().encode(JSON.stringify(event)).length,
-    );
+    const eventSizes = events.map((event) => new TextEncoder().encode(JSON.stringify(event)).length);
 
     for (let i = 0; i < events.length; i++) {
       const eventSize = eventSizes[i];
 
       const currentEventSize = eventSize || 0;
-      if (
-        currentSize + currentEventSize > CONFIG.maxPayloadSize ||
-        currentBatch.length >= CONFIG.maxEventsPerBatch
-      ) {
+      if (currentSize + currentEventSize > CONFIG.maxPayloadSize || currentBatch.length >= CONFIG.maxEventsPerBatch) {
         if (currentBatch.length > 0) {
           batches.push(currentBatch);
           logger.debug('Created new batch', {
@@ -247,11 +238,7 @@ export class GA4MeasurementClient {
   }
 }
 
-export function trackApiEvent(
-  eventName: EventName,
-  userId: string,
-  params: BaseEventParams = {},
-): void {
+export function trackApiEvent(eventName: EventName, userId: string, params: BaseEventParams = {}): void {
   try {
     logger.info('Tracking API event', {
       eventName,
@@ -260,20 +247,15 @@ export function trackApiEvent(
     });
 
     const analytics = GA4MeasurementClient.getInstance();
-    analytics
-      .sendEvents([{ name: eventName, params }], userId)
-      .catch((error) => {
-        logger.error('Failed to send API event', error);
-      });
+    analytics.sendEvents([{ name: eventName, params }], userId).catch((error) => {
+      logger.error('Failed to send API event', error);
+    });
   } catch (error) {
     logger.error('Error in trackApiEvent', error);
   }
 }
 
-export function trackApiEvents(
-  events: { eventName: EventName; params: BaseEventParams }[],
-  userId: string,
-): void {
+export function trackApiEvents(events: { eventName: EventName; params: BaseEventParams }[], userId: string): void {
   try {
     logger.info('Tracking multiple API events', {
       eventCount: events.length,

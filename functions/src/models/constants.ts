@@ -215,19 +215,15 @@ export const Placeholders = {
     "See your recent updates' summary here! Spill more to get your insights and to share with your Village privately",
   SUGGESTIONS: 'Share more to get personalised suggestions',
   EMOTIONAL_OVERVIEW: 'Give us a bit more to understand your emotional state',
-  RECURRING_THEMES:
-    "Too early to identify patterns, let's see what emerges here",
-  KEY_MOMENTS:
-    'Highs & lows? Spill the tea on the epic wins and the "oof" moments!',
+  RECURRING_THEMES: "Too early to identify patterns, let's see what emerges here",
+  KEY_MOMENTS: 'Highs & lows? Spill the tea on the epic wins and the "oof" moments!',
   PROGRESS_AND_GROWTH: "Tell us more to see how you're leveling up and growing",
 } as const;
 
 // Unique parts for checking friend summary placeholders (robust against name changes)
 export const FriendPlaceholderChecks = {
-  SUMMARY_END:
-    'to spill more so that you can get the inside scoop into their life',
-  SUGGESTIONS_END:
-    'to share more updates. More updates = better hangout suggestions online & offline!',
+  SUMMARY_END: 'to spill more so that you can get the inside scoop into their life',
+  SUGGESTIONS_END: 'to share more updates. More updates = better hangout suggestions online & offline!',
 } as const;
 
 // Templates for friend summary placeholders (requires name substitution)

@@ -1,13 +1,13 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, FeedViewEventParams, } from '../models/analytics-events.js';
-import { Collections, FeedFields, QueryOperators, } from '../models/constants.js';
+import { ApiResponse, EventName, FeedViewEventParams } from '../models/analytics-events.js';
+import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
 import { FeedResponse, PaginationPayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { fetchUsersProfiles, getProfileDoc } from '../utils/profile-utils.js';
 import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
-import { fetchUpdatesByIds, processEnrichedFeedItems, } from '../utils/update-utils.js';
+import { fetchUpdatesByIds, processEnrichedFeedItems } from '../utils/update-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -33,9 +33,7 @@ const logger = getLogger(path.basename(__filename));
  * - A list of enriched updates from the user's feed
  * - A next_cursor for pagination (if more results are available)
  */
-export const getFeeds = async (
-  req: Request,
-): Promise<ApiResponse<FeedResponse>> => {
+export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Retrieving feed for user: ${currentUserId}`);
 
@@ -46,9 +44,7 @@ export const getFeeds = async (
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
-  logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // Get the user's profile first to verify existence
   await getProfileDoc(currentUserId);
@@ -64,12 +60,11 @@ export const getFeeds = async (
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const { items: feedDocs, lastDoc } =
-    await processQueryStream<QueryDocumentSnapshot>(
-      paginatedQuery,
-      (doc) => doc,
-      limit,
-    );
+  const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc) => doc,
+    limit,
+  );
 
   if (feedDocs.length === 0) {
     logger.info(`No feed items found for user ${currentUserId}`);
@@ -95,9 +90,7 @@ export const getFeeds = async (
   const updateMap = await fetchUpdatesByIds(updateIds);
 
   // Get unique user IDs from the updates
-  const uniqueUserIds = Array.from(
-    new Set(feedDocs.map((doc) => doc.data()[FeedFields.CREATED_BY])),
-  );
+  const uniqueUserIds = Array.from(new Set(feedDocs.map((doc) => doc.data()[FeedFields.CREATED_BY])));
 
   // Fetch all user profiles in parallel
   const profiles = await fetchUsersProfiles(uniqueUserIds);
@@ -106,19 +99,12 @@ export const getFeeds = async (
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create enriched updates
-  const enrichedUpdates = processEnrichedFeedItems(
-    feedDocs,
-    updateMap,
-    updateReactionsMap,
-    profiles,
-  );
+  const enrichedUpdates = processEnrichedFeedItems(feedDocs, updateMap, updateReactionsMap, profiles);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
 
-  logger.info(
-    `Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`,
-  );
+  logger.info(`Retrieved ${enrichedUpdates.length} updates for user ${currentUserId}`);
   const event: FeedViewEventParams = {
     update_count: enrichedUpdates.length,
     unique_creators: uniqueUserIds.length,

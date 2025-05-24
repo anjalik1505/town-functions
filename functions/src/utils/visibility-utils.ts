@@ -7,8 +7,7 @@ export const VisibilityTypes = {
   GROUP: 'group',
 } as const;
 
-export type VisibilityType =
-  (typeof VisibilityTypes)[keyof typeof VisibilityTypes];
+export type VisibilityType = (typeof VisibilityTypes)[keyof typeof VisibilityTypes];
 
 /**
  * Creates a visibility identifier string in the format "type:id"
@@ -16,10 +15,7 @@ export type VisibilityType =
  * @param id The ID of the friend or group
  * @returns A formatted visibility identifier string
  */
-export function createVisibilityIdentifier(
-  type: VisibilityType,
-  id: string,
-): string {
+export function createVisibilityIdentifier(type: VisibilityType, id: string): string {
   return `${type}:${id}`;
 }
 
@@ -46,9 +42,7 @@ export function createGroupVisibilityIdentifier(groupId: string): string {
  * @param friendIds Array of friend IDs
  * @returns Array of friend visibility identifiers
  */
-export function createFriendVisibilityIdentifiers(
-  friendIds: string[],
-): string[] {
+export function createFriendVisibilityIdentifiers(friendIds: string[]): string[] {
   return friendIds.map(createFriendVisibilityIdentifier);
 }
 

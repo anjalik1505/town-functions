@@ -1,8 +1,8 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, UpdateData, } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, UserNudgeEventParams, } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields, NudgeFields, Status, } from '../models/constants.js';
-import { BadRequestError, ConflictError, ForbiddenError, } from '../utils/errors.js';
+import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, UserNudgeEventParams } from '../models/analytics-events.js';
+import { Collections, DeviceFields, FriendshipFields, NudgeFields, Status } from '../models/constants.js';
+import { BadRequestError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -32,15 +32,11 @@ const NUDGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds
  * @throws 403: You must be friends with this user to nudge them
  * @throws 409: You can only nudge this user once per hour
  */
-export const nudgeUser = async (
-  req: Request,
-): Promise<ApiResponse<{ message: string }>> => {
+export const nudgeUser = async (req: Request): Promise<ApiResponse<{ message: string }>> => {
   const currentUserId = req.userId;
   const targetUserId = req.params.target_user_id;
 
-  logger.info(
-    `User ${currentUserId} is attempting to nudge user ${targetUserId}`,
-  );
+  logger.info(`User ${currentUserId} is attempting to nudge user ${targetUserId}`);
 
   const db = getFirestore();
 
@@ -56,27 +52,16 @@ export const nudgeUser = async (
 
   // Check if users are friends
   const friendshipId = createFriendshipId(currentUserId, targetUserId);
-  const friendshipRef = db
-    .collection(Collections.FRIENDSHIPS)
-    .doc(friendshipId);
+  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
-  if (
-    !friendshipDoc.exists ||
-    friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED
-  ) {
-    logger.warn(
-      `User ${currentUserId} attempted to nudge non-friend ${targetUserId}`,
-    );
-    throw new ForbiddenError(
-      'You must be friends with this user to nudge them',
-    );
+  if (!friendshipDoc.exists || friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED) {
+    logger.warn(`User ${currentUserId} attempted to nudge non-friend ${targetUserId}`);
+    throw new ForbiddenError('You must be friends with this user to nudge them');
   }
 
-  logger.info(
-    `Friendship verified between ${currentUserId} and ${targetUserId}`,
-  );
+  logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
 
   // Check if the user has already nudged the target user within the cooldown period
   const nudgeId = `${currentUserId}_${targetUserId}`;
@@ -84,25 +69,17 @@ export const nudgeUser = async (
   const nudgeDoc = await nudgeRef.get();
 
   if (nudgeDoc.exists) {
-    const lastNudgeTime = nudgeDoc
-      .data()
-      ?.[NudgeFields.TIMESTAMP].toDate()
-      .getTime();
+    const lastNudgeTime = nudgeDoc.data()?.[NudgeFields.TIMESTAMP].toDate().getTime();
     const currentTime = Date.now();
 
     if (currentTime - lastNudgeTime < NUDGE_COOLDOWN_MS) {
-      logger.warn(
-        `User ${currentUserId} attempted to nudge user ${targetUserId} too soon after previous nudge`,
-      );
+      logger.warn(`User ${currentUserId} attempted to nudge user ${targetUserId} too soon after previous nudge`);
       throw new ConflictError('You can only nudge this user once per hour');
     }
   }
 
   // Get the target user's device
-  const deviceDoc = await db
-    .collection(Collections.DEVICES)
-    .doc(targetUserId)
-    .get();
+  const deviceDoc = await db.collection(Collections.DEVICES).doc(targetUserId).get();
   if (!deviceDoc.exists) {
     logger.info(`No device found for user ${targetUserId}`);
     // We'll still record the nudge but won't send a notification
@@ -112,13 +89,9 @@ export const nudgeUser = async (
 
     if (deviceId) {
       // Get the current user's name or username for the notification
-      const currentUserProfileDoc = await db
-        .collection(Collections.PROFILES)
-        .doc(currentUserId)
-        .get();
+      const currentUserProfileDoc = await db.collection(Collections.PROFILES).doc(currentUserId).get();
       const currentUserData = currentUserProfileDoc.data() || {};
-      const currentUserName =
-        currentUserData.name || currentUserData.username || 'A friend';
+      const currentUserName = currentUserData.name || currentUserData.username || 'A friend';
 
       // Send the notification
       try {
@@ -131,13 +104,9 @@ export const nudgeUser = async (
             sender_id: currentUserId,
           },
         );
-        logger.info(
-          `Successfully sent nudge notification to user ${targetUserId}`,
-        );
+        logger.info(`Successfully sent nudge notification to user ${targetUserId}`);
       } catch (error) {
-        logger.error(
-          `Error sending nudge notification to user ${targetUserId}: ${error}`,
-        );
+        logger.error(`Error sending nudge notification to user ${targetUserId}: ${error}`);
         // Continue execution even if notification fails
       }
     }

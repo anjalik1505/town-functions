@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ChatFields, Collections, GroupFields } from '../models/constants.js';
-import { ChatMessage, CreateChatMessagePayload, } from '../models/data-models.js';
+import { ChatMessage, CreateChatMessagePayload } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -32,11 +32,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 400: Invalid request data (missing text)
  * @throws 500: Internal server error
  */
-export const createGroupChatMessage = async (
-  req: Request,
-  res: Response,
-  groupId: string,
-): Promise<void> => {
+export const createGroupChatMessage = async (req: Request, res: Response, groupId: string): Promise<void> => {
   logger.info(`Creating new chat message in group: ${groupId}`);
 
   // Get the authenticated user ID from the request
@@ -65,9 +61,7 @@ export const createGroupChatMessage = async (
   // Check if the current user is a member of the group
   if (!members.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
-    throw new ForbiddenError(
-      'You must be a member of the group to post messages',
-    );
+    throw new ForbiddenError('You must be a member of the group to post messages');
   }
 
   // Create the chat message

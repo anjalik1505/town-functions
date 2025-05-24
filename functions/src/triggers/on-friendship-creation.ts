@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { EventName, FriendshipAcceptanceEventParams, } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields, Status, } from '../models/constants.js';
+import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
+import { Collections, DeviceFields, FriendshipFields, Status } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -79,9 +79,7 @@ export const onFriendshipCreated = async (
     !friendshipData[FriendshipFields.RECEIVER_ID] ||
     friendshipData[FriendshipFields.STATUS] !== Status.ACCEPTED
   ) {
-    logger.error(
-      `Friendship ${event.data.id} has invalid data or is not in ACCEPTED status`,
-    );
+    logger.error(`Friendship ${event.data.id} has invalid data or is not in ACCEPTED status`);
     return;
   }
 
@@ -102,10 +100,7 @@ export const onFriendshipCreated = async (
       }),
     ]);
   } catch (error) {
-    logger.error(
-      `Failed to sync friendship data for event ${event.data.id}`,
-      error,
-    );
+    logger.error(`Failed to sync friendship data for event ${event.data.id}`, error);
   }
 
   // Send notification to the sender that their invitation was accepted
@@ -135,18 +130,14 @@ export const onFriendshipCreated = async (
           friendship_id: event.data.id,
         });
 
-        logger.info(
-          `Sent friendship acceptance notification to user ${senderId}`,
-        );
+        logger.info(`Sent friendship acceptance notification to user ${senderId}`);
 
         // Track friendship acceptance event for analytics
         createFriendshipAcceptanceEvent(friendshipData, true, senderId);
 
         logger.info(`Tracked friendship acceptance event`);
       } else {
-        logger.info(
-          `No device ID found for user ${senderId}, skipping notification`,
-        );
+        logger.info(`No device ID found for user ${senderId}, skipping notification`);
 
         // Track event for skipped notification due to missing device ID
         createFriendshipAcceptanceEvent(friendshipData, false, senderId);
@@ -154,9 +145,7 @@ export const onFriendshipCreated = async (
         logger.info(`Tracked no-device event for friendship acceptance`);
       }
     } else {
-      logger.info(
-        `No device found for user ${senderId}, skipping notification`,
-      );
+      logger.info(`No device found for user ${senderId}, skipping notification`);
 
       // Track event for skipped notification due to a missing device
       createFriendshipAcceptanceEvent(friendshipData, false, senderId);
@@ -164,9 +153,7 @@ export const onFriendshipCreated = async (
       logger.info(`Tracked no-device event for friendship acceptance`);
     }
   } catch (error) {
-    logger.error(
-      `Error sending friendship acceptance notification to user ${senderId}: ${error}`,
-    );
+    logger.error(`Error sending friendship acceptance notification to user ${senderId}: ${error}`);
     // Continue execution even if notification fails
   }
 };

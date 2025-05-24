@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { ApiResponse, EventName, ProfileEventParams, } from '../models/analytics-events.js';
+import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
 import { Collections, Documents, ProfileFields } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
@@ -28,22 +28,15 @@ const logger = getLogger(path.basename(__filename));
  *
  * @throws 404: Profile not found for user {user_id}
  */
-export const deleteProfile = async (
-  req: Request,
-): Promise<ApiResponse<null>> => {
+export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> => {
   const currentUserId = req.userId;
-  logger.info(
-    `Starting delete_profile operation for user ID: ${currentUserId}`,
-  );
+  logger.info(`Starting delete_profile operation for user ID: ${currentUserId}`);
 
   // Get the profile document using the utility function (throws NotFoundError if not found)
-  const { ref: profileRef, data: profileData } =
-    await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Delete the insight subcollection first
-  const insightsRef = profileRef
-    .collection(Collections.INSIGHTS)
-    .doc(Documents.DEFAULT_INSIGHTS);
+  const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
   const insightsDoc = await insightsRef.get();
   if (insightsDoc.exists) {
     await insightsRef.delete();

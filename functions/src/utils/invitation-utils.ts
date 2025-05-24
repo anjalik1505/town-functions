@@ -19,9 +19,7 @@ const logger = getLogger(path.basename(__filename));
  */
 export const getInvitationDoc = async (invitationId: string) => {
   const db = getFirestore();
-  const invitationRef = db
-    .collection(Collections.INVITATIONS)
-    .doc(invitationId);
+  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
   const invitationDoc = await invitationRef.get();
 
   if (!invitationDoc.exists) {
@@ -64,15 +62,9 @@ export const isInvitationExpired = (expiresAt: Timestamp): boolean => {
  * @param action The action being performed (e.g., "view", "accept", "reject")
  * @throws ForbiddenError if the user is trying to act on their own invitation
  */
-export const hasInvitationPermission = (
-  senderId: string,
-  currentUserId: string,
-  action: string,
-): void => {
+export const hasInvitationPermission = (senderId: string, currentUserId: string, action: string): void => {
   if (senderId === currentUserId) {
-    logger.warn(
-      `User ${currentUserId} attempted to ${action} their own invitation`,
-    );
+    logger.warn(`User ${currentUserId} attempted to ${action} their own invitation`);
     throw new BadRequestError(`You cannot ${action} your own invitation`);
   }
 };
@@ -83,10 +75,7 @@ export const hasInvitationPermission = (
  * @param invitationData The invitation data
  * @returns A formatted Invitation object
  */
-export const formatInvitation = (
-  invitationId: string,
-  invitationData: Record<string, unknown>,
-): Invitation => {
+export const formatInvitation = (invitationId: string, invitationData: Record<string, unknown>): Invitation => {
   const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
   const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
 
@@ -99,8 +88,7 @@ export const formatInvitation = (
     username: (invitationData[InvitationFields.USERNAME] as string) || '',
     name: (invitationData[InvitationFields.NAME] as string) || '',
     avatar: (invitationData[InvitationFields.AVATAR] as string) || '',
-    receiver_name:
-      (invitationData[InvitationFields.RECEIVER_NAME] as string) || '',
+    receiver_name: (invitationData[InvitationFields.RECEIVER_NAME] as string) || '',
   };
 };
 
@@ -110,10 +98,7 @@ export const formatInvitation = (
  * @param status The new status to set
  * @returns A promise that resolves when the update is complete
  */
-export const updateInvitationStatus = async (
-  invitationRef: FirebaseFirestore.DocumentReference,
-  status: string,
-) => {
+export const updateInvitationStatus = async (invitationRef: FirebaseFirestore.DocumentReference, status: string) => {
   await invitationRef.update({ [InvitationFields.STATUS]: status });
   logger.info(`Updated invitation ${invitationRef.id} status to ${status}`);
 };
@@ -127,8 +112,6 @@ export const updateInvitationStatus = async (
 export const canActOnInvitation = (status: string, action: string): void => {
   if (status !== Status.PENDING) {
     logger.warn(`Invitation cannot be ${action}ed (status: ${status})`);
-    throw new BadRequestError(
-      `Invitation cannot be ${action}ed (status: ${status})`,
-    );
+    throw new BadRequestError(`Invitation cannot be ${action}ed (status: ${status})`);
   }
 };

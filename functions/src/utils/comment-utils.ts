@@ -69,12 +69,7 @@ export const processEnrichedComments = (
       const commentData = commentDoc.data();
       const createdBy = commentData[CommentFields.CREATED_BY] || '';
 
-      return formatEnrichedComment(
-        commentDoc.id,
-        commentData,
-        createdBy,
-        profiles.get(createdBy) || null,
-      );
+      return formatEnrichedComment(commentDoc.id, commentData, createdBy, profiles.get(createdBy) || null);
     })
     .filter((comment): comment is Comment => comment !== null);
 };

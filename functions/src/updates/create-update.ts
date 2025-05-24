@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData, } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiResponse, EventName, UpdateEventParams, } from '../models/analytics-events.js';
+import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -45,9 +45,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns A Promise that resolves to the created Update object
  */
-export const createUpdate = async (
-  req: Request,
-): Promise<ApiResponse<Update>> => {
+export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> => {
   logger.info(`Creating update for user: ${req.userId}`);
 
   // Get the authenticated user ID from the request
@@ -65,9 +63,9 @@ export const createUpdate = async (
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-    `all_village: ${allVillage}, ` +
-    `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
+      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+      `all_village: ${allVillage}, ` +
+      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
   );
 
   // Initialize Firestore client
@@ -87,18 +85,12 @@ export const createUpdate = async (
   }
   // If allVillage is true, get all friends and groups of the user
   if (allVillage) {
-    logger.info(
-      `All village mode enabled, fetching all friends and groups for user: ${currentUserId}`,
-    );
+    logger.info(`All village mode enabled, fetching all friends and groups for user: ${currentUserId}`);
 
     // Get all accepted friendships
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(
-        FriendshipFields.MEMBERS,
-        QueryOperators.ARRAY_CONTAINS,
-        currentUserId,
-      )
+      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
       .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
 
     const friendshipDocs = await friendshipsQuery.get();
@@ -106,8 +98,7 @@ export const createUpdate = async (
     // Extract friend IDs from friendships
     friendshipDocs.forEach((doc) => {
       const friendshipData = doc.data();
-      const isSender =
-        friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
+      const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
       const friendId = isSender
         ? friendshipData[FriendshipFields.RECEIVER_ID]
         : friendshipData[FriendshipFields.SENDER_ID];
@@ -132,9 +123,7 @@ export const createUpdate = async (
     // Deduplicate groupIds after extraction
     groupIds = Array.from(new Set(groupIds));
 
-    logger.info(
-      `All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`,
-    );
+    logger.info(`All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`);
   }
 
   // Generate a unique ID for the update
@@ -193,9 +182,7 @@ export const createUpdate = async (
   // Get all group members if there are groups
   if (groupIds.length > 0) {
     const groupDocs = await Promise.all(
-      groupIds.map((groupId: string) =>
-        db.collection(Collections.GROUPS).doc(groupId).get(),
-      ),
+      groupIds.map((groupId: string) => db.collection(Collections.GROUPS).doc(groupId).get()),
     );
 
     groupDocs.forEach((groupDoc) => {
@@ -203,9 +190,7 @@ export const createUpdate = async (
         const groupData = groupDoc.data();
         if (groupData && groupData.members) {
           groupMembersMap.set(groupDoc.id, new Set(groupData.members));
-          groupData.members.forEach((memberId: string) =>
-            usersToNotify.add(memberId),
-          );
+          groupData.members.forEach((memberId: string) => usersToNotify.add(memberId));
         }
       }
     });
@@ -214,11 +199,8 @@ export const createUpdate = async (
   // 3. Create feed items for each user
   Array.from(usersToNotify).forEach((userId) => {
     // Determine how this user can see the update
-    const isDirectFriend =
-      userId === currentUserId || friendIds.includes(userId);
-    const userGroups = groupIds.filter((groupId: string) =>
-      groupMembersMap.get(groupId)?.has(userId),
-    );
+    const isDirectFriend = userId === currentUserId || friendIds.includes(userId);
+    const userGroups = groupIds.filter((groupId: string) => groupMembersMap.get(groupId)?.has(userId));
 
     // Use the utility function to create the feed item
     createFeedItem(
@@ -237,9 +219,7 @@ export const createUpdate = async (
   // Commit the batch
   await batch.commit();
 
-  logger.info(
-    `Successfully created update with ID: ${updateId} and feed items for all users`,
-  );
+  logger.info(`Successfully created update with ID: ${updateId} and feed items for all users`);
 
   // Return the created update (without the internal visible_to field)
   const response = formatUpdate(updateId, updateData, currentUserId, []);

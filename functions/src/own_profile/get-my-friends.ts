@@ -1,10 +1,10 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName, FriendEventParams, } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, QueryOperators, Status, } from '../models/constants.js';
-import { Friend, FriendsResponse, PaginationPayload, } from '../models/data-models.js';
+import { ApiResponse, EventName, FriendEventParams } from '../models/analytics-events.js';
+import { Collections, FriendshipFields, QueryOperators, Status } from '../models/constants.js';
+import { Friend, FriendsResponse, PaginationPayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream, } from '../utils/pagination-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -26,49 +26,35 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns An ApiResponse containing the friend's response and analytics
  */
-export const getMyFriends = async (
-  req: Request,
-): Promise<ApiResponse<FriendsResponse>> => {
+export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsResponse>> => {
   const db = getFirestore();
   const currentUserId = req.userId;
 
-  logger.info(
-    `Retrieving friends and pending requests for user: ${currentUserId}`,
-  );
+  logger.info(`Retrieving friends and pending requests for user: ${currentUserId}`);
 
   // Get pagination parameters from the validated request
   const validatedParams = req.validated_params as PaginationPayload;
   const limit = validatedParams?.limit || 20;
   const afterCursor = validatedParams?.after_cursor;
 
-  logger.info(
-    `Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // Use a single efficient query with array_contains and in operator for multiple statuses
   let query = db
     .collection(Collections.FRIENDSHIPS)
-    .where(
-      FriendshipFields.MEMBERS,
-      QueryOperators.ARRAY_CONTAINS,
-      currentUserId,
-    )
-    .where(FriendshipFields.STATUS, QueryOperators.IN, [
-      Status.ACCEPTED,
-      Status.PENDING,
-    ])
+    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
+    .where(FriendshipFields.STATUS, QueryOperators.IN, [Status.ACCEPTED, Status.PENDING])
     .orderBy(FriendshipFields.CREATED_AT, QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process friendships using streaming
-  const { items: friendshipDocs, lastDoc } =
-    await processQueryStream<QueryDocumentSnapshot>(
-      paginatedQuery,
-      (doc) => doc,
-      limit,
-    );
+  const { items: friendshipDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc) => doc,
+    limit,
+  );
 
   const friends: Friend[] = [];
 
@@ -78,13 +64,10 @@ export const getMyFriends = async (
     const friendshipStatus = friendshipData[FriendshipFields.STATUS];
 
     // Determine if the current user is the sender or receiver
-    const isSender =
-      friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
+    const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
 
     const friend: Friend = {
-      user_id: isSender
-        ? friendshipData[FriendshipFields.RECEIVER_ID]
-        : friendshipData[FriendshipFields.SENDER_ID],
+      user_id: isSender ? friendshipData[FriendshipFields.RECEIVER_ID] : friendshipData[FriendshipFields.SENDER_ID],
       username: isSender
         ? friendshipData[FriendshipFields.RECEIVER_USERNAME] || ''
         : friendshipData[FriendshipFields.SENDER_USERNAME] || '',
@@ -96,9 +79,7 @@ export const getMyFriends = async (
         : friendshipData[FriendshipFields.SENDER_AVATAR] || '',
     };
 
-    logger.info(
-      `Processing friendship with friend: ${friend.user_id}, status: ${friendshipStatus}`,
-    );
+    logger.info(`Processing friendship with friend: ${friend.user_id}, status: ${friendshipStatus}`);
 
     friends.push(friend);
   }
@@ -106,9 +87,7 @@ export const getMyFriends = async (
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, friends.length, limit);
 
-  logger.info(
-    `Retrieved ${friends.length} friends and pending requests for user: ${currentUserId}`,
-  );
+  logger.info(`Retrieved ${friends.length} friends and pending requests for user: ${currentUserId}`);
 
   // Create analytics event
   const event: FriendEventParams = {

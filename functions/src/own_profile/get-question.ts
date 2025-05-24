@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { generateQuestionFlow } from '../ai/flows.js';
-import { ApiResponse, EventName, QuestionEventParams, } from '../models/analytics-events.js';
-import { Collections, InsightsFields, ProfileFields, } from '../models/constants.js';
+import { ApiResponse, EventName, QuestionEventParams } from '../models/analytics-events.js';
+import { Collections, InsightsFields, ProfileFields } from '../models/constants.js';
 import { QuestionResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, getProfileDoc } from '../utils/profile-utils.js';
@@ -28,15 +28,12 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: Profile not found
  * @throws 500: Error generating question or accessing data
  */
-export const getQuestion = async (
-  req: Request,
-): Promise<ApiResponse<QuestionResponse>> => {
+export const getQuestion = async (req: Request): Promise<ApiResponse<QuestionResponse>> => {
   const currentUserId = req.userId;
   logger.info(`Generating personalized question for user: ${currentUserId}`);
 
   // Get the profile document
-  const { ref: profileRef, data: profileData } =
-    await getProfileDoc(currentUserId);
+  const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Extract data from the profile
   const existingSummary = profileData[ProfileFields.SUMMARY];
@@ -44,10 +41,7 @@ export const getQuestion = async (
   logger.info(`Retrieved profile data for user: ${currentUserId}`);
 
   // Get insight data from the profile's insight subcollection
-  const insightsSnapshot = await profileRef
-    .collection(Collections.INSIGHTS)
-    .limit(1)
-    .get();
+  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
   const insightsDoc = insightsSnapshot.docs[0];
   const existingInsights = insightsDoc?.data() || {};
   logger.info(`Retrieved insights data for user: ${currentUserId}`);
@@ -57,13 +51,10 @@ export const getQuestion = async (
   const result = await generateQuestionFlow({
     existingSummary: existingSummary || '',
     existingSuggestions: existingSuggestions || '',
-    existingEmotionalOverview:
-      existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
+    existingEmotionalOverview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
     existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || '',
-    existingRecurringThemes:
-      existingInsights[InsightsFields.RECURRING_THEMES] || '',
-    existingProgressAndGrowth:
-      existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
+    existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || '',
+    existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
     gender: profileData[ProfileFields.GENDER] || 'unknown',
     location: profileData[ProfileFields.LOCATION] || 'unknown',
     age: calculateAge(profileData[ProfileFields.BIRTHDAY] || ''),
