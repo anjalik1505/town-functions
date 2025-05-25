@@ -3,8 +3,8 @@ import { decodeCursor, encodeCursor } from './cursor-utils.js';
 import { BadRequestError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

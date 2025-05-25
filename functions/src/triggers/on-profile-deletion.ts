@@ -15,8 +15,8 @@ import {
 import { trackApiEvent } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { GroupMember } from '../models/data-models.js';
 
 const __filename = fileURLToPath(import.meta.url);

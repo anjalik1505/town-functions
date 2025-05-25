@@ -1,10 +1,10 @@
+import { promisify } from 'util';
+import * as zlib from 'zlib';
 import { BadRequestError } from './errors.js';
 import { getLogger } from './logging-utils.js';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

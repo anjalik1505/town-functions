@@ -227,6 +227,12 @@ export interface CommentsResponse {
   next_cursor: string | null;
 }
 
+export interface UpdateWithCommentsResponse {
+  update: EnrichedUpdate;
+  comments: Comment[];
+  next_cursor: string | null;
+}
+
 export interface Feedback {
   feedback_id: string;
   created_by: string;

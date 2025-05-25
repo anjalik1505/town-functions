@@ -51,6 +51,7 @@ import { createUpdate } from './updates/create-update.js';
 import { deleteComment } from './updates/delete-comment.js';
 import { deleteReaction } from './updates/delete-reaction.js';
 import { getComments } from './updates/get-comments.js';
+import { getUpdate } from './updates/get-update.js';
 import { transcribeAudio } from './updates/transcribe-audio.js';
 import { updateComment } from './updates/update-comment.js';
 import { getUserProfile } from './user_profile/get-user-profile.js';
@@ -261,6 +262,11 @@ app.post('/updates/transcribe', validateRequest(transcribeAudioSchema), async (r
 
 app.post('/updates', validateRequest(createUpdateSchema), async (req, res) => {
   const result = await createUpdate(req);
+  sendResponse(res, result);
+});
+
+app.get('/updates/:update_id', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getUpdate(req);
   sendResponse(res, result);
 });
 

@@ -7,8 +7,8 @@ import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.
 import { getLogger } from '../utils/logging-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -52,7 +52,7 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
 
   // Get the update document and verify access
   const updateResult = await getUpdateDoc(updateId);
-  hasUpdateAccess(updateResult.data, currentUserId);
+  await hasUpdateAccess(updateResult.data, currentUserId);
 
   // Get the reaction document
   const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc(reactionId);

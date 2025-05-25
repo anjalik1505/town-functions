@@ -1,4 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
@@ -8,13 +11,10 @@ import {
   Status,
   UpdateFields,
 } from '../models/constants.js';
-import { getLogger } from './logging-utils.js';
-import { createFeedItem } from './update-utils.js';
-import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
-import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import { trackApiEvents } from './analytics-utils.js';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { getLogger } from './logging-utils.js';
+import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
+import { createFeedItem } from './update-utils.js';
 
 const MAX_COMBINED = 5;
 

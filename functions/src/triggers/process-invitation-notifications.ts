@@ -1,4 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   EventName,
   InvitationNotificationEventParams,
@@ -15,8 +17,6 @@ import {
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
-import { fileURLToPath } from 'url';
-import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

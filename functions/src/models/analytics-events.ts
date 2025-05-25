@@ -40,6 +40,8 @@ export enum EventName {
   AUDIO_TRANSCRIBED = 'audio_transcribed',
   INVITATION_NOTIFICATION_SENT = 'invitation_notification_sent',
   INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
+  COMMENT_NOTIFICATION_SENT = 'comment_notification_sent',
+  REACTION_NOTIFICATION_SENT = 'reaction_notification_sent',
 }
 
 // Base interface for all event parameters
@@ -70,6 +72,13 @@ export interface UpdateEventParams extends BaseEventParams {
 // Update event parameters
 export interface UpdateViewEventParams extends BaseEventParams {
   update_count: number;
+  user: string;
+}
+
+export interface UpdateViewEventWithCommentsParams extends BaseEventParams {
+  comment_count: number;
+  reaction_count: number;
+  unique_creators: number;
   user: string;
 }
 

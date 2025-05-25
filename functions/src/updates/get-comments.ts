@@ -1,17 +1,12 @@
 import { Request } from 'express';
-import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, CommentViewEventParams, EventName } from '../models/analytics-events.js';
-import { Collections, CommentFields, QueryOperators } from '../models/constants.js';
 import { CommentsResponse, PaginationPayload } from '../models/data-models.js';
-import { processEnrichedComments } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
-import { fetchUsersProfiles } from '../utils/profile-utils.js';
-import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
+import { fetchUpdateComments, getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -55,41 +50,17 @@ export const getComments = async (req: Request): Promise<ApiResponse<CommentsRes
 
   // Get the update document to check access
   const updateResult = await getUpdateDoc(updateId);
-  hasUpdateAccess(updateResult.data, currentUserId);
+  await hasUpdateAccess(updateResult.data, currentUserId);
 
-  // Build the query
-  let query = updateResult.ref.collection(Collections.COMMENTS).orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
-
-  // Apply cursor-based pagination - Express will automatically catch errors
-  const paginatedQuery = await applyPagination(query, afterCursor, limit);
-
-  // Process comments using streaming
-  const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
-    paginatedQuery,
-    (doc) => doc,
-    limit,
-  );
-
-  // Collect user IDs from comments
-  const uniqueUserIds = new Set<string>();
-  commentDocs.forEach((doc) => {
-    const createdBy = doc.data()[CommentFields.CREATED_BY] || '';
-    if (createdBy) {
-      uniqueUserIds.add(createdBy);
-    }
-  });
-
-  // Get profiles for all users who commented
-  const profiles = await fetchUsersProfiles(Array.from(uniqueUserIds));
-
-  // Process comments and create enriched comment objects
-  const enrichedComments = processEnrichedComments(commentDocs, profiles);
-
-  // Set up pagination for the next request
-  const nextCursor = generateNextCursor(lastDoc, enrichedComments.length, limit);
+  // Use the utility function to fetch and process comments
+  const {
+    comments: enrichedComments,
+    uniqueCreatorCount,
+    nextCursor,
+  } = await fetchUpdateComments(updateResult.ref, limit, afterCursor);
 
   const response: CommentsResponse = {
-    comments: enrichedComments.slice(0, limit),
+    comments: enrichedComments,
     next_cursor: nextCursor,
   };
 
@@ -97,7 +68,7 @@ export const getComments = async (req: Request): Promise<ApiResponse<CommentsRes
   const event: CommentViewEventParams = {
     comment_count: updateResult.data.comment_count || 0,
     reaction_count: updateResult.data.reaction_count || 0,
-    unique_creators: uniqueUserIds.size,
+    unique_creators: uniqueCreatorCount,
   };
 
   return {
