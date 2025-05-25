@@ -1,6 +1,7 @@
 import { Request } from 'express';
+import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, Documents, ProfileFields } from '../models/constants.js';
+import { ProfileFields } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 
@@ -35,17 +36,10 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
   // Get the profile document using the utility function (throws NotFoundError if not found)
   const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
-  // Delete the insight subcollection first
-  const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
-  const insightsDoc = await insightsRef.get();
-  if (insightsDoc.exists) {
-    await insightsRef.delete();
-    logger.info(`Deleted insights document for user ${currentUserId}`);
-  }
-
-  // Delete the profile document
-  await profileRef.delete();
-  logger.info(`Profile document deleted for user ${currentUserId}`);
+  // Use recursiveDelete to delete the profile document and all its subcollections
+  const db = getFirestore();
+  await db.recursiveDelete(profileRef);
+  logger.info(`Profile document and all subcollections deleted for user ${currentUserId}`);
 
   // Track profile deletion event
   const event: ProfileEventParams = {

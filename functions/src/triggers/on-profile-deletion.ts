@@ -1,4 +1,5 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { DeleteProfileEventParams, EventName } from '../models/analytics-events.js';
 import {
@@ -8,12 +9,15 @@ import {
   GroupFields,
   InvitationFields,
   MAX_BATCH_OPERATIONS,
+  ProfileFields,
   QueryOperators,
+  TimeBucketCollections,
   UpdateFields,
   UserSummaryFields,
 } from '../models/constants.js';
 import { trackApiEvent } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
+import { calculateTimeBucket } from '../utils/timezone-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -307,18 +311,19 @@ const deleteUpdateAndFeedData = async (
       }
     }
 
-    // Add update deletions to the same batch
+    // Process each update - use recursiveDelete to delete document and all subcollections
     for (const updateId of chunk) {
-      batch.delete(db.collection(Collections.UPDATES).doc(updateId));
-      totalUpdatesDeleted++;
-      batchCount++;
+      try {
+        const updateRef = db.collection(Collections.UPDATES).doc(updateId);
 
-      // Commit a batch if it reaches the maximum size
-      if (batchCount >= MAX_BATCH_OPERATIONS) {
-        await batch.commit();
-        logger.info(`Committed batch with ${batchCount} operations`);
-        batch = db.batch();
-        batchCount = 0;
+        // Use recursiveDelete to delete the document and all its subcollections
+        await db.recursiveDelete(updateRef);
+        totalUpdatesDeleted++;
+
+        logger.info(`Recursively deleted update ${updateId} and all its subcollections`);
+      } catch (error) {
+        logger.error(`Error deleting update ${updateId}: ${error}`);
+        // Continue with other updates
       }
     }
   }
@@ -378,38 +383,263 @@ const deleteInvitations = async (db: FirebaseFirestore.Firestore, userId: string
 };
 
 /**
- * Delete all data related to the user.
+ * Delete the user from time buckets collection.
  *
  * @param db - Firestore client
  * @param userId - The ID of the user whose profile was deleted
+ * @param profileData - The profile data of the deleted user
+ * @returns Whether the time bucket was successfully cleaned up
  */
-const deleteAllUserData = async (db: FirebaseFirestore.Firestore, userId: string): Promise<void> => {
+const deleteTimeBucket = async (
+  db: FirebaseFirestore.Firestore,
+  userId: string,
+  profileData: FirebaseFirestore.DocumentData,
+): Promise<boolean> => {
+  logger.info(`Removing user ${userId} from time buckets`);
+
+  try {
+    const timezone = profileData[ProfileFields.TIMEZONE];
+    if (!timezone) {
+      logger.info(`User ${userId} has no timezone set, skipping time bucket cleanup`);
+      return true;
+    }
+
+    // Calculate the time bucket for the user's timezone
+    const timeBucket = calculateTimeBucket(timezone);
+
+    // Remove user from the time bucket
+    const userBucketRef = db
+      .collection(Collections.TIME_BUCKETS)
+      .doc(timeBucket.toString())
+      .collection(TimeBucketCollections.USERS)
+      .doc(userId);
+
+    await userBucketRef.delete();
+    logger.info(`Removed user ${userId} from time bucket ${timeBucket}`);
+    return true;
+  } catch (error) {
+    logger.error(`Error removing user ${userId} from time buckets: ${error}`);
+    return false;
+  }
+};
+
+/**
+ * Delete the user's avatar from storage if it exists.
+ *
+ * @param userId - The ID of the user whose profile was deleted
+ * @param profileData - The profile data of the deleted user
+ * @returns Whether the avatar was successfully deleted
+ */
+const deleteAvatar = async (userId: string, profileData: FirebaseFirestore.DocumentData): Promise<boolean> => {
+  logger.info(`Checking for avatar to delete for user ${userId}`);
+
+  const avatarUrl = profileData[ProfileFields.AVATAR];
+  if (!avatarUrl) {
+    logger.info(`User ${userId} has no avatar, skipping avatar deletion`);
+    return true;
+  }
+
+  try {
+    // Skip deletion for Google account avatars
+    if (avatarUrl.includes('googleusercontent.com')) {
+      logger.info(`Avatar for user ${userId} is from Google account, skipping deletion`);
+      return true;
+    }
+
+    // Only handle Firebase Storage URLs
+    if (!avatarUrl.includes('firebasestorage.googleapis.com') && !avatarUrl.startsWith('gs://')) {
+      logger.info(`Avatar URL for user ${userId} is not from Firebase Storage, skipping deletion`);
+      return true;
+    }
+
+    const storage = getStorage();
+
+    try {
+      // Delete the file using the URL directly
+      if (avatarUrl.startsWith('gs://')) {
+        // For gs:// URLs, parse the bucket and path
+        const gsPath = avatarUrl.substring(5); // Remove 'gs://'
+        const slashIndex = gsPath.indexOf('/');
+        if (slashIndex === -1) {
+          throw new Error(`Invalid gs:// URL format: ${avatarUrl}`);
+        }
+
+        const bucketName = gsPath.substring(0, slashIndex);
+        const filePath = gsPath.substring(slashIndex + 1);
+
+        await storage.bucket(bucketName).file(filePath).delete();
+      } else {
+        // For HTTP URLs, we need to extract the path
+        // Example: https://firebasestorage.googleapis.com/v0/b/BUCKET/o/PATH?alt=media&token=TOKEN
+        const match = avatarUrl.match(/firebasestorage\.googleapis\.com\/v0\/b\/([^\/]+)\/o\/([^?]+)/);
+        if (!match || match.length < 3) {
+          throw new Error(`Could not parse Firebase Storage URL: ${avatarUrl}`);
+        }
+
+        const bucketName = match[1];
+        const filePath = decodeURIComponent(match[2]);
+
+        await storage.bucket(bucketName).file(filePath).delete();
+      }
+
+      logger.info(`Deleted avatar for user ${userId}`);
+      return true;
+    } catch (storageError) {
+      logger.error(`Error deleting avatar file for user ${userId}: ${storageError}`);
+      // Continue with profile deletion even if avatar deletion fails
+      return false;
+    }
+  } catch (error) {
+    logger.error(`Error deleting avatar for user ${userId}: ${error}`);
+    return false;
+  }
+};
+
+/**
+ * Delete all data related to the user with retry mechanism.
+ *
+ * @param db - Firestore client
+ * @param userId - The ID of the user whose profile was deleted
+ * @param profileData - The profile data of the deleted user
+ */
+const deleteAllUserData = async (
+  db: FirebaseFirestore.Firestore,
+  userId: string,
+  profileData: FirebaseFirestore.DocumentData,
+): Promise<void> => {
   logger.info(`Starting deletion of all data for user ${userId}`);
 
-  // Run all deletion tasks in parallel
-  const [updateData, friendCount, summaryCount, groupCount, deviceCount, invitationCount] = await Promise.all([
-    deleteUpdateAndFeedData(db, userId),
-    deleteFriendships(db, userId),
-    deleteUserSummaries(db, userId),
-    exitGroups(db, userId),
-    deleteDeviceInfo(db, userId),
-    deleteInvitations(db, userId),
-  ]);
+  // Define maximum retry attempts and delay between retries
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 1000;
 
-  // Track analytics event
-  const analytics: DeleteProfileEventParams = {
-    update_count: updateData.updateCount,
-    feed_count: updateData.feedCount,
-    friend_count: friendCount,
-    summary_count: summaryCount,
-    group_count: groupCount,
-    device_count: deviceCount,
-    invitation_count: invitationCount,
+  // Create a function to retry operations with exponential backoff
+  const retryOperation = async <T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    maxRetries: number = MAX_RETRIES,
+  ): Promise<T> => {
+    let lastError: Error | unknown;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        logger.warn(`Attempt ${attempt}/${maxRetries} for ${operationName} failed: ${error}`);
+
+        if (attempt < maxRetries) {
+          // Exponential backoff with jitter
+          const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1) * (0.5 + Math.random() * 0.5);
+          logger.info(`Retrying ${operationName} in ${Math.round(delay)}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw new Error(`All ${maxRetries} attempts for ${operationName} failed. Last error: ${lastError}`);
   };
 
-  trackApiEvent(EventName.PROFILE_DELETED, userId, analytics);
+  // Track success/failure of each operation
+  const results = {
+    updateAndFeed: false,
+    friendships: false,
+    userSummaries: false,
+    groups: false,
+    deviceInfo: false,
+    invitations: false,
+    timeBucket: false,
+    avatar: false,
+  };
 
-  logger.info(`Tracked delete profile analytics: ${JSON.stringify(analytics)}`);
+  // Run all deletion tasks with retries
+  try {
+    // First, try to delete the avatar and time bucket as they're independent
+    results.timeBucket = await retryOperation(() => deleteTimeBucket(db, userId, profileData), 'time bucket deletion');
+
+    results.avatar = await retryOperation(() => deleteAvatar(userId, profileData), 'avatar deletion');
+
+    // Then run the main data deletion operations in parallel
+    const [updateData, friendCount, summaryCount, groupCount, deviceCount, invitationCount] = await Promise.all([
+      retryOperation(() => deleteUpdateAndFeedData(db, userId), 'update and feed deletion')
+        .then((result) => {
+          results.updateAndFeed = true;
+          return result;
+        })
+        .catch((err) => {
+          logger.error(`Failed to delete updates: ${err}`);
+          return { updateCount: 0, feedCount: 0 };
+        }),
+      retryOperation(() => deleteFriendships(db, userId), 'friendship deletion')
+        .then((result) => {
+          results.friendships = true;
+          return result;
+        })
+        .catch((err) => {
+          logger.error(`Failed to delete friendships: ${err}`);
+          return 0;
+        }),
+      retryOperation(() => deleteUserSummaries(db, userId), 'user summary deletion')
+        .then((result) => {
+          results.userSummaries = true;
+          return result;
+        })
+        .catch((err) => {
+          logger.error(`Failed to delete user summaries: ${err}`);
+          return 0;
+        }),
+      retryOperation(() => exitGroups(db, userId), 'group exit')
+        .then((result) => {
+          results.groups = true;
+          return result;
+        })
+        .catch((err) => {
+          logger.error(`Failed to exit groups: ${err}`);
+          return 0;
+        }),
+      retryOperation(() => deleteDeviceInfo(db, userId), 'device info deletion')
+        .then((result) => {
+          results.deviceInfo = true;
+          return result;
+        })
+        .catch((err) => {
+          logger.error(`Failed to delete device info: ${err}`);
+          return 0;
+        }),
+      retryOperation(() => deleteInvitations(db, userId), 'invitation deletion')
+        .then((result) => {
+          results.invitations = true;
+          return result;
+        })
+        .catch((err) => {
+          logger.error(`Failed to delete invitations: ${err}`);
+          return 0;
+        }),
+    ]);
+
+    // Track analytics event
+    const analytics: DeleteProfileEventParams = {
+      update_count: updateData.updateCount,
+      feed_count: updateData.feedCount,
+      friend_count: friendCount,
+      summary_count: summaryCount,
+      group_count: groupCount,
+      device_count: deviceCount,
+      invitation_count: invitationCount,
+    };
+
+    // Log the results of all operations
+    logger.info(`User data deletion results: ${JSON.stringify(results)}`);
+
+    trackApiEvent(EventName.PROFILE_DELETED, userId, analytics);
+    logger.info(`Tracked delete profile analytics: ${JSON.stringify(analytics)}`);
+  } catch (error) {
+    logger.error(`Error during user data deletion for ${userId}: ${error}`);
+    logger.error(`Deletion results: ${JSON.stringify(results)}`);
+
+    // Throw the error to be caught by the caller
+    throw error;
+  }
 
   logger.info(`Completed deletion of all data for user ${userId}`);
 };
@@ -433,16 +663,37 @@ export const onProfileDeleted = async (
   }
 
   const userId = event.params.id;
+  const profileData = event.data.data() || {};
   logger.info(`Processing profile deletion for user: ${userId}`);
 
   // Initialize Firestore client
   const db = getFirestore();
 
-  try {
-    await deleteAllUserData(db, userId);
-    logger.info(`Successfully processed profile deletion for user ${userId}`);
-  } catch (error) {
-    logger.error(`Error processing profile deletion for user ${userId}: ${error}`);
-    // In a production environment, we would implement retry logic here
+  // Define maximum retry attempts for the entire operation
+  const MAX_OVERALL_RETRIES = 3;
+  let attempt = 0;
+  let success = false;
+
+  while (attempt < MAX_OVERALL_RETRIES && !success) {
+    attempt++;
+    try {
+      await deleteAllUserData(db, userId, profileData);
+      success = true;
+      logger.info(`Successfully processed profile deletion for user ${userId} on attempt ${attempt}`);
+    } catch (error) {
+      logger.error(`Error processing profile deletion for user ${userId} on attempt ${attempt}: ${error}`);
+
+      if (attempt < MAX_OVERALL_RETRIES) {
+        // Wait before retrying with exponential backoff
+        const delay = 2000 * Math.pow(2, attempt - 1);
+        logger.info(`Will retry entire profile deletion in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        logger.error(
+          `Failed to delete user data after ${MAX_OVERALL_RETRIES} attempts. Manual cleanup may be required.`,
+        );
+        // In a production environment, we would implement a dead-letter queue or alert system here
+      }
+    }
   }
 };
