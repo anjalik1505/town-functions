@@ -5,6 +5,8 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app.js';
 import { Collections } from './models/constants.js';
 import { onFriendshipCreated } from './triggers/on-friendship-creation.js';
+import { onCommentCreated } from './triggers/on-comment-creation.js';
+import { onReactionCreated } from './triggers/on-reaction-creation.js';
 import { onProfileDeleted } from './triggers/on-profile-deletion.js';
 import { onUpdateCreated } from './triggers/on-update-creation.js';
 import { onUpdateNotification } from './triggers/on-update-notification.js';
@@ -81,4 +83,22 @@ export const process_friendship_creation = onDocumentCreated(
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onFriendshipCreated(event),
+);
+
+// Export the Firestore trigger function for comment creation
+export const process_comment_notification = onDocumentCreated(
+  {
+    document: `${Collections.UPDATES}/{id}/${Collections.COMMENTS}/{id}`,
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onCommentCreated(event),
+);
+
+// Export the Firestore trigger function for reaction creation
+export const process_reaction_notification = onDocumentCreated(
+  {
+    document: `${Collections.UPDATES}/{id}/${Collections.REACTIONS}/{id}`,
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onReactionCreated(event),
 );

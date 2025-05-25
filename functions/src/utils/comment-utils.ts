@@ -6,8 +6,8 @@ import { getLogger } from './logging-utils.js';
 import { enrichWithProfile } from './profile-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

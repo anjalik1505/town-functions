@@ -542,6 +542,32 @@ class VillageAPI:
         logger.info(f"Successfully transcribed audio")
         return response.json()
 
+    # Update Methods
+    def get_update(
+            self,
+            email: str,
+            update_id: str,
+            limit: int = 10,
+            after_cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get a single update with its comments"""
+        logger.info(f"Getting update {update_id} with comments")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/updates/{update_id}?limit={limit}"
+        if after_cursor:
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get update: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved update {update_id} with comments")
+        return response.json()
+
     # Comment Methods
     def get_comments(
             self,

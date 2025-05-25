@@ -759,6 +759,87 @@ _Notes:_
 - `401 Unauthorized`: If the Firebase ID token is missing, invalid, or expired.
 - `500 Internal Server Error`: If the AI transcription flow fails or an unexpected server error occurs.
 
+#### GET /updates/{update_id}
+
+**Purpose**: Retrieve a single update with its comments. For retrieving more comments beyond the initial set, you can use the GET /updates/{update_id}/comments endpoint with pagination.
+
+**Analytics Events**:
+
+- UPDATES_VIEWED: When an update is viewed with its comments
+
+  **Event Body:**
+
+  ```json
+  {
+    "comment_count": 0,
+    "reaction_count": 0,
+    "unique_creators": 0,
+    "user": "string"
+  }
+  ```
+
+**Input**: Query Parameters
+
+```
+?limit=10&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
+```
+
+_Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request._
+
+**Output**:
+
+```json
+{
+  "update": {
+    "update_id": "update123",
+    "created_by": "user123",
+    "content": "Hello world!",
+    "group_ids": ["group123"],
+    "friend_ids": ["friend123"],
+    "sentiment": "happy",
+    "score": 5,
+    "emoji": "😊",
+    "created_at": "2025-01-01T00:00:00.000+00:00",
+    "comment_count": 2,
+    "reaction_count": 1,
+    "reactions": [
+      {
+        "type": "like",
+        "count": 1,
+        "reaction_id": "1234"
+      }
+    ],
+    "all_village": false,
+    "username": "johndoe",
+    "name": "John Doe",
+    "avatar": "https://example.com/avatar.jpg"
+  },
+  "comments": [
+    {
+      "comment_id": "comment123",
+      "created_by": "user123",
+      "content": "Great update!",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "updated_at": "2025-01-01T00:00:00.000+00:00",
+      "username": "johndoe",
+      "name": "John Doe",
+      "avatar": "https://example.com/avatar.jpg"
+    }
+  ],
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
+}
+```
+
+**Status Code**: 200 (OK)
+
+**Errors**:
+
+- 400: Update ID is required
+- 400: Invalid query parameters
+- 403: You don't have access to this update
+- 404: Update not found
+- 500: Internal server error
+
 ### Comments
 
 #### GET /updates/{update_id}/comments
@@ -1786,6 +1867,47 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
     "receiver_has_name": true,
     "receiver_has_avatar": true,
     "has_device": true
+  }
+  ```
+
+### Comment Created (Firestore Trigger)
+
+- **Trigger**: When a new document is created in the `comments` subcollection of an update.
+- **Analytics Events**:
+
+    - `COMMENT_NOTIFICATION_SENT`: When a notification is sent to the update creator about a new comment.
+
+  **Event Body:**
+
+  ```json
+  {
+    "commenter_has_name": true,
+    "commenter_has_avatar": true,
+    "update_creator_has_name": true,
+    "update_creator_has_avatar": true,
+    "has_device": true,
+    "notification_sent": true
+  }
+  ```
+
+### Reaction Created (Firestore Trigger)
+
+- **Trigger**: When a new document is created in the `reactions` subcollection of an update.
+- **Analytics Events**:
+
+    - `REACTION_NOTIFICATION_SENT`: When a notification is sent to the update creator about a new reaction.
+
+  **Event Body:**
+
+  ```json
+  {
+    "reactor_has_name": true,
+    "reactor_has_avatar": true,
+    "update_creator_has_name": true,
+    "update_creator_has_avatar": true,
+    "has_device": true,
+    "notification_sent": true,
+    "reaction_type": "string"
   }
   ```
 

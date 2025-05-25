@@ -3,8 +3,8 @@ import { Collections } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
 import { getLogger } from './logging-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

@@ -133,7 +133,7 @@ def run_comments_tests():
     # Verify comments were created
     assert "comments" in all_comments, "Response does not contain comments field"
     assert (
-            len(all_comments["comments"]) == TEST_CONFIG["initial_comments_count"] * 2
+        len(all_comments["comments"]) == TEST_CONFIG["initial_comments_count"] * 2
     ), "Incorrect number of comments"
     logger.info(f"✓ Found {len(all_comments['comments'])} comments")
 
@@ -170,7 +170,7 @@ def run_comments_tests():
 
     assert "next_cursor" in first_page, "Response missing next_cursor"
     assert (
-            len(first_page["comments"]) == TEST_CONFIG["pagination_limit"]
+        len(first_page["comments"]) == TEST_CONFIG["pagination_limit"]
     ), "Incorrect number of comments in first page"
 
     if first_page["next_cursor"]:
@@ -184,6 +184,53 @@ def run_comments_tests():
         assert len(second_page["comments"]) > 0, "No comments in second page"
     logger.info("✓ Comment pagination test passed")
 
+    # Step 5.1: Test get_update endpoint with pagination
+    logger.info("Step 5.1: Testing get_update endpoint with pagination")
+    first_update = api.get_update(
+        users[0]["email"], update_id, limit=TEST_CONFIG["pagination_limit"]
+    )
+    logger.info(
+        f"First page of update with comments: {json.dumps(first_update, indent=2)}"
+    )
+
+    # Verify the response structure
+    assert "update" in first_update, "Response missing update field"
+    assert "comments" in first_update, "Response missing comments field"
+    assert "next_cursor" in first_update, "Response missing next_cursor field"
+    assert first_update["update"]["update_id"] == update_id, "Wrong update returned"
+    assert (
+        len(first_update["comments"]) == TEST_CONFIG["pagination_limit"]
+    ), "Incorrect number of comments in first page"
+
+    # Test pagination with get_update
+    if first_update["next_cursor"]:
+        second_update = api.get_update(
+            users[0]["email"],
+            update_id,
+            limit=TEST_CONFIG["pagination_limit"],
+            after_cursor=first_update["next_cursor"],
+        )
+        logger.info(
+            f"Second page of update with comments: {json.dumps(second_update, indent=2)}"
+        )
+        assert len(second_update["comments"]) > 0, "No comments in second page"
+    logger.info("✓ Get update with pagination test passed")
+
+    # Step 5.2: Test pagination using get_update followed by get_comments
+    logger.info(
+        "Step 5.2: Testing pagination using get_update followed by get_comments"
+    )
+    if first_update["next_cursor"]:
+        follow_up_comments = api.get_comments(
+            users[0]["email"],
+            update_id,
+            limit=TEST_CONFIG["pagination_limit"],
+            after_cursor=first_update["next_cursor"],
+        )
+        logger.info(f"Follow-up comments: {json.dumps(follow_up_comments, indent=2)}")
+        assert len(follow_up_comments["comments"]) > 0, "No comments in follow-up page"
+        logger.info("✓ Follow-up pagination test passed")
+
     # Step 6: Update a comment
     logger.info("Step 6: Updating a comment")
     comment_to_update = comments[0]
@@ -195,7 +242,7 @@ def run_comments_tests():
 
     assert updated_comment["content"] == updated_content, "Comment content not updated"
     assert (
-            updated_comment["comment_id"] == comment_to_update["comment_id"]
+        updated_comment["comment_id"] == comment_to_update["comment_id"]
     ), "Wrong comment updated"
     logger.info("✓ Comment update test passed")
 

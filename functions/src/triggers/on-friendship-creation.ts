@@ -2,13 +2,13 @@ import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
 import { Collections, DeviceFields, FriendshipFields, Status } from '../models/constants.js';
-import { getLogger } from '../utils/logging-utils.js';
-import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
+import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { sendNotification } from '../utils/notification-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

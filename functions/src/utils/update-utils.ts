@@ -1,13 +1,25 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import { Collections, FeedFields, UpdateFields } from '../models/constants.js';
-import { EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
+import {
+  Collections,
+  CommentFields,
+  FeedFields,
+  FriendshipFields,
+  QueryOperators,
+  Status,
+  UpdateFields,
+} from '../models/constants.js';
+import { Comment, EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
+import { processEnrichedComments } from './comment-utils.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
+import { createFriendshipId } from './friendship-utils.js';
 import { getLogger } from './logging-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from './pagination-utils.js';
+import { fetchUsersProfiles } from './profile-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
 import { createFriendVisibilityIdentifier } from './visibility-utils.js';
 
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -188,12 +200,90 @@ export const getUpdateDoc = async (
  * @param userId The ID of the user to check access for
  * @throws ForbiddenError if the user doesn't have access to the update
  */
-export const hasUpdateAccess = (updateData: FirebaseFirestore.DocumentData, userId: string): void => {
+export const hasUpdateAccess = async (updateData: FirebaseFirestore.DocumentData, userId: string): Promise<void> => {
+  // Creator always has access
+  const creatorId = updateData[UpdateFields.CREATED_BY];
+  if (creatorId === userId) {
+    return;
+  }
+
+  // Check if the user is a friend with visibility
   const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
   const friendVisibility = createFriendVisibilityIdentifier(userId);
-  if (!visibleTo.includes(friendVisibility)) {
-    throw new ForbiddenError("You don't have access to this update");
+
+  if (visibleTo.includes(friendVisibility)) {
+    return;
   }
+
+  // If all_village is true, check if the user is a friend
+  const isAllVillage = updateData[UpdateFields.ALL_VILLAGE] || false;
+
+  if (isAllVillage) {
+    // Check if the users are friends
+    const db = getFirestore();
+    const friendshipId = createFriendshipId(creatorId, userId);
+    const friendshipDoc = await db.collection(Collections.FRIENDSHIPS).doc(friendshipId).get();
+
+    if (friendshipDoc.exists && friendshipDoc.data()?.[FriendshipFields.STATUS] === Status.ACCEPTED) {
+      return;
+    }
+  }
+
+  throw new ForbiddenError("You don't have access to this update");
+};
+
+/**
+ * Fetch and process paginated comments for an update
+ * @param updateRef The update document reference
+ * @param limit Maximum number of comments to fetch
+ * @param afterCursor Cursor for pagination
+ * @returns Object containing enriched comments and next cursor
+ */
+export const fetchUpdateComments = async (
+  updateRef: FirebaseFirestore.DocumentReference,
+  limit: number,
+  afterCursor?: string,
+): Promise<{
+  comments: Comment[];
+  uniqueCreatorCount: number;
+  nextCursor: string | null;
+}> => {
+  // Build the query
+  let query = updateRef.collection(Collections.COMMENTS).orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
+
+  // Apply cursor-based pagination
+  const paginatedQuery = await applyPagination(query, afterCursor, limit);
+
+  // Process comments using streaming
+  const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+    paginatedQuery,
+    (doc: QueryDocumentSnapshot) => doc,
+    limit,
+  );
+
+  // Collect user IDs from comments
+  const uniqueUserIds = new Set<string>();
+  commentDocs.forEach((doc: QueryDocumentSnapshot) => {
+    const createdBy = doc.data()[CommentFields.CREATED_BY] || '';
+    if (createdBy) {
+      uniqueUserIds.add(createdBy);
+    }
+  });
+
+  // Get profiles for all users who commented
+  const profiles = await fetchUsersProfiles(Array.from(uniqueUserIds));
+
+  // Process comments and create enriched comment objects
+  const enrichedComments = processEnrichedComments(commentDocs, profiles);
+
+  // Set up pagination for the next request
+  const nextCursor = generateNextCursor(lastDoc, enrichedComments.length, limit);
+
+  return {
+    comments: enrichedComments.slice(0, limit),
+    uniqueCreatorCount: uniqueUserIds.size,
+    nextCursor,
+  };
 };
 
 /**
