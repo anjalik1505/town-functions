@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, FriendEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, QueryOperators, Status } from '../models/constants.js';
+import { Collections, FriendshipFields, QueryOperators } from '../models/constants.js';
 import { Friend, FriendsResponse, PaginationPayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
@@ -43,7 +43,6 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
   let query = db
     .collection(Collections.FRIENDSHIPS)
     .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
-    .where(FriendshipFields.STATUS, QueryOperators.IN, [Status.ACCEPTED, Status.PENDING])
     .orderBy(FriendshipFields.CREATED_AT, QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
@@ -61,7 +60,6 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
   // Process friendships
   for (const friendshipDoc of friendshipDocs) {
     const friendshipData = friendshipDoc.data();
-    const friendshipStatus = friendshipData[FriendshipFields.STATUS];
 
     // Determine if the current user is the sender or receiver
     const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
@@ -79,7 +77,7 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
         : friendshipData[FriendshipFields.SENDER_AVATAR] || '',
     };
 
-    logger.info(`Processing friendship with friend: ${friend.user_id}, status: ${friendshipStatus}`);
+    logger.info(`Processing friendship with friend: ${friend.user_id}`);
 
     friends.push(friend);
   }

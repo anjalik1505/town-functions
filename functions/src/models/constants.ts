@@ -13,6 +13,7 @@ export const Collections = {
   CHATS: 'chats',
   INSIGHTS: 'insights',
   INVITATIONS: 'invitations',
+  JOIN_REQUESTS: 'join_requests',
   DEVICES: 'devices',
   COMMENTS: 'comments',
   REACTIONS: 'reactions',
@@ -33,9 +34,6 @@ export const Status = {
   ACCEPTED: 'accepted',
   PENDING: 'pending',
   REJECTED: 'rejected',
-  EXPIRED: 'expired',
-  OK: 'ok',
-  ERROR: 'error',
 } as const;
 
 // Field names for Profile documents
@@ -69,23 +67,35 @@ export const FriendshipFields = {
   RECEIVER_USERNAME: 'receiver_username',
   RECEIVER_NAME: 'receiver_name',
   RECEIVER_AVATAR: 'receiver_avatar',
-  MEMBERS: 'members', // Array containing both sender_id and receiver_id for efficient queries
-  STATUS: 'status',
+  MEMBERS: 'members',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
-  EXPIRES_AT: 'expires_at',
 } as const;
 
 // Field names for Invitation documents
 export const InvitationFields = {
   CREATED_AT: 'created_at',
-  EXPIRES_AT: 'expires_at',
   SENDER_ID: 'sender_id',
-  STATUS: 'status',
   USERNAME: 'username',
   NAME: 'name',
   AVATAR: 'avatar',
+} as const;
+
+// Field names for JoinRequest documents
+export const JoinRequestFields = {
+  REQUEST_ID: 'request_id',
+  INVITATION_ID: 'invitation_id',
+  REQUESTER_ID: 'requester_id',
+  RECEIVER_ID: 'receiver_id',
+  STATUS: 'status',
+  CREATED_AT: 'created_at',
+  UPDATED_AT: 'updated_at',
+  REQUESTER_NAME: 'requester_name',
+  REQUESTER_USERNAME: 'requester_username',
+  REQUESTER_AVATAR: 'requester_avatar',
   RECEIVER_NAME: 'receiver_name',
+  RECEIVER_USERNAME: 'receiver_username',
+  RECEIVER_AVATAR: 'v_avatar',
 } as const;
 
 // Field names for Update documents

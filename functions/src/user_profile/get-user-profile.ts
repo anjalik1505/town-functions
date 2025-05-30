@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from '../models/constants.js';
+import { Collections, ProfileFields, UserSummaryFields } from '../models/constants.js';
 import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
@@ -66,7 +66,7 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
-  if (!friendshipDoc.exists || friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED) {
+  if (!friendshipDoc.exists) {
     logger.warn(`User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`);
     throw new ForbiddenError('You must be friends with this user to view their profile');
   }

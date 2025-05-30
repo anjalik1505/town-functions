@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, UpdateViewEventParams } from '../models/analytics-events.js';
-import { Collections, FeedFields, FriendshipFields, QueryOperators, Status } from '../models/constants.js';
+import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
 import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
@@ -74,7 +74,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
-  if (!friendshipDoc.exists || friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED) {
+  if (!friendshipDoc.exists) {
     logger.warn(`User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`);
     throw new ForbiddenError('You must be friends with this user to view their updates');
   }

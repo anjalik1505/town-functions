@@ -117,10 +117,6 @@ export const testNotificationSchema = z.object({
   body: z.string().min(1, 'Notification body is required'),
 });
 
-export const createInvitationSchema = z.object({
-  receiver_name: z.string().min(1, 'Receiver name is required'),
-});
-
 export const createCommentSchema = z.object({
   content: z.string().min(1).max(1000),
   parent_id: z.string().optional().nullable(),

@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, UserNudgeEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields, NudgeFields, Status } from '../models/constants.js';
+import { Collections, DeviceFields, NudgeFields } from '../models/constants.js';
 import { BadRequestError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { createFriendshipId } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -56,7 +56,7 @@ export const nudgeUser = async (req: Request): Promise<ApiResponse<{ message: st
   const friendshipDoc = await friendshipRef.get();
 
   // If they are not friends, return an error
-  if (!friendshipDoc.exists || friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED) {
+  if (!friendshipDoc.exists) {
     logger.warn(`User ${currentUserId} attempted to nudge non-friend ${targetUserId}`);
     throw new ForbiddenError('You must be friends with this user to nudge them');
   }

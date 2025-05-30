@@ -2,14 +2,7 @@ import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  FriendshipFields,
-  GroupFields,
-  QueryOperators,
-  Status,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, FriendshipFields, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createFeedItem, formatUpdate } from '../utils/update-utils.js';
@@ -90,8 +83,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     // Get all accepted friendships
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
-      .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
+      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
 
     const friendshipDocs = await friendshipsQuery.get();
 

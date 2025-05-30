@@ -1,12 +1,14 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, InvitationFields, Status } from '../models/constants.js';
-import { Invitation } from '../models/data-models.js';
-import { BadRequestError, NotFoundError } from './errors.js';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { Collections, InvitationFields, JoinRequestFields } from '../models/constants.js';
+import { Invitation, JoinRequest } from '../models/data-models.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { hasReachedCombinedLimit } from './friendship-utils.js';
+import { hasLimitOverride } from './profile-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -35,24 +37,168 @@ export const getInvitationDoc = async (invitationId: string) => {
 };
 
 /**
- * Calculates the expiration timestamp for an invitation (24 hours from now)
- * @returns A Timestamp representing the expiration time
+ * Gets or creates an invitation link for a user
+ * @param invitationId The ID of the user
+ * @param profileData User profile data containing name, username, and avatar
+ * @returns The invitation document reference and data
  */
-export const calculateExpirationTime = (): Timestamp => {
-  const now = new Date();
-  const HOURS_24_IN_MS = 24 * 60 * 60 * 1000;
-  const expirationDate = new Date(now.getTime() + HOURS_24_IN_MS);
-  return Timestamp.fromDate(expirationDate);
+export const getOrCreateInvitationLink = async (
+  invitationId: string,
+  profileData: { name?: string; username?: string; avatar?: string },
+) => {
+  const db = getFirestore();
+
+  // Check if user already has an invitation
+  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
+  const invitationDoc = await invitationRef.get();
+
+  if (invitationDoc.exists) {
+    return {
+      ref: invitationRef,
+      data: invitationDoc.data() || {},
+      isNew: false,
+    };
+  }
+
+  // Create a new invitation link
+  const currentTime = Timestamp.now();
+
+  const invitationData: UpdateData<DocumentData> = {
+    [InvitationFields.USERNAME]: profileData.username || '',
+    [InvitationFields.NAME]: profileData.name || '',
+    [InvitationFields.AVATAR]: profileData.avatar || '',
+    [InvitationFields.CREATED_AT]: currentTime,
+  };
+
+  await invitationRef.set(invitationData);
+  logger.info(`Created invitation link with ID ${invitationRef.id} for user ${invitationId}`);
+
+  return {
+    ref: invitationRef,
+    data: invitationData,
+    isNew: true,
+  };
 };
 
 /**
- * Checks if an invitation has expired
- * @param expiresAt The expiration timestamp
- * @returns True if the invitation has expired
+ * Gets a join request document by ID
+ * @param invitationId The ID of the invitation containing the join request
+ * @param requestId The ID of the user who made the request
+ * @returns The join request document and data
+ * @throws NotFoundError if the join request doesn't exist
  */
-export const isInvitationExpired = (expiresAt: Timestamp): boolean => {
-  const currentTime = Timestamp.now();
-  return expiresAt && expiresAt.toDate() < currentTime.toDate();
+export const getJoinRequestDoc = async (invitationId: string, requestId: string) => {
+  const { ref: invitationRef } = await getInvitationDoc(invitationId);
+
+  // Now get the join request from the subcollection
+  const requestRef = invitationRef.collection(Collections.JOIN_REQUESTS).doc(requestId);
+  const requestDoc = await requestRef.get();
+
+  if (!requestDoc.exists) {
+    logger.warn(`Join request for user ${requestId} in invitation ${invitationId} not found`);
+    throw new NotFoundError('Join request not found');
+  }
+
+  return {
+    ref: requestRef,
+    doc: requestDoc,
+    data: requestDoc.data() || {},
+  };
+};
+
+/**
+ * Updates the status of a join request
+ * @param requestRef The reference to the join request document
+ * @param status The new status to set
+ * @returns A promise that resolves when the update is complete
+ */
+export const updateJoinRequestStatus = async (requestRef: FirebaseFirestore.DocumentReference, status: string) => {
+  const updateData: UpdateData<DocumentData> = { [JoinRequestFields.STATUS]: status };
+  await requestRef.update(updateData);
+  logger.info(`Updated join request ${requestRef.id} status to ${status}`);
+};
+
+/**
+ * Validates that the current user is the owner of the invitation for a join request
+ * @param senderId The ID of the invitation owner
+ * @param currentUserId The ID of the current user
+ * @throws ForbiddenError if the current user is not the invitation owner
+ */
+export const validateJoinRequestOwnership = (senderId: string, currentUserId: string): void => {
+  if (senderId !== currentUserId) {
+    logger.warn(`User ${currentUserId} attempted to act on a join request for invitation owned by ${senderId}`);
+    throw new ForbiddenError(`You can only act on join requests for your own invitations`);
+  }
+};
+
+/**
+ * Formats a join request document into a JoinRequest object
+ * @param requestId The ID of the join request
+ * @param requestData The join request data
+ * @returns A formatted JoinRequest object
+ */
+export const formatJoinRequest = (requestId: string, requestData: Record<string, unknown>): JoinRequest => {
+  return {
+    request_id: requestId,
+    invitation_id: requestData[JoinRequestFields.INVITATION_ID] as string,
+    requester_id: requestData[JoinRequestFields.REQUESTER_ID] as string,
+    receiver_id: requestData[JoinRequestFields.RECEIVER_ID] as string,
+    status: requestData[JoinRequestFields.STATUS] as string,
+    created_at: formatTimestamp(requestData[JoinRequestFields.CREATED_AT] as Timestamp),
+    updated_at: formatTimestamp(requestData[JoinRequestFields.UPDATED_AT] as Timestamp),
+    requester_name: requestData[JoinRequestFields.REQUESTER_NAME] as string,
+    requester_username: requestData[JoinRequestFields.REQUESTER_USERNAME] as string,
+    requester_avatar: requestData[JoinRequestFields.REQUESTER_AVATAR] as string,
+    receiver_name: requestData[JoinRequestFields.RECEIVER_NAME] as string,
+    receiver_username: requestData[JoinRequestFields.RECEIVER_USERNAME] as string,
+    receiver_avatar: requestData[JoinRequestFields.RECEIVER_AVATAR] as string,
+  };
+};
+
+/**
+ * Gets all join requests for an invitation
+ * @param invitationId The ID of the invitation
+ * @returns Array of join requests
+ */
+export const getJoinRequestsForInvitation = async (invitationId: string): Promise<JoinRequest[]> => {
+  const db = getFirestore();
+
+  // Get the invitation document reference
+  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
+
+  // Query the join requests subcollection
+  const requestsSnapshot = await invitationRef
+    .collection(Collections.JOIN_REQUESTS)
+    .orderBy(JoinRequestFields.CREATED_AT, 'desc')
+    .get();
+
+  const joinRequests: JoinRequest[] = [];
+
+  requestsSnapshot.forEach((doc) => {
+    const requestData = doc.data();
+    joinRequests.push(formatJoinRequest(doc.id, requestData));
+  });
+
+  return joinRequests;
+};
+
+/**
+ * Formats an invitation document into an Invitation object
+ * @param invitationId The ID of the invitation
+ * @param invitationData The invitation data
+ * @returns A formatted Invitation object
+ */
+export const formatInvitation = (invitationId: string, invitationData: Record<string, unknown>): Invitation => {
+  const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
+
+  return {
+    invitation_id: invitationId,
+    created_at: formatTimestamp(createdAt),
+    sender_id: (invitationData[InvitationFields.SENDER_ID] as string) || '',
+    username: (invitationData[InvitationFields.USERNAME] as string) || '',
+    name: (invitationData[InvitationFields.NAME] as string) || '',
+    avatar: (invitationData[InvitationFields.AVATAR] as string) || '',
+  };
 };
 
 /**
@@ -70,48 +216,34 @@ export const hasInvitationPermission = (senderId: string, currentUserId: string,
 };
 
 /**
- * Formats an invitation document into an Invitation object
- * @param invitationId The ID of the invitation
- * @param invitationData The invitation data
- * @returns A formatted Invitation object
+ * Checks if a user has reached the combined limit of friends and active invitations, or if they have a limit override.
+ * @param currentUserId The ID of the user to check
+ * @param senderId The ID of the sender user to check
+ * @returns An object containing the friend count and whether the limit has been reached
+ * @throws BadRequestError If the user has reached the limit and does not have an override
  */
-export const formatInvitation = (invitationId: string, invitationData: Record<string, unknown>): Invitation => {
-  const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
-  const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
-
-  return {
-    invitation_id: invitationId,
-    created_at: createdAt ? formatTimestamp(createdAt) : '',
-    expires_at: expiresAt ? formatTimestamp(expiresAt) : '',
-    sender_id: (invitationData[InvitationFields.SENDER_ID] as string) || '',
-    status: (invitationData[InvitationFields.STATUS] as string) || '',
-    username: (invitationData[InvitationFields.USERNAME] as string) || '',
-    name: (invitationData[InvitationFields.NAME] as string) || '',
-    avatar: (invitationData[InvitationFields.AVATAR] as string) || '',
-    receiver_name: (invitationData[InvitationFields.RECEIVER_NAME] as string) || '',
-  };
-};
-
-/**
- * Updates the status of an invitation
- * @param invitationRef The reference to the invitation document
- * @param status The new status to set
- * @returns A promise that resolves when the update is complete
- */
-export const updateInvitationStatus = async (invitationRef: FirebaseFirestore.DocumentReference, status: string) => {
-  await invitationRef.update({ [InvitationFields.STATUS]: status });
-  logger.info(`Updated invitation ${invitationRef.id} status to ${status}`);
-};
-
-/**
- * Checks if an invitation can be acted upon based on its status
- * @param status The current status of the invitation
- * @param action The action being performed (e.g., "accept", "reject")
- * @throws BadRequestError if the invitation cannot be acted upon
- */
-export const canActOnInvitation = (status: string, action: string): void => {
-  if (status !== Status.PENDING) {
-    logger.warn(`Invitation cannot be ${action}ed (status: ${status})`);
-    throw new BadRequestError(`Invitation cannot be ${action}ed (status: ${status})`);
+export const hasReachedCombinedLimitOrOverride = async (
+  currentUserId: string,
+  senderId: string,
+): Promise<{
+  friendCount: number;
+}> => {
+  const { friendCount, hasReachedLimit } = await hasReachedCombinedLimit(currentUserId);
+  if (hasReachedLimit) {
+    const override = await hasLimitOverride(currentUserId);
+    if (!override) {
+      throw new BadRequestError('You have reached the maximum number of friends and active invitations');
+    }
   }
+
+  // Check the combined limit for the sender (excluding this invitation)
+  const { hasReachedLimit: senderHasReachedLimit } = await hasReachedCombinedLimit(senderId);
+  if (senderHasReachedLimit) {
+    const override = await hasLimitOverride(senderId);
+    if (!override) {
+      throw new BadRequestError('Sender has reached the maximum number of friends and active invitations');
+    }
+  }
+
+  return { friendCount };
 };

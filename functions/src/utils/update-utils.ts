@@ -1,13 +1,5 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import {
-  Collections,
-  CommentFields,
-  FeedFields,
-  FriendshipFields,
-  QueryOperators,
-  Status,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, CommentFields, FeedFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { Comment, EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
 import { processEnrichedComments } from './comment-utils.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
@@ -224,7 +216,7 @@ export const hasUpdateAccess = async (updateData: FirebaseFirestore.DocumentData
     const friendshipId = createFriendshipId(creatorId, userId);
     const friendshipDoc = await db.collection(Collections.FRIENDSHIPS).doc(friendshipId).get();
 
-    if (friendshipDoc.exists && friendshipDoc.data()?.[FriendshipFields.STATUS] === Status.ACCEPTED) {
+    if (friendshipDoc.exists) {
       return;
     }
   }

@@ -1,13 +1,14 @@
 import { Request } from 'express';
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import { Invitation } from '../models/data-models.js';
-import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { formatInvitation, getInvitationDoc } from '../utils/invitation-utils.js';
+import { formatInvitation, getOrCreateInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getProfileDoc } from '../utils/profile-utils.js';
+import { ProfileFields } from '../models/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -30,31 +31,33 @@ const logger = getLogger(path.basename(__filename));
  */
 export const getInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
-  const invitationId = req.params.invitation_id;
 
-  logger.info(`Getting invitation ${invitationId} for user ${currentUserId}`);
+  logger.info(`Getting invitation for user ${currentUserId}`);
 
-  if (!invitationId) {
-    throw new BadRequestError('Invitation ID is required');
-  }
+  // Get user profile data
+  const { data: profileData } = await getProfileDoc(currentUserId);
 
-  // Get the invitation document
-  const { data: invitationData } = await getInvitationDoc(invitationId);
-
-  // Get current friend and invitation counts for analytics
-  const { friendCount, activeInvitationCount } = await hasReachedCombinedLimit(currentUserId);
+  // Create a new invitation
+  const { ref, data } = await getOrCreateInvitationLink(currentUserId, {
+    name: profileData[ProfileFields.NAME] as string,
+    username: profileData[ProfileFields.USERNAME] as string,
+    avatar: profileData[ProfileFields.AVATAR] as string,
+  });
 
   // Format the invitation
-  const invitation = formatInvitation(invitationId, invitationData);
+  const invitation = formatInvitation(ref.id, data);
 
-  logger.info(`Successfully retrieved invitation ${invitationId} for user ${currentUserId}`);
+  // Get current friend and invitation counts for analytics
+  const { friendCount } = await hasReachedCombinedLimit(currentUserId);
 
   // Create analytics event
   const event: InviteEventParams = {
     friend_count: friendCount,
-    invitation_count: activeInvitationCount,
   };
 
+  logger.info(`Successfully reset invitation for user ${currentUserId}`);
+
+  // Return the new invitation
   return {
     data: invitation,
     status: 200,
