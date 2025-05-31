@@ -72,7 +72,8 @@ const sendJoinRequestUpdateNotification = async (
   }
 
   // Get requester's profile to include their name in the notification
-  const receiverName = requestData[JoinRequestFields.RECEIVER_NAME] || requestData[JoinRequestFields.RECEIVER_USERNAME] || 'Friend';
+  const receiverName =
+    requestData[JoinRequestFields.RECEIVER_NAME] || requestData[JoinRequestFields.RECEIVER_USERNAME] || 'Friend';
 
   // Send the notification
   try {
