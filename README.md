@@ -515,7 +515,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "reactions": [
         {
           "type": "like",
-          "count": 1, 
+          "count": 1,
           "reaction_id": "1234"
         }
       ],
@@ -579,6 +579,108 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 
 - 400: Invalid query parameters
 - 404: Profile not found
+- 500: Internal server error
+
+#### GET /me/requests
+
+**Purpose**: Get all join requests for the authenticated user's invitation, paginated.
+
+**Analytics Events**:
+
+- JOIN_REQUESTS_VIEWED: When a user views join requests for their invitation
+
+  **Event Body:**
+
+  ```json
+  {
+    "join_request_count": 0
+  }
+  ```
+
+**Input**: Query Parameters
+
+```
+?limit=20&after_cursor=aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk=
+```
+
+_Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). after_cursor must be in base64 encoding based on a previous request._
+
+**Output**:
+
+```json
+{
+  "join_requests": [
+    {
+      "request_id": "req123",
+      "invitation_id": "abc123",
+      "requester_id": "user456",
+      "receiver_id": "user123",
+      "status": "pending",
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "updated_at": "2025-01-01T00:00:00.000+00:00",
+      "requester_name": "Jane Doe",
+      "requester_username": "janedoe",
+      "requester_avatar": "https://example.com/avatar2.jpg",
+      "receiver_name": "John Doe",
+      "receiver_username": "johndoe",
+      "receiver_avatar": "https://example.com/avatar.jpg"
+    }
+  ],
+  "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
+}
+```
+
+**Errors**:
+
+- 400: Invalid pagination parameters
+- 403: You are not authorized to view these join requests
+- 404: Invitation not found
+- 500: Internal server error
+
+#### GET /me/requests/:request_id
+
+**Purpose**: Get a single join request by ID. The authenticated user must be either the sender or receiver of the join request.
+
+**Analytics Events**:
+
+- SINGLE_JOIN_REQUEST_VIEWED: When a specific join request is viewed
+
+  **Event Body:**
+
+  ```json
+  {
+    "invitation_id": "abc123",
+    "request_id": "req123"
+  }
+  ```
+
+**Input**: (None, uses auth token and request_id from path)
+
+**Output**:
+
+```json
+{
+  "request_id": "req123",
+  "invitation_id": "abc123",
+  "requester_id": "user456",
+  "receiver_id": "user123",
+  "status": "pending",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "updated_at": "2025-01-01T00:00:00.000+00:00",
+  "requester_name": "Jane Doe",
+  "requester_username": "janedoe",
+  "requester_avatar": "https://example.com/avatar2.jpg",
+  "receiver_name": "John Doe",
+  "receiver_username": "johndoe",
+  "receiver_avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Errors**:
+
+- 403: You are not authorized to view this join request
+- 404: Join request not found
+- 404: Invitation not found
 - 500: Internal server error
 
 ### Updates
@@ -1128,68 +1230,19 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 
 ### Invitations
 
-#### POST /invitations
+#### GET /invitation
 
-**Purpose**: Create an invitation for a user to join the Village app. The user must not have reached the combined limit of friends and active invitations (5).
+**Purpose**: Get the current user's persistent invitation link. If no invitation exists for the user, one will be created.
 
 **Analytics Events**:
 
-- INVITE_CREATED: When a new invitation is created
+- INVITE_VIEWED: When a user views their invitation link
 
   **Event Body:**
 
   ```json
   {
-    "friend_count": 0,
-    "invitation_count": 0
-  }
-  ```
-
-**Input**:
-
-```json
-{
-  "receiver_name": "John Doe"
-}
-```
-
-**Output**:
-
-```json
-{
-  "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00.000+00:00",
-  "expires_at": "2025-01-02T00:00:00.000+00:00",
-  "sender_id": "user123",
-  "status": "pending",
-  "username": "johndoe",
-  "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg",
-  "receiver_name": "John Doe"
-}
-```
-
-**Errors**:
-
-- 400: Invalid request parameters
-- 400: User has reached the maximum number of friends and active invitations (5)
-- 404: User profile not found
-- 500: Internal server error
-
-#### POST /invitations/{invitation_id}/accept
-
-**Purpose**: Accept an invitation to connect with another user. Both the sender and receiver must not have reached the combined limit of friends and active invitations (5).
-
-**Analytics Events**:
-
-- INVITE_ACCEPTED: When an invitation is accepted
-
-  **Event Body:**
-
-  ```json
-  {
-    "friend_count": 0,
-    "invitation_count": 0
+    "friend_count": 0
   }
   ```
 
@@ -1199,7 +1252,9 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 
 ```json
 {
-  "user_id": "user123",
+  "invitation_id": "abc123",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "sender_id": "user123",
   "username": "johndoe",
   "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg"
@@ -1208,31 +1263,109 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 
 **Errors**:
 
-- 400: Invitation ID is required
-- 400: Invitation cannot be accepted (status: {status})
-- 400: Invitation has expired
-- 400: You cannot accept your own invitation
-- 400: You have reached the maximum number of friends and active invitations (5)
-- 400: The sender has reached the maximum number of friends and active invitations (5)
+- 404: User profile not found
+- 500: Internal server error
+
+#### POST /invitation/reset
+
+**Purpose**: Reset the user's invitation link by deleting the old one (including all join requests) and creating a new one.
+
+**Analytics Events**:
+
+- INVITE_RESET: When a user resets their invitation link
+
+  **Event Body:**
+
+  ```json
+  {
+    "friend_count": 0,
+    "join_requests_deleted": 0
+  }
+  ```
+
+**Input**: (None, uses auth token)
+
+**Output**:
+
+```json
+{
+  "invitation_id": "abc123",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "sender_id": "user123",
+  "username": "johndoe",
+  "name": "John Doe",
+  "avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Errors**:
+
+- 404: User profile not found
+- 500: Internal server error
+
+#### POST /invitation/:invitation_id/join
+
+**Purpose**: Create a join request for an invitation. The user must not have reached the combined limit of friends and active invitations (5).
+
+**Analytics Events**:
+
+- JOIN_REQUESTED: When a user requests to join via an invitation
+
+  **Event Body:**
+
+  ```json
+  {
+    "friend_count": 0
+  }
+  ```
+
+**Input**: (None, uses auth token)
+
+**Output**:
+
+```json
+{
+  "request_id": "req123",
+  "invitation_id": "abc123",
+  "requester_id": "user456",
+  "receiver_id": "user123",
+  "status": "pending",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "updated_at": "2025-01-01T00:00:00.000+00:00",
+  "requester_name": "Jane Doe",
+  "requester_username": "janedoe",
+  "requester_avatar": "https://example.com/avatar2.jpg",
+  "receiver_name": "John Doe",
+  "receiver_username": "johndoe",
+  "receiver_avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Errors**:
+
+- 400: You cannot join your own invitation
+- 400: User has reached the maximum number of friends and active invitations (5)
+- 400: Sender has reached the maximum number of friends and active invitations (5)
 - 404: Invitation not found
 - 404: User profile not found
 - 404: Sender profile not found
+- 409: You are already friends with this user
+- 409: Your previous join request was rejected. You cannot request to join again.
 - 500: Internal server error
 
-#### POST /invitations/{invitation_id}/reject
+#### POST /invitation/:request_id/accept
 
-**Purpose**: Reject an invitation from another user.
+**Purpose**: Accept a join request and create a friendship between the users.
 
 **Analytics Events**:
 
-- INVITE_REJECTED: When an invitation is rejected
+- JOIN_ACCEPTED: When a join request is accepted
 
   **Event Body:**
 
   ```json
   {
-    "friend_count": 0,
-    "invitation_count": 0
+    "friend_count": 0
   }
   ```
 
@@ -1242,83 +1375,80 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 
 ```json
 {
+  "user_id": "user456",
+  "username": "janedoe",
+  "name": "Jane Doe",
+  "avatar": "https://example.com/avatar2.jpg"
+}
+```
+
+**Errors**:
+
+- 400: Join request is already accepted/rejected
+- 403: You are not authorized to accept this join request
+- 404: Join request not found
+- 404: User profile not found
+- 500: Internal server error
+
+#### POST /invitation/:request_id/reject
+
+**Purpose**: Reject a join request by setting its status to rejected.
+
+**Analytics Events**:
+
+- JOIN_REJECTED: When a join request is rejected
+
+  **Event Body:**
+
+  ```json
+  {
+    "friend_count": 0
+  }
+  ```
+
+**Input**: (None, uses auth token)
+
+**Output**:
+
+```json
+{
+  "request_id": "req123",
   "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00.000+00:00",
-  "expires_at": "2025-01-02T00:00:00.000+00:00",
-  "sender_id": "user123",
+  "requester_id": "user456",
+  "receiver_id": "user123",
   "status": "rejected",
-  "username": "johndoe",
-  "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg",
-  "receiver_name": "John Doe"
-}
-```
-
-**Errors**:
-
-- 400: Invitation ID is required
-- 400: Invitation cannot be rejected (status: {status})
-- 400: You cannot reject your own invitation
-- 404: Invitation not found
-- 500: Internal server error
-
-#### POST /invitations/{invitation_id}/resend
-
-**Purpose**: Resend an invitation by refreshing its timestamps. The user must not have reached the combined limit of friends and active invitations (5). When resending, the current invitation is excluded from the limit count.
-
-**Analytics Events**:
-
-- INVITE_RESENT: When an invitation is resent
-
-  **Event Body:**
-
-  ```json
-  {
-    "friend_count": 0,
-    "invitation_count": 0
-  }
-  ```
-
-**Input**: (None, uses auth token)
-
-**Output**:
-
-```json
-{
-  "invitation_id": "abc123",
   "created_at": "2025-01-01T00:00:00.000+00:00",
-  "expires_at": "2025-01-02T00:00:00.000+00:00",
-  "sender_id": "user123",
-  "status": "pending",
-  "username": "johndoe",
-  "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg",
-  "receiver_name": "John Doe"
+  "updated_at": "2025-01-01T00:00:00.000+00:00",
+  "requester_name": "Jane Doe",
+  "requester_username": "janedoe",
+  "requester_avatar": "https://example.com/avatar2.jpg",
+  "receiver_name": "John Doe",
+  "receiver_username": "johndoe",
+  "receiver_avatar": "https://example.com/avatar.jpg"
 }
 ```
 
 **Errors**:
 
-- 400: Invitation ID is required
-- 400: You have reached the maximum number of friends and active invitations (5)
-- 403: You can only resend your own invitations
+- 400: Join request is already accepted/rejected
+- 403: You are not authorized to reject this join request
+- 404: Join request not found
 - 404: Invitation not found
 - 500: Internal server error
 
-#### GET /invitations
+#### GET /invitation/requests
 
-**Purpose**: Get all invitations created by the current user, paginated.
+**Purpose**: Get all join requests made by the current user, paginated.
 
 **Analytics Events**:
 
-- INVITES_VIEWED: When a user views their invitations list
+- JOIN_REQUESTS_VIEWED: When a user views their join requests
 
   **Event Body:**
 
   ```json
   {
-    "friend_count": 0,
-    "invitation_count": 0
+    "join_request_count": 0
   }
   ```
 
@@ -1334,17 +1464,21 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 
 ```json
 {
-  "invitations": [
+  "join_requests": [
     {
+      "request_id": "req123",
       "invitation_id": "abc123",
-      "created_at": "2025-01-01T00:00:00.000+00:00",
-      "expires_at": "2025-01-02T00:00:00.000+00:00",
-      "sender_id": "user123",
+      "requester_id": "user456",
+      "receiver_id": "user123",
       "status": "pending",
-      "username": "johndoe",
-      "name": "John Doe",
-      "avatar": "https://example.com/avatar.jpg",
-      "receiver_name": "John Doe"
+      "created_at": "2025-01-01T00:00:00.000+00:00",
+      "updated_at": "2025-01-01T00:00:00.000+00:00",
+      "requester_name": "Jane Doe",
+      "requester_username": "janedoe",
+      "requester_avatar": "https://example.com/avatar2.jpg",
+      "receiver_name": "John Doe",
+      "receiver_username": "johndoe",
+      "receiver_avatar": "https://example.com/avatar.jpg"
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -1353,49 +1487,9 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 
 **Errors**:
 
-- 400: Invalid query parameters
+- 400: Invalid pagination parameters
 - 500: Internal server error
 
-#### GET /invitations/{invitation_id}
-
-**Purpose**: Get a single invitation by ID. The authenticated user must be the sender of the invitation.
-
-**Analytics Events**:
-
-- INVITE_VIEWED: When a specific invitation is viewed
-
-  **Event Body:**
-
-  ```json
-  {
-    "friend_count": 0,
-    "invitation_count": 0
-  }
-  ```
-
-**Input**: (None, uses auth token)
-
-**Output**:
-
-```json
-{
-  "invitation_id": "abc123",
-  "created_at": "2025-01-01T00:00:00.000+00:00",
-  "expires_at": "2025-01-02T00:00:00.000+00:00",
-  "sender_id": "user123",
-  "status": "pending",
-  "username": "johndoe",
-  "name": "John Doe",
-  "avatar": "https://example.com/avatar.jpg",
-  "receiver_name": "John Doe"
-}
-```
-
-**Errors**:
-
-- 400: Invitation ID is required
-- 403: You can only view your own invitations
-- 404: Invitation not found
 
 ### Device Management
 
