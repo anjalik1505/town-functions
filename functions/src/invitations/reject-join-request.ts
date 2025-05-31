@@ -25,7 +25,6 @@ const logger = getLogger(path.basename(__filename));
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - params: Request parameters containing:
- *                - invitation_id: The ID of the invitation (owner's user ID)
  *                - requester_id: The ID of the user who requested to join
  *
  * @returns An ApiResponse containing the updated join request and analytics
@@ -33,6 +32,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 400: Join request is already accepted/rejected
  * @throws 403: You are not authorized to reject this join request
  * @throws 404: Join request not found
+ * @throws 404: Invitation not found
  */
 export const rejectJoinRequest = async (req: Request): Promise<ApiResponse<JoinRequest>> => {
   // Get validated params

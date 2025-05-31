@@ -1,9 +1,9 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import { Collections, JoinRequestFields, QueryOperators, Status } from '../models/constants.js';
 import { JoinRequest } from '../models/data-models.js';
-import { createFriendshipId, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
+import { getFriendshipRefAndDoc, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
   formatJoinRequest,
   getInvitationDoc,
@@ -43,6 +43,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 404: User profile not found
  * @throws 404: Sender profile not found
  * @throws 409: You are already friends with this user
+ * @throws 409: Your previous join request was rejected. You cannot request to join again.
  */
 export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinRequest>> => {
   // Get validated params
@@ -58,15 +59,8 @@ export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinReque
   // Check if the user is trying to join their own invitation
   hasInvitationPermission(receiverId, currentUserId, 'join');
 
-  // Create a consistent friendship ID by sorting the user IDs
-  const friendshipId = createFriendshipId(currentUserId, receiverId);
-
-  // Initialize Firestore client
-  const db = getFirestore();
-
   // Check if friendship already exists
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
-  const friendshipDoc = await friendshipRef.get();
+  const { doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, receiverId);
 
   if (friendshipDoc.exists) {
     throw new ConflictError('You are already friends with this user');
@@ -80,14 +74,21 @@ export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinReque
   const joinRequestsCollection = invitationRef.collection(Collections.JOIN_REQUESTS);
   const existingRequests = await joinRequestsCollection
     .where(JoinRequestFields.REQUESTER_ID, QueryOperators.EQUALS, currentUserId)
-    .where(JoinRequestFields.STATUS, QueryOperators.EQUALS, Status.PENDING)
+    .where(JoinRequestFields.STATUS, QueryOperators.IN, [Status.PENDING, Status.REJECTED])
     .limit(1)
     .get();
 
   if (!existingRequests.empty) {
-    logger.info(`User ${currentUserId} already has a pending join request for invitation ${invitationId}`);
     const existingRequest = existingRequests.docs[0];
     const requestData = existingRequest?.data() || {};
+    const status = requestData[JoinRequestFields.STATUS];
+
+    if (status === Status.PENDING) {
+      logger.info(`User ${currentUserId} already has a pending join request for invitation ${invitationId}`);
+    } else if (status === Status.REJECTED) {
+      logger.info(`User ${currentUserId} has a rejected join request for invitation ${invitationId}`);
+      throw new ConflictError('Your previous join request was rejected. You cannot request to join again.');
+    }
 
     // Get current friend count for analytics
     const { friendCount } = await hasReachedCombinedLimit(currentUserId);

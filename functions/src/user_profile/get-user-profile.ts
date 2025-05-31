@@ -4,7 +4,7 @@ import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-
 import { Collections, ProfileFields, UserSummaryFields } from '../models/constants.js';
 import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import { createFriendshipId } from '../utils/friendship-utils.js';
+import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createSummaryId, formatFriendProfileResponse, getProfileDoc } from '../utils/profile-utils.js';
 
@@ -59,11 +59,9 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   const { data: targetUserProfileData } = await getProfileDoc(targetUserId);
 
   // Check if users are friends using the unified friendships collection
-  const friendshipId = createFriendshipId(currentUserId, targetUserId);
   const summaryId = createSummaryId(currentUserId, targetUserId);
 
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
-  const friendshipDoc = await friendshipRef.get();
+  const { id: friendshipId, doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, targetUserId);
 
   // If they are not friends, return an error
   if (!friendshipDoc.exists) {

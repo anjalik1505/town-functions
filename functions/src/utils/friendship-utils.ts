@@ -20,6 +20,40 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
+ * Friendship document result type
+ */
+type FriendshipDocumentResult = {
+  id: string;
+  ref: FirebaseFirestore.DocumentReference;
+  doc: FirebaseFirestore.DocumentSnapshot;
+};
+
+/**
+ * Retrieves a friendship document reference and document snapshot.
+ * @param currentUserId The ID of the current user for the friendship
+ * @param targetUserId The ID of the target user for the friendship
+ * @returns A promise that resolves with an object containing the friendship document reference and document snapshot.
+ *          The document snapshot can be null if the document doesn't exist.
+ */
+export const getFriendshipRefAndDoc = async (
+  currentUserId: string,
+  targetUserId: string,
+): Promise<FriendshipDocumentResult> => {
+  const db = getFirestore();
+
+  const friendshipId = createFriendshipId(currentUserId, targetUserId);
+
+  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
+  const friendshipDoc = await friendshipRef.get();
+
+  return {
+    id: friendshipId,
+    ref: friendshipRef,
+    doc: friendshipDoc,
+  };
+};
+
+/**
  * Creates a consistent friendship ID by sorting user IDs.
  * This ensures that the same friendship ID is generated regardless of which user is first.
  *

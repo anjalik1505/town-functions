@@ -12,6 +12,7 @@ import { getJoinRequests } from './invitations/get-join-requests.js';
 import { rejectJoinRequest } from './invitations/reject-join-request.js';
 import { requestToJoin } from './invitations/request-to-join.js';
 import { resetInvitation } from './invitations/reset-invitation.js';
+import { getJoinRequest } from './own_profile/get-join-request.js';
 import { validateQueryParams, validateRequest } from './middleware/validation.js';
 import { ApiResponse, ErrorResponse, EventName } from './models/analytics-events.js';
 import {
@@ -67,7 +68,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from './utils/errors.js';
-import { getInvitationJoinRequests } from './own_profile/get-invitation-join-requests.js';
+import { getMyJoinRequests } from './own_profile/get-my-join-requests.js';
 
 // Response Handler
 const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
@@ -199,7 +200,12 @@ app.get('/me/friends', validateQueryParams(paginationSchema), async (req, res) =
 });
 
 app.get('/me/requests', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getInvitationJoinRequests(req);
+  const result = await getMyJoinRequests(req);
+  sendResponse(res, result);
+});
+
+app.get('/me/requests/:request_id', async (req, res) => {
+  const result = await getJoinRequest(req);
   sendResponse(res, result);
 });
 

@@ -27,7 +27,7 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns An ApiResponse containing the invitation and analytics
  *
- * @throws 404: Invitation not found
+ * @throws 404: User profile not found
  */
 export const getInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
@@ -37,7 +37,7 @@ export const getInvitation = async (req: Request): Promise<ApiResponse<Invitatio
   // Get user profile data
   const { data: profileData } = await getProfileDoc(currentUserId);
 
-  // Create a new invitation
+  // Get or create an invitation link for the user
   const { ref, data } = await getOrCreateInvitationLink(currentUserId, {
     name: profileData[ProfileFields.NAME] as string,
     username: profileData[ProfileFields.USERNAME] as string,

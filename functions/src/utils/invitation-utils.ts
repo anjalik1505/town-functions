@@ -1,5 +1,5 @@
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { Collections, InvitationFields, JoinRequestFields } from '../models/constants.js';
+import { Collections, InvitationFields, JoinRequestFields, QueryOperators } from '../models/constants.js';
 import { Invitation, JoinRequest } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
@@ -12,6 +12,27 @@ import { hasLimitOverride } from './profile-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
+
+/**
+ * Gets an invitation document by ID
+ * @param userId The ID of the user
+ * @returns The invitation document and data
+ * @throws NotFoundError if the invitation doesn't exist
+ */
+export const getInvitationDocForUser = async (userId: string) => {
+  const existingInvitation = await getUserInvitationLink(userId);
+
+  if (!existingInvitation) {
+    logger.warn(`Invitation for ${userId} not found`);
+    throw new NotFoundError(`Invitation not found`);
+  }
+
+  return {
+    ref: existingInvitation.ref,
+    doc: existingInvitation.doc,
+    data: existingInvitation.data,
+  };
+};
 
 /**
  * Gets an invitation document by ID
@@ -37,33 +58,61 @@ export const getInvitationDoc = async (invitationId: string) => {
 };
 
 /**
- * Gets or creates an invitation link for a user
- * @param invitationId The ID of the user
- * @param profileData User profile data containing name, username, and avatar
- * @returns The invitation document reference and data
+ * Gets the current invitation link for a user
+ * @param userId The ID of the user
+ * @returns The invitation document reference and data, or null if no invitation exists
  */
-export const getOrCreateInvitationLink = async (
-  invitationId: string,
-  profileData: { name?: string; username?: string; avatar?: string },
-) => {
+export const getUserInvitationLink = async (userId: string) => {
   const db = getFirestore();
 
-  // Check if user already has an invitation
-  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
-  const invitationDoc = await invitationRef.get();
+  // Query invitations where sender_id matches the user ID
+  const invitationSnapshot = await db
+    .collection(Collections.INVITATIONS)
+    .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId)
+    .limit(1)
+    .get();
 
-  if (invitationDoc.exists) {
-    return {
-      ref: invitationRef,
-      data: invitationDoc.data() || {},
-      isNew: false,
-    };
+  if (!invitationSnapshot.empty) {
+    const invitationDoc = invitationSnapshot.docs[0];
+
+    if (invitationDoc && invitationDoc.exists) {
+      return {
+        ref: invitationDoc.ref,
+        doc: invitationDoc,
+        data: invitationDoc.data() || {},
+        isNew: false,
+      };
+    }
   }
 
-  // Create a new invitation link
+  return null;
+};
+
+/**
+ * Gets or creates an invitation link for a user
+ * @param userId The ID of the user
+ * @param profileData User profile data containing name, username, and avatar
+ * @returns The invitation document reference and data
+ * @throws FirebaseError if there's an issue with Firestore operations
+ */
+export const getOrCreateInvitationLink = async (
+  userId: string,
+  profileData: { name?: string; username?: string; avatar?: string },
+) => {
+  // Check if user already has an invitation
+  const existingInvitation = await getUserInvitationLink(userId);
+
+  if (existingInvitation) {
+    return existingInvitation;
+  }
+
+  // Create a new invitation link with a random ID
+  const db = getFirestore();
+  const invitationRef = db.collection(Collections.INVITATIONS).doc();
   const currentTime = Timestamp.now();
 
   const invitationData: UpdateData<DocumentData> = {
+    [InvitationFields.SENDER_ID]: userId,
     [InvitationFields.USERNAME]: profileData.username || '',
     [InvitationFields.NAME]: profileData.name || '',
     [InvitationFields.AVATAR]: profileData.avatar || '',
@@ -71,7 +120,7 @@ export const getOrCreateInvitationLink = async (
   };
 
   await invitationRef.set(invitationData);
-  logger.info(`Created invitation link with ID ${invitationRef.id} for user ${invitationId}`);
+  logger.info(`Created invitation link with ID ${invitationRef.id} for user ${userId}`);
 
   return {
     ref: invitationRef,
@@ -86,6 +135,7 @@ export const getOrCreateInvitationLink = async (
  * @param requestId The ID of the user who made the request
  * @returns The join request document and data
  * @throws NotFoundError if the join request doesn't exist
+ * @throws NotFoundError if the invitation doesn't exist
  */
 export const getJoinRequestDoc = async (invitationId: string, requestId: string) => {
   const { ref: invitationRef } = await getInvitationDoc(invitationId);
@@ -104,18 +154,6 @@ export const getJoinRequestDoc = async (invitationId: string, requestId: string)
     doc: requestDoc,
     data: requestDoc.data() || {},
   };
-};
-
-/**
- * Updates the status of a join request
- * @param requestRef The reference to the join request document
- * @param status The new status to set
- * @returns A promise that resolves when the update is complete
- */
-export const updateJoinRequestStatus = async (requestRef: FirebaseFirestore.DocumentReference, status: string) => {
-  const updateData: UpdateData<DocumentData> = { [JoinRequestFields.STATUS]: status };
-  await requestRef.update(updateData);
-  logger.info(`Updated join request ${requestRef.id} status to ${status}`);
 };
 
 /**
@@ -206,7 +244,7 @@ export const formatInvitation = (invitationId: string, invitationData: Record<st
  * @param senderId The ID of the user who sent the invitation
  * @param currentUserId The ID of the current user
  * @param action The action being performed (e.g., "view", "accept", "reject")
- * @throws ForbiddenError if the user is trying to act on their own invitation
+ * @throws BadRequestError if the user is trying to act on their own invitation
  */
 export const hasInvitationPermission = (senderId: string, currentUserId: string, action: string): void => {
   if (senderId === currentUserId) {
@@ -221,6 +259,7 @@ export const hasInvitationPermission = (senderId: string, currentUserId: string,
  * @param senderId The ID of the sender user to check
  * @returns An object containing the friend count and whether the limit has been reached
  * @throws BadRequestError If the user has reached the limit and does not have an override
+ * @throws BadRequestError If the sender has reached the limit and does not have an override
  */
 export const hasReachedCombinedLimitOrOverride = async (
   currentUserId: string,

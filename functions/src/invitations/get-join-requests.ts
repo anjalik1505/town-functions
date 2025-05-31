@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName } from '../models/analytics-events.js';
+import { ApiResponse, EventName, InviteJoinEventParams } from '../models/analytics-events.js';
 import { Collections, JoinRequestFields, QueryOperators } from '../models/constants.js';
 import { JoinRequest, JoinRequestResponse, PaginationPayload } from '../models/data-models.js';
 import { formatJoinRequest } from '../utils/invitation-utils.js';
@@ -28,6 +28,8 @@ const logger = getLogger(path.basename(__filename));
  *                - after_cursor: Cursor for pagination (optional)
  *
  * @returns An ApiResponse containing the paginated join requests and analytics
+ *
+ * @throws 400: Invalid pagination parameters (if validation fails)
  */
 export const getJoinRequests = async (req: Request): Promise<ApiResponse<JoinRequestResponse>> => {
   // Get validated params
@@ -58,6 +60,11 @@ export const getJoinRequests = async (req: Request): Promise<ApiResponse<JoinReq
 
   if (requestDocs.length === 0) {
     logger.info(`No join requests found for user ${currentUserId}`);
+
+    const event: InviteJoinEventParams = {
+      join_request_count: 0,
+    };
+
     return {
       data: {
         join_requests: [],
@@ -67,7 +74,7 @@ export const getJoinRequests = async (req: Request): Promise<ApiResponse<JoinReq
       analytics: {
         event: EventName.JOIN_REQUESTS_VIEWED,
         userId: currentUserId,
-        params: {},
+        params: event,
       },
     };
   }
@@ -80,6 +87,10 @@ export const getJoinRequests = async (req: Request): Promise<ApiResponse<JoinReq
 
   logger.info(`Found ${joinRequests.length} join requests for user ${currentUserId}`);
 
+  const event: InviteJoinEventParams = {
+    join_request_count: joinRequests.length,
+  };
+
   // Return the join requests
   return {
     data: {
@@ -90,7 +101,7 @@ export const getJoinRequests = async (req: Request): Promise<ApiResponse<JoinReq
     analytics: {
       event: EventName.JOIN_REQUESTS_VIEWED,
       userId: currentUserId,
-      params: {},
+      params: event,
     },
   };
 };

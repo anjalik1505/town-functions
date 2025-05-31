@@ -1,9 +1,9 @@
 import { Request } from 'express';
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ApiResponse, EventName } from '../models/analytics-events.js';
+import { ApiResponse, EventName, InviteJoinEventParams } from '../models/analytics-events.js';
 import { Collections, JoinRequestFields, QueryOperators } from '../models/constants.js';
 import { JoinRequest, JoinRequestResponse, PaginationPayload } from '../models/data-models.js';
-import { formatJoinRequest, getInvitationDoc, validateJoinRequestOwnership } from '../utils/invitation-utils.js';
+import { formatJoinRequest, getInvitationDocForUser, validateJoinRequestOwnership } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 
@@ -32,23 +32,21 @@ const logger = getLogger(path.basename(__filename));
  *
  * @returns An ApiResponse containing the paginated join requests and analytics
  *
+ * @throws 400: Invalid pagination parameters (if validation fails)
  * @throws 403: You are not authorized to view these join requests
  * @throws 404: Invitation not found
  */
-export const getInvitationJoinRequests = async (req: Request): Promise<ApiResponse<JoinRequestResponse>> => {
+export const getMyJoinRequests = async (req: Request): Promise<ApiResponse<JoinRequestResponse>> => {
   // Get validated params
   const validatedData = req.validated_params as PaginationPayload;
   const currentUserId = req.userId;
-  const invitationId = req.params.invitation_id as string;
   const limit = validatedData.limit || 20;
   const afterCursor = validatedData.after_cursor;
 
-  logger.info(
-    `Getting join requests for invitation ${invitationId} with limit: ${limit}, after_cursor: ${afterCursor}`,
-  );
+  logger.info(`Getting join requests for user ${currentUserId} with limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // Get the invitation and validate ownership
-  const { ref: invitationRef, data: invitationData } = await getInvitationDoc(invitationId);
+  const { ref: invitationRef, data: invitationData } = await getInvitationDocForUser(currentUserId);
   const senderId = invitationData.sender_id as string;
 
   // Validate that the current user is the invitation owner
@@ -70,7 +68,12 @@ export const getInvitationJoinRequests = async (req: Request): Promise<ApiRespon
   );
 
   if (requestDocs.length === 0) {
-    logger.info(`No join requests found for invitation ${invitationId}`);
+    logger.info(`No join requests found for invitation ${invitationRef.id}`);
+
+    const event: InviteJoinEventParams = {
+      join_request_count: 0,
+    };
+
     return {
       data: {
         join_requests: [],
@@ -80,9 +83,7 @@ export const getInvitationJoinRequests = async (req: Request): Promise<ApiRespon
       analytics: {
         event: EventName.JOIN_REQUESTS_VIEWED,
         userId: currentUserId,
-        params: {
-          invitation_id: invitationId,
-        },
+        params: event,
       },
     };
   }
@@ -93,7 +94,11 @@ export const getInvitationJoinRequests = async (req: Request): Promise<ApiRespon
   // Generate next cursor if there are more results
   const nextCursor = generateNextCursor(lastDoc, requestDocs.length, limit);
 
-  logger.info(`Found ${joinRequests.length} join requests for invitation ${invitationId}`);
+  logger.info(`Found ${joinRequests.length} join requests for invitation ${invitationRef.id}`);
+
+  const event: InviteJoinEventParams = {
+    join_request_count: joinRequests.length,
+  };
 
   // Return the join requests
   return {
@@ -105,9 +110,7 @@ export const getInvitationJoinRequests = async (req: Request): Promise<ApiRespon
     analytics: {
       event: EventName.JOIN_REQUESTS_VIEWED,
       userId: currentUserId,
-      params: {
-        invitation_id: invitationId,
-      },
+      params: event,
     },
   };
 };

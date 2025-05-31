@@ -115,7 +115,6 @@ export interface Invitation {
   username: string;
   name: string;
   avatar: string;
-  join_requests?: JoinRequest[];
 }
 
 export interface JoinRequest {

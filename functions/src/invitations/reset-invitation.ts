@@ -4,7 +4,7 @@ import { ApiResponse, EventName, InviteResetEventParams } from '../models/analyt
 import { Collections, ProfileFields } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { formatInvitation, getOrCreateInvitationLink } from '../utils/invitation-utils.js';
+import { formatInvitation, getOrCreateInvitationLink, getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 
@@ -27,6 +27,8 @@ const logger = getLogger(path.basename(__filename));
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *
  * @returns An ApiResponse containing the new invitation and analytics
+ *
+ * @throws 404: User profile not found
  */
 export const resetInvitation = async (req: Request): Promise<ApiResponse<Invitation>> => {
   const currentUserId = req.userId;
@@ -38,27 +40,31 @@ export const resetInvitation = async (req: Request): Promise<ApiResponse<Invitat
 
   const db = getFirestore();
 
-  // Find the user's existing invitation (should be at userId document)
-  const invitationRef = db.collection(Collections.INVITATIONS).doc(currentUserId);
-  const invitationDoc = await invitationRef.get();
+  // Find the user's existing invitation by sender ID
+  const existingInvitation = await getUserInvitationLink(currentUserId);
 
   let joinRequestsDeleted = 0;
 
   // Delete the invitation and all its subcollections if it exists
-  if (invitationDoc.exists) {
-    logger.info(`Found existing invitation for user ${currentUserId}, deleting it and all join requests`);
+  if (existingInvitation) {
+    const invitationRef = existingInvitation.ref;
+    logger.info(
+      `Found existing invitation with ID ${invitationRef.id} for user ${currentUserId}, deleting it and all join requests`,
+    );
 
     try {
       // Count the number of join requests first for analytics
       const joinRequestsSnapshot = await invitationRef.collection(Collections.JOIN_REQUESTS).count().get();
       joinRequestsDeleted = joinRequestsSnapshot.data().count;
     } catch (error) {
-      logger.error(`Error deleting invitation: ${error}`);
+      logger.error(`Error counting join requests: ${error}`);
     }
 
     // Use recursiveDelete to delete the invitation document and all its subcollections
     await db.recursiveDelete(invitationRef);
-    logger.info(`Deleted invitation for user ${currentUserId} and ${joinRequestsDeleted} join requests`);
+    logger.info(
+      `Deleted invitation with ID ${invitationRef.id} for user ${currentUserId} and ${joinRequestsDeleted} join requests`,
+    );
   }
 
   // Create a new invitation

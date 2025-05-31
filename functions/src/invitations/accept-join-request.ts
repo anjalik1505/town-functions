@@ -12,7 +12,7 @@ import {
 } from '../models/constants.js';
 import { Friend } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
-import { createFriendshipId } from '../utils/friendship-utils.js';
+import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import {
   getJoinRequestDoc,
   hasReachedCombinedLimitOrOverride,
@@ -46,6 +46,7 @@ const logger = getLogger(path.basename(__filename));
  * @throws 400: Join request is already accepted/rejected
  * @throws 403: You are not authorized to accept this join request
  * @throws 404: Join request not found
+ * @throws 404: User profile not found (if requester or current user profile doesn't exist)
  */
 export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Friend>> => {
   // Get validated params
@@ -82,12 +83,12 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   // Get sender's profile
   const { data: senderProfile } = await getProfileDoc(requesterId);
 
-  // Create a consistent friendship ID by sorting the user IDs
-  const friendshipId = createFriendshipId(currentUserId, requesterId);
-
   // Check if friendship already exists
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
-  const friendshipDoc = await friendshipRef.get();
+  const {
+    id: friendshipId,
+    ref: friendshipRef,
+    doc: friendshipDoc,
+  } = await getFriendshipRefAndDoc(currentUserId, requesterId);
 
   if (friendshipDoc.exists) {
     const friendshipData = friendshipDoc.data() || {};

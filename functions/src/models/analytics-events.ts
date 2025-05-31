@@ -20,6 +20,7 @@ export enum EventName {
   JOIN_ACCEPTED = 'join_accepted',
   JOIN_REJECTED = 'join_rejected',
   JOIN_REQUESTS_VIEWED = 'join_requests_viewed',
+  JOIN_REQUEST_VIEWED = 'join_request_viewed',
   QUESTION_GENERATED = 'question_generated',
   FRIENDS_VIEWED = 'friends_viewed',
   COMMENT_CREATED = 'comment_created',
@@ -97,6 +98,11 @@ export interface InviteEventParams extends BaseEventParams {
 export interface InviteResetEventParams extends BaseEventParams {
   friend_count: number;
   join_requests_deleted: number;
+}
+
+// Invite event parameters
+export interface InviteJoinEventParams extends BaseEventParams {
+  join_request_count: number;
 }
 
 // Question event parameters
