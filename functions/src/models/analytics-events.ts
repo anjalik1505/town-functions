@@ -43,6 +43,8 @@ export enum EventName {
   INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
   COMMENT_NOTIFICATION_SENT = 'comment_notification_sent',
   REACTION_NOTIFICATION_SENT = 'reaction_notification_sent',
+  JOIN_REQUEST_NOTIFICATION_SENT = 'join_request_notification_sent',
+  JOIN_REQUEST_UPDATE_NOTIFICATION_SENT = 'join_request_update_notifications_sent',
 }
 
 // Base interface for all event parameters

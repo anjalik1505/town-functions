@@ -1975,12 +1975,12 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
 
   ```json
   {
-    "commenter_has_name": true,
-    "commenter_has_avatar": true,
-    "update_creator_has_name": true,
-    "update_creator_has_avatar": true,
-    "has_device": true,
-    "notification_sent": true
+    "notification_all": true,
+    "notification_urgent": true,
+    "no_notification": true,
+    "no_device": true,
+    "notification_length": 0,
+    "is_urgent": true
   }
   ```
 
@@ -1995,13 +1995,52 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
 
   ```json
   {
-    "reactor_has_name": true,
-    "reactor_has_avatar": true,
-    "update_creator_has_name": true,
-    "update_creator_has_avatar": true,
-    "has_device": true,
-    "notification_sent": true,
-    "reaction_type": "string"
+    "notification_all": true,
+    "notification_urgent": true,
+    "no_notification": true,
+    "no_device": true,
+    "notification_length": 0,
+    "is_urgent": true
+  }
+  ```
+
+### Join Request Created (Firestore Trigger)
+
+- **Trigger**: When a new document is created in the `join_requests` subcollection of an invitation.
+- **Analytics Events**:
+
+    - `JOIN_REQUEST_NOTIFICATION_SENT`: When a notification is sent to the invitation owner about a new request.
+
+  **Event Body:**
+
+  ```json
+  {
+    "notification_all": true,
+    "notification_urgent": true,
+    "no_notification": true,
+    "no_device": true,
+    "notification_length": 0,
+    "is_urgent": true
+  }
+  ```
+
+### Join Request Updated (Firestore Trigger)
+
+- **Trigger**: When a document is updated in the `join_requests` subcollection of an invitation.
+- **Analytics Events**:
+
+    - `JOIN_REQUEST_UPDATE_NOTIFICATION_SENT`: When a notification is sent to the requester about a rejection to join.
+
+  **Event Body:**
+
+  ```json
+  {
+    "notification_all": true,
+    "notification_urgent": true,
+    "no_notification": true,
+    "no_device": true,
+    "notification_length": 0,
+    "is_urgent": true
   }
   ```
 

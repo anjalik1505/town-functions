@@ -1,5 +1,5 @@
 import { defineSecret } from 'firebase-functions/params';
-import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app.js';
@@ -12,6 +12,8 @@ import { onUpdateCreated } from './triggers/on-update-creation.js';
 import { onUpdateNotification } from './triggers/on-update-notification.js';
 import { processDailyNotifications } from './triggers/process-daily-notifications.js';
 import { processInvitationNotifications } from './triggers/process-invitation-notifications.js';
+import { onJoinRequestCreated } from './triggers/on-join-request-creation.js';
+import { onJoinRequestUpdated } from './triggers/on-join-request-update.js';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -101,4 +103,22 @@ export const process_reaction_notification = onDocumentCreated(
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onReactionCreated(event),
+);
+
+// Export the Firestore trigger function for join request creation
+export const process_join_request_notification = onDocumentCreated(
+  {
+    document: `${Collections.INVITATIONS}/{id}/${Collections.JOIN_REQUESTS}/{id}`,
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onJoinRequestCreated(event),
+);
+
+// Export the Firestore trigger function for join request update
+export const process_join_request_update_notification = onDocumentUpdated(
+  {
+    document: `${Collections.INVITATIONS}/{id}/${Collections.JOIN_REQUESTS}/{id}`,
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onJoinRequestUpdated(event),
 );
