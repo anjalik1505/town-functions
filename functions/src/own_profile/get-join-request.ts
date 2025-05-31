@@ -44,7 +44,7 @@ export const getJoinRequest = async (req: Request): Promise<ApiResponse<JoinRequ
   const invitationId = invitationRef.id;
 
   // Get the join request from the subcollection
-  const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationRef.id, requestId);
+  const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationId, requestId);
 
   // Extract requester and receiver IDs from the join request
   const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;

@@ -71,7 +71,7 @@ def run_location_timezone_tests():
 
     # Verify timezone response
     assert (
-        updated_timezone["timezone"] == timezone_data["timezone"]
+            updated_timezone["timezone"] == timezone_data["timezone"]
     ), "Timezone mismatch"
     assert "updated_at" in updated_timezone, "updated_at field missing"
 
@@ -81,7 +81,7 @@ def run_location_timezone_tests():
 
     # Verify location response
     assert (
-        updated_location["location"] == location_data["location"]
+            updated_location["location"] == location_data["location"]
     ), "Location mismatch"
     assert "updated_at" in updated_location, "updated_at field missing"
 
@@ -90,24 +90,23 @@ def run_location_timezone_tests():
     logger.info(f"Retrieved user 1 profile: {json.dumps(user1_profile, indent=2)}")
 
     assert (
-        user1_profile["timezone"] == timezone_data["timezone"]
+            user1_profile["timezone"] == timezone_data["timezone"]
     ), "Timezone not updated in profile"
     assert (
-        user1_profile["location"] == location_data["location"]
+            user1_profile["location"] == location_data["location"]
     ), "Location not updated in profile"
     logger.info("✓ Profile verification successful")
 
     # Create friendship between users
-    invitation = api.create_invitation(users[0]["email"], users[1]["name"])
+    invitation = api.get_invitation(users[0]["email"])
     logger.info(f"User 1 created invitation: {json.dumps(invitation, indent=2)}")
+    invitation_id = invitation["invitation_id"]
 
-    # User 2 accepts the invitation
-    accepted_invitation = api.accept_invitation(
-        users[1]["email"], api.invitation_ids[users[0]["email"]]
-    )
-    logger.info(
-        f"User 2 accepted invitation: {json.dumps(accepted_invitation, indent=2)}"
-    )
+    join_request = api.request_to_join(users[1]["email"], invitation_id)
+    logger.info(f"User 2 requests to join: {json.dumps(join_request, indent=2)}")
+
+    accept_result = api.accept_join_request(users[0]["email"], join_request["request_id"])
+    logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
     # Now that they're friends, user 2 views user 1's profile
     user1_profile_from_user2 = api.get_user_profile(
@@ -119,10 +118,10 @@ def run_location_timezone_tests():
 
     # Verify timezone and location are visible to friend
     assert (
-        user1_profile_from_user2["timezone"] == timezone_data["timezone"]
+            user1_profile_from_user2["timezone"] == timezone_data["timezone"]
     ), "Timezone not visible to friend"
     assert (
-        user1_profile_from_user2["location"] == location_data["location"]
+            user1_profile_from_user2["location"] == location_data["location"]
     ), "Location not visible to friend"
     logger.info("✓ Friend can see timezone and location")
 

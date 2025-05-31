@@ -113,8 +113,7 @@ export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinReque
   const { data: profileData } = await getProfileDoc(currentUserId);
 
   // Create a new join request in the subcollection
-  // Use the requester's ID as the document ID for easy lookup
-  const requestRef = joinRequestsCollection.doc(currentUserId);
+  const requestRef = joinRequestsCollection.doc();
   const currentTime = Timestamp.now();
 
   const requestData: UpdateData<DocumentData> = {

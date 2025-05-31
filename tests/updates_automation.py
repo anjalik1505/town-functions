@@ -180,16 +180,16 @@ def run_updates_tests():
     # Step 5: Connect users as friends
     logger.info("Step 5: Connecting users as friends using invitations")
     # User 1 creates an invitation
-    invitation = api.create_invitation(users[0]["email"], users[1]["name"])
-    logger.info(f"First user created invitation: {json.dumps(invitation, indent=2)}")
+    # Create friendship between users
+    invitation = api.get_invitation(users[0]["email"])
+    logger.info(f"User 1 created invitation: {json.dumps(invitation, indent=2)}")
+    invitation_id = invitation["invitation_id"]
 
-    # User 2 accepts the invitation
-    accepted_invitation = api.accept_invitation(
-        users[1]["email"], api.invitation_ids[users[0]["email"]]
-    )
-    logger.info(
-        f"Second user accepted invitation: {json.dumps(accepted_invitation, indent=2)}"
-    )
+    join_request = api.request_to_join(users[1]["email"], invitation_id)
+    logger.info(f"User 2 requests to join: {json.dumps(join_request, indent=2)}")
+
+    accept_result = api.accept_join_request(users[0]["email"], join_request["request_id"])
+    logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
     # Verify friendship was created
     friends_user1 = api.get_friends(users[0]["email"])

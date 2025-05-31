@@ -375,115 +375,150 @@ class VillageAPI:
         return response.json()
 
     # Invitation Methods
-    def create_invitation(self, email: str, receiver_name: str) -> Dict[str, Any]:
-        """Create a new invitation"""
-        logger.info(f"User {email} creating invitation")
+    def get_invitation(self, email: str) -> Dict[str, Any]:
+        """Get the user's invitation link"""
+        logger.info(f"Getting invitation link for user: {email}")
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.tokens[email]}",
-        }
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        # Send invitation data with receiver_name
-        payload = {"receiver_name": receiver_name}
-        response = requests.post(
-            f"{API_BASE_URL}/invitations", headers=headers, json=payload
-        )
-        if response.status_code != 201:
-            logger.error(f"Failed to create invitation: {response.text}")
+        response = requests.get(f"{API_BASE_URL}/invitation", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get invitation link: {response.text}")
             response.raise_for_status()
 
         data = response.json()
         # Store the invitation ID for later use
         if "invitation_id" in data:
             self.invitation_ids[email] = data["invitation_id"]
-            logger.info(f"Invitation created with ID: {self.invitation_ids[email]}")
+            logger.info(f"Retrieved invitation with ID: {self.invitation_ids[email]}")
 
         return data
 
-    def get_invitations(
-            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Get user's invitations"""
-        logger.info(f"Getting invitations for user: {email}")
+    def reset_invitation(self, email: str) -> Dict[str, Any]:
+        """Reset the user's invitation link"""
+        logger.info(f"Resetting invitation link for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
-        url = f"{API_BASE_URL}/invitations?limit={limit}"
+        response = requests.post(f"{API_BASE_URL}/invitation/reset", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to reset invitation link: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        # Update the invitation ID for later use
+        if "invitation_id" in data:
+            self.invitation_ids[email] = data["invitation_id"]
+            logger.info(f"Reset invitation with new ID: {self.invitation_ids[email]}")
+
+        return data
+
+    def request_to_join(self, email: str, invitation_id: str) -> Dict[str, Any]:
+        """Create a join request for an invitation"""
+        logger.info(f"User {email} requesting to join invitation with ID: {invitation_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/{invitation_id}/join", headers=headers
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create join request: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully created join request for invitation: {invitation_id}")
+        return response.json()
+
+    def accept_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
+        """Accept a join request"""
+        logger.info(f"User {email} accepting join request with ID: {request_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/{request_id}/accept", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to accept join request: {response.text}")
+            response.raise_for_status()
+
+        return response.json()
+
+    def reject_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
+        """Reject a join request"""
+        logger.info(f"User {email} rejecting join request with ID: {request_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/{request_id}/reject", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to reject join request: {response.text}")
+            response.raise_for_status()
+
+        return response.json()
+
+    def get_join_requests(
+            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get all join requests made by the current user"""
+        logger.info(f"Getting join requests for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/invitation/requests?limit={limit}"
         if after_cursor:
-            # Ensure timestamp is properly URL encoded
+            # Ensure cursor is properly URL encoded
             url += f"&after_cursor={after_cursor}"
 
         logger.info(f"URL: {url}")
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            logger.error(f"Failed to get invitations: {response.text}")
+            logger.error(f"Failed to get join requests: {response.text}")
             response.raise_for_status()
 
-        logger.info(f"Successfully retrieved invitations for user: {email}")
+        logger.info(f"Successfully retrieved join requests for user: {email}")
         return response.json()
 
-    def get_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:
-        """Get a single invitation by ID"""
-        logger.info(f"Getting invitation {invitation_id} for user: {email}")
+    def get_my_join_requests(
+            self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get all join requests for the user's invitation"""
+        logger.info(f"Getting join requests for user's invitation: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/me/requests?limit={limit}"
+        if after_cursor:
+            # Ensure cursor is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get join requests for invitation: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved join requests for user's invitation: {email}")
+        return response.json()
+
+    def get_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
+        """Get a single join request by ID"""
+        logger.info(f"Getting join request {request_id} for user: {email}")
 
         headers = {"Authorization": f"Bearer {self.tokens[email]}"}
 
         response = requests.get(
-            f"{API_BASE_URL}/invitations/{invitation_id}", headers=headers
+            f"{API_BASE_URL}/me/requests/{request_id}", headers=headers
         )
         if response.status_code != 200:
-            logger.error(f"Failed to get invitation: {response.text}")
+            logger.error(f"Failed to get join request: {response.text}")
             response.raise_for_status()
 
         logger.info(
-            f"Successfully retrieved invitation {invitation_id} for user: {email}"
+            f"Successfully retrieved join request {request_id} for user: {email}"
         )
-        return response.json()
-
-    def resend_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:
-        """Resend an invitation"""
-        logger.info(f"User {email} resending invitation with ID: {invitation_id}")
-
-        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
-
-        response = requests.post(
-            f"{API_BASE_URL}/invitations/{invitation_id}/resend", headers=headers
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to resend invitation: {response.text}")
-            response.raise_for_status()
-
-        return response.json()
-
-    def accept_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:
-        """Accept an invitation"""
-        logger.info(f"User {email} accepting invitation with ID: {invitation_id}")
-
-        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
-
-        response = requests.post(
-            f"{API_BASE_URL}/invitations/{invitation_id}/accept", headers=headers
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to accept invitation: {response.text}")
-            response.raise_for_status()
-
-        return response.json()
-
-    def reject_invitation(self, email: str, invitation_id: str) -> Dict[str, Any]:
-        """Reject an invitation"""
-        logger.info(f"User {email} rejecting invitation with ID: {invitation_id}")
-
-        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
-
-        response = requests.post(
-            f"{API_BASE_URL}/invitations/{invitation_id}/reject", headers=headers
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to reject invitation: {response.text}")
-            response.raise_for_status()
-
         return response.json()
 
     def get_question(self, email: str) -> Dict[str, Any]:
@@ -611,7 +646,7 @@ class VillageAPI:
             headers=headers,
             json=payload,
         )
-        if response.status_code != 200:
+        if response.status_code != 201:
             logger.error(f"Failed to create comment: {response.text}")
             response.raise_for_status()
 

@@ -14,6 +14,7 @@ import { Friend } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import {
+  getInvitationDocForUser,
   getJoinRequestDoc,
   hasReachedCombinedLimitOrOverride,
   validateJoinRequestOwnership,
@@ -55,13 +56,17 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
 
   logger.info(`User ${currentUserId} accepting join request ${requestId}`);
 
+  const { ref: invitationRef } = await getInvitationDocForUser(currentUserId);
+  const invitationId = invitationRef.id;
+
   // Get the join request from the subcollection
-  const { ref: requestRef, data: requestData } = await getJoinRequestDoc(currentUserId, requestId);
+  const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationId, requestId);
   const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;
+  const receiverId = requestData[JoinRequestFields.RECEIVER_ID] as string;
   const currentStatus = requestData[JoinRequestFields.STATUS] as string;
 
-  // Validate that the current user is the invitation owner
-  validateJoinRequestOwnership(requesterId, currentUserId);
+  // Validate that the current user is the recipient of the request
+  validateJoinRequestOwnership(receiverId, currentUserId);
 
   const { friendCount } = await hasReachedCombinedLimitOrOverride(currentUserId, requesterId);
 

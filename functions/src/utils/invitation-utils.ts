@@ -158,13 +158,13 @@ export const getJoinRequestDoc = async (invitationId: string, requestId: string)
 
 /**
  * Validates that the current user is the owner of the invitation for a join request
- * @param senderId The ID of the invitation owner
+ * @param receiverId The ID of the invitation owner
  * @param currentUserId The ID of the current user
  * @throws ForbiddenError if the current user is not the invitation owner
  */
-export const validateJoinRequestOwnership = (senderId: string, currentUserId: string): void => {
-  if (senderId !== currentUserId) {
-    logger.warn(`User ${currentUserId} attempted to act on a join request for invitation owned by ${senderId}`);
+export const validateJoinRequestOwnership = (receiverId: string, currentUserId: string): void => {
+  if (receiverId !== currentUserId) {
+    logger.warn(`User ${currentUserId} attempted to act on a join request for invitation owned by ${receiverId}`);
     throw new ForbiddenError(`You can only act on join requests for your own invitations`);
   }
 };

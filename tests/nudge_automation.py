@@ -77,14 +77,16 @@ def run_nudge_tests():
     api.update_device(user2["email"], device_data)
     logger.info(f"Registered device for user2")
 
-    # Create an invitation from user1 to user2
-    invitation = api.create_invitation(user1["email"], user2["name"])
+    # Create friendship between users
+    invitation = api.get_invitation(user1["email"])
+    logger.info(f"User 1 created invitation: {json.dumps(invitation, indent=2)}")
     invitation_id = invitation["invitation_id"]
-    logger.info(f"Created invitation with ID: {invitation_id}")
 
-    # User2 accepts the invitation
-    acceptance = api.accept_invitation(user2["email"], invitation_id)
-    logger.info(f"User2 accepted invitation: {json.dumps(acceptance, indent=2)}")
+    join_request = api.request_to_join(user2["email"], invitation_id)
+    logger.info(f"User 2 requests to join: {json.dumps(join_request, indent=2)}")
+
+    accept_result = api.accept_join_request(user1["email"], join_request["request_id"])
+    logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
     # Get user IDs
     user1_id = api.user_ids[user1["email"]]

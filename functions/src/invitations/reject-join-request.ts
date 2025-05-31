@@ -5,7 +5,12 @@ import { JoinRequest } from '../models/data-models.js';
 import { JoinRequestFields, Status } from '../models/constants.js';
 import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { formatJoinRequest, getJoinRequestDoc, validateJoinRequestOwnership } from '../utils/invitation-utils.js';
+import {
+  formatJoinRequest,
+  getInvitationDocForUser,
+  getJoinRequestDoc,
+  validateJoinRequestOwnership,
+} from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 import path from 'path';
@@ -37,17 +42,21 @@ const logger = getLogger(path.basename(__filename));
 export const rejectJoinRequest = async (req: Request): Promise<ApiResponse<JoinRequest>> => {
   // Get validated params
   const currentUserId = req.userId;
-  const requestId = req.params.requester_id as string;
+  const requestId = req.params.request_id as string;
 
   logger.info(`User ${currentUserId} rejecting join request ${requestId}`);
 
+  const { ref: invitationRef } = await getInvitationDocForUser(currentUserId);
+  const invitationId = invitationRef.id;
+
   // Get the join request from the subcollection
-  const { ref: requestRef, data: requestData } = await getJoinRequestDoc(currentUserId, requestId);
+  const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationId, requestId);
   const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;
+  const receiverId = requestData[JoinRequestFields.RECEIVER_ID] as string;
   const currentStatus = requestData[JoinRequestFields.STATUS] as string;
 
-  // Validate that the current user is the invitation owner
-  validateJoinRequestOwnership(requesterId, currentUserId);
+  // Validate that the current user is the recipient of the request
+  validateJoinRequestOwnership(receiverId, currentUserId);
 
   // Check if the request is already accepted or rejected
   if (currentStatus !== Status.PENDING) {
