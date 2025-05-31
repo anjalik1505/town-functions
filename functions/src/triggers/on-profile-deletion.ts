@@ -7,7 +7,6 @@ import {
   FeedFields,
   FriendshipFields,
   GroupFields,
-  InvitationFields,
   MAX_BATCH_OPERATIONS,
   ProfileFields,
   QueryOperators,
@@ -23,6 +22,7 @@ import { streamAndProcessCollection } from '../utils/deletion-utils.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GroupMember } from '../models/data-models.js';
+import { deleteInvitation } from '../utils/invitation-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -275,38 +275,6 @@ const deleteUpdateAndFeedData = async (
 };
 
 /**
- * Delete all invitations sent by or received by the user.
- *
- * @param db - Firestore client
- * @param userId - The ID of the user whose profile was deleted
- * @returns The number of invitations deleted
- */
-const deleteInvitations = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
-  logger.info(`Deleting invitations for user ${userId}`);
-
-  // Get all invitations sent by the user
-  const sentInvitationsQuery = db
-    .collection(Collections.INVITATIONS)
-    .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId);
-
-  // Process each invitation document
-  const processInvitationDoc = (invitationDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
-    batch.delete(invitationDoc.ref);
-  };
-
-  // Stream and process the sent invitations
-  const totalSentDeleted = await streamAndProcessCollection(
-    sentInvitationsQuery,
-    processInvitationDoc,
-    db,
-    'sent invitation deletions',
-  );
-
-  logger.info(`Deleted ${totalSentDeleted} invitations sent by user ${userId}`);
-  return totalSentDeleted;
-};
-
-/**
  * Delete the user from time buckets collection.
  *
  * @param db - Firestore client
@@ -530,7 +498,7 @@ const deleteAllUserData = async (
           logger.error(`Failed to delete device info: ${err}`);
           return 0;
         }),
-      retryOperation(() => deleteInvitations(db, userId), 'invitation deletion')
+      retryOperation(() => deleteInvitation(userId), 'invitation deletion')
         .then((result) => {
           results.invitations = true;
           return result;

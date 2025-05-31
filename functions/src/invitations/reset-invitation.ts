@@ -1,10 +1,9 @@
 import { Request } from 'express';
-import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteResetEventParams } from '../models/analytics-events.js';
-import { Collections, ProfileFields } from '../models/constants.js';
+import { ProfileFields } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
-import { formatInvitation, getOrCreateInvitationLink, getUserInvitationLink } from '../utils/invitation-utils.js';
+import { deleteInvitation, formatInvitation, getOrCreateInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 
@@ -38,34 +37,7 @@ export const resetInvitation = async (req: Request): Promise<ApiResponse<Invitat
   // Get user profile data
   const { data: profileData } = await getProfileDoc(currentUserId);
 
-  const db = getFirestore();
-
-  // Find the user's existing invitation by sender ID
-  const existingInvitation = await getUserInvitationLink(currentUserId);
-
-  let joinRequestsDeleted = 0;
-
-  // Delete the invitation and all its subcollections if it exists
-  if (existingInvitation) {
-    const invitationRef = existingInvitation.ref;
-    logger.info(
-      `Found existing invitation with ID ${invitationRef.id} for user ${currentUserId}, deleting it and all join requests`,
-    );
-
-    try {
-      // Count the number of join requests first for analytics
-      const joinRequestsSnapshot = await invitationRef.collection(Collections.JOIN_REQUESTS).count().get();
-      joinRequestsDeleted = joinRequestsSnapshot.data().count;
-    } catch (error) {
-      logger.error(`Error counting join requests: ${error}`);
-    }
-
-    // Use recursiveDelete to delete the invitation document and all its subcollections
-    await db.recursiveDelete(invitationRef);
-    logger.info(
-      `Deleted invitation with ID ${invitationRef.id} for user ${currentUserId} and ${joinRequestsDeleted} join requests`,
-    );
-  }
+  const joinRequestsDeleted = await deleteInvitation(currentUserId);
 
   // Create a new invitation
   const { ref, data } = await getOrCreateInvitationLink(currentUserId, {

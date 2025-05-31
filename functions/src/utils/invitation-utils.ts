@@ -286,3 +286,39 @@ export const hasReachedCombinedLimitOrOverride = async (
 
   return { friendCount };
 };
+
+/**
+ * Delete all invitations sent by or received by the user.
+ *
+ * @param userId - The ID of the user whose profile was deleted
+ * @returns The number of invitations deleted
+ */
+export const deleteInvitation = async (userId: string): Promise<number> => {
+  const db = getFirestore();
+  const existingInvitation = await getUserInvitationLink(userId);
+
+  let joinRequestsDeleted = 0;
+
+  // Delete the invitation and all its subcollections if it exists
+  if (existingInvitation) {
+    const invitationRef = existingInvitation.ref;
+    logger.info(
+      `Found existing invitation with ID ${invitationRef.id} for user ${userId}, deleting it and all join requests`,
+    );
+
+    try {
+      // Count the number of join requests first for analytics
+      const joinRequestsSnapshot = await invitationRef.collection(Collections.JOIN_REQUESTS).count().get();
+      joinRequestsDeleted = joinRequestsSnapshot.data().count;
+    } catch (error) {
+      logger.error(`Error counting join requests: ${error}`);
+    }
+
+    // Use recursiveDelete to delete the invitation document and all its subcollections
+    await db.recursiveDelete(invitationRef);
+    logger.info(
+      `Deleted invitation with ID ${invitationRef.id} for user ${userId} and ${joinRequestsDeleted} join requests`,
+    );
+  }
+  return joinRequestsDeleted;
+};
