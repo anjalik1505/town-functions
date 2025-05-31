@@ -13,10 +13,12 @@ import {
   FriendshipFields,
   GroupFields,
   InvitationFields,
+  JoinRequestFields,
   ProfileFields,
   QueryOperators,
 } from '../models/constants.js';
 import { ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
+import { getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatProfileResponse, getProfileDoc, getProfileInsights } from '../utils/profile-utils.js';
 
@@ -34,6 +36,7 @@ const logger = getLogger(path.basename(__filename));
  * 2. Updates the profile with the provided data
  * 3. If username, name, or avatar changes, updates these fields in related collections:
  *    - Invitations
+ *    - Join Requests (both as requester and receiver)
  *    - Friendships (both as sender and receiver)
  *    - Groups (in member_profiles)
  *
@@ -109,13 +112,10 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   if (usernameChanged || nameChanged || avatarChanged) {
     logger.info(`Updating username/name/avatar references for user ${currentUserId}`);
 
-    // 1. Update all invitations created by this user
-    const invitationsQuery = db
-      .collection(Collections.INVITATIONS)
-      .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, currentUserId);
-
-    for await (const doc of invitationsQuery.stream()) {
-      const invitationDoc = doc as unknown as QueryDocumentSnapshot;
+    // 1. Update the user's invitation if it exists
+    const existingInvitation = await getUserInvitationLink(currentUserId);
+    if (existingInvitation) {
+      const invitationRef = existingInvitation.ref;
       const invitationUpdates: UpdateData<DocumentData> = {};
 
       if (usernameChanged) {
@@ -129,11 +129,61 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
       }
 
       if (Object.keys(invitationUpdates).length > 0) {
-        batch.update(invitationDoc.ref, invitationUpdates);
+        batch.update(invitationRef, invitationUpdates);
+        logger.info(`Added invitation update to batch for user ${currentUserId}`);
+
+        // 2. Update join requests where the user is the receiver (invitation owner)
+        const joinRequestsQuery = invitationRef
+          .collection(Collections.JOIN_REQUESTS)
+          .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
+
+        for await (const doc of joinRequestsQuery.stream()) {
+          const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
+          const joinRequestUpdates: UpdateData<DocumentData> = {};
+
+          if (usernameChanged) {
+            joinRequestUpdates[JoinRequestFields.RECEIVER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
+          }
+          if (nameChanged) {
+            joinRequestUpdates[JoinRequestFields.RECEIVER_NAME] = profileUpdates[ProfileFields.NAME];
+          }
+          if (avatarChanged) {
+            joinRequestUpdates[JoinRequestFields.RECEIVER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
+          }
+
+          if (Object.keys(joinRequestUpdates).length > 0) {
+            batch.update(joinRequestDoc.ref, joinRequestUpdates);
+          }
+        }
       }
     }
 
-    // 2. Update friendships where the user is sender
+    // 3. Update join requests where the user is the requester
+    const requesterJoinRequestsQuery = db
+      .collectionGroup(Collections.JOIN_REQUESTS)
+      .where(JoinRequestFields.REQUESTER_ID, QueryOperators.EQUALS, currentUserId)
+      .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
+
+    for await (const doc of requesterJoinRequestsQuery.stream()) {
+      const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
+      const joinRequestUpdates: UpdateData<DocumentData> = {};
+
+      if (usernameChanged) {
+        joinRequestUpdates[JoinRequestFields.REQUESTER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
+      }
+      if (nameChanged) {
+        joinRequestUpdates[JoinRequestFields.REQUESTER_NAME] = profileUpdates[ProfileFields.NAME];
+      }
+      if (avatarChanged) {
+        joinRequestUpdates[JoinRequestFields.REQUESTER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
+      }
+
+      if (Object.keys(joinRequestUpdates).length > 0) {
+        batch.update(joinRequestDoc.ref, joinRequestUpdates);
+      }
+    }
+
+    // 4. Update friendships where the user is sender
     const friendshipsAsSenderQuery = db
       .collection(Collections.FRIENDSHIPS)
       .where(FriendshipFields.SENDER_ID, QueryOperators.EQUALS, currentUserId);
@@ -157,7 +207,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
       }
     }
 
-    // 3. Update friendships where the user is receiver
+    // 5. Update friendships where the user is receiver
     const friendshipsAsReceiverQuery = db
       .collection(Collections.FRIENDSHIPS)
       .where(FriendshipFields.RECEIVER_ID, QueryOperators.EQUALS, currentUserId);
@@ -181,7 +231,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
       }
     }
 
-    // 4. Update groups where the user is a member
+    // 6. Update groups where the user is a member
     const groupsQuery = db
       .collection(Collections.GROUPS)
       .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
