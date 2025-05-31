@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
 import { Collections, QueryOperators, ReactionFields } from '../models/constants.js';
 import { CreateReactionPayload, ReactionGroup } from '../models/data-models.js';
@@ -67,7 +66,6 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
   }
 
   // Create the reaction document
-  const reactionId = uuidv4();
   const createdAt = Timestamp.now();
 
   const reactionData: UpdateData<DocumentData> = {
@@ -78,9 +76,11 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
 
   // Create a batch for atomic operations
   const batch = db.batch();
+  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc();
+  const reactionId = reactionRef.id;
 
   // Add the reaction document
-  batch.set(updateResult.ref.collection(Collections.REACTIONS).doc(reactionId), reactionData);
+  batch.set(reactionRef, reactionData);
 
   // Update the reaction count
   const updateCountData: UpdateData<DocumentData> = {

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import {
   Collections,
   FriendshipFields,
@@ -181,12 +180,14 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
   // All validations passed, now create the group
 
-  // Generate a unique group ID
-  const groupId = uuidv4();
-  logger.info(`Validation passed, creating group with ID: ${groupId}`);
 
   // Create the group document reference
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groupRef = db.collection(Collections.GROUPS).doc();
+  const groupId = groupRef.id;
+
+  // Generate a unique group ID
+  logger.info(`Validation passed, creating group with ID: ${groupId}`);
+
 
   const currentTime = Timestamp.now();
 

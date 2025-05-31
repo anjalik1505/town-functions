@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
 import { Collections, FriendshipFields, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
@@ -56,9 +55,9 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-      `all_village: ${allVillage}, ` +
-      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
+    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+    `all_village: ${allVillage}, ` +
+    `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
   );
 
   // Initialize Firestore client
@@ -118,9 +117,6 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     logger.info(`All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`);
   }
 
-  // Generate a unique ID for the update
-  const updateId = uuidv4();
-
   // Get current timestamp
   const createdAt = Timestamp.now();
 
@@ -156,8 +152,9 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   const batch = db.batch();
 
   // 1. Create the update document
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  const updateRef = db.collection(Collections.UPDATES).doc();
   batch.set(updateRef, updateData);
+  const updateId = updateRef.id;
 
   // 2. Get all users who should see this update
   const usersToNotify = new Set<string>();
