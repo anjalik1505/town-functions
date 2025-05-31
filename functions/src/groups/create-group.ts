@@ -180,14 +180,12 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
   // All validations passed, now create the group
 
-
   // Create the group document reference
   const groupRef = db.collection(Collections.GROUPS).doc();
   const groupId = groupRef.id;
 
   // Generate a unique group ID
   logger.info(`Validation passed, creating group with ID: ${groupId}`);
-
 
   const currentTime = Timestamp.now();
 

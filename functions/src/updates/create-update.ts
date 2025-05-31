@@ -55,9 +55,9 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-    `all_village: ${allVillage}, ` +
-    `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
+      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+      `all_village: ${allVillage}, ` +
+      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
   );
 
   // Initialize Firestore client
