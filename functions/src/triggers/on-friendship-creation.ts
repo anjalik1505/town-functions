@@ -117,7 +117,7 @@ export const onFriendshipCreated = async (
           'Friend';
 
         // Create the notification message
-        const message = `${receiverName} accepted your invitation!`;
+        const message = `${receiverName} accepted your request!`;
 
         // Send the notification
         await sendNotification(deviceId, 'New Friend!', message, {
