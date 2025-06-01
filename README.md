@@ -426,7 +426,8 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
           "reaction_id": "1234"
         }
       ],
-      "all_village": false
+      "all_village": false,
+      "images": ["updates/update123/image1.jpg"]
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -520,6 +521,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
         }
       ],
       "all_village": false,
+      "images": ["updates/update123/image1.jpg"],
       "username": "johndoe",
       "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg"
@@ -585,7 +587,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 
 #### POST /updates
 
-**Purpose**: Create a new update for the authenticated user.
+**Purpose**: Create a new update for the authenticated user. Images can be included by first uploading them to the staging bucket and providing the staging paths.
 
 **Analytics Events**:
 
@@ -600,7 +602,8 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
     "score": 3,
     "friend_count": 0,
     "group_count": 0,
-    "all_village": false
+    "all_village": false,
+    "image_count": 0
   }
   ```
 
@@ -614,11 +617,12 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
   "emoji": "😊",
   "group_ids": ["group123"],
   "friend_ids": ["friend123"],
-  "all_village": false
+  "all_village": false,
+  "staging_paths": ["pending_uploads/user123/image1.jpg", "pending_uploads/user123/image2.png"]
 }
 ```
 
-_Note: group_ids, friend_ids, and all_village are optional. score and emoji are optional with default values of "3" and "😐" respectively. If all_village is set to true, the update will be shared with all of the user's friends and groups, ignoring the friend_ids and group_ids parameters._
+_Note: group_ids, friend_ids, all_village, and staging_paths are optional. score and emoji are optional with default values of "3" and "😐" respectively. If all_village is set to true, the update will be shared with all of the user's friends and groups, ignoring the friend_ids and group_ids parameters. staging_paths should contain the paths of images previously uploaded to the staging bucket - these will be moved to the final location._
 
 **Output**:
 
@@ -642,7 +646,8 @@ _Note: group_ids, friend_ids, and all_village are optional. score and emoji are 
       "reaction_id": "1234"
     }
   ],
-  "all_village": false
+  "all_village": false,
+  "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"]
 }
 ```
 
@@ -810,6 +815,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       }
     ],
     "all_village": false,
+    "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
     "username": "johndoe",
     "name": "John Doe",
     "avatar": "https://example.com/avatar.jpg"
@@ -1644,7 +1650,8 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
           "reaction_id": "1234"
         }
       ],
-      "all_village": false
+      "all_village": false,
+      "images": ["updates/update123/image1.jpg"]
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -1851,6 +1858,7 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
     "invitation_count": 0
   }
   ```
+
 ### Friendship Accepted (Firestore Trigger)
 
 - **Trigger**: When a new document is created in the `friendships` collection with `status: "ACCEPTED"`.
