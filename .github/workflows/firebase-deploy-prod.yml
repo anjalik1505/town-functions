@@ -57,6 +57,7 @@ jobs:
         with:
           files: |
             storage.rules
+            storage.lifecycle.json
             .firebaserc
             .firebase.json
             .github/**
