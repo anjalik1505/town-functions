@@ -1,15 +1,8 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
+import { getStorage } from 'firebase-admin/storage';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  FriendshipFields,
-  GroupFields,
-  QueryOperators,
-  Status,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, FriendshipFields, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createFeedItem, formatUpdate } from '../utils/update-utils.js';
@@ -30,8 +23,9 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Creates a new update in Firestore database
- * 2. Creates feed items for all users who should see the update (friends and group members)
- * 3. Handles cases where a user might see the update through multiple channels
+ * 2. Moves staging images to final location
+ * 3. Creates feed items for all users who should see the update (friends and group members)
+ * 4. Handles cases where a user might see the update through multiple channels
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -42,6 +36,7 @@ const logger = getLogger(path.basename(__filename));
  *                - emoji: The emoji of the update
  *                - group_ids: Optional list of group IDs to share the update with
  *                - friend_ids: Optional list of friend IDs to share the update with
+ *                - images: Optional list of staging image paths to move
  *
  * @returns A Promise that resolves to the created Update object
  */
@@ -60,12 +55,14 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   let allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
   let friendIds = validatedParams.friend_ids || [];
+  const images = validatedParams.images || [];
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-      `all_village: ${allVillage}, ` +
-      `shared with ${friendIds.length} friends and ${groupIds.length} groups`,
+    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+    `all_village: ${allVillage}, ` +
+    `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
+    `${images.length} images`,
   );
 
   // Initialize Firestore client
@@ -90,8 +87,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     // Get all accepted friendships
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
-      .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
+      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
 
     const friendshipDocs = await friendshipsQuery.get();
 
@@ -126,9 +122,6 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     logger.info(`All village mode: found ${friendIds.length} friends and ${groupIds.length} groups`);
   }
 
-  // Generate a unique ID for the update
-  const updateId = uuidv4();
-
   // Get current timestamp
   const createdAt = Timestamp.now();
 
@@ -144,6 +137,50 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   // Add group visibility identifiers
   visibleTo.push(...createGroupVisibilityIdentifiers(groupIds));
 
+  // Run everything in a batch
+  const batch = db.batch();
+
+  // 1. Create the update document
+  const updateRef = db.collection(Collections.UPDATES).doc();
+  const updateId = updateRef.id;
+
+  // Process images - move from staging to final location
+  const finalImagePaths: string[] = [];
+  const bucket = getStorage().bucket();
+
+  if (images.length > 0) {
+    logger.info(`Processing ${images.length} staging images`);
+
+    for (const stagingPath of images) {
+      try {
+        const fileName = stagingPath.split('/').pop(); // extract 'fileName'
+        if (!fileName) {
+          logger.warn(`Invalid staging path: ${stagingPath}`);
+          continue;
+        }
+
+        const srcFile = bucket.file(stagingPath);
+        const destPath = `updates/${updateId}/${fileName}`;
+        const destFile = bucket.file(destPath);
+
+        // Set metadata for the destination file
+        await srcFile.copy(destFile, {
+          metadata: {
+            created_by: currentUserId,
+          },
+        });
+
+        await srcFile.delete(); // Delete original from staging
+        finalImagePaths.push(destPath);
+
+        logger.info(`Moved image from ${stagingPath} to ${destPath}`);
+      } catch (error) {
+        logger.error(`Failed to move image ${stagingPath}: ${error}`);
+        // Continue with other images
+      }
+    }
+  }
+
   // Create the update document
   const updateData: UpdateData<DocumentData> = {
     [UpdateFields.CREATED_BY]: currentUserId,
@@ -156,15 +193,11 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     [UpdateFields.FRIEND_IDS]: friendIds,
     [UpdateFields.VISIBLE_TO]: visibleTo,
     [UpdateFields.ALL_VILLAGE]: allVillage,
+    [UpdateFields.IMAGE_PATHS]: finalImagePaths,
     comment_count: 0,
     reaction_count: 0,
   };
 
-  // Run everything in a batch
-  const batch = db.batch();
-
-  // 1. Create the update document
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
   batch.set(updateRef, updateData);
 
   // 2. Get all users who should see this update
@@ -231,6 +264,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     friend_count: friendIds.length,
     group_count: groupIds.length,
     all_village: allVillage,
+    image_count: finalImagePaths.length,
   };
   return {
     data: response,

@@ -67,6 +67,7 @@ export interface UpdateEventParams extends BaseEventParams {
   friend_count: number;
   group_count: number;
   all_village: boolean;
+  image_count: number;
 }
 
 // Update event parameters
