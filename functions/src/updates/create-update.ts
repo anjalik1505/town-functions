@@ -36,7 +36,7 @@ const logger = getLogger(path.basename(__filename));
  *                - emoji: The emoji of the update
  *                - group_ids: Optional list of group IDs to share the update with
  *                - friend_ids: Optional list of friend IDs to share the update with
- *                - staging_paths: Optional list of staging image paths to move
+ *                - images: Optional list of staging image paths to move
  *
  * @returns A Promise that resolves to the created Update object
  */
@@ -55,14 +55,14 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   let allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
   let friendIds = validatedParams.friend_ids || [];
-  const stagingPaths = validatedParams.images || [];
+  const images = validatedParams.images || [];
 
   logger.info(
     `Update details - content length: ${content.length}, ` +
-      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-      `all_village: ${allVillage}, ` +
-      `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
-      `${stagingPaths.length} images`,
+    `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+    `all_village: ${allVillage}, ` +
+    `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
+    `${images.length} images`,
   );
 
   // Initialize Firestore client
@@ -148,10 +148,10 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   const finalImagePaths: string[] = [];
   const bucket = getStorage().bucket();
 
-  if (stagingPaths.length > 0) {
-    logger.info(`Processing ${stagingPaths.length} staging images`);
+  if (images.length > 0) {
+    logger.info(`Processing ${images.length} staging images`);
 
-    for (const stagingPath of stagingPaths) {
+    for (const stagingPath of images) {
       try {
         const fileName = stagingPath.split('/').pop(); // extract 'fileName'
         if (!fileName) {
