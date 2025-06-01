@@ -56,6 +56,16 @@ jobs:
             .firebase.json
             .github/**
 
+      - name: Check for Storage Changes
+        id: storage-changes
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            storage.rules
+            .firebaserc
+            .firebase.json
+            .github/**
+
       - name: Build Functions
         if: steps.functions-changes.outputs.any_changed == 'true'
         run: |
@@ -87,6 +97,15 @@ jobs:
         uses: w9jds/firebase-action@v14.0.1
         with:
           args: deploy --only firestore
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
+
+      - name: Deploy Storage
+        if: steps.storage-changes.outputs.any_changed == 'true'
+        uses: w9jds/firebase-action@v14.0.1
+        with:
+          args: deploy --only storage
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY_STAGING }}
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}

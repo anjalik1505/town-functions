@@ -65,6 +65,7 @@ export const createUpdateSchema = z.object({
   group_ids: z.array(z.string()).optional(),
   friend_ids: z.array(z.string()).optional(),
   all_village: z.boolean().optional().default(false),
+  images: z.array(z.string()).optional(),
 });
 
 export const createChatMessageSchema = z.object({
