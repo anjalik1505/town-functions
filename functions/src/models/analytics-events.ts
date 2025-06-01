@@ -14,12 +14,13 @@ export enum EventName {
   UPDATES_VIEWED = 'updates_viewed',
   FRIEND_UPDATES_VIEWED = 'friend_updates_viewed',
   FEED_VIEWED = 'feed_viewed',
-  INVITE_CREATED = 'invite_created',
-  INVITE_ACCEPTED = 'invite_accepted',
-  INVITE_REJECTED = 'invite_rejected',
-  INVITE_RESENT = 'invite_resent',
   INVITE_VIEWED = 'invite_viewed',
-  INVITES_VIEWED = 'invites_viewed',
+  INVITE_RESET = 'invite_reset',
+  JOIN_REQUESTED = 'join_requested',
+  JOIN_ACCEPTED = 'join_accepted',
+  JOIN_REJECTED = 'join_rejected',
+  JOIN_REQUESTS_VIEWED = 'join_requests_viewed',
+  JOIN_REQUEST_VIEWED = 'join_request_viewed',
   QUESTION_GENERATED = 'question_generated',
   FRIENDS_VIEWED = 'friends_viewed',
   COMMENT_CREATED = 'comment_created',
@@ -42,6 +43,8 @@ export enum EventName {
   INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
   COMMENT_NOTIFICATION_SENT = 'comment_notification_sent',
   REACTION_NOTIFICATION_SENT = 'reaction_notification_sent',
+  JOIN_REQUEST_NOTIFICATION_SENT = 'join_request_notification_sent',
+  JOIN_REQUEST_UPDATE_NOTIFICATION_SENT = 'join_request_update_notifications_sent',
 }
 
 // Base interface for all event parameters
@@ -92,7 +95,17 @@ export interface FeedViewEventParams extends BaseEventParams {
 // Invite event parameters
 export interface InviteEventParams extends BaseEventParams {
   friend_count: number;
-  invitation_count: number;
+}
+
+// Invite event parameters
+export interface InviteResetEventParams extends BaseEventParams {
+  friend_count: number;
+  join_requests_deleted: number;
+}
+
+// Invite event parameters
+export interface InviteJoinEventParams extends BaseEventParams {
+  join_request_count: number;
 }
 
 // Question event parameters

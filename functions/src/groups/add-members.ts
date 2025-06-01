@@ -7,7 +7,6 @@ import {
   MAX_BATCH_SIZE,
   ProfileFields,
   QueryOperators,
-  Status,
 } from '../models/constants.js';
 import { AddGroupMembersPayload, Group } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
@@ -136,8 +135,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
     // Fetch all friendships where any of the batch members is in the member array
     const friendshipsQuery = db
       .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers)
-      .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
+      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers);
 
     const friendshipsSnapshot = await friendshipsQuery.get();
     logger.info(`Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`);

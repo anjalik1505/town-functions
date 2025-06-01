@@ -1,10 +1,10 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, ProfileFields, Status, UserSummaryFields } from '../models/constants.js';
+import { Collections, ProfileFields, UserSummaryFields } from '../models/constants.js';
 import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import { createFriendshipId } from '../utils/friendship-utils.js';
+import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createSummaryId, formatFriendProfileResponse, getProfileDoc } from '../utils/profile-utils.js';
 
@@ -59,14 +59,12 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   const { data: targetUserProfileData } = await getProfileDoc(targetUserId);
 
   // Check if users are friends using the unified friendships collection
-  const friendshipId = createFriendshipId(currentUserId, targetUserId);
   const summaryId = createSummaryId(currentUserId, targetUserId);
 
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
-  const friendshipDoc = await friendshipRef.get();
+  const { id: friendshipId, doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, targetUserId);
 
   // If they are not friends, return an error
-  if (!friendshipDoc.exists || friendshipDoc.data()?.[FriendshipFields.STATUS] !== Status.ACCEPTED) {
+  if (!friendshipDoc.exists) {
     logger.warn(`User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`);
     throw new ForbiddenError('You must be friends with this user to view their profile');
   }

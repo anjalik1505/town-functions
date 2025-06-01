@@ -7,7 +7,6 @@ import {
   FeedFields,
   FriendshipFields,
   GroupFields,
-  InvitationFields,
   MAX_BATCH_OPERATIONS,
   ProfileFields,
   QueryOperators,
@@ -18,90 +17,15 @@ import {
 import { trackApiEvent } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateTimeBucket } from '../utils/timezone-utils.js';
+import { streamAndProcessCollection } from '../utils/deletion-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GroupMember } from '../models/data-models.js';
+import { deleteInvitation } from '../utils/invitation-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
-
-/**
- * Helper functions to stream and process a collection with batched writings.
- *
- * @param query - Firestore query to stream
- * @param processDocument - Function to process each document
- * @param db - Firestore instance
- * @param operationName - Name of the operation for logging
- * @param finalOperation - Optional function to run after all documents are processed
- * @param useBatch - Whether to use batch processing (default: true)
- * @returns Total number of documents processed
- */
-const streamAndProcessCollection = async (
-  query: FirebaseFirestore.Query,
-  processDocument: (
-    doc: QueryDocumentSnapshot,
-    batch: FirebaseFirestore.WriteBatch,
-    db: FirebaseFirestore.Firestore,
-  ) => void | Promise<void>,
-  db: FirebaseFirestore.Firestore,
-  operationName: string,
-  finalOperation?: () => Promise<void>,
-  useBatch: boolean = true,
-): Promise<number> => {
-  let batch = db.batch();
-  let batchCount = 0;
-  let totalProcessed = 0;
-
-  try {
-    // Stream the documents using for-await loop (same pattern as in update-my-profile.ts)
-    for await (const doc of query.stream()) {
-      const docSnapshot = doc as unknown as QueryDocumentSnapshot;
-
-      try {
-        if (useBatch) {
-          await processDocument(docSnapshot, batch, db);
-          batchCount++;
-          totalProcessed++;
-
-          // Commit the batch if it reaches the maximum size
-          if (batchCount >= MAX_BATCH_OPERATIONS) {
-            await batch.commit();
-            logger.info(`Committed batch with ${batchCount} ${operationName}`);
-            batchCount = 0;
-            // Create a new batch
-            batch = db.batch();
-          }
-        } else {
-          // Process without batching
-          await processDocument(docSnapshot, batch, db);
-          totalProcessed++;
-        }
-      } catch (error) {
-        logger.error(`Error processing document: ${error}`);
-        throw error;
-      }
-    }
-
-    // Commit any remaining documents if using batch
-    if (useBatch && batchCount > 0) {
-      await batch.commit();
-      logger.info(`Committed batch with ${batchCount} ${operationName}`);
-    }
-
-    // Run the final operation if provided
-    if (finalOperation) {
-      await finalOperation();
-    }
-
-    logger.info(`Processed ${totalProcessed} ${operationName}`);
-  } catch (error) {
-    logger.error(`Error streaming ${operationName}: ${error}`);
-    throw error;
-  }
-
-  return totalProcessed;
-};
 
 /**
  * Delete all friendships involving the user.
@@ -351,38 +275,6 @@ const deleteUpdateAndFeedData = async (
 };
 
 /**
- * Delete all invitations sent by or received by the user.
- *
- * @param db - Firestore client
- * @param userId - The ID of the user whose profile was deleted
- * @returns The number of invitations deleted
- */
-const deleteInvitations = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
-  logger.info(`Deleting invitations for user ${userId}`);
-
-  // Get all invitations sent by the user
-  const sentInvitationsQuery = db
-    .collection(Collections.INVITATIONS)
-    .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId);
-
-  // Process each invitation document
-  const processInvitationDoc = (invitationDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
-    batch.delete(invitationDoc.ref);
-  };
-
-  // Stream and process the sent invitations
-  const totalSentDeleted = await streamAndProcessCollection(
-    sentInvitationsQuery,
-    processInvitationDoc,
-    db,
-    'sent invitation deletions',
-  );
-
-  logger.info(`Deleted ${totalSentDeleted} invitations sent by user ${userId}`);
-  return totalSentDeleted;
-};
-
-/**
  * Delete the user from time buckets collection.
  *
  * @param db - Firestore client
@@ -606,7 +498,7 @@ const deleteAllUserData = async (
           logger.error(`Failed to delete device info: ${err}`);
           return 0;
         }),
-      retryOperation(() => deleteInvitations(db, userId), 'invitation deletion')
+      retryOperation(() => deleteInvitation(userId), 'invitation deletion')
         .then((result) => {
           results.invitations = true;
           return result;

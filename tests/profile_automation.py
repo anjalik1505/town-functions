@@ -56,7 +56,7 @@ def run_profile_tests():
         "username": users[0]["email"].split("@")[0],
         "name": users[0]["name"],
         "avatar": f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
-        "location": "New York", # making sure it is ignored
+        "location": "New York",  # making sure it is ignored
         "birthday": "1990-01-01",
         "notification_settings": ["all"],
         "gender": "male",
@@ -448,17 +448,92 @@ def run_profile_tests():
 
     # Connect users as friends using the invitation approach
     logger.info("Connecting users as friends using invitations")
+    
     # User 1 creates an invitation
-    invitation = api.create_invitation(users[0]["email"], users[1]["name"])
-    logger.info(f"First user created invitation: {json.dumps(invitation, indent=2)}")
+    invitation = api.get_invitation(users[0]["email"])
+    logger.info(f"User 1 created invitation: {json.dumps(invitation, indent=2)}")
+    invitation_id = invitation["invitation_id"]
 
-    # User 2 accepts the invitation
-    accepted_invitation = api.accept_invitation(
-        users[1]["email"], api.invitation_ids[users[0]["email"]]
-    )
-    logger.info(
-        f"Second user accepted invitation: {json.dumps(accepted_invitation, indent=2)}"
-    )
+    # Verify invitation contains correct profile data
+    assert invitation["username"] == retrieved_partial_profile["username"], "Invitation username mismatch"
+    assert invitation["name"] == retrieved_partial_profile["name"], "Invitation name mismatch"
+    assert invitation["avatar"] == retrieved_partial_profile["avatar"], "Invitation avatar mismatch"
+    logger.info("✓ Invitation profile data verification successful")
+
+    # User 2 requests to join
+    join_request = api.request_to_join(users[1]["email"], invitation_id)
+    logger.info(f"User 2 requests to join: {json.dumps(join_request, indent=2)}")
+
+    # ============ PROFILE UPDATE PROPAGATION TESTS ============
+    logger.info("========== STARTING PROFILE UPDATE PROPAGATION TESTS ==========")
+
+    # Test 12: Update User 1's profile and verify changes in invitation and join requests
+    logger.info("Test 12: Updating User 1's profile and verifying propagation to invitation and join requests")
+    
+    user1_update_data = {
+        "username": "user1_new_username",
+        "name": "User 1 New Name",
+        "avatar": "https://example.com/new_avatar_user1.jpg",
+    }
+    
+    # Update User 1's profile
+    updated_user1_profile = api.update_profile(users[0]["email"], user1_update_data)
+    logger.info(f"Updated User 1 profile: {json.dumps(updated_user1_profile, indent=2)}")
+    
+    # Get the invitation again to verify updates
+    updated_invitation = api.get_invitation(users[0]["email"])
+    logger.info(f"Updated invitation: {json.dumps(updated_invitation, indent=2)}")
+    
+    # Verify invitation data was updated
+    assert updated_invitation["username"] == user1_update_data["username"], "Updated invitation username mismatch"
+    assert updated_invitation["name"] == user1_update_data["name"], "Updated invitation name mismatch"
+    assert updated_invitation["avatar"] == user1_update_data["avatar"], "Updated invitation avatar mismatch"
+    logger.info("✓ Invitation profile update verification successful")
+    
+    # Get join requests for User 1's invitation to verify receiver info was updated
+    my_join_requests = api.get_my_join_requests(users[0]["email"])
+    logger.info(f"User 1's join requests: {json.dumps(my_join_requests, indent=2)}")
+    
+    # Verify there is at least one join request
+    assert len(my_join_requests["join_requests"]) > 0, "No join requests found for User 1"
+    
+    # Verify receiver info in join request was updated
+    join_request = my_join_requests["join_requests"][0]
+    assert join_request["receiver_username"] == user1_update_data["username"], "Join request receiver username not updated"
+    assert join_request["receiver_name"] == user1_update_data["name"], "Join request receiver name not updated"
+    assert join_request["receiver_avatar"] == user1_update_data["avatar"], "Join request receiver avatar not updated"
+    logger.info("✓ Join request receiver profile update verification successful")
+    
+    # Test 13: Update User 2's profile and verify changes in join requests
+    logger.info("Test 13: Updating User 2's profile and verifying propagation to join requests")
+    
+    user2_update_data = {
+        "username": "user2_new_username",
+        "name": "User 2 New Name",
+        "avatar": "https://example.com/new_avatar_user2.jpg",
+    }
+    
+    # Update User 2's profile
+    updated_user2_profile = api.update_profile(users[1]["email"], user2_update_data)
+    logger.info(f"Updated User 2 profile: {json.dumps(updated_user2_profile, indent=2)}")
+    
+    # Get join requests made by User 2 to verify requester info was updated
+    user2_join_requests = api.get_join_requests(users[1]["email"])
+    logger.info(f"User 2's outgoing join requests: {json.dumps(user2_join_requests, indent=2)}")
+    
+    # Verify there is at least one join request
+    assert len(user2_join_requests["join_requests"]) > 0, "No join requests found for User 2"
+    
+    # Verify requester info in join request was updated
+    join_request = user2_join_requests["join_requests"][0]
+    assert join_request["requester_username"] == user2_update_data["username"], "Join request requester username not updated"
+    assert join_request["requester_name"] == user2_update_data["name"], "Join request requester name not updated"
+    assert join_request["requester_avatar"] == user2_update_data["avatar"], "Join request requester avatar not updated"
+    logger.info("✓ Join request requester profile update verification successful")
+    
+    # Now accept the join request to create a friendship
+    accept_result = api.accept_join_request(users[0]["email"], join_request["request_id"])
+    logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
     # Verify friendship was created
     friends_user1 = api.get_friends(users[0]["email"])
@@ -468,17 +543,78 @@ def run_profile_tests():
     logger.info(f"Second user's friends: {json.dumps(friends_user2, indent=2)}")
 
     logger.info("Users are now friends")
+    
+    # Test 14: Verify profile data in friendships
+    logger.info("Test 14: Verifying profile data in friendships")
+    
+    # Verify User 1's friend data (User 2) has the updated profile info
+    assert len(friends_user1["friends"]) > 0, "No friends found for User 1"
+    user2_in_friends = friends_user1["friends"][0]
+    assert user2_in_friends["username"] == user2_update_data["username"], "Friend username mismatch for User 1"
+    assert user2_in_friends["name"] == user2_update_data["name"], "Friend name mismatch for User 1"
+    assert user2_in_friends["avatar"] == user2_update_data["avatar"], "Friend avatar mismatch for User 1"
+    
+    # Verify User 2's friend data (User 1) has the updated profile info
+    assert len(friends_user2["friends"]) > 0, "No friends found for User 2"
+    user1_in_friends = friends_user2["friends"][0]
+    assert user1_in_friends["username"] == user1_update_data["username"], "Friend username mismatch for User 2"
+    assert user1_in_friends["name"] == user1_update_data["name"], "Friend name mismatch for User 2"
+    assert user1_in_friends["avatar"] == user1_update_data["avatar"], "Friend avatar mismatch for User 2"
+    logger.info("✓ Friendship profile data verification successful")
+    
+    # Test 15: Update profiles again and verify changes propagate to friendships
+    logger.info("Test 15: Updating profiles again and verifying propagation to friendships")
+    
+    # Update User 1's profile again
+    user1_update_data_2 = {
+        "username": "user1_final_username",
+        "name": "User 1 Final Name",
+        "avatar": "https://example.com/final_avatar_user1.jpg",
+    }
+    updated_user1_profile_2 = api.update_profile(users[0]["email"], user1_update_data_2)
+    logger.info(f"Updated User 1 profile again: {json.dumps(updated_user1_profile_2, indent=2)}")
+    
+    # Update User 2's profile again
+    user2_update_data_2 = {
+        "username": "user2_final_username",
+        "name": "User 2 Final Name",
+        "avatar": "https://example.com/final_avatar_user2.jpg",
+    }
+    updated_user2_profile_2 = api.update_profile(users[1]["email"], user2_update_data_2)
+    logger.info(f"Updated User 2 profile again: {json.dumps(updated_user2_profile_2, indent=2)}")
+    
+    # Get friends again to verify updates
+    friends_user1_updated = api.get_friends(users[0]["email"])
+    logger.info(f"First user's updated friends: {json.dumps(friends_user1_updated, indent=2)}")
+    
+    friends_user2_updated = api.get_friends(users[1]["email"])
+    logger.info(f"Second user's updated friends: {json.dumps(friends_user2_updated, indent=2)}")
+    
+    # Verify User 1's friend data (User 2) has the updated profile info
+    assert len(friends_user1_updated["friends"]) > 0, "No friends found for User 1 after update"
+    user2_in_friends_updated = friends_user1_updated["friends"][0]
+    assert user2_in_friends_updated["username"] == user2_update_data_2["username"], "Updated friend username mismatch for User 1"
+    assert user2_in_friends_updated["name"] == user2_update_data_2["name"], "Updated friend name mismatch for User 1"
+    assert user2_in_friends_updated["avatar"] == user2_update_data_2["avatar"], "Updated friend avatar mismatch for User 1"
+    
+    # Verify User 2's friend data (User 1) has the updated profile info
+    assert len(friends_user2_updated["friends"]) > 0, "No friends found for User 2 after update"
+    user1_in_friends_updated = friends_user2_updated["friends"][0]
+    assert user1_in_friends_updated["username"] == user1_update_data_2["username"], "Updated friend username mismatch for User 2"
+    assert user1_in_friends_updated["name"] == user1_update_data_2["name"], "Updated friend name mismatch for User 2"
+    assert user1_in_friends_updated["avatar"] == user1_update_data_2["avatar"], "Updated friend avatar mismatch for User 2"
+    logger.info("✓ Friendship profile update verification successful")
 
-    # Test 12: Get user profile after becoming friends
-    logger.info("Test 12: Getting user profile after becoming friends")
+    # Test 16: Get user profile after becoming friends
+    logger.info("Test 16: Getting user profile after becoming friends")
     user2_profile = api.get_user_profile(
         users[0]["email"], api.user_ids[users[1]["email"]]
     )
     logger.info(f"Retrieved user 2 profile: {json.dumps(user2_profile, indent=2)}")
     assert (
-            user2_profile["username"] == second_user_profile_data["username"]
+            user2_profile["username"] == user2_update_data_2["username"]
     ), "Username mismatch"
-    assert user2_profile["name"] == second_user_profile_data["name"], "Name mismatch"
+    assert user2_profile["name"] == user2_update_data_2["name"], "Name mismatch"
     assert (
             user2_profile["gender"] == second_user_profile_data["gender"]
     ), "Gender mismatch"

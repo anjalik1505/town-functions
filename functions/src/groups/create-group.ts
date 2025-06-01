@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import {
   Collections,
   FriendshipFields,
@@ -8,7 +7,6 @@ import {
   MAX_BATCH_SIZE,
   ProfileFields,
   QueryOperators,
-  Status,
 } from '../models/constants.js';
 import { CreateGroupPayload, Group } from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
@@ -138,8 +136,7 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
       // Fetch all friendships where any of the batch members is in the members array
       const friendshipsQuery = db
         .collection(Collections.FRIENDSHIPS)
-        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers)
-        .where(FriendshipFields.STATUS, QueryOperators.EQUALS, Status.ACCEPTED);
+        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers);
 
       const friendshipsSnapshot = await friendshipsQuery.get();
       logger.info(`Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`);
@@ -183,12 +180,12 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
   // All validations passed, now create the group
 
-  // Generate a unique group ID
-  const groupId = uuidv4();
-  logger.info(`Validation passed, creating group with ID: ${groupId}`);
-
   // Create the group document reference
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groupRef = db.collection(Collections.GROUPS).doc();
+  const groupId = groupRef.id;
+
+  // Generate a unique group ID
+  logger.info(`Validation passed, creating group with ID: ${groupId}`);
 
   const currentTime = Timestamp.now();
 

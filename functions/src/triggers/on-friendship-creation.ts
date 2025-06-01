@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields, Status } from '../models/constants.js';
+import { Collections, DeviceFields, FriendshipFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -73,12 +73,7 @@ export const onFriendshipCreated = async (
   const friendshipData = event.data.data() || {};
 
   // Check if the friendship has the required fields and is in ACCEPTED status
-  if (
-    !friendshipData ||
-    !friendshipData[FriendshipFields.SENDER_ID] ||
-    !friendshipData[FriendshipFields.RECEIVER_ID] ||
-    friendshipData[FriendshipFields.STATUS] !== Status.ACCEPTED
-  ) {
+  if (!friendshipData || !friendshipData[FriendshipFields.SENDER_ID] || !friendshipData[FriendshipFields.RECEIVER_ID]) {
     logger.error(`Friendship ${event.data.id} has invalid data or is not in ACCEPTED status`);
     return;
   }
@@ -122,7 +117,7 @@ export const onFriendshipCreated = async (
           'Friend';
 
         // Create the notification message
-        const message = `${receiverName} accepted your invitation!`;
+        const message = `${receiverName} accepted your request!`;
 
         // Send the notification
         await sendNotification(deviceId, 'New Friend!', message, {

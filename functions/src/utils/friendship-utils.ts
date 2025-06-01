@@ -1,14 +1,12 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
   FriendshipFields,
-  InvitationFields,
   MAX_BATCH_OPERATIONS,
   QueryOperators,
-  Status,
   UpdateFields,
 } from '../models/constants.js';
 import { trackApiEvents } from './analytics-utils.js';
@@ -20,6 +18,40 @@ const MAX_COMBINED = 5;
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
+
+/**
+ * Friendship document result type
+ */
+type FriendshipDocumentResult = {
+  id: string;
+  ref: FirebaseFirestore.DocumentReference;
+  doc: FirebaseFirestore.DocumentSnapshot;
+};
+
+/**
+ * Retrieves a friendship document reference and document snapshot.
+ * @param currentUserId The ID of the current user for the friendship
+ * @param targetUserId The ID of the target user for the friendship
+ * @returns A promise that resolves with an object containing the friendship document reference and document snapshot.
+ *          The document snapshot can be null if the document doesn't exist.
+ */
+export const getFriendshipRefAndDoc = async (
+  currentUserId: string,
+  targetUserId: string,
+): Promise<FriendshipDocumentResult> => {
+  const db = getFirestore();
+
+  const friendshipId = createFriendshipId(currentUserId, targetUserId);
+
+  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
+  const friendshipDoc = await friendshipRef.get();
+
+  return {
+    id: friendshipId,
+    ref: friendshipRef,
+    doc: friendshipDoc,
+  };
+};
 
 /**
  * Creates a consistent friendship ID by sorting user IDs.
@@ -37,19 +69,15 @@ export const createFriendshipId = (userId1: string, userId2: string): string => 
 /**
  * Checks if a user has reached the combined limit of friends and active invitations
  * @param userId The user ID to check
- * @param excludeInvitationId Optional invitation ID to exclude from the count (for resending)
  * @returns An object containing the friend count, active invitation count, and whether the limit has been reached
  */
 export const hasReachedCombinedLimit = async (
   userId: string,
-  excludeInvitationId?: string,
 ): Promise<{
   friendCount: number;
-  activeInvitationCount: number;
   hasReachedLimit: boolean;
 }> => {
   const db = getFirestore();
-  const currentTime = Timestamp.now();
 
   // Get all friendships where the user is either the sender or receiver
   const friendshipsQuery = await db
@@ -59,36 +87,9 @@ export const hasReachedCombinedLimit = async (
 
   const friendCount = friendshipsQuery.size;
 
-  // Get all active invitations for the user
-  const invitationsQuery = await db
-    .collection(Collections.INVITATIONS)
-    .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId)
-    .get();
-
-  let activeInvitationCount = 0;
-  for (const doc of invitationsQuery.docs) {
-    // Skip the excluded invitation if provided
-    if (excludeInvitationId && doc.id === excludeInvitationId) {
-      continue;
-    }
-
-    const invitationData = doc.data();
-    const status = invitationData[InvitationFields.STATUS];
-    const expiresAt = invitationData[InvitationFields.EXPIRES_AT] as Timestamp;
-
-    if (status === Status.PENDING && expiresAt && expiresAt.toDate() > currentTime.toDate()) {
-      activeInvitationCount++;
-    }
-  }
-
-  const totalCount = friendCount + activeInvitationCount;
-  logger.info(
-    `User ${userId} has ${friendCount} friends and ${activeInvitationCount} active invitations (total: ${totalCount})`,
-  );
   return {
     friendCount,
-    activeInvitationCount,
-    hasReachedLimit: totalCount >= MAX_COMBINED,
+    hasReachedLimit: friendCount >= MAX_COMBINED,
   };
 };
 

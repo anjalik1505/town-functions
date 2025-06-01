@@ -6,19 +6,19 @@ import { ZodError } from 'zod';
 import { getDevice } from './device/get-device.js';
 import { updateDevice } from './device/update-device.js';
 import { createFeedback } from './feedback/create-feedback.js';
-import { acceptInvitation } from './invitations/accept-invitation.js';
-import { createInvitation } from './invitations/create-invitation.js';
+import { acceptJoinRequest } from './invitations/accept-join-request.js';
 import { getInvitation } from './invitations/get-invitation.js';
-import { getInvitations } from './invitations/get-invitations.js';
-import { rejectInvitation } from './invitations/reject-invitation.js';
-import { resendInvitation } from './invitations/resend-invitation.js';
+import { getJoinRequests } from './invitations/get-join-requests.js';
+import { rejectJoinRequest } from './invitations/reject-join-request.js';
+import { requestToJoin } from './invitations/request-to-join.js';
+import { resetInvitation } from './invitations/reset-invitation.js';
+import { getJoinRequest } from './own_profile/get-join-request.js';
 import { validateQueryParams, validateRequest } from './middleware/validation.js';
 import { ApiResponse, ErrorResponse, EventName } from './models/analytics-events.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,
   createFeedbackSchema,
-  createInvitationSchema,
   createProfileSchema,
   createReactionSchema,
   createUpdateSchema,
@@ -68,6 +68,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from './utils/errors.js';
+import { getMyJoinRequests } from './own_profile/get-my-join-requests.js';
 
 // Response Handler
 const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
@@ -198,6 +199,16 @@ app.get('/me/friends', validateQueryParams(paginationSchema), async (req, res) =
   sendResponse(res, result);
 });
 
+app.get('/me/requests', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getMyJoinRequests(req);
+  sendResponse(res, result);
+});
+
+app.get('/me/requests/:request_id', async (req, res) => {
+  const result = await getJoinRequest(req);
+  sendResponse(res, result);
+});
+
 // User profile routes
 app.get('/users/:target_user_id/profile', async (req, res) => {
   const result = await getUserProfile(req);
@@ -215,33 +226,33 @@ app.post('/users/:target_user_id/nudge', async (req, res) => {
 });
 
 // Invitation routes
-app.get('/invitations', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getInvitations(req);
-  sendResponse(res, result);
-});
-
-app.get('/invitations/:invitation_id', async (req, res) => {
+app.get('/invitation', async (req, res) => {
   const result = await getInvitation(req);
   sendResponse(res, result);
 });
 
-app.post('/invitations', validateRequest(createInvitationSchema), async (req, res) => {
-  const result = await createInvitation(req);
+app.post('/invitation/reset', async (req, res) => {
+  const result = await resetInvitation(req);
   sendResponse(res, result);
 });
 
-app.post('/invitations/:invitation_id/accept', async (req, res) => {
-  const result = await acceptInvitation(req);
+app.post('/invitation/:invitation_id/join', async (req, res) => {
+  const result = await requestToJoin(req);
   sendResponse(res, result);
 });
 
-app.post('/invitations/:invitation_id/reject', async (req, res) => {
-  const result = await rejectInvitation(req);
+app.post('/invitation/:request_id/accept', async (req, res) => {
+  const result = await acceptJoinRequest(req);
   sendResponse(res, result);
 });
 
-app.post('/invitations/:invitation_id/resend', async (req, res) => {
-  const result = await resendInvitation(req);
+app.post('/invitation/:request_id/reject', async (req, res) => {
+  const result = await rejectJoinRequest(req);
+  sendResponse(res, result);
+});
+
+app.get('/invitation/requests', validateQueryParams(paginationSchema), async (req, res) => {
+  const result = await getJoinRequests(req);
   sendResponse(res, result);
 });
 

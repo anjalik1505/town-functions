@@ -6,7 +6,6 @@ import {
   createCommentSchema,
   createFeedbackSchema,
   createGroupSchema,
-  createInvitationSchema,
   createProfileSchema,
   createReactionSchema,
   createUpdateSchema,
@@ -113,13 +112,31 @@ export interface FeedResponse {
 export interface Invitation {
   invitation_id: string;
   created_at: string;
-  expires_at: string;
   sender_id: string;
-  status: string;
   username: string;
   name: string;
   avatar: string;
+}
+
+export interface JoinRequest {
+  request_id: string;
+  invitation_id: string;
+  requester_id: string;
+  receiver_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  requester_username: string;
+  requester_name: string;
+  requester_avatar: string;
+  receiver_username: string;
   receiver_name: string;
+  receiver_avatar: string;
+}
+
+export interface JoinRequestResponse {
+  join_requests: JoinRequest[];
+  next_cursor: string | null;
 }
 
 export interface Friend {
@@ -267,7 +284,6 @@ export type OwnProfilePayload = z.infer<typeof ownProfileSchema>;
 export type FriendProfilePayload = z.infer<typeof friendProfileSchema>;
 export type TestPromptPayload = z.infer<typeof testPromptSchema>;
 export type TestNotificationPayload = z.infer<typeof testNotificationSchema>;
-export type CreateInvitationPayload = z.infer<typeof createInvitationSchema>;
 export type CreateCommentPayload = z.infer<typeof createCommentSchema>;
 export type UpdateCommentPayload = z.infer<typeof updateCommentSchema>;
 export type CreateReactionPayload = z.infer<typeof createReactionSchema>;

@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import { ApiResponse, EventName, FeedbackEventParams } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
 import { CreateFeedbackPayload, Feedback } from '../models/data-models.js';
@@ -41,9 +40,6 @@ export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback
   // Initialize Firestore client
   const db = getFirestore();
 
-  // Generate a unique ID for the feedback
-  const feedbackId = uuidv4();
-
   // Get current timestamp
   const createdAt = Timestamp.now();
 
@@ -55,7 +51,9 @@ export const createFeedback = async (req: Request): Promise<ApiResponse<Feedback
   };
 
   // Save the feedback to Firestore
-  await db.collection(Collections.FEEDBACK).doc(feedbackId).set(feedbackData);
+  const feedbackRef = db.collection(Collections.FEEDBACK).doc();
+  const feedbackId = feedbackRef.id;
+  await feedbackRef.set(feedbackData);
   logger.info(`Successfully created feedback with ID: ${feedbackId}`);
 
   // Return the created feedback

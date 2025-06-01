@@ -15,20 +15,6 @@
       ]
     },
     {
-      "collectionGroup": "invitations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "sender_id",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "created_at",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "friendships",
       "queryScope": "COLLECTION",
       "fields": [
@@ -102,6 +88,34 @@
         },
         {
           "fieldPath": "type",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "JOIN_REQUESTS",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "requester_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "JOIN_REQUESTS",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "requester_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
           "order": "ASCENDING"
         }
       ]
