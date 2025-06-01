@@ -52,6 +52,7 @@ export const formatUpdate = (
     reaction_count: updateData.reaction_count || 0,
     reactions: reactions,
     all_village: updateData[UpdateFields.ALL_VILLAGE] || false,
+    images: updateData[UpdateFields.IMAGE_PATHS] || [],
   };
 };
 

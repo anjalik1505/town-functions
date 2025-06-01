@@ -103,6 +103,7 @@ export const UpdateFields = {
   COMMENT_COUNT: 'comment_count',
   REACTION_COUNT: 'reaction_count',
   ALL_VILLAGE: 'all_village',
+  IMAGE_PATHS: 'image_paths',
 } as const;
 
 // Field names for Group documents

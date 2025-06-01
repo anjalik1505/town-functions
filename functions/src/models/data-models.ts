@@ -83,6 +83,7 @@ export interface Update {
   reaction_count: number;
   reactions: ReactionGroup[];
   all_village: boolean;
+  images: string[];
 }
 
 export interface EnrichedUpdate extends Update {
