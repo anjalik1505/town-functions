@@ -110,6 +110,7 @@ export const generateCreatorProfileFlow = async (params: {
   gender: string;
   location: string;
   age: string;
+  images?: Array<{ url: string; mimeType: string }>;
 }) => {
   const originalParams = { ...params };
 
@@ -144,6 +145,11 @@ export const generateCreatorProfileFlow = async (params: {
 
   logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
+  const promptParams = {
+    ...aiParams,
+    images: params.images || []
+  };
+
   const aiResult = await executeAIFlow<{
     summary: string;
     suggestions: string;
@@ -151,7 +157,7 @@ export const generateCreatorProfileFlow = async (params: {
     key_moments: string;
     recurring_themes: string;
     progress_and_growth: string;
-  }>('creator_profile', aiParams, defaultOutput, 'Generating creator profile insights');
+  }>('creator_profile', promptParams, defaultOutput, 'Generating creator profile insights');
 
   const finalResult = { ...aiResult };
 
@@ -197,6 +203,7 @@ export const generateFriendProfileFlow = async (params: {
   userGender: string;
   userLocation: string;
   userAge: string;
+  images?: Array<{ url: string; mimeType: string }>;
 }) => {
   const originalParams = { ...params };
 
@@ -216,10 +223,15 @@ export const generateFriendProfileFlow = async (params: {
 
   logger.error(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
+  const promptParams = {
+    ...aiParams,
+    images: params.images || []
+  };
+
   const aiResult = await executeAIFlow<{
     summary: string;
     suggestions: string;
-  }>('friend_profile', aiParams, defaultOutput, 'Generating friend profile insights');
+  }>('friend_profile', promptParams, defaultOutput, 'Generating friend profile insights');
 
   const finalResult = { ...aiResult };
 

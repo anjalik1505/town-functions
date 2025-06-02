@@ -10,6 +10,7 @@ import {
   UpdateFields,
 } from '../models/constants.js';
 import { trackApiEvents } from './analytics-utils.js';
+import { processImagesForPrompt } from './image-utils.js';
 import { getLogger } from './logging-utils.js';
 import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
 import { createFeedItem } from './update-utils.js';
@@ -187,8 +188,12 @@ export async function syncFriendshipDataForUser(
 
     // Process each update for friend summary
     for (const updateData of lastUpdates) {
+      // Process images for this update
+      const imagePaths = (updateData[UpdateFields.IMAGE_PATHS] as string[]) || [];
+      const processedImages = await processImagesForPrompt(imagePaths);
+
       // Generate the summary
-      const summaryResult = await generateFriendSummary(summaryContext, updateData);
+      const summaryResult = await generateFriendSummary(summaryContext, updateData, processedImages);
 
       summaryContext.existingSummary = summaryResult.summary;
       summaryContext.existingSuggestions = summaryResult.suggestions;
