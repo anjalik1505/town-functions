@@ -1,6 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
@@ -192,8 +193,11 @@ export async function syncFriendshipDataForUser(
       const imagePaths = (updateData[UpdateFields.IMAGE_PATHS] as string[]) || [];
       const processedImages = await processImagesForPrompt(imagePaths);
 
+      // Analyze images for this update
+      const { analysis: imageAnalysis } = await analyzeImagesFlow({ images: processedImages });
+
       // Generate the summary
-      const summaryResult = await generateFriendSummary(summaryContext, updateData, processedImages);
+      const summaryResult = await generateFriendSummary(summaryContext, updateData, imageAnalysis);
 
       summaryContext.existingSummary = summaryResult.summary;
       summaryContext.existingSuggestions = summaryResult.suggestions;

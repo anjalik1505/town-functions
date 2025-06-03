@@ -9,11 +9,13 @@ const logger = getLogger(path.basename(__filename));
 
 /**
  * Process image paths into objects with signed URLs and MIME types for use in prompts
- * 
+ *
  * @param imagePaths - Array of Firebase Storage paths to images
  * @returns Array of objects with url and mimeType properties
  */
-export const processImagesForPrompt = async (imagePaths: string[]): Promise<Array<{ url: string; mimeType: string }>> => {
+export const processImagesForPrompt = async (
+  imagePaths: string[],
+): Promise<Array<{ url: string; mimeType: string }>> => {
   if (!imagePaths || imagePaths.length === 0) {
     return [];
   }
@@ -32,7 +34,7 @@ export const processImagesForPrompt = async (imagePaths: string[]): Promise<Arra
       // 2. Generate signed URL (valid for 1 minute)
       const [signedUrl] = await file.getSignedUrl({
         action: 'read',
-        expires: Date.now() + 60 * 1000
+        expires: Date.now() + 60 * 1000,
       });
 
       images.push({ url: signedUrl, mimeType });
@@ -44,4 +46,4 @@ export const processImagesForPrompt = async (imagePaths: string[]): Promise<Arra
   }
 
   return images;
-}; 
+};

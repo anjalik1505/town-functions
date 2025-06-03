@@ -35,7 +35,7 @@ const ai = genkit({
  */
 const executeAIFlow = async <T>(
   promptName: string,
-  params: Record<string, string>,
+  params: Record<string, string | Array<{ url: string; mimeType: string }>>,
   defaultOutput: T,
   logPrefix: string,
 ): Promise<T> => {
@@ -69,10 +69,10 @@ const executeAIFlow = async <T>(
         error:
           error instanceof Error
             ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
             : error,
         params: params,
       });
@@ -96,6 +96,21 @@ const executeAIFlow = async <T>(
 };
 
 /**
+ * Analyze images and extract descriptive text
+ */
+export const analyzeImagesFlow = async (params: { images: Array<{ url: string; mimeType: string }> }) => {
+  if (!params.images || params.images.length === 0) {
+    return { analysis: '' };
+  }
+
+  const defaultOutput = {
+    analysis: '',
+  };
+
+  return executeAIFlow('analyze_images', params, defaultOutput, 'Analyzing images');
+};
+
+/**
  * Generate creator profile insights based on updates, handling placeholders.
  */
 export const generateCreatorProfileFlow = async (params: {
@@ -110,7 +125,7 @@ export const generateCreatorProfileFlow = async (params: {
   gender: string;
   location: string;
   age: string;
-  images?: Array<{ url: string; mimeType: string }>;
+  imageAnalysis?: string;
 }) => {
   const originalParams = { ...params };
 
@@ -143,11 +158,11 @@ export const generateCreatorProfileFlow = async (params: {
     progress_and_growth: originalParams.existingProgressAndGrowth,
   };
 
-  logger.error(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Generating creator profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
   const promptParams = {
     ...aiParams,
-    images: params.images || []
+    imageAnalysis: params.imageAnalysis || '',
   };
 
   const aiResult = await executeAIFlow<{
@@ -203,7 +218,7 @@ export const generateFriendProfileFlow = async (params: {
   userGender: string;
   userLocation: string;
   userAge: string;
-  images?: Array<{ url: string; mimeType: string }>;
+  imageAnalysis?: string;
 }) => {
   const originalParams = { ...params };
 
@@ -221,11 +236,11 @@ export const generateFriendProfileFlow = async (params: {
     suggestions: originalParams.existingSuggestions,
   };
 
-  logger.error(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Generating friend profile insights with params: ${JSON.stringify(params, null, 2)}`);
 
   const promptParams = {
     ...aiParams,
-    images: params.images || []
+    imageAnalysis: params.imageAnalysis || '',
   };
 
   const aiResult = await executeAIFlow<{
@@ -287,7 +302,7 @@ export const generateQuestionFlow = async (params: {
     question: "How's your day going? Share with your Village!",
   };
 
-  logger.error(`Generating question with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Generating question with params: ${JSON.stringify(params, null, 2)}`);
 
   // Short-circuit if user has no existing summary
   if (!aiParams.existingSummary.trim()) {
@@ -313,7 +328,7 @@ export const generateNotificationMessageFlow = async (params: {
     message: `${params.friendName} shared an update with you.`,
   };
 
-  logger.error(`Generating notification message with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Generating notification message with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow('notification_message', params, defaultOutput, 'Generating notification message');
 };
@@ -332,7 +347,7 @@ export const determineUrgencyFlow = async (params: {
     is_urgent: false,
   };
 
-  logger.error(`Determining urgency with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Determining urgency with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow('determine_urgency', params, defaultOutput, 'Determining update urgency');
 };
@@ -347,7 +362,7 @@ export const analyzeSentimentFlow = async (params: { content: string }) => {
     emoji: '😐',
   };
 
-  logger.error(`Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow('analyze_sentiment', params, defaultOutput, 'Analyzing text sentiment');
 };
@@ -366,7 +381,7 @@ export const generateDailyNotificationFlow = async (params: {
     message: `Hey ${params.name}, how are you doing today?`,
   };
 
-  logger.error(`Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`);
+  logger.info(`Generating daily notification message with params: ${JSON.stringify(params, null, 2)}`);
 
   return executeAIFlow('daily_notification', params, defaultOutput, 'Generating daily notification message');
 };
@@ -382,7 +397,7 @@ export const transcribeAudioFlow = async (params: { audioUri: string; mimeType: 
     emoji: '😐',
   };
 
-  logger.error(`Generating transcription with mime type ${params.mimeType}`);
+  logger.info(`Generating transcription with mime type ${params.mimeType}`);
 
   return executeAIFlow('transcribe_audio', params, defaultOutput, 'Generating transcription and sentiment');
 };

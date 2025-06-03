@@ -1,0 +1,30 @@
+---
+model: googleai/gemini-2.0-flash
+config:
+  temperature: 0.0
+  maxOutputTokens: 500
+input:
+  schema:
+    images(array):
+      url: string
+      mimeType: string
+output:
+  schema:
+    analysis: string
+---
+{{#each images}}
+{{media url=this.url contentType=this.mimeType}}
+{{/each}}
+
+### TASK:
+Analyze the provided images and generate a concise descriptive text that captures the key visual elements, activities, emotions, and context that would be relevant for understanding a person's life update or social sharing.
+
+### INSTRUCTIONS:
+- Describe what you see in the images in a way that provides context for understanding someone's life and emotional state
+- Focus on activities, settings, people, emotions, and any notable visual elements
+- Keep the description factual and objective
+- If multiple images are provided, describe them as a cohesive set
+- If no images are provided, return an empty string
+
+### OUTPUT:
+Provide a single paragraph description (maximum 200 words) that captures the essence of what the images show. If no images are provided, return an empty string. 
