@@ -1,7 +1,7 @@
 import { differenceInYears, parse } from 'date-fns';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, InsightsFields, ProfileFields } from '../models/constants.js';
-import { FriendProfileResponse, Insights, ProfileResponse } from '../models/data-models.js';
+import { Collections, ConnectToFields, GoalFields, InsightsFields, ProfileFields } from '../models/constants.js';
+import { FriendProfileResponse, Insights, NudgingSettings, ProfileResponse } from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -185,6 +185,43 @@ const formatCommonProfileFields = (userId: string, profileData: Record<string, u
 };
 
 /**
+ * Safely extracts and formats nudging settings from profile data
+ * @param profileData The profile data from Firestore
+ * @returns Properly formatted NudgingSettings or null
+ */
+const extractNudgingSettings = (profileData: Record<string, unknown>): NudgingSettings | null => {
+  const rawNudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS];
+
+  // Return null if nudging_settings doesn't exist or is null/undefined
+  if (!rawNudgingSettings || typeof rawNudgingSettings !== 'object') {
+    return null;
+  }
+
+  const nudgingObj = rawNudgingSettings as Record<string, unknown>;
+
+  // Only return valid nudging settings if occurrence exists
+  if (!nudgingObj.occurrence || typeof nudgingObj.occurrence !== 'string') {
+    return null;
+  }
+
+  return {
+    occurrence: nudgingObj.occurrence,
+    times_of_day: Array.isArray(nudgingObj.times_of_day) ? nudgingObj.times_of_day : undefined,
+    days_of_week: Array.isArray(nudgingObj.days_of_week) ? nudgingObj.days_of_week : undefined,
+  };
+};
+
+/**
+ * Safely extracts nudging occurrence from profile data for analytics
+ * @param profileData The profile data from Firestore
+ * @returns The nudging occurrence string or empty string if not set
+ */
+export const extractNudgingOccurrence = (profileData: Record<string, unknown>): string => {
+  const nudgingSettings = extractNudgingSettings(profileData);
+  return nudgingSettings?.occurrence || '';
+};
+
+/**
  * Formats a profile document into a ProfileResponse object
  * @param userId The ID of the user
  * @param profileData The profile data
@@ -199,12 +236,7 @@ export const formatProfileResponse = (
   const commonFields = formatCommonProfileFields(userId, profileData);
 
   // Handle nudging_settings as a nested object
-  const rawNudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS] as Record<string, unknown> | null;
-  const nudgingSettings = rawNudgingSettings ? {
-    occurrence: (rawNudgingSettings.occurrence as string) || '',
-    time_of_day: (rawNudgingSettings.time_of_day as string[]) || undefined,
-    day_of_week: (rawNudgingSettings.day_of_week as string) || undefined,
-  } : null;
+  const nudgingSettings = extractNudgingSettings(profileData);
 
   return {
     ...commonFields,
@@ -283,4 +315,42 @@ export const hasLimitOverride = async (userId: string): Promise<boolean> => {
   const profileDoc = await profileRef.get();
   const profileData = profileDoc.data() || {};
   return profileData[ProfileFields.LIMIT_OVERRIDE] || false;
+};
+
+/**
+ * Safely extracts goal value for analytics, mapping unknown values to fallback
+ * @param profileData The profile data from Firestore
+ * @returns The goal string or "something_else" if not in predefined options
+ */
+export const extractGoalForAnalytics = (profileData: Record<string, unknown>): string => {
+  const goal = profileData[ProfileFields.GOAL] as string;
+  if (!goal) return '';
+
+  // Check if the goal matches any predefined option
+  const predefinedGoals = Object.values(GoalFields) as string[];
+  if (predefinedGoals.includes(goal)) {
+    return goal;
+  }
+
+  // Return fallback for any free-form text
+  return 'something_else';
+};
+
+/**
+ * Safely extracts connect_to value for analytics, mapping unknown values to fallback
+ * @param profileData The profile data from Firestore
+ * @returns The connect_to string or "other" if not in predefined options
+ */
+export const extractConnectToForAnalytics = (profileData: Record<string, unknown>): string => {
+  const connectTo = profileData[ProfileFields.CONNECT_TO] as string;
+  if (!connectTo) return '';
+
+  // Check if the connect_to matches any predefined option
+  const predefinedOptions = Object.values(ConnectToFields) as string[];
+  if (predefinedOptions.includes(connectTo)) {
+    return connectTo;
+  }
+
+  // Return fallback for any free-form text
+  return 'other';
 };

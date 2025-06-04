@@ -5,7 +5,12 @@ import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../mode
 import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { calculateAge } from '../utils/profile-utils.js';
+import {
+  calculateAge,
+  extractConnectToForAnalytics,
+  extractGoalForAnalytics,
+  extractNudgingOccurrence,
+} from '../utils/profile-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
 
 import path from 'path';
@@ -145,9 +150,9 @@ const updateCreatorProfile = async (
     has_location: !!profileData[ProfileFields.LOCATION],
     has_birthday: !!profileData[ProfileFields.BIRTHDAY],
     has_gender: !!profileData[ProfileFields.GENDER],
-    nudging_occurrence: (profileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
-    goal: (profileData[ProfileFields.GOAL] as string) || '',
-    connect_to: (profileData[ProfileFields.CONNECT_TO] as string) || '',
+    nudging_occurrence: extractNudgingOccurrence(profileData),
+    goal: extractGoalForAnalytics(profileData),
+    connect_to: extractConnectToForAnalytics(profileData),
     personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
     tone: (profileData[ProfileFields.TONE] as string) || '',
   };

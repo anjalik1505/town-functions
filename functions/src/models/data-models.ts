@@ -19,7 +19,7 @@ import {
   timezoneSchema,
   transcribeAudioSchema,
   updateCommentSchema,
-  updateProfileSchema
+  updateProfileSchema,
 } from './validation-schemas.js';
 
 export interface Insights {
@@ -31,8 +31,8 @@ export interface Insights {
 
 export interface NudgingSettings {
   occurrence: string;
-  time_of_day?: string[];
-  day_of_week?: string;
+  times_of_day?: string[];
+  days_of_week?: string[];
 }
 
 export interface BaseUser {

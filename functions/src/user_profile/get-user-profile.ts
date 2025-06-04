@@ -6,7 +6,14 @@ import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { createSummaryId, formatFriendProfileResponse, getProfileDoc } from '../utils/profile-utils.js';
+import {
+  createSummaryId,
+  extractConnectToForAnalytics,
+  extractGoalForAnalytics,
+  extractNudgingOccurrence,
+  formatFriendProfileResponse,
+  getProfileDoc,
+} from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -105,10 +112,10 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     has_notification_settings:
       Array.isArray(targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
-    nudging_occurrence: (targetUserProfileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
+    nudging_occurrence: extractNudgingOccurrence(targetUserProfileData),
     has_gender: !!targetUserProfileData[ProfileFields.GENDER],
-    goal: (targetUserProfileData[ProfileFields.GOAL] as string) || '',
-    connect_to: (targetUserProfileData[ProfileFields.CONNECT_TO] as string) || '',
+    goal: extractGoalForAnalytics(targetUserProfileData),
+    connect_to: extractConnectToForAnalytics(targetUserProfileData),
     personality: (targetUserProfileData[ProfileFields.PERSONALITY] as string) || '',
     tone: (targetUserProfileData[ProfileFields.TONE] as string) || '',
   };

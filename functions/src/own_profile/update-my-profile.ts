@@ -20,7 +20,14 @@ import {
 import { ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
 import { getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatProfileResponse, getProfileDoc, getProfileInsights } from '../utils/profile-utils.js';
+import {
+  extractConnectToForAnalytics,
+  extractGoalForAnalytics,
+  extractNudgingOccurrence,
+  formatProfileResponse,
+  getProfileDoc,
+  getProfileInsights,
+} from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -312,10 +319,10 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     has_notification_settings:
       Array.isArray(updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
-    nudging_occurrence: (updatedProfileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
+    nudging_occurrence: extractNudgingOccurrence(updatedProfileData),
     has_gender: !!updatedProfileData[ProfileFields.GENDER],
-    goal: (updatedProfileData[ProfileFields.GOAL] as string) || '',
-    connect_to: (updatedProfileData[ProfileFields.CONNECT_TO] as string) || '',
+    goal: extractGoalForAnalytics(updatedProfileData),
+    connect_to: extractConnectToForAnalytics(updatedProfileData),
     personality: (updatedProfileData[ProfileFields.PERSONALITY] as string) || '',
     tone: (updatedProfileData[ProfileFields.TONE] as string) || '',
   };

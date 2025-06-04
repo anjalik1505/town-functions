@@ -233,6 +233,49 @@ export const NudgingFields = {
   FEW_DAYS: 'few_days',
 } as const;
 
+// Options for days of the week
+export const DaysOfWeek = {
+  MONDAY: 'monday',
+  TUESDAY: 'tuesday',
+  WEDNESDAY: 'wednesday',
+  THURSDAY: 'thursday',
+  FRIDAY: 'friday',
+  SATURDAY: 'saturday',
+  SUNDAY: 'sunday',
+} as const;
+
+// Options for goal settings
+export const GoalFields = {
+  STAY_CONNECTED: 'stay_connected',
+  CHECK_IN: 'check_in',
+  IMPROVE_RELATIONSHIPS: 'improve_relationships',
+  MEET_NEW_PEOPLE: 'meet_new_people',
+  NOT_SURE: 'not_sure',
+} as const;
+
+// Options for connect_to settings
+export const ConnectToFields = {
+  FRIENDS: 'friends',
+  FAMILY: 'family',
+  PARTNER: 'partner',
+  NEW_PEOPLE: 'new_people',
+} as const;
+
+// Options for personality settings
+export const PersonalityFields = {
+  SHARE_LITTLE: 'share_little',
+  SHARE_BIG: 'share_big',
+  KEEP_TO_SELF: 'keep_to_self',
+  SHARE_MORE: 'share_more',
+} as const;
+
+// Options for tone settings
+export const ToneFields = {
+  LIGHT_AND_CASUAL: 'light_and_casual',
+  DEEP_AND_REFLECTIVE: 'deep_and_reflective',
+  SURPRISE_ME: 'surprise_me',
+} as const;
+
 // Placeholders for empty profile fields
 export const Placeholders = {
   SUMMARY:

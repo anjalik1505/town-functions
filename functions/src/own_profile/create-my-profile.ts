@@ -1,10 +1,24 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, Documents, InsightsFields, Placeholders, ProfileFields } from '../models/constants.js';
+import {
+  Collections,
+  Documents,
+  InsightsFields,
+  NudgingFields,
+  Placeholders,
+  ProfileFields,
+} from '../models/constants.js';
 import { CreateProfilePayload, Insights, ProfileResponse } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { formatProfileResponse, getProfileInsights, profileExists } from '../utils/profile-utils.js';
+import {
+  extractConnectToForAnalytics,
+  extractGoalForAnalytics,
+  extractNudgingOccurrence,
+  formatProfileResponse,
+  getProfileInsights,
+  profileExists,
+} from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -60,7 +74,9 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     [ProfileFields.LOCATION]: '',
     [ProfileFields.BIRTHDAY]: profileData.birthday || '',
     [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
-    [ProfileFields.NUDGING_SETTINGS]: profileData.nudging_settings || null,
+    [ProfileFields.NUDGING_SETTINGS]: profileData.nudging_settings || {
+      occurrence: NudgingFields.NEVER,
+    },
     [ProfileFields.GENDER]: profileData.gender || '',
     [ProfileFields.TIMEZONE]: '',
     [ProfileFields.GOAL]: profileData.goal || '',
@@ -106,10 +122,10 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     has_birthday: !!profileData.birthday,
     has_notification_settings:
       Array.isArray(profileData.notification_settings) && profileData.notification_settings.length > 0,
-    nudging_occurrence: profileData.nudging_settings?.occurrence || '',
+    nudging_occurrence: extractNudgingOccurrence(profileDataToSave),
     has_gender: !!profileData.gender,
-    goal: profileData.goal || '',
-    connect_to: profileData.connect_to || '',
+    goal: extractGoalForAnalytics(profileDataToSave),
+    connect_to: extractConnectToForAnalytics(profileDataToSave),
     personality: profileData.personality || '',
     tone: profileData.tone || '',
   };

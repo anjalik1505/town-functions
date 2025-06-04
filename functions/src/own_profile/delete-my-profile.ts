@@ -3,7 +3,12 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
 import { ProfileFields } from '../models/constants.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { getProfileDoc } from '../utils/profile-utils.js';
+import {
+  extractConnectToForAnalytics,
+  extractGoalForAnalytics,
+  extractNudgingOccurrence,
+  getProfileDoc,
+} from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -50,10 +55,10 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
     has_notification_settings:
       Array.isArray(profileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       profileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
-    nudging_occurrence: (profileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
+    nudging_occurrence: extractNudgingOccurrence(profileData),
     has_gender: !!profileData[ProfileFields.GENDER],
-    goal: (profileData[ProfileFields.GOAL] as string) || '',
-    connect_to: (profileData[ProfileFields.CONNECT_TO] as string) || '',
+    goal: extractGoalForAnalytics(profileData),
+    connect_to: extractConnectToForAnalytics(profileData),
     personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
     tone: (profileData[ProfileFields.TONE] as string) || '',
   };
