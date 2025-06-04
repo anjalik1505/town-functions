@@ -173,7 +173,12 @@ This repository contains the backend functions for the Village application.
     "has_location": true,
     "has_birthday": true,
     "has_notification_settings": true,
-    "has_gender": true
+    "nudging_occurrence": "weekly",
+    "has_gender": true,
+    "goal": "stay_connected",
+    "connect_to": "friends",
+    "personality": "share_little",
+    "tone": "light_and_casual"
   }
   ```
 
@@ -187,11 +192,20 @@ This repository contains the backend functions for the Village application.
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["all"],
-  "gender": "male"
+  "nudging_settings": {
+    "occurrence": "weekly",
+    "times_of_day": ["09:00"],
+    "days_of_week": ["monday"]
+  },
+  "gender": "male",
+  "goal": "stay_connected",
+  "connect_to": "friends",
+  "personality": "share_little",
+  "tone": "light_and_casual"
 }
 ```
 
-_Note: notification_settings is an optional array that can only contain "all" or "urgent"._
+_Note: notification_settings is an optional array that can only contain "all" or "urgent". nudging_settings is an optional nested object. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
 
 **Output**:
 
@@ -205,6 +219,11 @@ _Note: notification_settings is an optional array that can only contain "all" or
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["all"],
+  "nudging_settings": {
+    "occurrence": "weekly",
+    "times_of_day": ["09:00"],
+    "days_of_week": ["monday"]
+  },
   "gender": "male",
   "summary": "",
   "suggestions": "",
@@ -213,7 +232,8 @@ _Note: notification_settings is an optional array that can only contain "all" or
     "key_moments": "",
     "recurring_themes": "",
     "progress_and_growth": ""
-  }
+  },
+  "tone": "light_and_casual"
 }
 ```
 
@@ -240,7 +260,12 @@ _Note: notification_settings is an optional array that can only contain "all" or
     "has_location": true,
     "has_birthday": true,
     "has_notification_settings": true,
-    "has_gender": true
+    "nudging_occurrence": "daily",
+    "has_gender": true,
+    "goal": "improve_relationships",
+    "connect_to": "family",
+    "personality": "share_big",
+    "tone": "deep_and_reflective"
   }
   ```
 
@@ -254,11 +279,19 @@ _Note: notification_settings is an optional array that can only contain "all" or
   "location": "San Francisco",
   "birthday": "1990-01-01",
   "notification_settings": ["urgent"],
-  "gender": "male"
+  "nudging_settings": {
+    "occurrence": "daily",
+    "times_of_day": ["08:00", "18:00"]
+  },
+  "gender": "male",
+  "goal": "improve_relationships",
+  "connect_to": "family",
+  "personality": "share_big",
+  "tone": "deep_and_reflective"
 }
 ```
 
-_Note: All fields are optional. Only the fields included in the request will be updated. notification_settings can only contain "all" or "urgent"._
+_Note: All fields are optional. Only the fields included in the request will be updated. notification_settings can only contain "all" or "urgent". nudging_settings is an optional nested object. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
 
 **Output**:
 
@@ -272,6 +305,10 @@ _Note: All fields are optional. Only the fields included in the request will be 
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "notification_settings": ["urgent"],
+  "nudging_settings": {
+    "occurrence": "daily",
+    "times_of_day": ["08:00", "18:00"]
+  },
   "gender": "male",
   "summary": "Active user since January 2023",
   "suggestions": "Consider connecting with more friends in your area",
@@ -280,7 +317,8 @@ _Note: All fields are optional. Only the fields included in the request will be 
     "key_moments": "Family vacation in June 2023",
     "recurring_themes": "Family, Travel, Work",
     "progress_and_growth": "Increased social connections by 25%"
-  }
+  },
+  "tone": "deep_and_reflective"
 }
 ```
 
@@ -307,7 +345,12 @@ _Note: All fields are optional. Only the fields included in the request will be 
     "has_location": true,
     "has_birthday": true,
     "has_notification_settings": true,
-    "has_gender": true
+    "nudging_occurrence": "weekly",
+    "has_gender": true,
+    "goal": "stay_connected",
+    "connect_to": "friends",
+    "personality": "share_little",
+    "tone": "light_and_casual"
   }
   ```
 
@@ -324,6 +367,11 @@ _Note: All fields are optional. Only the fields included in the request will be 
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["all"],
+  "nudging_settings": {
+    "occurrence": "weekly",
+    "times_of_day": ["09:00"],
+    "days_of_week": ["monday"]
+  },
   "gender": "male",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
   "summary": "Active user since January 2023",
@@ -333,7 +381,8 @@ _Note: All fields are optional. Only the fields included in the request will be 
     "key_moments": "Family vacation in June 2023",
     "recurring_themes": "Family, Travel, Work",
     "progress_and_growth": "Increased social connections by 25%"
-  }
+  },
+  "tone": "light_and_casual"
 }
 ```
 
@@ -360,7 +409,18 @@ _Note: All fields are optional. Only the fields included in the request will be 
     "summary_count": 0,
     "group_count": 0,
     "device_count": 0,
-    "invitation_count": 0
+    "invitation_count": 0,
+    "has_name": true,
+    "has_avatar": true,
+    "has_location": true,
+    "has_birthday": true,
+    "has_notification_settings": true,
+    "nudging_occurrence": "weekly",
+    "has_gender": true,
+    "goal": "stay_connected",
+    "connect_to": "friends",
+    "personality": "share_little",
+    "tone": "light_and_casual"
   }
   ```
 
@@ -1664,7 +1724,13 @@ _Note: Timezone must be a valid IANA timezone identifier (e.g., America/New_York
     "has_avatar": true,
     "has_location": true,
     "has_birthday": true,
-    "has_gender": true
+    "has_notification_settings": true,
+    "nudging_occurrence": "weekly",
+    "has_gender": true,
+    "goal": "stay_connected",
+    "connect_to": "friends",
+    "personality": "share_little",
+    "tone": "light_and_casual"
   }
   ```
 
@@ -1896,7 +1962,13 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
     "has_avatar": true,
     "has_location": true,
     "has_birthday": true,
+    "has_notification_settings": true,
+    "nudging_occurrence": "weekly",
     "has_gender": true,
+    "goal": "stay_connected",
+    "connect_to": "friends",
+    "personality": "share_little",
+    "tone": "light_and_casual",
     "friend_summary_count": 0
   }
   ```
