@@ -1,25 +1,21 @@
 rules_version = '2';
 service firebase.storage {
-  match /b/{bucket}/o {
+  match /b/{bucket}/o {    
+    function canSee(updateId) {
+      // One Firestore read, then reuse the result
+      let doc = firestore.get(/databases/(default)/documents/updates/$(updateId)).data.visible_to;
+
+      return request.auth.uid in doc || ('friend:' + request.auth.uid) in doc;
+    }
     // Staging prefix rules - authenticated uploader has full CRUD access to their own files
     match /pending_uploads/{userId}/{fileName} {
       // Only the authenticated uploader may create, read, update, or delete
-      allow create, read, update, delete: if request.auth != null
-                                          && request.auth.uid == userId;
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Update files rules - only read access based on Firestore document's visibleTo array
+    
+    // Updates
     match /updates/{updateId}/{fileName} {
-      // READ: allow if auth.uid ∈ visibleTo OR "friend:auth.uid" ∈ visibleTo
-      allow read: if request.auth != null
-                  && (
-                       get(
-                         /databases/$(database)/documents/updates/$(updateId)
-                       ).data.visible_to.contains(request.auth.uid)
-                       || get(
-                            /databases/$(database)/documents/updates/$(updateId)
-                         ).data.visible_to.contains('friend:' + request.auth.uid)
-                     );
+      allow read: if request.auth != null && canSee(updateId);
     }
   }
 } 
