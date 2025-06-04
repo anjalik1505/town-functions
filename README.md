@@ -120,10 +120,10 @@ Each script is independent and targets specific functionality.
 - **Manual:** Deployments to production are not automatic.
 - **How to deploy:**
   1. **Create a Release:** In GitHub, create a new release and tag the commit you want to deploy.
-  2. **Trigger Deploy:** Go to the GitHub Actions tab, find the “Firebase Production Deploy” workflow, and run it manually. You’ll need to specify the release tag you just created.
+  2. **Trigger Deploy:** Go to the GitHub Actions tab, find the "Firebase Production Deploy" workflow, and run it manually. You'll need to specify the release tag you just created.
 - **Purpose:** This ensures only reviewed and tagged versions are deployed to production, adding an extra layer of control and safety.
 
-If you’re new, always test your changes in staging first. Production deploys should only be done after creating a release and confirming everything works as expected in staging.
+If you're new, always test your changes in staging first. Production deploys should only be done after creating a release and confirming everything works as expected in staging.
 
 ## Managing Secrets for Deployment
 
@@ -205,7 +205,7 @@ This repository contains the backend functions for the Village application.
 }
 ```
 
-_Note: notification_settings is an optional array that can only contain "all" or "urgent". nudging_settings is an optional nested object. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
+_Note: notification_settings is an optional array that can only contain "all" or "urgent". nudging_settings is an optional nested object with occurrence (daily/weekly/few_days/never), times_of_day (HH:MM format), and days_of_week. Validation rules: daily allows multiple times_of_day; weekly allows 1 time_of_day and 1 day_of_week; few_days allows 1 time_of_day and multiple days_of_week; never allows no times/days. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
 
 **Output**:
 
@@ -291,7 +291,7 @@ _Note: notification_settings is an optional array that can only contain "all" or
 }
 ```
 
-_Note: All fields are optional. Only the fields included in the request will be updated. notification_settings can only contain "all" or "urgent". nudging_settings is an optional nested object. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
+_Note: All fields are optional. Only the fields included in the request will be updated. notification_settings can only contain "all" or "urgent". nudging_settings is an optional nested object with occurrence (daily/weekly/few_days/never), times_of_day (HH:MM format), and days_of_week. Validation rules: daily allows multiple times_of_day; weekly allows 1 time_of_day and 1 day_of_week; few_days allows 1 time_of_day and multiple days_of_week; never allows no times/days. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
 
 **Output**:
 

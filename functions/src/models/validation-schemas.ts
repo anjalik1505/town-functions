@@ -15,14 +15,18 @@ export const nudgingSettingsSchema = z
   })
   .refine(
     (data) => {
-      // times_of_day can only be together with daily or weekly occurrence
+      // times_of_day can be used with daily, weekly, or few_days occurrence
       if (data.times_of_day && data.times_of_day.length > 0) {
-        return data.occurrence === NudgingFields.DAILY || data.occurrence === NudgingFields.WEEKLY;
+        return (
+          data.occurrence === NudgingFields.DAILY ||
+          data.occurrence === NudgingFields.WEEKLY ||
+          data.occurrence === NudgingFields.FEW_DAYS
+        );
       }
       return true;
     },
     {
-      message: 'times_of_day can only be used with daily or weekly occurrence',
+      message: 'times_of_day can only be used with daily, weekly, or few_days occurrence',
       path: ['times_of_day'],
     },
   )
