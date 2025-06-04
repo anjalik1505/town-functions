@@ -51,7 +51,12 @@ export const getProfile = async (req: Request): Promise<ApiResponse<ProfileRespo
     has_notification_settings:
       Array.isArray(profileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       profileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+    nudging_occurrence: (profileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
     has_gender: !!profileData[ProfileFields.GENDER],
+    goal: (profileData[ProfileFields.GOAL] as string) || '',
+    connect_to: (profileData[ProfileFields.CONNECT_TO] as string) || '',
+    personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
+    tone: (profileData[ProfileFields.TONE] as string) || '',
   };
 
   return {

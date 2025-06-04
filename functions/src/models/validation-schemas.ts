@@ -2,7 +2,57 @@ import { isValid, parse } from 'date-fns';
 import { getTimezoneOffset } from 'date-fns-tz';
 import emojiRegex from 'emoji-regex';
 import { z } from 'zod';
-import { NotificationFields } from './constants.js';
+import { NotificationFields, NudgingFields } from './constants.js';
+
+// Enum schemas for new profile fields
+export const goalEnum = z.enum([
+  // TODO: Add actual enum values when available
+  'placeholder_goal_1',
+  'placeholder_goal_2',
+]);
+
+export const connectToEnum = z.enum([
+  // TODO: Add actual enum values when available
+  'placeholder_connect_1',
+  'placeholder_connect_2',
+]);
+
+export const personalityEnum = z.enum([
+  // TODO: Add actual enum values when available
+  'placeholder_personality_1',
+  'placeholder_personality_2',
+]);
+
+export const toneEnum = z.enum([
+  // TODO: Add actual enum values when available
+  'placeholder_tone_1',
+  'placeholder_tone_2',
+]);
+
+// Nudging settings schema
+export const nudgingSettingsSchema = z.object({
+  occurrence: z.enum([NudgingFields.DAILY, NudgingFields.WEEKLY, NudgingFields.NEVER, NudgingFields.FEW_DAYS]),
+  time_of_day: z.array(z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Time must be in HH:MM format')).optional(),
+  day_of_week: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']).optional(),
+}).refine((data) => {
+  // time_of_day can only be together with daily or weekly occurrence
+  if (data.time_of_day && data.time_of_day.length > 0) {
+    return data.occurrence === NudgingFields.DAILY || data.occurrence === NudgingFields.WEEKLY;
+  }
+  return true;
+}, {
+  message: 'time_of_day can only be used with daily or weekly occurrence',
+  path: ['time_of_day'],
+}).refine((data) => {
+  // day_of_week can only be together with weekly
+  if (data.day_of_week) {
+    return data.occurrence === NudgingFields.WEEKLY;
+  }
+  return true;
+}, {
+  message: 'day_of_week can only be used with weekly occurrence',
+  path: ['day_of_week'],
+});
 
 // Reusable schema for birthday validation
 const birthdaySchema = z
@@ -22,7 +72,12 @@ export const createProfileSchema = z.object({
   avatar: z.string().optional(),
   birthday: birthdaySchema,
   notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
+  nudging_settings: nudgingSettingsSchema.optional(),
   gender: z.string().optional(),
+  goal: goalEnum.optional(),
+  connect_to: connectToEnum.optional(),
+  personality: personalityEnum.optional(),
+  tone: toneEnum.optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -31,7 +86,12 @@ export const updateProfileSchema = z.object({
   avatar: z.string().optional(),
   birthday: birthdaySchema,
   notification_settings: z.array(z.enum([NotificationFields.ALL, NotificationFields.URGENT])).optional(),
+  nudging_settings: nudgingSettingsSchema.optional(),
   gender: z.string().optional(),
+  goal: goalEnum.optional(),
+  connect_to: connectToEnum.optional(),
+  personality: personalityEnum.optional(),
+  tone: toneEnum.optional(),
 });
 
 // Pagination schemas

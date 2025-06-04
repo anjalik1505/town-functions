@@ -198,12 +198,22 @@ export const formatProfileResponse = (
 ): ProfileResponse => {
   const commonFields = formatCommonProfileFields(userId, profileData);
 
+  // Handle nudging_settings as a nested object
+  const rawNudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS] as Record<string, unknown> | null;
+  const nudgingSettings = rawNudgingSettings ? {
+    occurrence: (rawNudgingSettings.occurrence as string) || '',
+    time_of_day: (rawNudgingSettings.time_of_day as string[]) || undefined,
+    day_of_week: (rawNudgingSettings.day_of_week as string) || undefined,
+  } : null;
+
   return {
     ...commonFields,
     notification_settings: (profileData[ProfileFields.NOTIFICATION_SETTINGS] as string[]) || [],
+    nudging_settings: nudgingSettings,
     summary: (profileData[ProfileFields.SUMMARY] as string) || '',
     suggestions: (profileData[ProfileFields.SUGGESTIONS] as string) || '',
     insights: insightsData,
+    tone: (profileData[ProfileFields.TONE] as string) || '',
   };
 };
 

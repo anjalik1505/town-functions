@@ -45,6 +45,7 @@ export const ProfileFields = {
   LOCATION: 'location',
   BIRTHDAY: 'birthday',
   NOTIFICATION_SETTINGS: 'notification_settings',
+  NUDGING_SETTINGS: 'nudging_settings',
   GENDER: 'gender',
   GROUP_IDS: 'group_ids',
   INSIGHTS: 'insights',
@@ -55,6 +56,10 @@ export const ProfileFields = {
   CREATED_AT: 'created_at',
   LIMIT_OVERRIDE: 'limit_override',
   TIMEZONE: 'timezone',
+  GOAL: 'goal',
+  CONNECT_TO: 'connect_to',
+  PERSONALITY: 'personality',
+  TONE: 'tone',
 } as const;
 
 // Field names for Friendship documents
@@ -218,6 +223,14 @@ export const TimeBucketCollections = {
 export const NotificationFields = {
   ALL: 'all',
   URGENT: 'urgent',
+} as const;
+
+// Options for nudging settings
+export const NudgingFields = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  NEVER: 'never',
+  FEW_DAYS: 'few_days',
 } as const;
 
 // Placeholders for empty profile fields

@@ -40,6 +40,11 @@ const updateCreatorProfile = async (
   has_location: boolean;
   has_birthday: boolean;
   has_gender: boolean;
+  nudging_occurrence: string;
+  goal: string;
+  connect_to: string;
+  personality: string;
+  tone: string;
 }> => {
   // Get the profile document
   const profileRef = db.collection(Collections.PROFILES).doc(creatorId);
@@ -59,6 +64,11 @@ const updateCreatorProfile = async (
       has_location: false,
       has_birthday: false,
       has_gender: false,
+      nudging_occurrence: '',
+      goal: '',
+      connect_to: '',
+      personality: '',
+      tone: '',
     };
   }
 
@@ -135,6 +145,11 @@ const updateCreatorProfile = async (
     has_location: !!profileData[ProfileFields.LOCATION],
     has_birthday: !!profileData[ProfileFields.BIRTHDAY],
     has_gender: !!profileData[ProfileFields.GENDER],
+    nudging_occurrence: (profileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
+    goal: (profileData[ProfileFields.GOAL] as string) || '',
+    connect_to: (profileData[ProfileFields.CONNECT_TO] as string) || '',
+    personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
+    tone: (profileData[ProfileFields.TONE] as string) || '',
   };
 };
 
@@ -173,6 +188,11 @@ const processAllSummaries = async (
         has_location: false,
         has_birthday: false,
         has_gender: false,
+        nudging_occurrence: '',
+        goal: '',
+        connect_to: '',
+        personality: '',
+        tone: '',
         friend_summary_count: 0,
       },
       friendSummaries: [],
@@ -215,6 +235,11 @@ const processAllSummaries = async (
     has_location: boolean;
     has_birthday: boolean;
     has_gender: boolean;
+    nudging_occurrence: string;
+    goal: string;
+    connect_to: string;
+    personality: string;
+    tone: string;
   };
 
   // The rest of the results are from friend summaries
@@ -236,6 +261,11 @@ const processAllSummaries = async (
       has_location: creatorResult.has_location,
       has_birthday: creatorResult.has_birthday,
       has_gender: creatorResult.has_gender,
+      nudging_occurrence: creatorResult.nudging_occurrence,
+      goal: creatorResult.goal,
+      connect_to: creatorResult.connect_to,
+      personality: creatorResult.personality,
+      tone: creatorResult.tone,
       friend_summary_count: friendIds.length,
     },
     friendSummaries: friendResults,

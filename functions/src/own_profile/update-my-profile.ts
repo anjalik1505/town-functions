@@ -49,6 +49,7 @@ const logger = getLogger(path.basename(__filename));
  *                - location: Optional updated location information
  *                - birthday: Optional updated birthday in ISO format
  *                - notification_settings: Optional updated list of notification preferences
+ *                - nudging_settings: Optional updated list of nudging preferences
  *                - gender: Optional updated gender information
  *
  * @returns A ProfileResponse containing the updated profile information
@@ -94,8 +95,23 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   if (profileData.notification_settings !== undefined) {
     profileUpdates[ProfileFields.NOTIFICATION_SETTINGS] = profileData.notification_settings;
   }
+  if (profileData.nudging_settings !== undefined) {
+    profileUpdates[ProfileFields.NUDGING_SETTINGS] = profileData.nudging_settings;
+  }
   if (profileData.gender !== undefined) {
     profileUpdates[ProfileFields.GENDER] = profileData.gender;
+  }
+  if (profileData.goal !== undefined) {
+    profileUpdates[ProfileFields.GOAL] = profileData.goal;
+  }
+  if (profileData.connect_to !== undefined) {
+    profileUpdates[ProfileFields.CONNECT_TO] = profileData.connect_to;
+  }
+  if (profileData.personality !== undefined) {
+    profileUpdates[ProfileFields.PERSONALITY] = profileData.personality;
+  }
+  if (profileData.tone !== undefined) {
+    profileUpdates[ProfileFields.TONE] = profileData.tone;
   }
 
   // Create a batch for all updates
@@ -296,7 +312,12 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     has_notification_settings:
       Array.isArray(updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+    nudging_occurrence: (updatedProfileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
     has_gender: !!updatedProfileData[ProfileFields.GENDER],
+    goal: (updatedProfileData[ProfileFields.GOAL] as string) || '',
+    connect_to: (updatedProfileData[ProfileFields.CONNECT_TO] as string) || '',
+    personality: (updatedProfileData[ProfileFields.PERSONALITY] as string) || '',
+    tone: (updatedProfileData[ProfileFields.TONE] as string) || '',
   };
 
   return {

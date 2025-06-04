@@ -59,7 +59,12 @@ export interface ProfileEventParams extends BaseEventParams {
   has_location: boolean;
   has_birthday: boolean;
   has_notification_settings: boolean;
+  nudging_occurrence: string;
   has_gender: boolean;
+  goal: string;
+  connect_to: string;
+  personality: string;
+  tone: string;
 }
 
 // Update event parameters
@@ -223,6 +228,11 @@ export interface SummaryEventParams extends BaseEventParams {
   has_location: boolean;
   has_birthday: boolean;
   has_gender: boolean;
+  nudging_occurrence: string;
+  goal: string;
+  connect_to: string;
+  personality: string;
+  tone: string;
   friend_summary_count: number;
 }
 

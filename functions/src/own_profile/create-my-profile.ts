@@ -60,8 +60,13 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     [ProfileFields.LOCATION]: '',
     [ProfileFields.BIRTHDAY]: profileData.birthday || '',
     [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
+    [ProfileFields.NUDGING_SETTINGS]: profileData.nudging_settings || null,
     [ProfileFields.GENDER]: profileData.gender || '',
     [ProfileFields.TIMEZONE]: '',
+    [ProfileFields.GOAL]: profileData.goal || '',
+    [ProfileFields.CONNECT_TO]: profileData.connect_to || '',
+    [ProfileFields.PERSONALITY]: profileData.personality || '',
+    [ProfileFields.TONE]: profileData.tone || '',
     [ProfileFields.SUMMARY]: Placeholders.SUMMARY,
     [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
     [ProfileFields.GROUP_IDS]: [],
@@ -101,7 +106,12 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     has_birthday: !!profileData.birthday,
     has_notification_settings:
       Array.isArray(profileData.notification_settings) && profileData.notification_settings.length > 0,
+    nudging_occurrence: profileData.nudging_settings?.occurrence || '',
     has_gender: !!profileData.gender,
+    goal: profileData.goal || '',
+    connect_to: profileData.connect_to || '',
+    personality: profileData.personality || '',
+    tone: profileData.tone || '',
   };
 
   return {

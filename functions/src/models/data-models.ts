@@ -19,7 +19,7 @@ import {
   timezoneSchema,
   transcribeAudioSchema,
   updateCommentSchema,
-  updateProfileSchema,
+  updateProfileSchema
 } from './validation-schemas.js';
 
 export interface Insights {
@@ -27,6 +27,12 @@ export interface Insights {
   key_moments: string;
   recurring_themes: string;
   progress_and_growth: string;
+}
+
+export interface NudgingSettings {
+  occurrence: string;
+  time_of_day?: string[];
+  day_of_week?: string;
 }
 
 export interface BaseUser {
@@ -40,12 +46,14 @@ export interface ProfileResponse extends BaseUser {
   location: string;
   birthday: string; // Format: yyyy-mm-dd
   notification_settings: string[];
+  nudging_settings: NudgingSettings | null;
   gender: string;
   summary: string;
   insights: Insights;
   suggestions: string;
   updated_at: string;
   timezone: string;
+  tone: string;
 }
 
 export interface FriendProfileResponse {

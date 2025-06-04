@@ -105,7 +105,12 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     has_notification_settings:
       Array.isArray(targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
       targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+    nudging_occurrence: (targetUserProfileData[ProfileFields.NUDGING_SETTINGS] as any)?.occurrence || '',
     has_gender: !!targetUserProfileData[ProfileFields.GENDER],
+    goal: (targetUserProfileData[ProfileFields.GOAL] as string) || '',
+    connect_to: (targetUserProfileData[ProfileFields.CONNECT_TO] as string) || '',
+    personality: (targetUserProfileData[ProfileFields.PERSONALITY] as string) || '',
+    tone: (targetUserProfileData[ProfileFields.TONE] as string) || '',
   };
 
   return {
