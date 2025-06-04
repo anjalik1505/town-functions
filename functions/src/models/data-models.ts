@@ -29,6 +29,12 @@ export interface Insights {
   progress_and_growth: string;
 }
 
+export interface NudgingSettings {
+  occurrence: string;
+  times_of_day?: string[];
+  days_of_week?: string[];
+}
+
 export interface BaseUser {
   user_id: string;
   username: string;
@@ -40,12 +46,14 @@ export interface ProfileResponse extends BaseUser {
   location: string;
   birthday: string; // Format: yyyy-mm-dd
   notification_settings: string[];
+  nudging_settings: NudgingSettings | null;
   gender: string;
   summary: string;
   insights: Insights;
   suggestions: string;
   updated_at: string;
   timezone: string;
+  tone: string;
 }
 
 export interface FriendProfileResponse {
