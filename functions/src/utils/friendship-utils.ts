@@ -13,6 +13,7 @@ import { trackApiEvents } from './analytics-utils.js';
 import { getLogger } from './logging-utils.js';
 import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
 import { createFeedItem } from './update-utils.js';
+import { createFriendVisibilityIdentifier } from './visibility-utils.js';
 
 const MAX_COMBINED = 5;
 
@@ -142,6 +143,19 @@ export async function syncFriendshipDataForUser(
 
       // Use the utility function to create the feed item
       createFeedItem(db, batch, targetUserId, updateId, createdAt, true, sourceUserId, [], sourceUserId);
+
+      // Update the update document's visible_to array to include the target user
+      const targetUserVisibilityId = createFriendVisibilityIdentifier(targetUserId);
+      const currentVisibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
+
+      // Only add if not already present
+      if (!currentVisibleTo.includes(targetUserVisibilityId)) {
+        const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+        batch.update(updateRef, {
+          [UpdateFields.VISIBLE_TO]: [...currentVisibleTo, targetUserVisibilityId],
+        });
+        batchCount++; // Account for the additional batch operation
+      }
 
       batchCount++;
       totalProcessed++;
