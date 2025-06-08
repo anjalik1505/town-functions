@@ -23,6 +23,7 @@ export const SUPPORTED_AUDIO_MIME_TYPES: readonly string[] = [
   'audio/pcm',
   'audio/wav',
   'audio/webm',
+  'video/mp4',
 ];
 
 /**
