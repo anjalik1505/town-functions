@@ -96,7 +96,7 @@ def run_updates_tests():
             "emoji": emoji,
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
-            "all_village": False if i == 0 else True,
+            "all_village": True,
         }
         created_update = api.create_update(users[0]["email"], update_data)
         user1_updates.append(created_update)
@@ -200,7 +200,9 @@ def run_updates_tests():
     join_request = api.request_to_join(users[1]["email"], invitation_id)
     logger.info(f"User 2 requests to join: {json.dumps(join_request, indent=2)}")
 
-    accept_result = api.accept_join_request(users[0]["email"], join_request["request_id"])
+    accept_result = api.accept_join_request(
+        users[0]["email"], join_request["request_id"]
+    )
     logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
     # Verify friendship was created
