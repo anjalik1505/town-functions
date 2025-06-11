@@ -15,7 +15,7 @@ import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSum
 import { createFeedItem } from './update-utils.js';
 import { createFriendVisibilityIdentifier } from './visibility-utils.js';
 
-const MAX_COMBINED = 5;
+const MAX_COMBINED = 20;
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -106,7 +106,7 @@ export async function syncFriendshipDataForUser(
   sourceUserId: string,
   targetUserId: string,
   friendshipData: FirebaseFirestore.DocumentData,
-): Promise<void> {
+): Promise<string | undefined> {
   try {
     const db = getFirestore();
     const updatesQuery = db
@@ -122,6 +122,7 @@ export async function syncFriendshipDataForUser(
 
     // Store the last 10 updates for friend summary processing
     const lastUpdates: FirebaseFirestore.DocumentData[] = [];
+    let latestEmoji: string | undefined = undefined;
 
     // Stream the updates instead of getting them all at once
     logger.info(`Streaming all_village updates from sender ${sourceUserId}`);
@@ -135,6 +136,11 @@ export async function syncFriendshipDataForUser(
 
       // Add the ID to the update data
       updateData[UpdateFields.ID] = updateId;
+
+      // Capture the emoji from the very first update (which is the latest)
+      if (latestEmoji === undefined) {
+        latestEmoji = (updateData[UpdateFields.EMOJI] as string) || '';
+      }
 
       // Add to the list of last updates (we'll keep only the first 10)
       if (lastUpdates.length < 10) {
@@ -232,8 +238,10 @@ export async function syncFriendshipDataForUser(
     }
 
     logger.info(`Successfully processed friendship ${friendshipData.id}`);
+    return latestEmoji;
   } catch (error) {
     logger.error(`Error processing friendship ${friendshipData.id}: ${error}`);
     // In a production environment, we would implement retry logic here
+    return undefined;
   }
 }

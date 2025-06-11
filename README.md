@@ -630,7 +630,8 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "user_id": "friend123",
       "username": "janedoe",
       "name": "Jane Doe",
-      "avatar": "https://example.com/avatar.jpg"
+      "avatar": "https://example.com/avatar.jpg",
+      "last_update_emoji": "😊"
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -1444,7 +1445,8 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
   "user_id": "user456",
   "username": "janedoe",
   "name": "Jane Doe",
-  "avatar": "https://example.com/avatar2.jpg"
+  "avatar": "https://example.com/avatar2.jpg",
+  "last_update_emoji": "😊"
 }
 ```
 
