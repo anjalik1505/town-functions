@@ -81,10 +81,11 @@ export const onFriendshipCreated = async (
   // Get the sender and receiver IDs
   const senderId = friendshipData[FriendshipFields.SENDER_ID];
   const receiverId = friendshipData[FriendshipFields.RECEIVER_ID];
+  const db = getFirestore();
 
   // Run both sync directions in parallel
   try {
-    await Promise.all([
+    const [senderEmoji, receiverEmoji] = await Promise.all([
       syncFriendshipDataForUser(senderId, receiverId, {
         ...friendshipData,
         id: event.data.id,
@@ -94,6 +95,20 @@ export const onFriendshipCreated = async (
         id: event.data.id,
       }),
     ]);
+
+    const emojiUpdate: { [key: string]: string } = {};
+    if (senderEmoji) {
+      emojiUpdate[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] = senderEmoji;
+    }
+    if (receiverEmoji) {
+      emojiUpdate[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] = receiverEmoji;
+    }
+
+    if (Object.keys(emojiUpdate).length > 0) {
+      const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(event.data.id);
+      await friendshipRef.update(emojiUpdate);
+      logger.info(`Updated friendship ${event.data.id} with latest emojis`);
+    }
   } catch (error) {
     logger.error(`Failed to sync friendship data for event ${event.data.id}`, error);
   }
@@ -101,7 +116,6 @@ export const onFriendshipCreated = async (
   // Send notification to the sender that their invitation was accepted
   try {
     // Get the sender's device ID
-    const db = getFirestore();
     const deviceRef = db.collection(Collections.DEVICES).doc(senderId);
     const deviceDoc = await deviceRef.get();
 

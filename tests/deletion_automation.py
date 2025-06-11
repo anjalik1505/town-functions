@@ -23,7 +23,6 @@ import time
 
 import firebase_admin
 from firebase_admin import credentials, firestore
-
 from utils.village_api import VillageAPI
 
 # Configure logging
@@ -78,15 +77,25 @@ def run_deletion_test():
     join_request = api.request_to_join(users[1]["email"], invitation_id)
     logger.info(f"User 2 requests to join: {json.dumps(join_request, indent=2)}")
 
-    accept_result = api.accept_join_request(users[0]["email"], join_request["request_id"])
+    accept_result = api.accept_join_request(
+        users[0]["email"], join_request["request_id"]
+    )
     logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
     # Verify friendship was created
-    friends_user1 = api.get_friends(users[0]["email"])
-    logger.info(f"First user's friends: {json.dumps(friends_user1, indent=2)}")
+    friends_before_user1 = api.get_friends(users[0]["email"])
+    logger.info(f"Friends of user 1 before deletion: {friends_before_user1}")
+    assert any(
+        friend["name"] == users[1]["name"] and friend["last_update_emoji"] == ""
+        for friend in friends_before_user1["friends"]
+    )
 
-    friends_user2 = api.get_friends(users[1]["email"])
-    logger.info(f"Second user's friends: {json.dumps(friends_user2, indent=2)}")
+    friends_before_user2 = api.get_friends(users[1]["email"])
+    logger.info(f"Friends of user 2 before deletion: {friends_before_user2}")
+    assert any(
+        friend["name"] == users[0]["name"] and friend["last_update_emoji"] == ""
+        for friend in friends_before_user2["friends"]
+    )
 
     # First user creates an update
     logger.info("First user creates an update")
@@ -123,7 +132,7 @@ def run_deletion_test():
         if update["created_by"] == api.user_ids[users[0]["email"]]
     ]
     assert (
-            len(user1_updates_in_feed) > 0
+        len(user1_updates_in_feed) > 0
     ), "User 1's update not found in User 2's feed before deletion"
     logger.info(
         f"User 2's feed contains {len(user1_updates_in_feed)} updates from User 1 before deletion"
@@ -154,25 +163,20 @@ def run_deletion_test():
         if update.get("created_by") == api.user_ids[users[0]["email"]]
     ]
     assert (
-            len(user1_updates_in_feed_after) == 0
+        len(user1_updates_in_feed_after) == 0
     ), "User 1's update found in User 2's feed after deletion"
     logger.info("User 2's feed doesn't contain any updates from User 1 after deletion")
 
-    # Check second user's friends are empty
-    logger.info("Checking user 2's friends after deletion")
-    friends_user2_after = api.get_friends(users[1]["email"])
-    logger.info(
-        f"User 2's friends after deletion: {json.dumps(friends_user2_after, indent=2)}"
+    # Verify user 1 is no longer in user 2's friends list
+    friends_after_user2 = api.get_friends(users[1]["email"])
+    logger.info(f"Friends of user 2 after deletion: {friends_after_user2}")
+    assert not any(
+        friend["name"] == users[0]["name"] for friend in friends_after_user2["friends"]
     )
 
-    # Verify user 2's friends list doesn't contain user 1
-    user1_in_friends = [
-        friend
-        for friend in friends_user2_after.get("friends", [])
-        if friend.get("user_id") == api.user_ids[users[0]["email"]]
-    ]
-    assert len(user1_in_friends) == 0, "User 1 found in User 2's friends after deletion"
-    logger.info("User 2's friends list doesn't contain User 1 after deletion")
+    logger.info("Deletion test for profiles and friendships completed successfully!")
+
+    # ============ DELETING UPDATES AND FEEDS ============
 
     # Check in DB directly that updates, feed items, device, and invitation are non-existent
     logger.info("Checking DB directly for deleted items")
@@ -189,7 +193,7 @@ def run_deletion_test():
     )
     updates_docs = list(updates_query.stream())
     assert (
-            len(updates_docs) == 0
+        len(updates_docs) == 0
     ), f"Found {len(updates_docs)} updates for User 1 in DB after deletion"
     logger.info("No updates found for User 1 in DB after deletion")
 
@@ -208,7 +212,7 @@ def run_deletion_test():
     )
     invitation_docs = list(invitations_query.stream())
     assert (
-            len(invitation_docs) == 0
+        len(invitation_docs) == 0
     ), f"Found {len(invitation_docs)} invitations for User 1 in DB after deletion"
     logger.info("No invitations found for User 1 in DB after deletion")
 
@@ -218,7 +222,7 @@ def run_deletion_test():
     )
     feed_docs = list(feed_query.stream())
     assert (
-            len(feed_docs) == 0
+        len(feed_docs) == 0
     ), f"Found {len(feed_docs)} feed items for User 1 in DB after deletion"
     logger.info("No feed items found for User 1 in DB after deletion")
 

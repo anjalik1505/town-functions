@@ -152,6 +152,7 @@ export interface Friend {
   username: string;
   name: string;
   avatar: string;
+  last_update_emoji: string;
 }
 
 export interface FriendsResponse {

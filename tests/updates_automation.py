@@ -150,6 +150,7 @@ def run_updates_tests():
     # Step 3: Create updates for the second user
     logger.info("Step 3: Creating updates for the second user")
     user2_updates = []
+    last_emoji_user2 = ""
     for i in range(TEST_CONFIG["initial_updates_count"]):
         sentiment = random.choice(SENTIMENTS)
         score = random.choice(SCORES)
@@ -165,6 +166,7 @@ def run_updates_tests():
         }
         created_update = api.create_update(users[1]["email"], update_data)
         user2_updates.append(created_update)
+        last_emoji_user2 = created_update["emoji"]
         logger.info(
             f"Created update #{i + 1} for user 2: {json.dumps(created_update, indent=2)}"
         )
@@ -205,10 +207,21 @@ def run_updates_tests():
     )
     logger.info(f"User 1 accepted invitation: {json.dumps(accept_result, indent=2)}")
 
+    # Wait for the onFriendshipCreated trigger to populate initial state
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for onFriendshipCreated trigger..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
+
     # Verify friendship was created
     friends_user1 = api.get_friends(users[0]["email"])
     logger.info(f"First user's friends: {json.dumps(friends_user1, indent=2)}")
     assert len(friends_user1["friends"]) > 0, "No friends found for user 1"
+    assert any(
+        friend["user_id"] == api.user_ids[users[1]["email"]]
+        and friend["last_update_emoji"] == last_emoji_user2
+        for friend in friends_user1["friends"]
+    ), "Friend emoji not updated after friendship creation"
     logger.info("Users are now friends")
 
     # Step 6: Create updates for the second user that are shared with the first user

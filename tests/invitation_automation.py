@@ -93,6 +93,8 @@ def run_invitation_demo():
     logger.info("Step 7: First user accepts the join request")
     accept_result = api.accept_join_request(users[0]["email"], request_id)
     logger.info(f"Accept join request result: {json.dumps(accept_result, indent=2)}")
+    assert "last_update_emoji" in accept_result
+    assert accept_result["last_update_emoji"] == ""
 
     # Step 8: Both users get their friends to confirm they are friends
     logger.info("Step 8: Both users get their friends to confirm they are friends")
@@ -103,10 +105,18 @@ def run_invitation_demo():
     logger.info(f"Second user's friends: {json.dumps(friends_user2, indent=2)}")
 
     # Verify that users are friends
-    user1_has_user2 = any(friend["name"] == users[1]["name"] for friend in friends_user1["friends"])
-    user2_has_user1 = any(friend["name"] == users[0]["name"] for friend in friends_user2["friends"])
+    user1_has_user2 = any(
+        friend["name"] == users[1]["name"] and friend["last_update_emoji"] == ""
+        for friend in friends_user1["friends"]
+    )
+    user2_has_user1 = any(
+        friend["name"] == users[0]["name"] and friend["last_update_emoji"] == ""
+        for friend in friends_user2["friends"]
+    )
 
-    assert (user1_has_user2 and user2_has_user1), "User 1 and User 2 are not friends as expected"
+    assert (
+        user1_has_user2 and user2_has_user1
+    ), "User 1 and User 2 are not friends as expected"
 
     # Step 9: Third user requests to join
     logger.info("Step 9: Third user requests to join")
@@ -116,7 +126,9 @@ def run_invitation_demo():
     # Step 10: First user gets their join requests again
     logger.info("Step 10: First user gets their join requests again")
     my_join_requests2 = api.get_my_join_requests(users[0]["email"])
-    logger.info(f"First user's join requests: {json.dumps(my_join_requests2, indent=2)}")
+    logger.info(
+        f"First user's join requests: {json.dumps(my_join_requests2, indent=2)}"
+    )
 
     # Step 11: First user rejects the third user's join request
     logger.info("Step 11: First user rejects the third user's join request")
@@ -125,14 +137,22 @@ def run_invitation_demo():
     logger.info(f"Reject join request result: {json.dumps(reject_result, indent=2)}")
 
     # Step 12: First user gets their join requests to check for the rejected request
-    logger.info("Step 12: First user gets their join requests to check for the rejected request")
+    logger.info(
+        "Step 12: First user gets their join requests to check for the rejected request"
+    )
     my_join_requests3 = api.get_my_join_requests(users[0]["email"])
-    logger.info(f"First user's join requests after rejection: {json.dumps(my_join_requests3, indent=2)}")
+    logger.info(
+        f"First user's join requests after rejection: {json.dumps(my_join_requests3, indent=2)}"
+    )
 
     # Step 13: Third user gets their join requests to check for the rejected request
-    logger.info("Step 13: Third user gets their join requests to check for the rejected request")
+    logger.info(
+        "Step 13: Third user gets their join requests to check for the rejected request"
+    )
     join_requests3 = api.get_join_requests(users[2]["email"])
-    logger.info(f"Third user's join requests after rejection: {json.dumps(join_requests3, indent=2)}")
+    logger.info(
+        f"Third user's join requests after rejection: {json.dumps(join_requests3, indent=2)}"
+    )
 
     # Step 14: First user resets their invitation link
     logger.info("Step 14: First user resets their invitation link")
@@ -143,27 +163,44 @@ def run_invitation_demo():
     # Step 15: First user gets their join requests after reset
     logger.info("Step 15: First user gets their join requests after reset")
     my_join_requests4 = api.get_my_join_requests(users[0]["email"])
-    logger.info(f"First user's join requests after reset: {json.dumps(my_join_requests4, indent=2)}")
+    logger.info(
+        f"First user's join requests after reset: {json.dumps(my_join_requests4, indent=2)}"
+    )
 
     # Step 16: Third user gets their join requests after reset
     logger.info("Step 16: Third user gets their join requests after reset")
     join_requests4 = api.get_join_requests(users[2]["email"])
-    logger.info(f"Third user's join requests after reset: {json.dumps(join_requests4, indent=2)}")
+    logger.info(
+        f"Third user's join requests after reset: {json.dumps(join_requests4, indent=2)}"
+    )
 
     # Step 17: User 1 and User 2 check they are still friends after invitation reset
-    logger.info("Step 17: User 1 and User 2 check they are still friends after invitation reset")
+    logger.info(
+        "Step 17: User 1 and User 2 check they are still friends after invitation reset"
+    )
     friends_user1_after = api.get_friends(users[0]["email"])
-    logger.info(f"First user's friends after reset: {json.dumps(friends_user1_after, indent=2)}")
+    logger.info(
+        f"First user's friends after reset: {json.dumps(friends_user1_after, indent=2)}"
+    )
 
     friends_user2_after = api.get_friends(users[1]["email"])
-    logger.info(f"Second user's friends after reset: {json.dumps(friends_user2_after, indent=2)}")
+    logger.info(
+        f"Second user's friends after reset: {json.dumps(friends_user2_after, indent=2)}"
+    )
 
     # Verify that users are still friends
-    user1_has_user2_after = any(friend["name"] == users[1]["name"] for friend in friends_user1_after["friends"])
-    user2_has_user1_after = any(friend["name"] == users[0]["name"] for friend in friends_user2_after["friends"])
+    user1_has_user2_after = any(
+        friend["name"] == users[1]["name"] and friend["last_update_emoji"] == ""
+        for friend in friends_user1_after["friends"]
+    )
+    user2_has_user1_after = any(
+        friend["name"] == users[0]["name"] and friend["last_update_emoji"] == ""
+        for friend in friends_user2_after["friends"]
+    )
 
     assert (
-                user1_has_user2_after and user2_has_user1_after), "User 1 and User 2 are not friends after invitation reset as expected"
+        user1_has_user2_after and user2_has_user1_after
+    ), "User 1 and User 2 are not friends after invitation reset as expected"
 
     # ============ ERROR HANDLING TESTS ============
 

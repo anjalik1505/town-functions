@@ -75,6 +75,9 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
       avatar: isSender
         ? friendshipData[FriendshipFields.RECEIVER_AVATAR] || ''
         : friendshipData[FriendshipFields.SENDER_AVATAR] || '',
+      last_update_emoji: isSender
+        ? friendshipData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] || ''
+        : friendshipData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] || '',
     };
 
     logger.info(`Processing friendship with friend: ${friend.user_id}`);
