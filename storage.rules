@@ -13,6 +13,11 @@ service firebase.storage {
       allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
     }
     
+    match /profile_images/{userId}/{fileName} {
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+    }
+    
     // Updates
     match /updates/{updateId}/{fileName} {
       allow read: if request.auth != null && canSee(updateId);
