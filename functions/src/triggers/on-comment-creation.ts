@@ -27,7 +27,7 @@ const sendCommentNotification = async (
   updateId: string,
   commenterId: string,
 ): Promise<NotificationEventParams> => {
-  // Get the update document to find the creator
+  // Fetch the update creator
   const updateRef = db.collection(Collections.UPDATES).doc(updateId);
   const updateDoc = await updateRef.get();
 
@@ -46,90 +46,79 @@ const sendCommentNotification = async (
   const updateData = updateDoc.data() || {};
   const updateCreatorId = updateData[UpdateFields.CREATED_BY] as string;
 
-  // Skip if the commenter is the update creator (commenting on their own update)
-  if (commenterId === updateCreatorId) {
-    logger.info(`Skipping notification for update creator: ${updateCreatorId} (self-comment)`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: true,
-      no_device: false,
-      notification_length: 0,
-      is_urgent: false,
-    };
+  // Build a set of all participants: update creator + every previous commenter
+  const participantIds = new Set<string>();
+  if (updateCreatorId) {
+    participantIds.add(updateCreatorId);
   }
 
-  // Get the update creator's device
-  const deviceRef = db.collection(Collections.DEVICES).doc(updateCreatorId);
-  const deviceDoc = await deviceRef.get();
+  try {
+    const commentsStream = updateRef.collection(Collections.COMMENTS).stream() as AsyncIterable<QueryDocumentSnapshot>;
 
-  if (!deviceDoc.exists) {
-    logger.info(`No device found for update creator ${updateCreatorId}, skipping notification`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: true,
-      notification_length: 0,
-      is_urgent: false,
-    };
+    for await (const doc of commentsStream) {
+      const createdBy = doc.data()[CommentFields.CREATED_BY] as string;
+      if (createdBy) {
+        participantIds.add(createdBy);
+      }
+    }
+  } catch (error) {
+    logger.error(`Failed to stream existing comments for update ${updateId}`, error);
   }
 
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  // Exclude the author of the new comment
+  participantIds.delete(commenterId);
 
-  if (!deviceId) {
-    logger.info(`No device ID found for update creator ${updateCreatorId}, skipping notification`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: true,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  // Get commenter's profile to include their name in the notification
-  const commenterProfileRef = db.collection(Collections.PROFILES).doc(commenterId);
-  const commenterProfileDoc = await commenterProfileRef.get();
+  // Get commenter profile to personalise the message
+  const commenterProfileDoc = await db.collection(Collections.PROFILES).doc(commenterId).get();
   const commenterProfileData = commenterProfileDoc.exists ? commenterProfileDoc.data() || {} : {};
   const commenterName = commenterProfileData.name || commenterProfileData.username || 'Friend';
 
-  // Get comment content
+  // Prepare comment snippet
   const commentContent = (commentData[CommentFields.CONTENT] as string) || '';
   const truncatedComment = commentContent.length > 50 ? `${commentContent.substring(0, 47)}...` : commentContent;
 
-  // Send the notification
-  try {
-    const notificationMessage = `${commenterName} commented on your post: "${truncatedComment}"`;
+  let noDeviceCount = 0;
+  let notificationsSent = 0;
 
-    await sendNotification(deviceId, 'New Comment', notificationMessage, {
-      type: 'comment',
-      update_id: updateId,
-    });
+  for (const targetUserId of participantIds) {
+    try {
+      const deviceDoc = await db.collection(Collections.DEVICES).doc(targetUserId).get();
+      if (!deviceDoc.exists) {
+        noDeviceCount++;
+        continue;
+      }
+      const deviceData = deviceDoc.data() || {};
+      const deviceId = deviceData[DeviceFields.DEVICE_ID];
+      if (!deviceId) {
+        noDeviceCount++;
+        continue;
+      }
 
-    logger.info(`Sent comment notification to update creator ${updateCreatorId} for update ${updateId}`);
+      const message =
+        targetUserId === updateCreatorId
+          ? `${commenterName} commented on your post: "${truncatedComment}"`
+          : `${commenterName} also commented on a post you're following: "${truncatedComment}"`;
 
-    return {
-      notification_all: true,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: false,
-      notification_length: notificationMessage.length,
-      is_urgent: false,
-    };
-  } catch (error) {
-    logger.error(`Failed to send comment notification to update creator ${updateCreatorId}`, error);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: true,
-      no_device: false,
-      notification_length: 0,
-      is_urgent: false,
-    };
+      await sendNotification(deviceId, 'New Comment', message, {
+        type: 'comment',
+        update_id: updateId,
+      });
+
+      notificationsSent++;
+      logger.info(`Sent comment notification to user ${targetUserId} for update ${updateId}`);
+    } catch (error) {
+      logger.error(`Failed to send comment notification to user ${targetUserId}`, error);
+    }
   }
+
+  return {
+    notification_all: notificationsSent > 0,
+    notification_urgent: false,
+    no_notification: notificationsSent === 0,
+    no_device: noDeviceCount > 0,
+    notification_length: truncatedComment.length,
+    is_urgent: false,
+  };
 };
 
 /**

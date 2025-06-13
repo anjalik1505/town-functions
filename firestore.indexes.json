@@ -89,7 +89,7 @@
       ]
     },
     {
-      "collectionGroup": "JOIN_REQUESTS",
+      "collectionGroup": "join_requests",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
@@ -103,7 +103,7 @@
       ]
     },
     {
-      "collectionGroup": "JOIN_REQUESTS",
+      "collectionGroup": "join_requests",
       "queryScope": "COLLECTION",
       "fields": [
         {
