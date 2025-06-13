@@ -334,25 +334,6 @@ export const generateNotificationMessageFlow = async (params: {
 };
 
 /**
- * Determine if an update is urgent based on its content and sentiment
- */
-export const determineUrgencyFlow = async (params: {
-  updateContent: string;
-  sentiment: string;
-  creatorName: string;
-  creatorGender: string;
-  creatorLocation: string;
-}) => {
-  const defaultOutput = {
-    is_urgent: false,
-  };
-
-  logger.info(`Determining urgency with params: ${JSON.stringify(params, null, 2)}`);
-
-  return executeAIFlow('determine_urgency', params, defaultOutput, 'Determining update urgency');
-};
-
-/**
  * Analyze sentiment, score, and generate an emoji for text input
  */
 export const analyzeSentimentFlow = async (params: { content: string }) => {
