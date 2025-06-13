@@ -1,12 +1,25 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { analyzeImagesFlow, generateCreatorProfileFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
-import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from '../models/constants.js';
+import {
+  Collections,
+  Documents,
+  FriendshipFields,
+  InsightsFields,
+  ProfileFields,
+  UpdateFields,
+} from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
+import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { calculateAge } from '../utils/profile-utils.js';
+import {
+  calculateAge,
+  extractConnectToForAnalytics,
+  extractGoalForAnalytics,
+  extractNudgingOccurrence,
+} from '../utils/profile-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
 
 import path from 'path';
@@ -43,6 +56,11 @@ const updateCreatorProfile = async (
   has_location: boolean;
   has_birthday: boolean;
   has_gender: boolean;
+  nudging_occurrence: string;
+  goal: string;
+  connect_to: string;
+  personality: string;
+  tone: string;
 }> => {
   // Get the profile document
   const profileRef = db.collection(Collections.PROFILES).doc(creatorId);
@@ -62,6 +80,11 @@ const updateCreatorProfile = async (
       has_location: false,
       has_birthday: false,
       has_gender: false,
+      nudging_occurrence: '',
+      goal: '',
+      connect_to: '',
+      personality: '',
+      tone: '',
     };
   }
 
@@ -139,6 +162,11 @@ const updateCreatorProfile = async (
     has_location: !!profileData[ProfileFields.LOCATION],
     has_birthday: !!profileData[ProfileFields.BIRTHDAY],
     has_gender: !!profileData[ProfileFields.GENDER],
+    nudging_occurrence: extractNudgingOccurrence(profileData),
+    goal: extractGoalForAnalytics(profileData),
+    connect_to: extractConnectToForAnalytics(profileData),
+    personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
+    tone: (profileData[ProfileFields.TONE] as string) || '',
   };
 };
 
@@ -177,6 +205,11 @@ const processAllSummaries = async (
         has_location: false,
         has_birthday: false,
         has_gender: false,
+        nudging_occurrence: '',
+        goal: '',
+        connect_to: '',
+        personality: '',
+        tone: '',
         friend_summary_count: 0,
       },
       friendSummaries: [],
@@ -204,6 +237,25 @@ const processAllSummaries = async (
     tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch, imageAnalysis));
   }
 
+  const emoji = updateData[UpdateFields.EMOJI] as string;
+  if (emoji) {
+    const friendshipUpdateTasks = friendIds.map(async (friendId) => {
+      const { ref: friendshipRef, doc: friendshipDoc } = await getFriendshipRefAndDoc(creatorId, friendId);
+      if (friendshipDoc.exists) {
+        const friendshipData = friendshipDoc.data();
+        if (friendshipData) {
+          const emojiUpdate: UpdateData<DocumentData> = {
+            [friendshipData[FriendshipFields.SENDER_ID] === creatorId
+              ? FriendshipFields.SENDER_LAST_UPDATE_EMOJI
+              : FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]: emoji,
+          };
+          batch.update(friendshipRef, emojiUpdate);
+        }
+      }
+    });
+    tasks.push(...friendshipUpdateTasks);
+  }
+
   // Run all tasks in parallel
   const results = await Promise.all(tasks);
 
@@ -226,6 +278,11 @@ const processAllSummaries = async (
     has_location: boolean;
     has_birthday: boolean;
     has_gender: boolean;
+    nudging_occurrence: string;
+    goal: string;
+    connect_to: string;
+    personality: string;
+    tone: string;
   };
 
   // The rest of the results are from friend summaries
@@ -247,6 +304,11 @@ const processAllSummaries = async (
       has_location: creatorResult.has_location,
       has_birthday: creatorResult.has_birthday,
       has_gender: creatorResult.has_gender,
+      nudging_occurrence: creatorResult.nudging_occurrence,
+      goal: creatorResult.goal,
+      connect_to: creatorResult.connect_to,
+      personality: creatorResult.personality,
+      tone: creatorResult.tone,
       friend_summary_count: friendIds.length,
     },
     friendSummaries: friendResults,

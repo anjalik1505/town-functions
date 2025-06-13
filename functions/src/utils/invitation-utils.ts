@@ -189,7 +189,9 @@ export const formatJoinRequest = (requestId: string, requestData: Record<string,
     requester_avatar: requestData[JoinRequestFields.REQUESTER_AVATAR] as string,
     receiver_name: requestData[JoinRequestFields.RECEIVER_NAME] as string,
     receiver_username: requestData[JoinRequestFields.RECEIVER_USERNAME] as string,
-    receiver_avatar: requestData[JoinRequestFields.RECEIVER_AVATAR] as string,
+    receiver_avatar:
+      (requestData[JoinRequestFields.RECEIVER_AVATAR] as string) ||
+      (requestData[JoinRequestFields.RECEIVER_AVATAR_OLD] as string),
   };
 };
 

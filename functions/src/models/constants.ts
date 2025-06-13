@@ -45,6 +45,7 @@ export const ProfileFields = {
   LOCATION: 'location',
   BIRTHDAY: 'birthday',
   NOTIFICATION_SETTINGS: 'notification_settings',
+  NUDGING_SETTINGS: 'nudging_settings',
   GENDER: 'gender',
   GROUP_IDS: 'group_ids',
   INSIGHTS: 'insights',
@@ -55,6 +56,10 @@ export const ProfileFields = {
   CREATED_AT: 'created_at',
   LIMIT_OVERRIDE: 'limit_override',
   TIMEZONE: 'timezone',
+  GOAL: 'goal',
+  CONNECT_TO: 'connect_to',
+  PERSONALITY: 'personality',
+  TONE: 'tone',
 } as const;
 
 // Field names for Friendship documents
@@ -63,10 +68,12 @@ export const FriendshipFields = {
   SENDER_USERNAME: 'sender_username',
   SENDER_NAME: 'sender_name',
   SENDER_AVATAR: 'sender_avatar',
+  SENDER_LAST_UPDATE_EMOJI: 'sender_last_update_emoji',
   RECEIVER_ID: 'receiver_id',
   RECEIVER_USERNAME: 'receiver_username',
   RECEIVER_NAME: 'receiver_name',
   RECEIVER_AVATAR: 'receiver_avatar',
+  RECEIVER_LAST_UPDATE_EMOJI: 'receiver_last_update_emoji',
   MEMBERS: 'members',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
@@ -95,7 +102,8 @@ export const JoinRequestFields = {
   REQUESTER_AVATAR: 'requester_avatar',
   RECEIVER_NAME: 'receiver_name',
   RECEIVER_USERNAME: 'receiver_username',
-  RECEIVER_AVATAR: 'v_avatar',
+  RECEIVER_AVATAR_OLD: 'v_avatar',
+  RECEIVER_AVATAR: 'receiver_avatar',
 } as const;
 
 // Field names for Update documents
@@ -218,6 +226,57 @@ export const TimeBucketCollections = {
 export const NotificationFields = {
   ALL: 'all',
   URGENT: 'urgent',
+} as const;
+
+// Options for nudging settings
+export const NudgingFields = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  NEVER: 'never',
+  FEW_DAYS: 'few_days',
+} as const;
+
+// Options for days of the week
+export const DaysOfWeek = {
+  MONDAY: 'monday',
+  TUESDAY: 'tuesday',
+  WEDNESDAY: 'wednesday',
+  THURSDAY: 'thursday',
+  FRIDAY: 'friday',
+  SATURDAY: 'saturday',
+  SUNDAY: 'sunday',
+} as const;
+
+// Options for goal settings
+export const GoalFields = {
+  STAY_CONNECTED: 'stay_connected',
+  CHECK_IN: 'check_in',
+  IMPROVE_RELATIONSHIPS: 'improve_relationships',
+  MEET_NEW_PEOPLE: 'meet_new_people',
+  NOT_SURE: 'not_sure',
+} as const;
+
+// Options for connect_to settings
+export const ConnectToFields = {
+  FRIENDS: 'friends',
+  FAMILY: 'family',
+  PARTNER: 'partner',
+  NEW_PEOPLE: 'new_people',
+} as const;
+
+// Options for personality settings
+export const PersonalityFields = {
+  SHARE_LITTLE: 'share_little',
+  SHARE_BIG: 'share_big',
+  KEEP_TO_SELF: 'keep_to_self',
+  SHARE_MORE: 'share_more',
+} as const;
+
+// Options for tone settings
+export const ToneFields = {
+  LIGHT_AND_CASUAL: 'light_and_casual',
+  DEEP_AND_REFLECTIVE: 'deep_and_reflective',
+  SURPRISE_ME: 'surprise_me',
 } as const;
 
 // Placeholders for empty profile fields

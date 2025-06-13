@@ -15,8 +15,9 @@ import { processImagesForPrompt } from './image-utils.js';
 import { getLogger } from './logging-utils.js';
 import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
 import { createFeedItem } from './update-utils.js';
+import { createFriendVisibilityIdentifier } from './visibility-utils.js';
 
-const MAX_COMBINED = 5;
+const MAX_COMBINED = 20;
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -107,7 +108,7 @@ export async function syncFriendshipDataForUser(
   sourceUserId: string,
   targetUserId: string,
   friendshipData: FirebaseFirestore.DocumentData,
-): Promise<void> {
+): Promise<string | undefined> {
   try {
     const db = getFirestore();
     const updatesQuery = db
@@ -123,6 +124,7 @@ export async function syncFriendshipDataForUser(
 
     // Store the last 10 updates for friend summary processing
     const lastUpdates: FirebaseFirestore.DocumentData[] = [];
+    let latestEmoji: string | undefined = undefined;
 
     // Stream the updates instead of getting them all at once
     logger.info(`Streaming all_village updates from sender ${sourceUserId}`);
@@ -137,6 +139,11 @@ export async function syncFriendshipDataForUser(
       // Add the ID to the update data
       updateData[UpdateFields.ID] = updateId;
 
+      // Capture the emoji from the very first update (which is the latest)
+      if (latestEmoji === undefined) {
+        latestEmoji = (updateData[UpdateFields.EMOJI] as string) || '';
+      }
+
       // Add to the list of last updates (we'll keep only the first 10)
       if (lastUpdates.length < 10) {
         lastUpdates.push(updateData);
@@ -144,6 +151,19 @@ export async function syncFriendshipDataForUser(
 
       // Use the utility function to create the feed item
       createFeedItem(db, batch, targetUserId, updateId, createdAt, true, sourceUserId, [], sourceUserId);
+
+      // Update the update document's visible_to array to include the target user
+      const targetUserVisibilityId = createFriendVisibilityIdentifier(targetUserId);
+      const currentVisibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
+
+      // Only add if not already present
+      if (!currentVisibleTo.includes(targetUserVisibilityId)) {
+        const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+        batch.update(updateRef, {
+          [UpdateFields.VISIBLE_TO]: [...currentVisibleTo, targetUserVisibilityId],
+        });
+        batchCount++; // Account for the additional batch operation
+      }
 
       batchCount++;
       totalProcessed++;
@@ -227,8 +247,10 @@ export async function syncFriendshipDataForUser(
     }
 
     logger.info(`Successfully processed friendship ${friendshipData.id}`);
+    return latestEmoji;
   } catch (error) {
     logger.error(`Error processing friendship ${friendshipData.id}: ${error}`);
     // In a production environment, we would implement retry logic here
+    return undefined;
   }
 }

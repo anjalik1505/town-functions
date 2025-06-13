@@ -106,15 +106,18 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
     let friendName: string;
     let friendUsername: string;
     let friendAvatar: string;
+    let lastUpdateEmoji: string;
 
     if (friendshipData[FriendshipFields.SENDER_ID] === requesterId) {
       friendName = friendshipData[FriendshipFields.SENDER_NAME] || '';
       friendUsername = friendshipData[FriendshipFields.SENDER_USERNAME] || '';
       friendAvatar = friendshipData[FriendshipFields.SENDER_AVATAR] || '';
+      lastUpdateEmoji = friendshipData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] || '';
     } else {
       friendName = friendshipData[FriendshipFields.RECEIVER_NAME] || '';
       friendUsername = friendshipData[FriendshipFields.RECEIVER_USERNAME] || '';
       friendAvatar = friendshipData[FriendshipFields.RECEIVER_AVATAR] || '';
+      lastUpdateEmoji = friendshipData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] || '';
     }
 
     const friend: Friend = {
@@ -122,6 +125,7 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
       username: friendUsername,
       name: friendName,
       avatar: friendAvatar,
+      last_update_emoji: lastUpdateEmoji,
     };
 
     // Create analytics event
@@ -203,6 +207,7 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
     username: senderProfile[ProfileFields.USERNAME] || '',
     name: senderProfile[ProfileFields.NAME] || '',
     avatar: senderProfile[ProfileFields.AVATAR] || '',
+    last_update_emoji: '',
   };
 
   // Create analytics event

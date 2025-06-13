@@ -52,7 +52,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   const sentiment = validatedParams.sentiment || '';
   const score = validatedParams.score || 3;
   const emoji = validatedParams.emoji || '😐';
-  let allVillage = validatedParams.all_village || false;
+  const allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
   let friendIds = validatedParams.friend_ids || [];
   const images = validatedParams.images || [];
@@ -68,18 +68,6 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   // Initialize Firestore client
   const db = getFirestore();
 
-  // If this is the user's first update, force allVillage
-  if (!allVillage) {
-    const firstSnapshot = await db
-      .collection(Collections.UPDATES)
-      .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
-      .limit(1)
-      .get();
-    if (firstSnapshot.empty) {
-      allVillage = true;
-      logger.info(`First update for ${currentUserId} - forcing allVillage`);
-    }
-  }
   // If allVillage is true, get all friends and groups of the user
   if (allVillage) {
     logger.info(`All village mode enabled, fetching all friends and groups for user: ${currentUserId}`);
@@ -89,17 +77,15 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
       .collection(Collections.FRIENDSHIPS)
       .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
 
-    const friendshipDocs = await friendshipsQuery.get();
-
-    // Extract friend IDs from friendships
-    friendshipDocs.forEach((doc) => {
-      const friendshipData = doc.data();
+    // Stream friendships to extract friend IDs
+    for await (const doc of friendshipsQuery.stream()) {
+      const friendshipData = (doc as DocumentData).data();
       const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
       const friendId = isSender
         ? friendshipData[FriendshipFields.RECEIVER_ID]
         : friendshipData[FriendshipFields.SENDER_ID];
       friendIds.push(friendId);
-    });
+    }
 
     // Deduplicate friendIds after extraction
     friendIds = Array.from(new Set(friendIds));
@@ -109,12 +95,10 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
       .collection(Collections.GROUPS)
       .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
 
-    const groupDocs = await groupsQuery.get();
-
-    // Extract group IDs
-    groupDocs.forEach((doc) => {
-      groupIds.push(doc.id);
-    });
+    // Stream groups to extract group IDs
+    for await (const doc of groupsQuery.stream()) {
+      groupIds.push((doc as DocumentData).id);
+    }
 
     // Deduplicate groupIds after extraction
     groupIds = Array.from(new Set(groupIds));

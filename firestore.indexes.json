@@ -1,20 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "friendships",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "members",
-          "arrayConfig": "CONTAINS"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "invitations",
       "queryScope": "COLLECTION",
       "fields": [
@@ -35,10 +21,6 @@
         {
           "fieldPath": "members",
           "arrayConfig": "CONTAINS"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
         },
         {
           "fieldPath": "created_at",
@@ -107,7 +89,7 @@
       ]
     },
     {
-      "collectionGroup": "JOIN_REQUESTS",
+      "collectionGroup": "join_requests",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
@@ -121,7 +103,7 @@
       ]
     },
     {
-      "collectionGroup": "JOIN_REQUESTS",
+      "collectionGroup": "join_requests",
       "queryScope": "COLLECTION",
       "fields": [
         {
