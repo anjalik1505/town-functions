@@ -102,7 +102,8 @@ export const JoinRequestFields = {
   REQUESTER_AVATAR: 'requester_avatar',
   RECEIVER_NAME: 'receiver_name',
   RECEIVER_USERNAME: 'receiver_username',
-  RECEIVER_AVATAR: 'v_avatar',
+  RECEIVER_AVATAR_OLD: 'v_avatar',
+  RECEIVER_AVATAR: 'receiver_avatar',
 } as const;
 
 // Field names for Update documents
