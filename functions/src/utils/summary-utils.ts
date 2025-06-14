@@ -143,11 +143,13 @@ export const getSummaryContext = async (
  *
  * @param context - The summary context data
  * @param updateData - The update document data
+ * @param imageAnalysis - Already analyzed image description text
  * @returns The generated summary result
  */
 export const generateFriendSummary = async (
   context: SummaryContext,
   updateData: Record<string, unknown>,
+  imageAnalysis: string,
 ): Promise<SummaryResult> => {
   // Extract update content and sentiment
   const updateContent = (updateData[UpdateFields.CONTENT] as string) || '';
@@ -168,6 +170,7 @@ export const generateFriendSummary = async (
     userGender: context.creatorProfile.gender,
     userLocation: context.creatorProfile.location,
     userAge: context.creatorProfile.age,
+    imageAnalysis: imageAnalysis,
   });
 
   // Return the result with analytics data
@@ -228,6 +231,7 @@ export const writeFriendSummary = (
  * @param creatorId - The ID of the user who created the update
  * @param friendId - The ID of the friend to process the summary for
  * @param batch - Firestore write batch for atomic operations
+ * @param imageAnalysis - Already analyzed image description text
  * @returns Analytics data for the friend summary
  */
 export const processFriendSummary = async (
@@ -236,12 +240,13 @@ export const processFriendSummary = async (
   creatorId: string,
   friendId: string,
   batch: FirebaseFirestore.WriteBatch,
+  imageAnalysis: string,
 ): Promise<FriendSummaryEventParams> => {
   // Get the summary context
   const context = await getSummaryContext(db, creatorId, friendId);
 
   // Generate the summary
-  const result = await generateFriendSummary(context, updateData);
+  const result = await generateFriendSummary(context, updateData, imageAnalysis);
 
   // Write the summary to the database
   writeFriendSummary(context, result, creatorId, friendId, batch);

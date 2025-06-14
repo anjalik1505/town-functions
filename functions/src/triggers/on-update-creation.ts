@@ -1,6 +1,6 @@
 import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { generateCreatorProfileFlow } from '../ai/flows.js';
+import { analyzeImagesFlow, generateCreatorProfileFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
@@ -12,6 +12,7 @@ import {
 } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   calculateAge,
@@ -34,6 +35,7 @@ const logger = getLogger(path.basename(__filename));
  * @param updateData - The update document data
  * @param creatorId - The ID of the user who created the update
  * @param batch - Firestore write batch for atomic operations
+ * @param imageAnalysis - Already analyzed image description text
  * @returns Analytics data for the creator's profile update
  */
 const updateCreatorProfile = async (
@@ -41,6 +43,7 @@ const updateCreatorProfile = async (
   updateData: Record<string, unknown>,
   creatorId: string,
   batch: FirebaseFirestore.WriteBatch,
+  imageAnalysis: string,
 ): Promise<{
   summary_length: number;
   suggestions_length: number;
@@ -116,6 +119,7 @@ const updateCreatorProfile = async (
     gender: profileData[ProfileFields.GENDER] || 'unknown',
     location: profileData[ProfileFields.LOCATION] || 'unknown',
     age: age,
+    imageAnalysis: imageAnalysis,
   });
 
   // Update the profile
@@ -212,6 +216,13 @@ const processAllSummaries = async (
     };
   }
 
+  // Process images once for all summaries
+  const imagePaths = (updateData[UpdateFields.IMAGE_PATHS] as string[]) || [];
+  const processedImages = await processImagesForPrompt(imagePaths);
+
+  // Analyze images once for all summaries
+  const { analysis: imageAnalysis } = await analyzeImagesFlow({ images: processedImages });
+
   // Create a batch for atomic writes
   const batch = db.batch();
 
@@ -219,11 +230,11 @@ const processAllSummaries = async (
   const tasks = [];
 
   // Add a task for updating the creator's profile
-  tasks.push(updateCreatorProfile(db, updateData, creatorId, batch));
+  tasks.push(updateCreatorProfile(db, updateData, creatorId, batch, imageAnalysis));
 
   // Add tasks for all friends
   for (const friendId of friendIds) {
-    tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch));
+    tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch, imageAnalysis));
   }
 
   const emoji = updateData[UpdateFields.EMOJI] as string;
