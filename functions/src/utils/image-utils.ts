@@ -1,6 +1,7 @@
 import { getStorage } from 'firebase-admin/storage';
 import { getLogger } from './logging-utils.js';
 
+import { fileTypeFromBuffer } from 'file-type';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -29,12 +30,27 @@ export const processImagesForPrompt = async (
 
       // 1. Get MIME type
       const [metadata] = await file.getMetadata();
-      const mimeType = metadata.contentType || 'image/jpeg';
+      let mimeType = metadata.contentType || '';
+
+      // Fall back to detecting MIME type from file content if metadata is missing or generic
+      if (!mimeType || mimeType === 'application/octet-stream') {
+        try {
+          // Download the first 4 KB to inspect magic numbers
+          const [buffer] = await file.download({ start: 0, end: 4095 });
+          const detected = await fileTypeFromBuffer(buffer);
+          mimeType = detected?.mime || 'image/jpeg';
+        } catch (detectErr) {
+          logger.warn(`Could not detect MIME type for ${imagePath}, defaulting to image/jpeg: ${detectErr}`);
+          mimeType = 'image/jpeg';
+        }
+      }
 
       // 2. Generate signed URL (valid for 1 minute)
       const [signedUrl] = await file.getSignedUrl({
         action: 'read',
         expires: Date.now() + 60 * 1000,
+        // Ensure the response header advertises the correct content type
+        responseType: mimeType,
       });
 
       images.push({ url: signedUrl, mimeType });
