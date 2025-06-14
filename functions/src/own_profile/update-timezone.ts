@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, ProfileFields, TimeBucketCollections, TimeBucketFields } from '../models/constants.js';
+import { NudgingFields, ProfileFields } from '../models/constants.js';
 import { Timezone, TimezonePayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
-import { calculateTimeBucket } from '../utils/timezone-utils.js';
+import { updateTimeBucketMembership } from '../utils/timezone-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -18,8 +18,9 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Updates the user's timezone in their profile
- * 2. Calculates the appropriate time bucket based on 9AM local time
- * 3. Manages the user's membership in time buckets
+ * 2. If timezone changes and nudging settings exist (not "never"), manages time bucket membership
+ * 3. Uses weekday + time identifiers for time buckets based on user's nudging settings
+ * 4. Adds user to each bucket corresponding to their nudging days and times
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -46,9 +47,8 @@ export const updateTimezone = async (req: Request, res: Response): Promise<void>
   // Get current timezone if it exists
   const currentTimezone = profileData[ProfileFields.TIMEZONE] || '';
 
-  // Calculate the time bucket for 9AM in the user's timezone
-  const timeBucket = calculateTimeBucket(newTimezone);
-  logger.info(`Calculated time bucket ${timeBucket} for timezone ${newTimezone}`);
+  // Get nudging settings from profile
+  const nudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS];
 
   // Create a batch to ensure all database operations are atomic
   const batch = db.batch();
@@ -59,59 +59,14 @@ export const updateTimezone = async (req: Request, res: Response): Promise<void>
     [ProfileFields.UPDATED_AT]: currentTime,
   });
 
-  // Handle time bucket membership if timezone has changed
-  if (currentTimezone !== newTimezone) {
-    // If user had a previous timezone, calculate its bucket
-    if (currentTimezone) {
-      const previousTimeBucket = calculateTimeBucket(currentTimezone);
-
-      // Only process if the time bucket has changed
-      if (previousTimeBucket !== timeBucket) {
-        // Remove user from previous bucket
-        const previousUserBucketRef = db
-          .collection(Collections.TIME_BUCKETS)
-          .doc(previousTimeBucket.toString())
-          .collection(TimeBucketCollections.USERS)
-          .doc(currentUserId);
-
-        batch.delete(previousUserBucketRef);
-        logger.info(`Removing user ${currentUserId} from previous time bucket ${previousTimeBucket}`);
-      }
-    }
-
-    // Add user to the new time bucket
-    const bucketRef = db.collection(Collections.TIME_BUCKETS).doc(timeBucket.toString());
-
-    // Check if the bucket document exists
-    const bucketDoc = await bucketRef.get();
-
-    if (!bucketDoc.exists) {
-      // Create the main bucket document if it doesn't exist
-      batch.set(bucketRef, {
-        [TimeBucketFields.BUCKET_HOUR]: timeBucket,
-        [TimeBucketFields.UPDATED_AT]: currentTime,
-      });
-    } else {
-      // Update the timestamp on the main bucket document
-      batch.update(bucketRef, {
-        [TimeBucketFields.UPDATED_AT]: currentTime,
-      });
-    }
-
-    // Add user to the bucket's users subcollection
-    const userBucketRef = bucketRef.collection(TimeBucketCollections.USERS).doc(currentUserId);
-
-    batch.set(userBucketRef, {
-      user_id: currentUserId,
-      updated_at: currentTime,
-    });
-
-    logger.info(`Adding user ${currentUserId} to time bucket ${timeBucket}`);
+  // Handle time bucket membership if timezone has changed and nudging settings exist
+  if (currentTimezone !== newTimezone && nudgingSettings && nudgingSettings.occurrence !== NudgingFields.NEVER) {
+    await updateTimeBucketMembership(currentUserId, nudgingSettings, batch, db);
   }
 
-  // Commit the batch
+  // Always commit the batch (timezone update is always included)
   await batch.commit();
-  logger.info(`Batch operation completed successfully for user ${currentUserId}`);
+  logger.info(`Timezone update completed successfully for user ${currentUserId}`);
 
   // Create and return a Timezone object
   const timezone: Timezone = {

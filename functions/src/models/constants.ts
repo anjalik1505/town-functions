@@ -22,6 +22,7 @@ export const Collections = {
   FEED: 'feed',
   NUDGES: 'nudges',
   TIME_BUCKETS: 'time_buckets',
+  TIME_BUCKET_USERS: 'users',
 } as const;
 
 // Document names
@@ -215,11 +216,6 @@ export const NudgeFields = {
 export const TimeBucketFields = {
   BUCKET_HOUR: 'bucket_hour',
   UPDATED_AT: 'updated_at',
-} as const;
-
-// Subcollection names for Time Buckets
-export const TimeBucketCollections = {
-  USERS: 'users',
 } as const;
 
 // Options for notification settings
