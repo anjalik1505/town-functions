@@ -2126,9 +2126,9 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
   }
   ```
 
-### Daily Notifications (Scheduled Function)
+### Notifications (Hourly Scheduled Function)
 
-- **Trigger**: Runs daily at 14:00 UTC.
+- **Trigger**: Runs every hour. On each run it processes the current time bucket `${weekday}-${utcHour}`. If the bucket is empty, a fallback executes once per day at 14:00 UTC to nudge users not assigned to any bucket.
 - **Analytics Events**:
 
     - `DAILY_NOTIFICATIONS_SENT`: When daily notifications are sent to all users.
