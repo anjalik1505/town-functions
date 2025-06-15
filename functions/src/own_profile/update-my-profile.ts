@@ -17,7 +17,7 @@ import {
   ProfileFields,
   QueryOperators,
 } from '../models/constants.js';
-import { ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
+import { NudgingSettings, ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
 import { getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -28,6 +28,7 @@ import {
   getProfileDoc,
   getProfileInsights,
 } from '../utils/profile-utils.js';
+import { updateTimeBucketMembership } from '../utils/timezone-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -83,6 +84,10 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   const avatarChanged =
     profileData.avatar !== undefined && profileData.avatar !== currentProfileData[ProfileFields.AVATAR];
 
+  // Check if nudging settings have changed
+  const nudgingSettingsChanged = profileData.nudging_settings !== undefined;
+  const currentTimezone = currentProfileData[ProfileFields.TIMEZONE];
+
   // Prepare update data
   const profileUpdates: UpdateData<DocumentData> = {};
 
@@ -129,6 +134,12 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     profileUpdates[ProfileFields.UPDATED_AT] = Timestamp.now();
     batch.update(profileRef, profileUpdates);
     logger.info(`Added profile update to batch for user ${currentUserId}`);
+  }
+
+  // Handle time bucket membership if nudging settings changed and user has timezone
+  if (nudgingSettingsChanged && currentTimezone) {
+    const newNudgingSettings = profileData.nudging_settings as NudgingSettings;
+    await updateTimeBucketMembership(currentUserId, newNudgingSettings, batch, db);
   }
 
   // If username, name, or avatar changed, update references in other collections

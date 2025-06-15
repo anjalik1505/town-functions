@@ -10,14 +10,13 @@ import {
   MAX_BATCH_OPERATIONS,
   ProfileFields,
   QueryOperators,
-  TimeBucketCollections,
   UpdateFields,
   UserSummaryFields,
 } from '../models/constants.js';
 import { trackApiEvent } from '../utils/analytics-utils.js';
+import { streamAndProcessCollection } from '../utils/deletion-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateTimeBucket } from '../utils/timezone-utils.js';
-import { streamAndProcessCollection } from '../utils/deletion-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -303,7 +302,7 @@ const deleteTimeBucket = async (
     const userBucketRef = db
       .collection(Collections.TIME_BUCKETS)
       .doc(timeBucket.toString())
-      .collection(TimeBucketCollections.USERS)
+      .collection(Collections.TIME_BUCKET_USERS)
       .doc(userId);
 
     await userBucketRef.delete();

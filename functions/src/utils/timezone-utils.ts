@@ -1,7 +1,10 @@
+import { Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import { Collections, NudgingFields, ProfileFields, QueryOperators, TimeBucketFields } from '../models/constants.js';
 import { getLogger } from './logging-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { NudgingSettings } from '../models/data-models.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -53,5 +56,76 @@ export function calculateTimeBucket(timezone: string): number {
     // If there's an error (e.g., invalid timezone), default to bucket 0
     logger.error(`Error calculating time bucket for timezone ${timezone}:`, error);
     return 0;
+  }
+}
+
+/**
+ * Updates time bucket membership for a user based on their nudging settings.
+ * This function removes the user from all existing buckets and adds them to
+ * new buckets based on their nudging settings (if not "never").
+ *
+ * @param userId - The user's ID
+ * @param nudgingSettings - The user's nudging settings (or null/undefined)
+ * @param batch - The Firestore batch to add operations to
+ * @param db - The Firestore database instance (optional, will use getFirestore() if not provided)
+ */
+export async function updateTimeBucketMembership(
+  userId: string,
+  nudgingSettings: NudgingSettings,
+  batch: WriteBatch,
+  db: FirebaseFirestore.Firestore,
+): Promise<void> {
+  logger.info(`Updating time buckets for user ${userId}`);
+
+  // Remove user from all existing buckets
+  const existingBucketsQuery = await db
+    .collectionGroup(Collections.TIME_BUCKET_USERS)
+    .where(ProfileFields.USER_ID, QueryOperators.EQUALS, userId)
+    .get();
+
+  existingBucketsQuery.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+    logger.info(`Removing user ${userId} from existing bucket ${doc.ref.parent.parent?.id}`);
+  });
+
+  // Add user to new buckets if nudging is not "never"
+  if (nudgingSettings && nudgingSettings.occurrence !== NudgingFields.NEVER) {
+    const { times_of_day, days_of_week } = nudgingSettings;
+
+    if (times_of_day && days_of_week) {
+      const currentTime = Timestamp.now();
+
+      for (const time of times_of_day) {
+        for (const day of days_of_week) {
+          const bucketIdentifier = `${day}_${time}`;
+          const bucketRef = db.collection(Collections.TIME_BUCKETS).doc(bucketIdentifier);
+
+          // Check if the bucket document exists
+          const bucketDoc = await bucketRef.get();
+
+          if (!bucketDoc.exists) {
+            // Create the main bucket document if it doesn't exist
+            batch.set(bucketRef, {
+              [TimeBucketFields.UPDATED_AT]: currentTime,
+            });
+          } else {
+            // Update the timestamp on the main bucket document
+            batch.update(bucketRef, {
+              [TimeBucketFields.UPDATED_AT]: currentTime,
+            });
+          }
+
+          // Add user to the bucket's users subcollection
+          const userBucketRef = bucketRef.collection(Collections.TIME_BUCKET_USERS).doc(userId);
+
+          batch.set(userBucketRef, {
+            [ProfileFields.USER_ID]: userId,
+            [ProfileFields.UPDATED_AT]: currentTime,
+          });
+
+          logger.info(`Adding user ${userId} to time bucket ${bucketIdentifier}`);
+        }
+      }
+    }
   }
 }

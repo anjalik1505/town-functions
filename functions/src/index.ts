@@ -4,16 +4,16 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app.js';
 import { Collections } from './models/constants.js';
-import { onFriendshipCreated } from './triggers/on-friendship-creation.js';
 import { onCommentCreated } from './triggers/on-comment-creation.js';
-import { onReactionCreated } from './triggers/on-reaction-creation.js';
+import { onFriendshipCreated } from './triggers/on-friendship-creation.js';
+import { onJoinRequestCreated } from './triggers/on-join-request-creation.js';
+import { onJoinRequestUpdated } from './triggers/on-join-request-update.js';
 import { onProfileDeleted } from './triggers/on-profile-deletion.js';
+import { onReactionCreated } from './triggers/on-reaction-creation.js';
 import { onUpdateCreated } from './triggers/on-update-creation.js';
 import { onUpdateNotification } from './triggers/on-update-notification.js';
 import { processDailyNotifications } from './triggers/process-daily-notifications.js';
 import { processInvitationNotifications } from './triggers/process-invitation-notifications.js';
-import { onJoinRequestCreated } from './triggers/on-join-request-creation.js';
-import { onJoinRequestUpdated } from './triggers/on-join-request-update.js';
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -50,7 +50,7 @@ export const process_update_notification = onDocumentCreated(
 // Export the scheduled function for daily notifications
 export const process_daily_notifications = onSchedule(
   {
-    schedule: 'every day 14:00',
+    schedule: 'every hour',
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   async () => {
