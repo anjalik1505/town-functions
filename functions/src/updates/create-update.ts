@@ -51,7 +51,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   const content = validatedParams.content || '';
   const sentiment = validatedParams.sentiment || '';
   const score = validatedParams.score || 3;
-  const emoji = validatedParams.emoji || '😐';
+  const emoji = validatedParams.emoji || '😊';
   const allVillage = validatedParams.all_village || false;
   let groupIds = validatedParams.group_ids || [];
   let friendIds = validatedParams.friend_ids || [];

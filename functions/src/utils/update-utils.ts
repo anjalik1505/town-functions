@@ -38,7 +38,7 @@ export const formatUpdate = (
     friend_ids: updateData[UpdateFields.FRIEND_IDS] || [],
     sentiment: updateData[UpdateFields.SENTIMENT] || '',
     score: updateData[UpdateFields.SCORE] || 3,
-    emoji: updateData[UpdateFields.EMOJI] || '😐',
+    emoji: updateData[UpdateFields.EMOJI] || '😊',
     created_at: formatTimestamp(updateData[UpdateFields.CREATED_AT]),
     comment_count: updateData.comment_count || 0,
     reaction_count: updateData.reaction_count || 0,
@@ -240,7 +240,7 @@ export const fetchUpdateComments = async (
   nextCursor: string | null;
 }> => {
   // Build the query
-  let query = updateRef.collection(Collections.COMMENTS).orderBy(CommentFields.CREATED_AT, QueryOperators.DESC);
+  let query = updateRef.collection(Collections.COMMENTS).orderBy(CommentFields.CREATED_AT, QueryOperators.ASC);
 
   // Apply cursor-based pagination
   const paginatedQuery = await applyPagination(query, afterCursor, limit);

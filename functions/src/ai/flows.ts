@@ -69,10 +69,10 @@ const executeAIFlow = async <T>(
         error:
           error instanceof Error
             ? {
-              name: error.name,
-              message: error.message,
-              stack: error.stack,
-            }
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
             : error,
         params: params,
       });
@@ -340,7 +340,7 @@ export const analyzeSentimentFlow = async (params: { content: string }) => {
   const defaultOutput = {
     sentiment: 'unknown',
     score: 3,
-    emoji: '😐',
+    emoji: '😊',
   };
 
   logger.info(`Analyzing sentiment with params: ${JSON.stringify(params, null, 2)}`);
@@ -375,7 +375,7 @@ export const transcribeAudioFlow = async (params: { audioUri: string; mimeType: 
     transcription: `I'm sorry, I couldn't transcribe that audio.`,
     sentiment: 'neutral',
     score: 3,
-    emoji: '😐',
+    emoji: '😊',
   };
 
   logger.info(`Generating transcription with mime type ${params.mimeType}`);
