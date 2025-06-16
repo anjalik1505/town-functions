@@ -12,7 +12,8 @@ import {
 } from '../models/constants.js';
 import { Friend } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
-import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import type { FriendDocUpdate } from '../utils/friendship-utils.js';
+import { getFriendshipRefAndDoc, upsertFriendDoc } from '../utils/friendship-utils.js';
 import {
   getInvitationDocForUser,
   getJoinRequestDoc,
@@ -126,6 +127,7 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
       name: friendName,
       avatar: friendAvatar,
       last_update_emoji: lastUpdateEmoji,
+      last_update_time: '',
     };
 
     // Create analytics event
@@ -201,6 +203,22 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   await batch.commit();
   logger.info(`Accepted join request from ${requesterId} and created friendship ${friendshipId}`);
 
+  // Create friend docs for both users
+  const toCurrent: FriendDocUpdate = {};
+  if (senderProfile[ProfileFields.USERNAME]) toCurrent.username = senderProfile[ProfileFields.USERNAME];
+  if (senderProfile[ProfileFields.NAME]) toCurrent.name = senderProfile[ProfileFields.NAME];
+  if (senderProfile[ProfileFields.AVATAR]) toCurrent.avatar = senderProfile[ProfileFields.AVATAR];
+
+  const toRequester: FriendDocUpdate = {};
+  if (currentUserProfile[ProfileFields.USERNAME]) toRequester.username = currentUserProfile[ProfileFields.USERNAME];
+  if (currentUserProfile[ProfileFields.NAME]) toRequester.name = currentUserProfile[ProfileFields.NAME];
+  if (currentUserProfile[ProfileFields.AVATAR]) toRequester.avatar = currentUserProfile[ProfileFields.AVATAR];
+
+  await Promise.all([
+    upsertFriendDoc(db, currentUserId, requesterId, toCurrent),
+    upsertFriendDoc(db, requesterId, currentUserId, toRequester),
+  ]);
+
   // Return the friend object using sender's profile data
   const friend: Friend = {
     user_id: requesterId,
@@ -208,6 +226,7 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
     name: senderProfile[ProfileFields.NAME] || '',
     avatar: senderProfile[ProfileFields.AVATAR] || '',
     last_update_emoji: '',
+    last_update_time: '',
   };
 
   // Create analytics event

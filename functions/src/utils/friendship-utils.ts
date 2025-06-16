@@ -1,10 +1,11 @@
-import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
+  FriendDocFields,
   FriendshipFields,
   MAX_BATCH_OPERATIONS,
   QueryOperators,
@@ -29,6 +30,14 @@ type FriendshipDocumentResult = {
   id: string;
   ref: FirebaseFirestore.DocumentReference;
   doc: FirebaseFirestore.DocumentSnapshot;
+};
+
+export type FriendDocUpdate = {
+  username?: string;
+  name?: string;
+  avatar?: string;
+  last_update_emoji?: string;
+  last_update_at?: FirebaseFirestore.Timestamp;
 };
 
 /**
@@ -108,7 +117,7 @@ export async function syncFriendshipDataForUser(
   sourceUserId: string,
   targetUserId: string,
   friendshipData: FirebaseFirestore.DocumentData,
-): Promise<string | undefined> {
+): Promise<{ emoji?: string; updatedAt?: FirebaseFirestore.Timestamp } | undefined> {
   try {
     const db = getFirestore();
     const updatesQuery = db
@@ -125,6 +134,7 @@ export async function syncFriendshipDataForUser(
     // Store the last 10 updates for friend summary processing
     const lastUpdates: FirebaseFirestore.DocumentData[] = [];
     let latestEmoji: string | undefined = undefined;
+    let latestUpdateAt: FirebaseFirestore.Timestamp | undefined = undefined;
 
     // Stream the updates instead of getting them all at once
     logger.info(`Streaming all_village updates from sender ${sourceUserId}`);
@@ -139,9 +149,10 @@ export async function syncFriendshipDataForUser(
       // Add the ID to the update data
       updateData[UpdateFields.ID] = updateId;
 
-      // Capture the emoji from the very first update (which is the latest)
+      // Capture data from the very first update (latest)
       if (latestEmoji === undefined) {
         latestEmoji = (updateData[UpdateFields.EMOJI] as string) || '';
+        latestUpdateAt = createdAt as FirebaseFirestore.Timestamp;
       }
 
       // Add to the list of last updates (we'll keep only the first 10)
@@ -247,10 +258,95 @@ export async function syncFriendshipDataForUser(
     }
 
     logger.info(`Successfully processed friendship ${friendshipData.id}`);
-    return latestEmoji;
+    return { emoji: latestEmoji, updatedAt: latestUpdateAt };
   } catch (error) {
     logger.error(`Error processing friendship ${friendshipData.id}: ${error}`);
     // In a production environment, we would implement retry logic here
     return undefined;
   }
 }
+
+/**
+ * Upserts a friend document in /profiles/{uid}/friends/{friendUid}
+ */
+export const upsertFriendDoc = async (
+  db: FirebaseFirestore.Firestore,
+  userId: string,
+  friendUserId: string,
+  data: FriendDocUpdate,
+  batch?: FirebaseFirestore.WriteBatch,
+): Promise<void> => {
+  const friendRef = db.collection(Collections.PROFILES).doc(userId).collection(Collections.FRIENDS).doc(friendUserId);
+
+  const now = Timestamp.now();
+  const payload: UpdateData<FirebaseFirestore.DocumentData> = {};
+  if (data.username) payload[FriendDocFields.USERNAME] = data.username;
+  if (data.name) payload[FriendDocFields.NAME] = data.name;
+  if (data.avatar) payload[FriendDocFields.AVATAR] = data.avatar;
+  if (data.last_update_emoji) payload[FriendDocFields.LAST_UPDATE_EMOJI] = data.last_update_emoji;
+  if (data.last_update_at) payload[FriendDocFields.LAST_UPDATE_AT] = data.last_update_at;
+
+  if (Object.keys(payload).length === 0) {
+    return; // nothing to update
+  }
+
+  // always touch updated_at when we have changes
+  payload[FriendDocFields.UPDATED_AT] = now;
+
+  const write = (b: FirebaseFirestore.WriteBatch) => {
+    b.set(friendRef, { [FriendDocFields.CREATED_AT]: now, ...payload }, { merge: true });
+  };
+
+  if (batch) {
+    write(batch);
+  } else {
+    const b = db.batch();
+    write(b);
+    await b.commit();
+  }
+};
+
+/**
+ * Migrates all friendship documents for a user into friend subcollection (idempotent).
+ */
+export const migrateFriendDocsForUser = async (userId: string): Promise<void> => {
+  const db = getFirestore();
+
+  // Check if subcollection has any docs
+  const existingSnap = await db
+    .collection(Collections.PROFILES)
+    .doc(userId)
+    .collection(Collections.FRIENDS)
+    .limit(1)
+    .get();
+  if (!existingSnap.empty) {
+    return; // already migrated
+  }
+
+  const query = db
+    .collection(Collections.FRIENDSHIPS)
+    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
+
+  const batch = db.batch();
+  let count = 0;
+  for await (const doc of query.stream()) {
+    const snap = doc as unknown as QueryDocumentSnapshot;
+    const d = snap.data();
+    const isSender = d[FriendshipFields.SENDER_ID] === userId;
+    const friendId = isSender ? d[FriendshipFields.RECEIVER_ID] : d[FriendshipFields.SENDER_ID];
+    if (!friendId) return;
+    const friendData = {
+      username: isSender ? d[FriendshipFields.RECEIVER_USERNAME] : d[FriendshipFields.SENDER_USERNAME],
+      name: isSender ? d[FriendshipFields.RECEIVER_NAME] : d[FriendshipFields.SENDER_NAME],
+      avatar: isSender ? d[FriendshipFields.RECEIVER_AVATAR] : d[FriendshipFields.SENDER_AVATAR],
+      last_update_emoji: isSender
+        ? d[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]
+        : d[FriendshipFields.SENDER_LAST_UPDATE_EMOJI],
+    };
+    upsertFriendDoc(db, userId, friendId, friendData, batch);
+    count++;
+  }
+
+  await batch.commit();
+  logger.info(`Migrated ${count} friendships to friend docs for user ${userId}`);
+};

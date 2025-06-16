@@ -1,10 +1,12 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, FriendEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, QueryOperators } from '../models/constants.js';
+import { Collections, FriendDocFields, QueryOperators } from '../models/constants.js';
 import { Friend, FriendsResponse, PaginationPayload } from '../models/data-models.js';
+import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -30,6 +32,9 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
   const db = getFirestore();
   const currentUserId = req.userId;
 
+  // Ensure friend docs exist (lazy migration)
+  await migrateFriendDocsForUser(currentUserId);
+
   logger.info(`Retrieving friends and pending requests for user: ${currentUserId}`);
 
   // Get pagination parameters from the validated request
@@ -39,11 +44,11 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
 
   logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
-  // Use a single efficient query with array_contains and in operator for multiple statuses
   let query = db
-    .collection(Collections.FRIENDSHIPS)
-    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId)
-    .orderBy(FriendshipFields.CREATED_AT, QueryOperators.DESC);
+    .collection(Collections.PROFILES)
+    .doc(currentUserId)
+    .collection(Collections.FRIENDS)
+    .orderBy(FriendDocFields.LAST_UPDATE_AT, QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
@@ -61,23 +66,16 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
   for (const friendshipDoc of friendshipDocs) {
     const friendshipData = friendshipDoc.data();
 
-    // Determine if the current user is the sender or receiver
-    const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
-
     const friend: Friend = {
-      user_id: isSender ? friendshipData[FriendshipFields.RECEIVER_ID] : friendshipData[FriendshipFields.SENDER_ID],
-      username: isSender
-        ? friendshipData[FriendshipFields.RECEIVER_USERNAME] || ''
-        : friendshipData[FriendshipFields.SENDER_USERNAME] || '',
-      name: isSender
-        ? friendshipData[FriendshipFields.RECEIVER_NAME] || ''
-        : friendshipData[FriendshipFields.SENDER_NAME] || '',
-      avatar: isSender
-        ? friendshipData[FriendshipFields.RECEIVER_AVATAR] || ''
-        : friendshipData[FriendshipFields.SENDER_AVATAR] || '',
-      last_update_emoji: isSender
-        ? friendshipData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] || ''
-        : friendshipData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] || '',
+      user_id: friendshipDoc.id,
+      username: friendshipData[FriendDocFields.USERNAME] || '',
+      name: friendshipData[FriendDocFields.NAME] || '',
+      avatar: friendshipData[FriendDocFields.AVATAR] || '',
+      last_update_emoji: friendshipData[FriendDocFields.LAST_UPDATE_EMOJI] || '',
+      last_update_time: (() => {
+        const ts = friendshipData[FriendDocFields.LAST_UPDATE_AT];
+        return ts ? formatTimestamp(ts) : '';
+      })(),
     };
 
     logger.info(`Processing friendship with friend: ${friend.user_id}`);

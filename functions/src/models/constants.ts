@@ -23,6 +23,7 @@ export const Collections = {
   NUDGES: 'nudges',
   TIME_BUCKETS: 'time_buckets',
   TIME_BUCKET_USERS: 'users',
+  FRIENDS: 'friends',
 } as const;
 
 // Document names
@@ -296,4 +297,15 @@ export const FriendPlaceholderChecks = {
 export const FriendPlaceholderTemplates = {
   SUMMARY: 'Ask <FRIEND_NAME> ' + FriendPlaceholderChecks.SUMMARY_END,
   SUGGESTIONS: 'Nudge <FRIEND_NAME> ' + FriendPlaceholderChecks.SUGGESTIONS_END,
+} as const;
+
+// Field names for Profile->Friends documents
+export const FriendDocFields = {
+  USERNAME: 'username',
+  NAME: 'name',
+  AVATAR: 'avatar',
+  LAST_UPDATE_EMOJI: 'last_update_emoji',
+  LAST_UPDATE_AT: 'last_update_at',
+  CREATED_AT: 'created_at',
+  UPDATED_AT: 'updated_at',
 } as const;

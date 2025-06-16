@@ -3,7 +3,8 @@ import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
 import { Collections, DeviceFields, FriendshipFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
-import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
+import type { FriendDocUpdate } from '../utils/friendship-utils.js';
+import { syncFriendshipDataForUser, upsertFriendDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
 
@@ -85,7 +86,7 @@ export const onFriendshipCreated = async (
 
   // Run both sync directions in parallel
   try {
-    const [senderEmoji, receiverEmoji] = await Promise.all([
+    const [senderData, receiverData] = await Promise.all([
       syncFriendshipDataForUser(senderId, receiverId, {
         ...friendshipData,
         id: event.data.id,
@@ -96,19 +97,47 @@ export const onFriendshipCreated = async (
       }),
     ]);
 
-    const emojiUpdate: { [key: string]: string } = {};
-    if (senderEmoji) {
-      emojiUpdate[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] = senderEmoji;
+    const updateData: Record<string, string> = {};
+    if (senderData?.emoji) {
+      updateData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] = senderData.emoji;
     }
-    if (receiverEmoji) {
-      emojiUpdate[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] = receiverEmoji;
+    if (receiverData?.emoji) {
+      updateData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] = receiverData.emoji;
     }
 
-    if (Object.keys(emojiUpdate).length > 0) {
+    if (Object.keys(updateData).length > 0) {
       const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(event.data.id);
-      await friendshipRef.update(emojiUpdate);
-      logger.info(`Updated friendship ${event.data.id} with latest emojis`);
+      await friendshipRef.update(updateData);
+      logger.info(`Updated friendship ${event.data.id} with latest friend data`);
     }
+
+    // Upsert friend subcollection docs for both users
+    const senderToReceiver: FriendDocUpdate = {};
+    if (friendshipData[FriendshipFields.RECEIVER_USERNAME])
+      senderToReceiver.username = friendshipData[FriendshipFields.RECEIVER_USERNAME];
+    if (friendshipData[FriendshipFields.RECEIVER_NAME])
+      senderToReceiver.name = friendshipData[FriendshipFields.RECEIVER_NAME];
+    if (friendshipData[FriendshipFields.RECEIVER_AVATAR])
+      senderToReceiver.avatar = friendshipData[FriendshipFields.RECEIVER_AVATAR];
+    if (updateData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI])
+      senderToReceiver.last_update_emoji = updateData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI];
+    if (senderData?.updatedAt) senderToReceiver.last_update_at = senderData.updatedAt;
+
+    const receiverToSender: FriendDocUpdate = {};
+    if (friendshipData[FriendshipFields.SENDER_USERNAME])
+      receiverToSender.username = friendshipData[FriendshipFields.SENDER_USERNAME];
+    if (friendshipData[FriendshipFields.SENDER_NAME])
+      receiverToSender.name = friendshipData[FriendshipFields.SENDER_NAME];
+    if (friendshipData[FriendshipFields.SENDER_AVATAR])
+      receiverToSender.avatar = friendshipData[FriendshipFields.SENDER_AVATAR];
+    if (updateData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI])
+      receiverToSender.last_update_emoji = updateData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI];
+    if (receiverData?.updatedAt) receiverToSender.last_update_at = receiverData.updatedAt;
+
+    await Promise.all([
+      upsertFriendDoc(db, senderId, receiverId, senderToReceiver),
+      upsertFriendDoc(db, receiverId, senderId, receiverToSender),
+    ]);
   } catch (error) {
     logger.error(`Failed to sync friendship data for event ${event.data.id}`, error);
   }

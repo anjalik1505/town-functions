@@ -11,7 +11,12 @@ import {
   UpdateFields,
 } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
-import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import {
+  FriendDocUpdate,
+  getFriendshipRefAndDoc,
+  migrateFriendDocsForUser,
+  upsertFriendDoc,
+} from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -237,6 +242,7 @@ const processAllSummaries = async (
     tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch, imageAnalysis));
   }
 
+  await migrateFriendDocsForUser(creatorId);
   const emoji = updateData[UpdateFields.EMOJI] as string;
   if (emoji) {
     const friendshipUpdateTasks = friendIds.map(async (friendId) => {
@@ -250,6 +256,15 @@ const processAllSummaries = async (
               : FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]: emoji,
           };
           batch.update(friendshipRef, emojiUpdate);
+
+          // Ensure friend's friend subcollection exists and update their doc
+          await migrateFriendDocsForUser(friendId);
+
+          const friendDocUpdate: FriendDocUpdate = {
+            last_update_emoji: emoji,
+            last_update_at: updateData[UpdateFields.CREATED_AT] as Timestamp,
+          };
+          upsertFriendDoc(db, friendId, creatorId, friendDocUpdate, batch);
         }
       }
     });
