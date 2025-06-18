@@ -3,7 +3,7 @@ import { Collections, CommentFields, FeedFields, QueryOperators, UpdateFields } 
 import { Comment, EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
 import { processEnrichedComments } from './comment-utils.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
-import { getFriendshipRefAndDoc } from './friendship-utils.js';
+import { areFriends } from './friendship-utils.js';
 import { getLogger } from './logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from './pagination-utils.js';
 import { fetchUsersProfiles } from './profile-utils.js';
@@ -213,9 +213,9 @@ export const hasUpdateAccess = async (updateData: FirebaseFirestore.DocumentData
 
   if (isAllVillage) {
     // Check if the users are friends
-    const { doc: friendshipDoc } = await getFriendshipRefAndDoc(creatorId, userId);
+    const areFriendsResult = await areFriends(creatorId, userId);
 
-    if (friendshipDoc.exists) {
+    if (areFriendsResult) {
       return;
     }
   }

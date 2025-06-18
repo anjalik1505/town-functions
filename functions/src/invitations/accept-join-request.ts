@@ -3,8 +3,8 @@ import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admi
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import {
   Collections,
+  FriendDocContext,
   FriendPlaceholderTemplates,
-  FriendshipFields,
   JoinRequestFields,
   ProfileFields,
   Status,
@@ -13,7 +13,7 @@ import {
 import { Friend } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import type { FriendDocUpdate } from '../utils/friendship-utils.js';
-import { getFriendshipRefAndDoc, upsertFriendDoc } from '../utils/friendship-utils.js';
+import { getFriendDoc, upsertFriendDoc } from '../utils/friendship-utils.js';
 import {
   getInvitationDocForUser,
   getJoinRequestDoc,
@@ -22,6 +22,7 @@ import {
 } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createSummaryId, getProfileDoc } from '../utils/profile-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -89,45 +90,24 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   // Get sender's profile
   const { data: senderProfile } = await getProfileDoc(requesterId);
 
-  // Check if friendship already exists
-  const {
-    id: friendshipId,
-    ref: friendshipRef,
-    doc: friendshipDoc,
-  } = await getFriendshipRefAndDoc(currentUserId, requesterId);
+  // Check if friendship already exists using the new system and get the friend document
+  const friendDocResult = await getFriendDoc(currentUserId, requesterId);
 
-  if (friendshipDoc.exists) {
-    const friendshipData = friendshipDoc.data() || {};
+  if (friendDocResult) {
+    const { data: friendData } = friendDocResult;
 
     logger.warn(`Users ${currentUserId} and ${requesterId} are already friends`);
     // Delete the invitation since they're already friends
     await batch.commit();
 
-    // Return the existing friend using data from the friendship document
-    let friendName: string;
-    let friendUsername: string;
-    let friendAvatar: string;
-    let lastUpdateEmoji: string;
-
-    if (friendshipData[FriendshipFields.SENDER_ID] === requesterId) {
-      friendName = friendshipData[FriendshipFields.SENDER_NAME] || '';
-      friendUsername = friendshipData[FriendshipFields.SENDER_USERNAME] || '';
-      friendAvatar = friendshipData[FriendshipFields.SENDER_AVATAR] || '';
-      lastUpdateEmoji = friendshipData[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] || '';
-    } else {
-      friendName = friendshipData[FriendshipFields.RECEIVER_NAME] || '';
-      friendUsername = friendshipData[FriendshipFields.RECEIVER_USERNAME] || '';
-      friendAvatar = friendshipData[FriendshipFields.RECEIVER_AVATAR] || '';
-      lastUpdateEmoji = friendshipData[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] || '';
-    }
-
+    // Return the friend object using data from the friend document
     const friend: Friend = {
       user_id: requesterId,
-      username: friendUsername,
-      name: friendName,
-      avatar: friendAvatar,
-      last_update_emoji: lastUpdateEmoji,
-      last_update_time: '',
+      username: friendData.username || senderProfile[ProfileFields.USERNAME] || '',
+      name: friendData.name || senderProfile[ProfileFields.NAME] || '',
+      avatar: friendData.avatar || senderProfile[ProfileFields.AVATAR] || '',
+      last_update_emoji: friendData.last_update_emoji || '',
+      last_update_time: formatTimestamp(friendData.last_update_at),
     };
 
     // Create analytics event
@@ -146,24 +126,8 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
     };
   }
 
-  // Create the friendship document using profile data directly
+  // Create the friendship document using profile data directly (backwards compatibility)
   const currentTime = Timestamp.now();
-  const friendshipData: UpdateData<DocumentData> = {
-    [FriendshipFields.SENDER_ID]: requesterId,
-    [FriendshipFields.SENDER_NAME]: senderProfile[ProfileFields.NAME] || '',
-    [FriendshipFields.SENDER_USERNAME]: senderProfile[ProfileFields.USERNAME] || '',
-    [FriendshipFields.SENDER_AVATAR]: senderProfile[ProfileFields.AVATAR] || '',
-    [FriendshipFields.RECEIVER_ID]: currentUserId,
-    [FriendshipFields.RECEIVER_NAME]: currentUserProfile[ProfileFields.NAME] || '',
-    [FriendshipFields.RECEIVER_USERNAME]: currentUserProfile[ProfileFields.USERNAME] || '',
-    [FriendshipFields.RECEIVER_AVATAR]: currentUserProfile[ProfileFields.AVATAR] || '',
-    [FriendshipFields.CREATED_AT]: currentTime,
-    [FriendshipFields.UPDATED_AT]: currentTime,
-    [FriendshipFields.MEMBERS]: [requesterId, currentUserId],
-  };
-
-  // Add operations to batch
-  batch.set(friendshipRef, friendshipData);
 
   const senderName = senderProfile[ProfileFields.NAME] || senderProfile[ProfileFields.USERNAME] || 'Friend';
   const currentUserName =
@@ -201,15 +165,25 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
 
   // Commit the batch
   await batch.commit();
-  logger.info(`Accepted join request from ${requesterId} and created friendship ${friendshipId}`);
+  logger.info(`Accepted join request from ${requesterId} and created friendship ${currentUserId} <-> ${requesterId}`);
 
-  // Create friend docs for both users
-  const toCurrent: FriendDocUpdate = {};
+  // Create friend docs for both users with context for join request acceptance
+  const fiveYearsAgo = Timestamp.fromMillis(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000); // 5 years ago
+
+  const toCurrent: FriendDocUpdate = {
+    context: FriendDocContext.JOIN_REQUEST_ACCEPTED,
+    accepter_id: currentUserId,
+    last_update_at: fiveYearsAgo,
+  };
   if (senderProfile[ProfileFields.USERNAME]) toCurrent.username = senderProfile[ProfileFields.USERNAME];
   if (senderProfile[ProfileFields.NAME]) toCurrent.name = senderProfile[ProfileFields.NAME];
   if (senderProfile[ProfileFields.AVATAR]) toCurrent.avatar = senderProfile[ProfileFields.AVATAR];
 
-  const toRequester: FriendDocUpdate = {};
+  const toRequester: FriendDocUpdate = {
+    context: FriendDocContext.JOIN_REQUEST_ACCEPTED,
+    accepter_id: currentUserId,
+    last_update_at: fiveYearsAgo,
+  };
   if (currentUserProfile[ProfileFields.USERNAME]) toRequester.username = currentUserProfile[ProfileFields.USERNAME];
   if (currentUserProfile[ProfileFields.NAME]) toRequester.name = currentUserProfile[ProfileFields.NAME];
   if (currentUserProfile[ProfileFields.AVATAR]) toRequester.avatar = currentUserProfile[ProfileFields.AVATAR];

@@ -1,21 +1,14 @@
-import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { analyzeImagesFlow, generateCreatorProfileFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  Documents,
-  FriendshipFields,
-  InsightsFields,
-  ProfileFields,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import {
-  FriendDocUpdate,
-  getFriendshipRefAndDoc,
+  getFriendDoc,
   migrateFriendDocsForUser,
   upsertFriendDoc,
+  type FriendDocUpdate,
 } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -189,7 +182,6 @@ const processAllSummaries = async (
   mainSummary: SummaryEventParams;
   friendSummaries: FriendSummaryEventParams[];
 }> => {
-  // Get the creator ID and friend IDs
   const creatorId = updateData[UpdateFields.CREATED_BY] as string;
   const friendIds = (updateData[UpdateFields.FRIEND_IDS] as string[]) || [];
 
@@ -242,31 +234,25 @@ const processAllSummaries = async (
     tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch, imageAnalysis));
   }
 
+  // Migrate creator's friend docs and update friend documents with emoji
   await migrateFriendDocsForUser(creatorId);
   const emoji = updateData[UpdateFields.EMOJI] as string;
   if (emoji) {
     const friendshipUpdateTasks = friendIds.map(async (friendId) => {
-      const { ref: friendshipRef, doc: friendshipDoc } = await getFriendshipRefAndDoc(creatorId, friendId);
-      if (friendshipDoc.exists) {
-        const friendshipData = friendshipDoc.data();
-        if (friendshipData) {
-          const emojiUpdate: UpdateData<DocumentData> = {
-            [friendshipData[FriendshipFields.SENDER_ID] === creatorId
-              ? FriendshipFields.SENDER_LAST_UPDATE_EMOJI
-              : FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]: emoji,
-          };
-          batch.update(friendshipRef, emojiUpdate);
+      // Check if they are friends using the new system and get friend data
+      const friendDocResult = await getFriendDoc(creatorId, friendId);
 
-          // Ensure friend's friend subcollection exists and update their doc
-          await migrateFriendDocsForUser(friendId);
+      if (friendDocResult) {
+        // Ensure friend's friend subcollection exists and update their doc
+        await migrateFriendDocsForUser(friendId);
 
-          const friendDocUpdate: FriendDocUpdate = {
-            last_update_emoji: emoji,
-            last_update_at: updateData[UpdateFields.CREATED_AT] as Timestamp,
-          };
-          upsertFriendDoc(db, friendId, creatorId, friendDocUpdate, batch);
-        }
+        const friendDocUpdate: FriendDocUpdate = {
+          last_update_emoji: emoji,
+          last_update_at: updateData[UpdateFields.CREATED_AT] as Timestamp,
+        };
+        upsertFriendDoc(db, friendId, creatorId, friendDocUpdate, batch);
       }
+      // If not friends, just skip - no error needed
     });
     tasks.push(...friendshipUpdateTasks);
   }

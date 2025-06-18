@@ -1,7 +1,8 @@
 import { Request } from 'express';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { ProfileFields } from '../models/constants.js';
+import { Collections, ProfileFields } from '../models/constants.js';
+import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   extractConnectToForAnalytics,
@@ -41,8 +42,35 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
   // Get the profile document using the utility function (throws NotFoundError if not found)
   const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
-  // Use recursiveDelete to delete the profile document and all its subcollections
   const db = getFirestore();
+
+  // Ensure user's friend documents are migrated from old FRIENDSHIPS collection
+  await migrateFriendDocsForUser(currentUserId);
+
+  // Extract friends list from subcollection before deletion
+  const friendIds: string[] = [];
+  const friendsQuery = profileRef.collection(Collections.FRIENDS);
+
+  try {
+    for await (const doc of friendsQuery.stream()) {
+      const friendDoc = doc as unknown as QueryDocumentSnapshot;
+      friendIds.push(friendDoc.id);
+    }
+    logger.info(`Found ${friendIds.length} friends for user ${currentUserId}`);
+  } catch (error) {
+    logger.warn(`Error reading friends subcollection for user ${currentUserId}: ${error}`);
+    // Continue with deletion even if friends list extraction fails
+  }
+
+  // Store friends list in profile document for trigger to use
+  if (friendIds.length > 0) {
+    await profileRef.update({
+      [ProfileFields.FRIENDS_TO_CLEANUP]: friendIds,
+    });
+    logger.info(`Stored ${friendIds.length} friend IDs in profile document for cleanup`);
+  }
+
+  // Use recursiveDelete to delete the profile document and all its subcollections
   await db.recursiveDelete(profileRef);
   logger.info(`Profile document and all subcollections deleted for user ${currentUserId}`);
 

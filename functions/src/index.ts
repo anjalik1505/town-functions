@@ -81,7 +81,7 @@ export const process_profile_deletion = onDocumentDeleted(
 // Export the Firestore trigger function for friendship creation
 export const process_friendship_creation = onDocumentCreated(
   {
-    document: `${Collections.FRIENDSHIPS}/{id}`,
+    document: `${Collections.PROFILES}/{userId}/${Collections.FRIENDS}/{friendId}`,
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onFriendshipCreated(event),

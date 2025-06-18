@@ -3,7 +3,7 @@ import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import { Collections, JoinRequestFields, QueryOperators, Status } from '../models/constants.js';
 import { JoinRequest } from '../models/data-models.js';
-import { getFriendshipRefAndDoc, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
+import { areFriends, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
   formatJoinRequest,
   getInvitationDoc,
@@ -60,9 +60,9 @@ export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinReque
   hasInvitationPermission(receiverId, currentUserId, 'join');
 
   // Check if friendship already exists
-  const { doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, receiverId);
+  const areFriendsResult = await areFriends(currentUserId, receiverId);
 
-  if (friendshipDoc.exists) {
+  if (areFriendsResult) {
     throw new ConflictError('You are already friends with this user');
   }
 

@@ -5,6 +5,7 @@ import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
+  FriendDocContext,
   FriendDocFields,
   FriendshipFields,
   MAX_BATCH_OPERATIONS,
@@ -24,12 +25,12 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Friendship document result type
+ * Friend document result type
  */
-type FriendshipDocumentResult = {
-  id: string;
+type FriendDocumentResult = {
   ref: FirebaseFirestore.DocumentReference;
   doc: FirebaseFirestore.DocumentSnapshot;
+  data: FirebaseFirestore.DocumentData;
 };
 
 export type FriendDocUpdate = {
@@ -38,44 +39,56 @@ export type FriendDocUpdate = {
   avatar?: string;
   last_update_emoji?: string;
   last_update_at?: FirebaseFirestore.Timestamp;
+  context?: string;
+  accepter_id?: string;
 };
 
 /**
- * Retrieves a friendship document reference and document snapshot.
- * @param currentUserId The ID of the current user for the friendship
- * @param targetUserId The ID of the target user for the friendship
- * @returns A promise that resolves with an object containing the friendship document reference and document snapshot.
- *          The document snapshot can be null if the document doesn't exist.
+ * Gets a friend document from the current user's FRIENDS subcollection.
+ * This function handles migration automatically for both users and never throws for "not found".
+ *
+ * @param currentUserId - The current user's ID
+ * @param targetUserId - The target user's ID (friend)
+ * @returns The friend document and data, or null if not found
  */
-export const getFriendshipRefAndDoc = async (
+export const getFriendDoc = async (
   currentUserId: string,
   targetUserId: string,
-): Promise<FriendshipDocumentResult> => {
+): Promise<FriendDocumentResult | null> => {
+  // Ensure both users' friend docs are migrated in parallel
+  await Promise.all([migrateFriendDocsForUser(currentUserId), migrateFriendDocsForUser(targetUserId)]);
+
   const db = getFirestore();
+  const friendDocRef = db
+    .collection(Collections.PROFILES)
+    .doc(currentUserId)
+    .collection(Collections.FRIENDS)
+    .doc(targetUserId);
 
-  const friendshipId = createFriendshipId(currentUserId, targetUserId);
+  const friendDoc = await friendDocRef.get();
 
-  const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(friendshipId);
-  const friendshipDoc = await friendshipRef.get();
+  if (!friendDoc.exists) {
+    return null;
+  }
 
   return {
-    id: friendshipId,
-    ref: friendshipRef,
-    doc: friendshipDoc,
+    ref: friendDocRef,
+    doc: friendDoc,
+    data: friendDoc.data() || {},
   };
 };
 
 /**
- * Creates a consistent friendship ID by sorting user IDs.
- * This ensures that the same friendship ID is generated regardless of which user is first.
+ * Checks if two users are friends by looking in the current user's FRIENDS subcollection.
+ * This is the new migration-compatible version of friendship checking.
  *
- * @param userId1 - First user ID
- * @param userId2 - Second user ID
- * @returns A consistent friendship ID in the format "user1_user2" where user1 and user2 are sorted alphabetically
+ * @param currentUserId - The current user's ID
+ * @param targetUserId - The target user's ID
+ * @returns True if they are friends, false otherwise
  */
-export const createFriendshipId = (userId1: string, userId2: string): string => {
-  const userIds = [userId1, userId2].sort();
-  return `${userIds[0]}_${userIds[1]}`;
+export const areFriends = async (currentUserId: string, targetUserId: string): Promise<boolean> => {
+  const result = await getFriendDoc(currentUserId, targetUserId);
+  return result !== null;
 };
 
 /**
@@ -89,15 +102,15 @@ export const hasReachedCombinedLimit = async (
   friendCount: number;
   hasReachedLimit: boolean;
 }> => {
+  // Ensure user's friend docs are migrated
+  await migrateFriendDocsForUser(userId);
+
   const db = getFirestore();
 
-  // Get all friendships where the user is either the sender or receiver
-  const friendshipsQuery = await db
-    .collection(Collections.FRIENDSHIPS)
-    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId)
-    .get();
+  // Get count of friends from user's FRIENDS subcollection
+  const friendsQuery = await db.collection(Collections.PROFILES).doc(userId).collection(Collections.FRIENDS).get();
 
-  const friendCount = friendshipsQuery.size;
+  const friendCount = friendsQuery.size;
 
   return {
     friendCount,
@@ -285,6 +298,8 @@ export const upsertFriendDoc = async (
   if (data.avatar) payload[FriendDocFields.AVATAR] = data.avatar;
   if (data.last_update_emoji) payload[FriendDocFields.LAST_UPDATE_EMOJI] = data.last_update_emoji;
   if (data.last_update_at) payload[FriendDocFields.LAST_UPDATE_AT] = data.last_update_at;
+  if (data.context) payload[FriendDocFields.CONTEXT] = data.context;
+  if (data.accepter_id) payload[FriendDocFields.ACCEPTER_ID] = data.accepter_id;
 
   if (Object.keys(payload).length === 0) {
     return; // nothing to update
@@ -329,6 +344,8 @@ export const migrateFriendDocsForUser = async (userId: string): Promise<void> =>
 
   const batch = db.batch();
   let count = 0;
+  const fiveYearsAgo = Timestamp.fromMillis(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000); // 5 years ago
+
   for await (const doc of query.stream()) {
     const snap = doc as unknown as QueryDocumentSnapshot;
     const d = snap.data();
@@ -342,6 +359,8 @@ export const migrateFriendDocsForUser = async (userId: string): Promise<void> =>
       last_update_emoji: isSender
         ? d[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]
         : d[FriendshipFields.SENDER_LAST_UPDATE_EMOJI],
+      last_update_at: fiveYearsAgo,
+      context: FriendDocContext.MIGRATION,
     };
     upsertFriendDoc(db, userId, friendId, friendData, batch);
     count++;

@@ -10,7 +10,6 @@ import {
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
 import {
   Collections,
-  FriendshipFields,
   GroupFields,
   InvitationFields,
   JoinRequestFields,
@@ -18,6 +17,7 @@ import {
   QueryOperators,
 } from '../models/constants.js';
 import { NudgingSettings, ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
+import { migrateFriendDocsForUser, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -217,55 +217,45 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
       }
     }
 
-    // 4. Update friendships where the user is sender
-    const friendshipsAsSenderQuery = db
-      .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.SENDER_ID, QueryOperators.EQUALS, currentUserId);
+    // 4. Update friend documents in FRIENDS subcollections (replaces old friendships collection updates)
+    logger.info('Updating friend documents in FRIENDS subcollections');
 
-    for await (const doc of friendshipsAsSenderQuery.stream()) {
-      const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
-      const friendshipUpdates: UpdateData<DocumentData> = {};
+    // First ensure user's friend docs are migrated
+    await migrateFriendDocsForUser(currentUserId);
 
-      if (usernameChanged) {
-        friendshipUpdates[FriendshipFields.SENDER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
-      }
-      if (nameChanged) {
-        friendshipUpdates[FriendshipFields.SENDER_NAME] = profileUpdates[ProfileFields.NAME];
-      }
-      if (avatarChanged) {
-        friendshipUpdates[FriendshipFields.SENDER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
-      }
+    // Get list of friends from user's FRIENDS subcollection
+    const userFriendsQuery = db.collection(Collections.PROFILES).doc(currentUserId).collection(Collections.FRIENDS);
 
-      if (Object.keys(friendshipUpdates).length > 0) {
-        batch.update(friendshipDoc.ref, friendshipUpdates);
-      }
+    const friendIds: string[] = [];
+    for await (const doc of userFriendsQuery.stream()) {
+      const friendDoc = doc as unknown as QueryDocumentSnapshot;
+      friendIds.push(friendDoc.id);
     }
 
-    // 5. Update friendships where the user is receiver
-    const friendshipsAsReceiverQuery = db
-      .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.RECEIVER_ID, QueryOperators.EQUALS, currentUserId);
-
-    for await (const doc of friendshipsAsReceiverQuery.stream()) {
-      const friendshipDoc = doc as unknown as QueryDocumentSnapshot;
-      const friendshipUpdates: UpdateData<DocumentData> = {};
-
-      if (usernameChanged) {
-        friendshipUpdates[FriendshipFields.RECEIVER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
-      }
-      if (nameChanged) {
-        friendshipUpdates[FriendshipFields.RECEIVER_NAME] = profileUpdates[ProfileFields.NAME];
-      }
-      if (avatarChanged) {
-        friendshipUpdates[FriendshipFields.RECEIVER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
-      }
-
-      if (Object.keys(friendshipUpdates).length > 0) {
-        batch.update(friendshipDoc.ref, friendshipUpdates);
-      }
+    // Migrate all friends in parallel before updating their subcollections
+    if (friendIds.length > 0) {
+      await Promise.all(friendIds.map((friendId) => migrateFriendDocsForUser(friendId)));
+      logger.info(`Migrated ${friendIds.length} friends before updating their subcollections`);
     }
 
-    // 6. Update groups where the user is a member
+    // Update this user's data in each friend's FRIENDS subcollection using utility
+    for (const friendId of friendIds) {
+      const friendDocUpdate: FriendDocUpdate = {};
+
+      if (usernameChanged) {
+        friendDocUpdate.username = profileUpdates[ProfileFields.USERNAME] as string;
+      }
+      if (nameChanged) {
+        friendDocUpdate.name = profileUpdates[ProfileFields.NAME] as string;
+      }
+      if (avatarChanged) {
+        friendDocUpdate.avatar = profileUpdates[ProfileFields.AVATAR] as string;
+      }
+
+      upsertFriendDoc(db, friendId, currentUserId, friendDocUpdate, batch);
+    }
+
+    // 5. Update groups where the user is a member
     const groupsQuery = db
       .collection(Collections.GROUPS)
       .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);

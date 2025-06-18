@@ -27,35 +27,80 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Delete all friendships involving the user.
+ * Delete all friendships involving the user and clean up friend subcollections.
  *
  * @param db - Firestore client
  * @param userId - The ID of the user whose profile was deleted
+ * @param profileData - The deleted profile document data
  * @returns The number of friendships deleted
  */
-const deleteFriendships = async (db: FirebaseFirestore.Firestore, userId: string): Promise<number> => {
-  logger.info(`Deleting friendships for user ${userId}`);
+const deleteFriendships = async (
+  db: FirebaseFirestore.Firestore,
+  userId: string,
+  profileData: FirebaseFirestore.DocumentData,
+): Promise<number> => {
+  logger.info(`Deleting friendship data for user ${userId}`);
 
-  // Get all friendships involving the user
+  // Get friends list from the deleted profile document
+  const friendIds: string[] = profileData[ProfileFields.FRIENDS_TO_CLEANUP] || [];
+
+  if (friendIds.length === 0) {
+    logger.info(`No friends found in cleanup data for user ${userId}`);
+    return 0;
+  }
+
+  logger.info(`Found ${friendIds.length} friends to clean up for user ${userId}`);
+
+  let batch = db.batch();
+  let batchCount = 0;
+  let totalDeleted = 0;
+
+  // Remove this user from each friend's subcollection
+  for (const friendId of friendIds) {
+    const friendDocRef = db.collection(Collections.PROFILES).doc(friendId).collection(Collections.FRIENDS).doc(userId);
+
+    batch.delete(friendDocRef);
+    batchCount++;
+    totalDeleted++;
+
+    // Commit batch if it reaches the maximum size
+    if (batchCount >= MAX_BATCH_OPERATIONS) {
+      await batch.commit();
+      logger.info(`Committed batch with ${batchCount} friend deletions`);
+      batch = db.batch();
+      batchCount = 0;
+    }
+  }
+
+  // Delete old FRIENDSHIPS collection documents
   const friendshipsQuery = db
     .collection(Collections.FRIENDSHIPS)
     .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
 
   // Process each friendship document
-  const processFriendshipDoc = (friendshipDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
-    batch.delete(friendshipDoc.ref);
+  const processFriendshipDoc = (friendshipDoc: QueryDocumentSnapshot, currentBatch: FirebaseFirestore.WriteBatch) => {
+    currentBatch.delete(friendshipDoc.ref);
   };
 
   // Stream and process the friendships
-  const totalDeleted = await streamAndProcessCollection(
+  const oldFriendshipsDeleted = await streamAndProcessCollection(
     friendshipsQuery,
     processFriendshipDoc,
     db,
     'friendship deletions',
   );
 
-  logger.info(`Deleted ${totalDeleted} friendships for user ${userId}`);
-  return totalDeleted;
+  // Commit any remaining friend deletions
+  if (batchCount > 0) {
+    await batch.commit();
+    logger.info(`Committed final batch with ${batchCount} friend deletions`);
+  }
+
+  const totalFriendships = totalDeleted + oldFriendshipsDeleted;
+  logger.info(
+    `Deleted ${totalDeleted} friend docs and ${oldFriendshipsDeleted} old friendship docs for user ${userId}`,
+  );
+  return totalFriendships;
 };
 
 /**
@@ -461,7 +506,7 @@ const deleteAllUserData = async (
           logger.error(`Failed to delete updates: ${err}`);
           return { updateCount: 0, feedCount: 0 };
         }),
-      retryOperation(() => deleteFriendships(db, userId), 'friendship deletion')
+      retryOperation(() => deleteFriendships(db, userId, profileData), 'friendship deletion')
         .then((result) => {
           results.friendships = true;
           return result;

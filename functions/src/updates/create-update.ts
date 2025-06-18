@@ -2,8 +2,9 @@ import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
+import { Collections, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
+import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createFeedItem, formatUpdate } from '../utils/update-utils.js';
 import {
@@ -72,19 +73,15 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   if (allVillage) {
     logger.info(`All village mode enabled, fetching all friends and groups for user: ${currentUserId}`);
 
-    // Get all accepted friendships
-    const friendshipsQuery = db
-      .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
+    // Ensure user's friend docs are migrated
+    await migrateFriendDocsForUser(currentUserId);
 
-    // Stream friendships to extract friend IDs
-    for await (const doc of friendshipsQuery.stream()) {
-      const friendshipData = (doc as DocumentData).data();
-      const isSender = friendshipData[FriendshipFields.SENDER_ID] === currentUserId;
-      const friendId = isSender
-        ? friendshipData[FriendshipFields.RECEIVER_ID]
-        : friendshipData[FriendshipFields.SENDER_ID];
-      friendIds.push(friendId);
+    // Get all friends from user's FRIENDS subcollection
+    const friendsQuery = db.collection(Collections.PROFILES).doc(currentUserId).collection(Collections.FRIENDS);
+
+    // Stream friends to extract friend IDs
+    for await (const doc of friendsQuery.stream()) {
+      friendIds.push((doc as DocumentData).id);
     }
 
     // Deduplicate friendIds after extraction

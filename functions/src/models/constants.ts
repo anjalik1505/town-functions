@@ -62,6 +62,7 @@ export const ProfileFields = {
   CONNECT_TO: 'connect_to',
   PERSONALITY: 'personality',
   TONE: 'tone',
+  FRIENDS_TO_CLEANUP: 'friends_to_cleanup',
 } as const;
 
 // Field names for Friendship documents
@@ -299,6 +300,12 @@ export const FriendPlaceholderTemplates = {
   SUGGESTIONS: 'Nudge <FRIEND_NAME> ' + FriendPlaceholderChecks.SUGGESTIONS_END,
 } as const;
 
+// Context values for friend document creation
+export enum FriendDocContext {
+  MIGRATION = 'migration',
+  JOIN_REQUEST_ACCEPTED = 'join_request_accepted',
+}
+
 // Field names for Profile->Friends documents
 export const FriendDocFields = {
   USERNAME: 'username',
@@ -308,4 +315,6 @@ export const FriendDocFields = {
   LAST_UPDATE_AT: 'last_update_at',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
+  CONTEXT: 'context',
+  ACCEPTER_ID: 'accepter_id',
 } as const;

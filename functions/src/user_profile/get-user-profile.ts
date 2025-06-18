@@ -4,7 +4,7 @@ import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-
 import { Collections, ProfileFields, UserSummaryFields } from '../models/constants.js';
 import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import { areFriends } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   createSummaryId,
@@ -65,13 +65,13 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   // Get the target user's profile using the utility function
   const { data: targetUserProfileData } = await getProfileDoc(targetUserId);
 
-  // Check if users are friends using the unified friendships collection
+  // Check if users are friends using the new subcollection approach
   const summaryId = createSummaryId(currentUserId, targetUserId);
 
-  const { id: friendshipId, doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, targetUserId);
+  const areFriendsResult = await areFriends(currentUserId, targetUserId);
 
   // If they are not friends, return an error
-  if (!friendshipDoc.exists) {
+  if (!areFriendsResult) {
     logger.warn(`User ${currentUserId} attempted to view profile of non-friend ${targetUserId}`);
     throw new ForbiddenError('You must be friends with this user to view their profile');
   }
@@ -92,12 +92,12 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
     if (userSummaryData[UserSummaryFields.TARGET_ID] === currentUserId) {
       summary = userSummaryData[UserSummaryFields.SUMMARY] || '';
       suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS] || '';
-      logger.info(`Retrieved user summary for relationship ${friendshipId}`);
+      logger.info(`Retrieved user summary for relationship ${currentUserId} <-> ${targetUserId}`);
     } else {
       logger.info(`User ${currentUserId} is not the target for this summary`);
     }
   } else {
-    logger.info(`No user summary found for relationship ${friendshipId}`);
+    logger.info(`No user summary found for relationship ${currentUserId} <-> ${targetUserId}`);
   }
 
   // Format and return the response

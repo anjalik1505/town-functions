@@ -4,7 +4,7 @@ import { ApiResponse, EventName, UpdateViewEventParams } from '../models/analyti
 import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
 import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
-import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import { areFriends } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
@@ -68,11 +68,11 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   // Get the current user's profile
   await getProfileDoc(currentUserId);
 
-  // Check if users are friends using the unified friendships collection
-  const { doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, targetUserId);
+  // Check if users are friends using the new subcollection approach
+  const areFriendsResult = await areFriends(currentUserId, targetUserId);
 
   // If they are not friends, return an error
-  if (!friendshipDoc.exists) {
+  if (!areFriendsResult) {
     logger.warn(`User ${currentUserId} attempted to view updates of non-friend ${targetUserId}`);
     throw new ForbiddenError('You must be friends with this user to view their updates');
   }
