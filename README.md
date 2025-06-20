@@ -2006,6 +2006,8 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
   }
   ```
 
+  - Background notifications are also sent with type `update_background` for silent app processing.
+
 ### Profile Deleted (Firestore Trigger)
 
 - **Trigger**: When a document is deleted in the `profiles` collection.
@@ -2106,6 +2108,8 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
   }
   ```
 
+    - Background notifications are also sent with type `join_request_background` for silent app processing.
+
 ### Join Request Updated (Firestore Trigger)
 
 - **Trigger**: When a document is updated in the `join_requests` subcollection of an invitation.
@@ -2125,6 +2129,8 @@ _Note: If is_own_profile is false, emotional_overview, key_moments, recurring_th
     "is_urgent": true
   }
   ```
+
+    - Background notifications are also sent with type `join_request_rejected_background` for silent app processing.
 
 ### Notifications (Hourly Scheduled Function)
 
