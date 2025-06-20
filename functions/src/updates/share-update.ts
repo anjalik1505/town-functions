@@ -154,7 +154,12 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
   ]);
 
   // Format and return the complete update object
-  const response = formatUpdate(updateId, updateDocData, currentUserId, [], sharedWithFriends, sharedWithGroups);
+  // Merge the original update data with the updated fields
+  const completeUpdateData = {
+    ...updateData,
+    ...updateDocData,
+  };
+  const response = formatUpdate(updateId, completeUpdateData, currentUserId, [], sharedWithFriends, sharedWithGroups);
 
   const event: ShareUpdateEventParams = {
     new_friends_count: friendsToAdd.length,
