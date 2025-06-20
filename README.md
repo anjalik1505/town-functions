@@ -487,7 +487,22 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
         }
       ],
       "all_village": false,
-      "images": ["updates/update123/image1.jpg"]
+      "images": ["updates/update123/image1.jpg"],
+      "shared_with_friends": [
+        {
+          "user_id": "friend123",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "avatar": "https://example.com/avatar2.jpg"
+        }
+      ],
+      "shared_with_groups": [
+        {
+          "group_id": "group123",
+          "name": "Family Group",
+          "icon": "https://example.com/group_icon.jpg"
+        }
+      ]
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -582,6 +597,21 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       ],
       "all_village": false,
       "images": ["updates/update123/image1.jpg"],
+      "shared_with_friends": [
+        {
+          "user_id": "friend123",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "avatar": "https://example.com/avatar2.jpg"
+        }
+      ],
+      "shared_with_groups": [
+        {
+          "group_id": "group123",
+          "name": "Family Group",
+          "icon": "https://example.com/group_icon.jpg"
+        }
+      ],
       "username": "johndoe",
       "name": "John Doe",
       "avatar": "https://example.com/avatar.jpg"
@@ -642,6 +672,34 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 
 - 400: Invalid query parameters
 - 404: Profile not found
+- 500: Internal server error
+
+#### DELETE /me/friends/:friend_user_id
+
+**Purpose**: Remove a friendship between the current user and the specified friend.
+
+**Analytics Events**:
+
+- FRIENDSHIP_REMOVED: When a friendship is removed
+
+  **Event Body:**
+
+  ```json
+  {
+    "friend_count_before": 3,
+    "friend_count_after": 2
+  }
+  ```
+
+**Input**: (None, uses auth token and friend_user_id from path)
+
+**Output**: No content
+
+**Status Code**: 204 (No Content)
+
+**Errors**:
+
+- 404: Friendship not found
 - 500: Internal server error
 
 #### GET /me/requests
@@ -810,7 +868,22 @@ _Note: group_ids, friend_ids, all_village, and images are optional. score and em
     }
   ],
   "all_village": false,
-  "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"]
+  "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
+  "shared_with_friends": [
+    {
+      "user_id": "friend123",
+      "username": "janedoe",
+      "name": "Jane Doe",
+      "avatar": "https://example.com/avatar2.jpg"
+    }
+  ],
+  "shared_with_groups": [
+    {
+      "group_id": "group123",
+      "name": "Family Group",
+      "icon": "https://example.com/group_icon.jpg"
+    }
+  ]
 }
 ```
 
@@ -979,6 +1052,21 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
     ],
     "all_village": false,
     "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
+    "shared_with_friends": [
+      {
+        "user_id": "friend123",
+        "username": "janedoe",
+        "name": "Jane Doe",
+        "avatar": "https://example.com/avatar2.jpg"
+      }
+    ],
+    "shared_with_groups": [
+      {
+        "group_id": "group123",
+        "name": "Family Group",
+        "icon": "https://example.com/group_icon.jpg"
+      }
+    ],
     "username": "johndoe",
     "name": "John Doe",
     "avatar": "https://example.com/avatar.jpg"
@@ -1007,6 +1095,90 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 - 400: Invalid query parameters
 - 403: You don't have access to this update
 - 404: Update not found
+- 500: Internal server error
+
+#### PUT /updates/{update_id}/share
+
+**Purpose**: Share an existing update with additional friends and groups. The authenticated user must be the owner of the update and must be a member of any groups they are trying to share with.
+
+**Analytics Events**:
+
+- UPDATE_SHARED: When an update is shared with additional friends and groups
+
+  **Event Body:**
+
+  ```json
+  {
+    "new_friends_count": 0,
+    "total_friends_count": 0,
+    "new_groups_count": 0,
+    "total_groups_count": 0
+  }
+  ```
+
+**Input**:
+
+```json
+{
+  "friend_ids": ["friend456", "friend789"],
+  "group_ids": ["group456", "group789"]
+}
+```
+
+_Note: Both friend_ids and group_ids are optional, but at least one friend ID or group ID is required. The user must be a member of any groups they are trying to share with._
+
+**Output**:
+
+```json
+{
+  "update_id": "update123",
+  "created_by": "user123",
+  "content": "Hello world!",
+  "group_ids": ["group123", "group456", "group789"],
+  "friend_ids": ["friend123", "friend456", "friend789"],
+  "sentiment": "happy",
+  "score": 5,
+  "emoji": "😊",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "comment_count": 0,
+  "reaction_count": 0,
+  "reactions": [
+    {
+      "type": "like",
+      "count": 1,
+      "reaction_id": "1234"
+    }
+  ],
+  "all_village": false,
+  "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
+  "shared_with_friends": [
+    {
+      "user_id": "friend123",
+      "username": "janedoe",
+      "name": "Jane Doe",
+      "avatar": "https://example.com/avatar2.jpg"
+    }
+  ],
+  "shared_with_groups": [
+    {
+      "group_id": "group123",
+      "name": "Family Group",
+      "icon": "https://example.com/group_icon.jpg"
+    }
+  ]
+}
+```
+
+**Status Code**: 200 (OK)
+
+**Errors**:
+
+- 400: Update ID is required
+- 400: Invalid request parameters
+- 403: You can only share your own updates
+- 403: You are not a member of group {group_id}
+- 404: Update not found
+- 404: Group {group_id} not found
 - 500: Internal server error
 
 ### Comments
@@ -1813,7 +1985,22 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
         }
       ],
       "all_village": false,
-      "images": ["updates/update123/image1.jpg"]
+      "images": ["updates/update123/image1.jpg"],
+      "shared_with_friends": [
+        {
+          "user_id": "friend123",
+          "username": "janedoe",
+          "name": "Jane Doe",
+          "avatar": "https://example.com/avatar2.jpg"
+        }
+      ],
+      "shared_with_groups": [
+        {
+          "group_id": "group123",
+          "name": "Family Group",
+          "icon": "https://example.com/group_icon.jpg"
+        }
+      ]
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
