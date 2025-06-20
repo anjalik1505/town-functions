@@ -33,6 +33,7 @@ export enum EventName {
   FEEDBACK_CREATED = 'feedback_created',
   NOTIFICATION_SENT = 'notification_sent',
   FRIENDSHIP_ACCEPTED = 'friendship_accepted',
+  FRIENDSHIP_REMOVED = 'friendship_removed',
   DAILY_NOTIFICATIONS_SENT = 'daily_notifications_sent',
   DAILY_NOTIFICATION_SENT = 'daily_notification_sent',
   SUMMARY_CREATED = 'summary_created',
