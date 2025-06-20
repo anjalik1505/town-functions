@@ -309,3 +309,12 @@ export const locationSchema = z.object({
   //   },
   // ),
 });
+
+export const shareUpdateSchema = z
+  .object({
+    friend_ids: z.array(z.string()).optional(),
+    group_ids: z.array(z.string()).optional(),
+  })
+  .refine((data) => (data.friend_ids && data.friend_ids.length > 0) || (data.group_ids && data.group_ids.length > 0), {
+    message: 'At least one friend ID or group ID is required',
+  });
