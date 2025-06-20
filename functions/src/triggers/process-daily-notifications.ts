@@ -6,6 +6,7 @@ import {
   DaysOfWeek,
   DeviceFields,
   NotificationFields,
+  NotificationTypes,
   NudgingFields,
   ProfileFields,
   QueryOperators,
@@ -97,7 +98,7 @@ const processUserNotification = async (
     });
 
     await sendNotification(deviceId, result.title, result.message, {
-      type: 'daily',
+      type: NotificationTypes.DAILY,
     });
 
     return {

@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields } from '../models/constants.js';
+import { Collections, DeviceFields, FriendshipFields, NotificationTypes } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -135,7 +135,7 @@ export const onFriendshipCreated = async (
 
         // Send the notification
         await sendNotification(deviceId, 'New Friend!', message, {
-          type: 'friendship',
+          type: NotificationTypes.FRIENDSHIP,
           friendship_id: event.data.id,
         });
 

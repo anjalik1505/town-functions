@@ -1,14 +1,14 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, JoinRequestFields, Status } from '../models/constants.js';
+import { Collections, DeviceFields, JoinRequestFields, NotificationTypes, Status } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
+import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 
+import { ParamsOf } from 'firebase-functions';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ParamsOf } from 'firebase-functions';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -80,7 +80,13 @@ const sendJoinRequestUpdateNotification = async (
     const notificationMessage = `${receiverName} rejected your request to join!`;
 
     await sendNotification(deviceId, 'New Rejection', notificationMessage, {
-      type: 'join_request_rejected',
+      type: NotificationTypes.JOIN_REQUEST_REJECTED,
+      request_id: requestId,
+    });
+
+    // Send background notification
+    await sendBackgroundNotification(deviceId, {
+      type: NotificationTypes.JOIN_REQUEST_REJECTED_BACKGROUND,
       request_id: requestId,
     });
 
