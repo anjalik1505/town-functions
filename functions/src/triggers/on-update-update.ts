@@ -1,10 +1,15 @@
-import { DocumentData, getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields, GroupFields, UpdateFields } from '../models/constants.js';
+import { Collections, GroupFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
-import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import {
+  getFriendDoc,
+  migrateFriendDocsForUser,
+  upsertFriendDoc,
+  type FriendDocUpdate,
+} from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
@@ -85,21 +90,22 @@ const processNewlyAddedFriendsAndGroups = async (
     }
   }
 
-  // Update friendship documents with emoji for newly added direct friends
+  // Ensure creator's friend docs are migrated
+  await migrateFriendDocsForUser(creatorId);
+  // Update friend documents with emoji for newly added direct friends
   if (emoji && newFriendIds.length > 0) {
     const friendshipUpdateTasks = newFriendIds.map(async (friendId) => {
-      const { ref: friendshipRef, doc: friendshipDoc } = await getFriendshipRefAndDoc(creatorId, friendId);
-      if (friendshipDoc.exists) {
-        const friendshipData = friendshipDoc.data();
-        if (friendshipData) {
-          const emojiUpdate: DocumentData = {
-            [friendshipData[FriendshipFields.SENDER_ID] === creatorId
-              ? FriendshipFields.SENDER_LAST_UPDATE_EMOJI
-              : FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]: emoji,
-          };
-          batch.update(friendshipRef, emojiUpdate);
-        }
+      // Check if they are friends using the new system
+      const friendDocResult = await getFriendDoc(creatorId, friendId);
+
+      if (friendDocResult) {
+        const friendDocUpdate: FriendDocUpdate = {
+          last_update_emoji: emoji,
+          last_update_at: createdAt,
+        };
+        upsertFriendDoc(db, friendId, creatorId, friendDocUpdate, batch);
       }
+      // If not friends, just skip - no error needed
     });
     tasks.push(...friendshipUpdateTasks);
   }

@@ -243,9 +243,6 @@ const processAllSummaries = async (
       const friendDocResult = await getFriendDoc(creatorId, friendId);
 
       if (friendDocResult) {
-        // Ensure friend's friend subcollection exists and update their doc
-        await migrateFriendDocsForUser(friendId);
-
         const friendDocUpdate: FriendDocUpdate = {
           last_update_emoji: emoji,
           last_update_at: updateData[UpdateFields.CREATED_AT] as Timestamp,

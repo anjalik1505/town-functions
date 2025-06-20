@@ -1,9 +1,9 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, FriendshipRemovalEventParams } from '../models/analytics-events.js';
-import { Collections, FriendshipFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { NotFoundError } from '../utils/errors.js';
-import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
+import { getFriendDoc, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 import path from 'path';
@@ -16,10 +16,11 @@ const logger = getLogger(path.basename(__filename));
  * Removes a friendship between the current user and the specified friend.
  *
  * This function:
- * 1. Finds the friendship document between the two users
+ * 1. Ensures migration to the new friend document system
  * 2. Gets the friend count before deletion for analytics
- * 3. Deletes the friendship document
- * 4. Returns success response with analytics tracking
+ * 3. Checks if friendship exists using the new system
+ * 4. Deletes friend documents from both users' subcollections
+ * 5. Returns success response with analytics tracking
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -39,23 +40,36 @@ export const removeFriend = async (req: Request): Promise<ApiResponse<null>> => 
   const db = getFirestore();
 
   // Get friend count before deletion for analytics
-  const friendshipsQuery = db
-    .collection(Collections.FRIENDSHIPS)
-    .where(FriendshipFields.MEMBERS, 'array-contains', currentUserId);
-  const friendshipsSnapshot = await friendshipsQuery.get();
-  const friendCountBefore = friendshipsSnapshot.size;
+  const { friendCount: friendCountBefore } = await hasReachedCombinedLimit(currentUserId);
 
-  // Find the friendship document
-  const { ref: friendshipRef, doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, friendUserId);
+  // Check if friendship exists using the new friend document system
+  const friendDocResult = await getFriendDoc(currentUserId, friendUserId);
 
-  // Check if friendship exists
-  if (!friendshipDoc.exists) {
+  if (!friendDocResult) {
     logger.warn(`Friendship between ${currentUserId} and ${friendUserId} not found`);
     throw new NotFoundError('Friendship not found');
   }
 
-  // Delete the friendship document
-  await friendshipRef.delete();
+  // Delete friend documents from both users' subcollections
+  const batch = db.batch();
+
+  // Delete current user's friend document about the friend
+  const currentUserFriendRef = db
+    .collection(Collections.PROFILES)
+    .doc(currentUserId)
+    .collection(Collections.FRIENDS)
+    .doc(friendUserId);
+  batch.delete(currentUserFriendRef);
+
+  // Delete friend's friend document about the current user
+  const friendUserFriendRef = db
+    .collection(Collections.PROFILES)
+    .doc(friendUserId)
+    .collection(Collections.FRIENDS)
+    .doc(currentUserId);
+  batch.delete(friendUserFriendRef);
+
+  await batch.commit();
 
   logger.info(`Removed friendship between ${currentUserId} and ${friendUserId}`);
 
