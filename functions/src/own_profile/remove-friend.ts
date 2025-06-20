@@ -1,5 +1,7 @@
 import { Request } from 'express';
-import { ApiResponse, EventName } from '../models/analytics-events.js';
+import { getFirestore } from 'firebase-admin/firestore';
+import { ApiResponse, EventName, FriendshipRemovalEventParams } from '../models/analytics-events.js';
+import { Collections, FriendshipFields } from '../models/constants.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getFriendshipRefAndDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -15,8 +17,9 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Finds the friendship document between the two users
- * 2. Deletes the friendship document
- * 3. Returns success response
+ * 2. Gets the friend count before deletion for analytics
+ * 3. Deletes the friendship document
+ * 4. Returns success response with analytics tracking
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -33,6 +36,15 @@ export const removeFriend = async (req: Request): Promise<ApiResponse<null>> => 
 
   logger.info(`User ${currentUserId} removing friend ${friendUserId}`);
 
+  const db = getFirestore();
+
+  // Get friend count before deletion for analytics
+  const friendshipsQuery = db
+    .collection(Collections.FRIENDSHIPS)
+    .where(FriendshipFields.MEMBERS, 'array-contains', currentUserId);
+  const friendshipsSnapshot = await friendshipsQuery.get();
+  const friendCountBefore = friendshipsSnapshot.size;
+
   // Find the friendship document
   const { ref: friendshipRef, doc: friendshipDoc } = await getFriendshipRefAndDoc(currentUserId, friendUserId);
 
@@ -47,13 +59,22 @@ export const removeFriend = async (req: Request): Promise<ApiResponse<null>> => 
 
   logger.info(`Removed friendship between ${currentUserId} and ${friendUserId}`);
 
+  // Friend count after deletion
+  const friendCountAfter = friendCountBefore - 1;
+
+  // Create analytics event
+  const event: FriendshipRemovalEventParams = {
+    friend_count_before: friendCountBefore,
+    friend_count_after: friendCountAfter,
+  };
+
   return {
     data: null,
     status: 204,
     analytics: {
       event: EventName.FRIENDSHIP_REMOVED,
       userId: currentUserId,
-      params: {},
+      params: event,
     },
   };
 };

@@ -277,6 +277,12 @@ export interface ShareUpdateEventParams extends BaseEventParams {
   total_groups_count: number;
 }
 
+// Friendship removal event parameters
+export interface FriendshipRemovalEventParams extends BaseEventParams {
+  friend_count_before: number;
+  friend_count_after: number;
+}
+
 // Response Types
 export interface ErrorResponse {
   code: number;
