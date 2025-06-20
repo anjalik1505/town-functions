@@ -1,11 +1,19 @@
 import { Request } from 'express';
 import { ApiResponse, EventName, UpdateViewEventWithCommentsParams } from '../models/analytics-events.js';
+import { UpdateFields } from '../models/constants.js';
 import { PaginationPayload, UpdateWithCommentsResponse } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { fetchUsersProfiles } from '../utils/profile-utils.js';
 import { fetchUpdateReactions } from '../utils/reaction-utils.js';
-import { fetchUpdateComments, formatEnrichedUpdate, getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
+import {
+  fetchFriendProfiles,
+  fetchGroupProfiles,
+  fetchUpdateComments,
+  formatEnrichedUpdate,
+  getUpdateDoc,
+  hasUpdateAccess,
+} from '../utils/update-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -63,6 +71,14 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
   const creatorProfiles = await fetchUsersProfiles([creatorId]);
   const creatorProfile = creatorProfiles.get(creatorId);
 
+  // Fetch shared_with profiles
+  const friendIds = updateResult.data[UpdateFields.FRIEND_IDS] || [];
+  const groupIds = updateResult.data[UpdateFields.GROUP_IDS] || [];
+  const [sharedWithFriends, sharedWithGroups] = await Promise.all([
+    fetchFriendProfiles(friendIds),
+    fetchGroupProfiles(groupIds),
+  ]);
+
   // Create the enriched update
   const enrichedUpdate = formatEnrichedUpdate(
     updateId,
@@ -70,6 +86,8 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
     creatorId,
     reactions,
     creatorProfile || null,
+    sharedWithFriends,
+    sharedWithGroups,
   );
 
   // Fetch and process the first page of comments

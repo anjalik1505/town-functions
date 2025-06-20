@@ -90,7 +90,7 @@ export const getUpdates = async (req: Request): Promise<ApiResponse<UpdatesRespo
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create updates
-  const updates = processFeedItems(feedDocs, updateMap, updateReactionsMap, currentUserId);
+  const updates = await processFeedItems(feedDocs, updateMap, updateReactionsMap, currentUserId);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);

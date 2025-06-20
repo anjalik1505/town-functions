@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, UserNudgeEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NudgeFields } from '../models/constants.js';
+import { Collections, DeviceFields, NotificationTypes, NudgeFields } from '../models/constants.js';
 import { BadRequestError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { areFriends } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -98,7 +98,7 @@ export const nudgeUser = async (req: Request): Promise<ApiResponse<{ message: st
           'You’ve been on someone’s mind',
           `${currentUserName} is checking in and curious about how you're doing!`,
           {
-            type: 'nudge',
+            type: NotificationTypes.NUDGE,
             sender_id: currentUserId,
           },
         );

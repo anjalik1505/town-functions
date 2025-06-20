@@ -1,6 +1,13 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import { Collections, CommentFields, FeedFields, QueryOperators, UpdateFields } from '../models/constants.js';
-import { Comment, EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
+import {
+  Collections,
+  CommentFields,
+  FeedFields,
+  GroupFields,
+  QueryOperators,
+  UpdateFields,
+} from '../models/constants.js';
+import { BaseGroup, BaseUser, Comment, EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
 import { processEnrichedComments } from './comment-utils.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
 import { areFriends } from './friendship-utils.js';
@@ -22,6 +29,8 @@ const logger = getLogger(path.basename(__filename));
  * @param updateData The update document data
  * @param createdBy The ID of the user who created the update
  * @param reactions Optional reactions for the update
+ * @param sharedWithFriends Optional array of user profiles the update was shared with
+ * @param sharedWithGroups Optional array of group profiles the update was shared with
  * @returns A formatted Update object
  */
 export const formatUpdate = (
@@ -29,6 +38,8 @@ export const formatUpdate = (
   updateData: FirebaseFirestore.DocumentData,
   createdBy: string,
   reactions: ReactionGroup[] = [],
+  sharedWithFriends: BaseUser[] = [],
+  sharedWithGroups: BaseGroup[] = [],
 ): Update => {
   return {
     update_id: updateId,
@@ -45,6 +56,8 @@ export const formatUpdate = (
     reactions: reactions,
     all_village: updateData[UpdateFields.ALL_VILLAGE] || false,
     images: updateData[UpdateFields.IMAGE_PATHS] || [],
+    shared_with_friends: sharedWithFriends,
+    shared_with_groups: sharedWithGroups,
   };
 };
 
@@ -55,6 +68,8 @@ export const formatUpdate = (
  * @param createdBy The ID of the user who created the update
  * @param reactions Optional reactions for the update
  * @param profile Optional profile data for the creator
+ * @param sharedWithFriends Optional array of user profiles the update was shared with
+ * @param sharedWithGroups Optional array of group profiles the update was shared with
  * @returns A formatted EnrichedUpdate object
  */
 export const formatEnrichedUpdate = (
@@ -63,8 +78,10 @@ export const formatEnrichedUpdate = (
   createdBy: string,
   reactions: ReactionGroup[] = [],
   profile: { username: string; name: string; avatar: string } | null = null,
+  sharedWithFriends: BaseUser[] = [],
+  sharedWithGroups: BaseGroup[] = [],
 ): EnrichedUpdate => {
-  const update = formatUpdate(updateId, updateData, createdBy, reactions);
+  const update = formatUpdate(updateId, updateData, createdBy, reactions, sharedWithFriends, sharedWithGroups);
 
   // Create a base object with the update properties
   return {
@@ -76,21 +93,21 @@ export const formatEnrichedUpdate = (
 };
 
 /**
- * Process feed items and create update objects
+ * Process feed items and create update objects with shared_with data
  * @param feedDocs Array of feed document snapshots
  * @param updateMap Map of update IDs to update data
  * @param reactionsMap Map of update IDs to reactions
  * @param currentUserId The ID of the current user
  * @returns Array of formatted Update objects
  */
-export const processFeedItems = (
+export const processFeedItems = async (
   feedDocs: QueryDocumentSnapshot[],
   updateMap: Map<string, FirebaseFirestore.DocumentData>,
   reactionsMap: Map<string, ReactionGroup[]>,
   currentUserId: string,
-): Update[] => {
-  return feedDocs
-    .map((feedItem) => {
+): Promise<Update[]> => {
+  const updates = await Promise.all(
+    feedDocs.map(async (feedItem) => {
       const feedData = feedItem.data();
       const updateId = feedData[FeedFields.UPDATE_ID];
       const updateData = updateMap.get(updateId);
@@ -100,27 +117,44 @@ export const processFeedItems = (
         return null;
       }
 
-      return formatUpdate(updateId, updateData, currentUserId, reactionsMap.get(updateId) || []);
-    })
-    .filter((update): update is Update => update !== null);
+      // Fetch shared_with profiles and groups separately
+      const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
+      const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
+      const [sharedWithFriends, sharedWithGroups] = await Promise.all([
+        fetchFriendProfiles(friendIds),
+        fetchGroupProfiles(groupIds),
+      ]);
+
+      return formatUpdate(
+        updateId,
+        updateData,
+        currentUserId,
+        reactionsMap.get(updateId) || [],
+        sharedWithFriends,
+        sharedWithGroups,
+      );
+    }),
+  );
+
+  return updates.filter((update): update is Update => update !== null);
 };
 
 /**
- * Process feed items and create enriched update objects with user profile information
+ * Process feed items and create enriched update objects with user profile information and shared_with data
  * @param feedDocs Array of feed document snapshots
  * @param updateMap Map of update IDs to update data
  * @param reactionsMap Map of update IDs to reactions
  * @param profiles Map of user IDs to profile data
  * @returns Array of formatted EnrichedUpdate objects
  */
-export const processEnrichedFeedItems = (
+export const processEnrichedFeedItems = async (
   feedDocs: QueryDocumentSnapshot[],
   updateMap: Map<string, FirebaseFirestore.DocumentData>,
   reactionsMap: Map<string, ReactionGroup[]>,
   profiles: Map<string, { username: string; name: string; avatar: string }>,
-): EnrichedUpdate[] => {
-  return feedDocs
-    .map((feedItem) => {
+): Promise<EnrichedUpdate[]> => {
+  const updates = await Promise.all(
+    feedDocs.map(async (feedItem) => {
       const feedData = feedItem.data();
       const updateId = feedData[FeedFields.UPDATE_ID];
       const updateData = updateMap.get(updateId);
@@ -131,15 +165,27 @@ export const processEnrichedFeedItems = (
         return null;
       }
 
+      // Fetch shared_with profiles and groups separately
+      const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
+      const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
+      const [sharedWithFriends, sharedWithGroups] = await Promise.all([
+        fetchFriendProfiles(friendIds),
+        fetchGroupProfiles(groupIds),
+      ]);
+
       return formatEnrichedUpdate(
         updateId,
         updateData,
         createdBy,
         reactionsMap.get(updateId) || [],
         profiles.get(createdBy) || null,
+        sharedWithFriends,
+        sharedWithGroups,
       );
-    })
-    .filter((update): update is EnrichedUpdate => update !== null);
+    }),
+  );
+
+  return updates.filter((update): update is EnrichedUpdate => update !== null);
 };
 
 /**
@@ -314,4 +360,66 @@ export const createFeedItem = (
 
   batch.set(feedItemRef, feedItemData);
   logger.debug(`Added feed item for user ${userId} to batch`);
+};
+
+/**
+ * Fetch profiles for friend IDs
+ * @param friendIds Array of friend IDs
+ * @returns Array of BaseUser profiles
+ */
+export const fetchFriendProfiles = async (friendIds: string[]): Promise<BaseUser[]> => {
+  if (friendIds.length === 0) {
+    return [];
+  }
+
+  // Fetch profiles for all friends
+  const profiles = await fetchUsersProfiles(friendIds);
+
+  // Convert to BaseUser array, filtering out any missing profiles
+  return friendIds
+    .map((userId) => {
+      const profile = profiles.get(userId);
+      if (profile) {
+        return {
+          user_id: userId,
+          username: profile.username,
+          name: profile.name,
+          avatar: profile.avatar,
+        };
+      }
+      return null;
+    })
+    .filter((profile): profile is BaseUser => profile !== null);
+};
+
+/**
+ * Fetch basic group information for group IDs
+ * @param groupIds Array of group IDs
+ * @returns Array of BaseGroup information
+ */
+export const fetchGroupProfiles = async (groupIds: string[]): Promise<BaseGroup[]> => {
+  if (groupIds.length === 0) {
+    return [];
+  }
+
+  const db = getFirestore();
+  const groupDocs = await Promise.all(
+    groupIds.map((groupId: string) => db.collection(Collections.GROUPS).doc(groupId).get()),
+  );
+
+  return groupDocs
+    .map((groupDoc) => {
+      if (groupDoc.exists) {
+        const groupData = groupDoc.data();
+        if (groupData) {
+          return {
+            group_id: groupDoc.id,
+            name: groupData[GroupFields.NAME] || '',
+            icon: groupData[GroupFields.ICON] || '',
+          };
+        }
+      }
+      return null;
+    })
+    .filter((group): group is BaseGroup => group !== null);
 };

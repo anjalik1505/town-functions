@@ -6,7 +6,7 @@ import {
   InvitationNotificationEventParams,
   InvitationNotificationsEventParams,
 } from '../models/analytics-events.js';
-import { Collections, DeviceFields, ProfileFields, SYSTEM_USER } from '../models/constants.js';
+import { Collections, DeviceFields, NotificationTypes, ProfileFields, SYSTEM_USER } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -104,7 +104,7 @@ const processUserNoFriendsNotification = async (
   // Send notification
   try {
     await sendNotification(deviceId, NOTIFICATION_TITLE, NOTIFICATION_BODY, {
-      type: 'no_friends_reminder',
+      type: NotificationTypes.NO_FRIENDS_REMINDER,
     });
 
     logger.info(`Successfully sent no-friends notification to user ${userId}.`);

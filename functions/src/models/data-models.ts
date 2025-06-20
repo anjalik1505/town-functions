@@ -14,6 +14,7 @@ import {
   locationSchema,
   ownProfileSchema,
   paginationSchema,
+  shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
   timezoneSchema,
@@ -40,6 +41,12 @@ export interface BaseUser {
   username: string;
   name: string;
   avatar: string;
+}
+
+export interface BaseGroup {
+  group_id: string;
+  name: string;
+  icon: string;
 }
 
 export interface ProfileResponse extends BaseUser {
@@ -91,6 +98,8 @@ export interface Update {
   reactions: ReactionGroup[];
   all_village: boolean;
   images: string[];
+  shared_with_friends: BaseUser[];
+  shared_with_groups: BaseGroup[];
 }
 
 export interface EnrichedUpdate extends Update {
@@ -181,10 +190,7 @@ export interface Timezone {
   updated_at: string;
 }
 
-export interface Group {
-  group_id: string;
-  name: string;
-  icon: string;
+export interface Group extends BaseGroup {
   created_at: string;
   members: string[];
   member_profiles: Record<string, string>[];
@@ -302,3 +308,4 @@ export type AnalyzeSentimentPayload = z.infer<typeof analyzeSentimentSchema>;
 export type TranscribeAudioPayload = z.infer<typeof transcribeAudioSchema>;
 export type TimezonePayload = z.infer<typeof timezoneSchema>;
 export type LocationPayload = z.infer<typeof locationSchema>;
+export type ShareUpdatePayload = z.infer<typeof shareUpdateSchema>;
