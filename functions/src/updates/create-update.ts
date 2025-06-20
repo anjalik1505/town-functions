@@ -5,7 +5,7 @@ import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-e
 import { Collections, FriendshipFields, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { createFeedItem, formatUpdate } from '../utils/update-utils.js';
+import { createFeedItem, fetchFriendProfiles, fetchGroupProfiles, formatUpdate } from '../utils/update-utils.js';
 import {
   createFriendVisibilityIdentifier,
   createFriendVisibilityIdentifiers,
@@ -239,7 +239,11 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   logger.info(`Successfully created update with ID: ${updateId} and feed items for all users`);
 
   // Return the created update (without the internal visible_to field)
-  const response = formatUpdate(updateId, updateData, currentUserId, []);
+  const [sharedWithFriends, sharedWithGroups] = await Promise.all([
+    fetchFriendProfiles(friendIds),
+    fetchGroupProfiles(groupIds),
+  ]);
+  const response = formatUpdate(updateId, updateData, currentUserId, [], sharedWithFriends, sharedWithGroups);
 
   const event: UpdateEventParams = {
     content_length: content.length,
