@@ -111,7 +111,7 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
   const reactionsMap = new Map<string, ReactionGroup[]>();
 
   // Use util to enrich updates
-  const enrichedUpdates = processEnrichedFeedItems(updateDocs, updateMap, reactionsMap, profilesMap);
+  const enrichedUpdates = await processEnrichedFeedItems(updateDocs, updateMap, reactionsMap, profilesMap);
 
   logger.info('Query executed successfully');
 

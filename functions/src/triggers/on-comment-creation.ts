@@ -4,7 +4,7 @@ import { EventName, NotificationEventParams } from '../models/analytics-events.j
 import { Collections, CommentFields, DeviceFields, NotificationTypes, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
+import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -101,6 +101,12 @@ const sendCommentNotification = async (
 
       await sendNotification(deviceId, 'New Comment', message, {
         type: NotificationTypes.COMMENT,
+        update_id: updateId,
+      });
+
+      // Send background notification
+      await sendBackgroundNotification(deviceId, {
+        type: NotificationTypes.COMMENT_BACKGROUND,
         update_id: updateId,
       });
 

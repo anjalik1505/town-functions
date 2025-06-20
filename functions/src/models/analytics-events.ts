@@ -11,6 +11,7 @@ export enum EventName {
   PROFILE_VIEWED = 'profile_viewed',
   FRIEND_PROFILE_VIEWED = 'friend_profile_viewed',
   UPDATE_CREATED = 'update_created',
+  UPDATE_SHARED = 'update_shared',
   UPDATES_VIEWED = 'updates_viewed',
   FRIEND_UPDATES_VIEWED = 'friend_updates_viewed',
   FEED_VIEWED = 'feed_viewed',
@@ -33,6 +34,7 @@ export enum EventName {
   FEEDBACK_CREATED = 'feedback_created',
   NOTIFICATION_SENT = 'notification_sent',
   FRIENDSHIP_ACCEPTED = 'friendship_accepted',
+  FRIENDSHIP_REMOVED = 'friendship_removed',
   DAILY_NOTIFICATIONS_SENT = 'daily_notifications_sent',
   DAILY_NOTIFICATION_SENT = 'daily_notification_sent',
   SUMMARY_CREATED = 'summary_created',
@@ -265,6 +267,20 @@ export interface DeleteProfileEventParams extends BaseEventParams {
   group_count: number;
   device_count: number;
   invitation_count: number;
+}
+
+// Share update event parameters
+export interface ShareUpdateEventParams extends BaseEventParams {
+  new_friends_count: number;
+  total_friends_count: number;
+  new_groups_count: number;
+  total_groups_count: number;
+}
+
+// Friendship removal event parameters
+export interface FriendshipRemovalEventParams extends BaseEventParams {
+  friend_count_before: number;
+  friend_count_after: number;
 }
 
 // Response Types

@@ -230,6 +230,7 @@ export const NotificationTypes = {
   JOIN_REQUEST: 'join_request',
   JOIN_REQUEST_BACKGROUND: 'join_request_background',
   REACTION: 'reaction',
+  REACTION_BACKGROUND: 'reaction_background',
   DAILY: 'daily',
   NO_FRIENDS_REMINDER: 'no_friends_reminder',
   UPDATE: 'update',
@@ -238,6 +239,7 @@ export const NotificationTypes = {
   JOIN_REQUEST_REJECTED_BACKGROUND: 'join_request_rejected_background',
   FRIENDSHIP: 'friendship',
   COMMENT: 'comment',
+  COMMENT_BACKGROUND: 'comment_background',
   DEFAULT: 'default',
   BACKGROUND: 'background',
 } as const;

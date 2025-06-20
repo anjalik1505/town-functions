@@ -202,6 +202,59 @@ def run_invitation_demo():
         user1_has_user2_after and user2_has_user1_after
     ), "User 1 and User 2 are not friends after invitation reset as expected"
 
+    # ============ FRIENDSHIP REMOVAL TESTS ============
+
+    # Step 18: User 1 removes User 2 as a friend
+    logger.info("Step 18: User 1 removes User 2 as a friend")
+    user2_id = api.user_ids[users[1]["email"]]
+    api.remove_friend(users[0]["email"], user2_id)
+    logger.info(f"User 1 successfully removed User 2 (ID: {user2_id}) as a friend")
+
+    # Step 19: Both users check their friends list to confirm they are no longer friends
+    logger.info(
+        "Step 19: Both users check their friends list to confirm they are no longer friends"
+    )
+    friends_user1_after_removal = api.get_friends(users[0]["email"])
+    logger.info(
+        f"First user's friends after removal: {json.dumps(friends_user1_after_removal, indent=2)}"
+    )
+
+    friends_user2_after_removal = api.get_friends(users[1]["email"])
+    logger.info(
+        f"Second user's friends after removal: {json.dumps(friends_user2_after_removal, indent=2)}"
+    )
+
+    # Verify that users are no longer friends
+    user1_has_user2_after_removal = any(
+        friend["name"] == users[1]["name"]
+        for friend in friends_user1_after_removal["friends"]
+    )
+    user2_has_user1_after_removal = any(
+        friend["name"] == users[0]["name"]
+        for friend in friends_user2_after_removal["friends"]
+    )
+
+    assert (
+        not user1_has_user2_after_removal
+    ), "User 1 still has User 2 as a friend after removal"
+    assert (
+        not user2_has_user1_after_removal
+    ), "User 2 still has User 1 as a friend after removal"
+
+    logger.info("✓ Friendship removal test passed: Users are no longer friends")
+
+    # Step 20: Test removing a non-existent friend (should return 404)
+    logger.info("Step 20: Test removing a non-existent friend (should return 404)")
+    fake_user_id = "non_existent_user_id"
+    api.make_request_expecting_error(
+        "delete",
+        f"{API_BASE_URL}/me/friends/{fake_user_id}",
+        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
+        expected_status_code=404,
+        expected_error_message="Friendship not found",
+    )
+    logger.info("✓ Remove non-existent friend test passed")
+
     # ============ ERROR HANDLING TESTS ============
 
     # Test invalid join request (non-existent invitation)

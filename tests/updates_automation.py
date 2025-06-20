@@ -122,6 +122,27 @@ def run_updates_tests():
         assert isinstance(created_update["images"], list), "Images should be a list"
         logger.info("✓ all_village field is present and set to True in the response")
 
+        # Verify shared_with fields are empty arrays for all_village updates with no specific sharing
+        assert (
+            "shared_with_friends" in created_update
+        ), "Update missing shared_with_friends field"
+        assert (
+            "shared_with_groups" in created_update
+        ), "Update missing shared_with_groups field"
+        assert (
+            len(created_update["shared_with_friends"]) == 0
+        ), "all_village update should have empty shared_with_friends"
+        assert (
+            len(created_update["shared_with_groups"]) == 0
+        ), "all_village update should have empty shared_with_groups"
+        logger.info("✓ all_village update has empty shared_with arrays")
+
+    # Wait for create update triggers to process user 1's updates
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for user 1's create update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
+
     # Step 2: Get user's own updates
     logger.info("Step 2: Getting user's own updates")
     my_updates = api.get_my_updates(users[0]["email"])
@@ -146,6 +167,20 @@ def run_updates_tests():
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
         assert isinstance(update["images"], list), "Images should be a list"
     logger.info("✓ Updates contain valid score, emoji, and images fields")
+
+    # Verify shared_with_friends and shared_with_groups fields are present
+    for update in my_updates["updates"]:
+        assert (
+            "shared_with_friends" in update
+        ), "Update missing shared_with_friends field"
+        assert "shared_with_groups" in update, "Update missing shared_with_groups field"
+        assert isinstance(
+            update["shared_with_friends"], list
+        ), "shared_with_friends should be a list"
+        assert isinstance(
+            update["shared_with_groups"], list
+        ), "shared_with_groups should be a list"
+    logger.info("✓ Updates contain shared_with_friends and shared_with_groups fields")
 
     # Step 3: Create updates for the second user
     logger.info("Step 3: Creating updates for the second user")
@@ -177,6 +212,27 @@ def run_updates_tests():
         assert created_update["all_village"] is True, "all_village should be True"
         assert isinstance(created_update["images"], list), "Images should be a list"
         logger.info("✓ all_village and images fields are present in the response")
+
+        # Verify shared_with fields are empty arrays
+        assert (
+            "shared_with_friends" in created_update
+        ), "Update missing shared_with_friends field"
+        assert (
+            "shared_with_groups" in created_update
+        ), "Update missing shared_with_groups field"
+        assert (
+            len(created_update["shared_with_friends"]) == 0
+        ), "all_village update should have empty shared_with_friends"
+        assert (
+            len(created_update["shared_with_groups"]) == 0
+        ), "all_village update should have empty shared_with_groups"
+        logger.info("✓ User 2 all_village update has empty shared_with arrays")
+
+    # Wait for create update triggers to process user 2's updates
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for user 2's create update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
 
     # Step 4: Try to view another user's updates before becoming friends
     logger.info(
@@ -269,6 +325,40 @@ def run_updates_tests():
             f"✓ Update contains final image path: {created_update['images'][0]}"
         )
 
+        # Validate shared_with_friends and shared_with_groups fields
+        assert (
+            "shared_with_friends" in created_update
+        ), "Update missing shared_with_friends field"
+        assert (
+            "shared_with_groups" in created_update
+        ), "Update missing shared_with_groups field"
+        assert (
+            len(created_update["shared_with_friends"]) == 1
+        ), "Should have exactly one shared friend"
+        assert (
+            len(created_update["shared_with_groups"]) == 0
+        ), "Should have no shared groups"
+        assert (
+            created_update["shared_with_friends"][0]["user_id"]
+            == api.user_ids[users[0]["email"]]
+        ), "Shared friend should be user 1"
+        assert (
+            "username" in created_update["shared_with_friends"][0]
+        ), "Shared friend missing username"
+        assert (
+            "name" in created_update["shared_with_friends"][0]
+        ), "Shared friend missing name"
+        assert (
+            "avatar" in created_update["shared_with_friends"][0]
+        ), "Shared friend missing avatar"
+        logger.info("✓ Created update contains correct shared_with_friends information")
+
+    # Wait for create update triggers to process shared updates
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for shared update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
+
     # Step 7: Get user updates after becoming friends
     logger.info("Step 7: Getting user updates after becoming friends")
     user2_updates = api.get_user_updates(
@@ -292,6 +382,22 @@ def run_updates_tests():
                 "updates/"
             ), "Image should be in updates path"
             logger.info(f"✓ Retrieved update contains image: {update['images'][0]}")
+
+    # Verify shared_with fields are present in retrieved updates
+    for update in user2_updates["updates"]:
+        assert (
+            "shared_with_friends" in update
+        ), "Retrieved update missing shared_with_friends field"
+        assert (
+            "shared_with_groups" in update
+        ), "Retrieved update missing shared_with_groups field"
+        assert isinstance(
+            update["shared_with_friends"], list
+        ), "shared_with_friends should be a list"
+        assert isinstance(
+            update["shared_with_groups"], list
+        ), "shared_with_groups should be a list"
+    logger.info("✓ Retrieved user updates contain shared_with fields")
 
     # Step 8: Get my feeds to see updates from friends
     logger.info("Step 8: Getting my feeds to see updates from friends")
@@ -339,6 +445,16 @@ def run_updates_tests():
         assert isinstance(
             update["all_village"], bool
         ), f"all_village should be a boolean, got {type(update['all_village'])}"
+        assert (
+            "shared_with_friends" in update
+        ), "Update missing shared_with_friends field"
+        assert "shared_with_groups" in update, "Update missing shared_with_groups field"
+        assert isinstance(
+            update["shared_with_friends"], list
+        ), "shared_with_friends should be a list"
+        assert isinstance(
+            update["shared_with_groups"], list
+        ), "shared_with_groups should be a list"
     logger.info("✓ User's own updates contain correct enriched profile data")
 
     # Verify that friend's updates appear in the feed
@@ -392,6 +508,18 @@ def run_updates_tests():
             ), "Image should be in updates path in feed"
             logger.info(f"✓ Feed update contains image: {update['images'][0]}")
 
+        # Validate shared_with fields
+        assert (
+            "shared_with_friends" in update
+        ), "Update missing shared_with_friends field"
+        assert "shared_with_groups" in update, "Update missing shared_with_groups field"
+        assert isinstance(
+            update["shared_with_friends"], list
+        ), "shared_with_friends should be a list"
+        assert isinstance(
+            update["shared_with_groups"], list
+        ), "shared_with_groups should be a list"
+
     # Find the all_village update in the feed
     all_village_updates = [
         update for update in user2_updates_in_feed if update.get("all_village") is True
@@ -407,6 +535,191 @@ def run_updates_tests():
 
     logger.info(f"✓ User 1's feed contains {len(user1_feeds['updates'])} total updates")
 
+    # Step 8.5: Test sharing existing updates
+    logger.info("Step 8.5: Testing sharing existing updates with the share API")
+
+    # Create a new update for user 1 that is NOT initially shared with user 2
+    sentiment = random.choice(SENTIMENTS)
+    score = random.choice(SCORES)
+    emoji = random.choice(EMOJIS)
+    unshared_update_data = {
+        "content": f"This is an unshared update from user 1 with {sentiment} sentiment - to be shared later",
+        "sentiment": sentiment,
+        "score": score,
+        "emoji": emoji,
+        "friend_ids": [],  # Not shared initially
+        "group_ids": [],  # No groups
+        "all_village": False,  # Only visible to user 1 initially
+    }
+    unshared_update = api.create_update(users[0]["email"], unshared_update_data)
+    logger.info(f"Created unshared update: {json.dumps(unshared_update, indent=2)}")
+
+    # Verify unshared update has empty shared_with arrays
+    assert (
+        "shared_with_friends" in unshared_update
+    ), "Update missing shared_with_friends field"
+    assert (
+        "shared_with_groups" in unshared_update
+    ), "Update missing shared_with_groups field"
+    assert (
+        len(unshared_update["shared_with_friends"]) == 0
+    ), "Unshared update should have empty shared_with_friends"
+    assert (
+        len(unshared_update["shared_with_groups"]) == 0
+    ), "Unshared update should have empty shared_with_groups"
+    logger.info("✓ Unshared update has empty shared_with arrays")
+
+    # Wait for create update triggers to process
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for create update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
+
+    # Verify the update is not visible to user 2 initially
+    user1_updates_before_share = api.get_user_updates(
+        users[1]["email"], api.user_ids[users[0]["email"]]
+    )
+    unshared_update_found = any(
+        update["update_id"] == unshared_update["update_id"]
+        for update in user1_updates_before_share["updates"]
+    )
+    assert (
+        not unshared_update_found
+    ), "Unshared update should not be visible to user 2 initially"
+    logger.info("✓ Confirmed unshared update is not visible to user 2 initially")
+
+    # Now share the update with user 2 using the share API
+    share_result = api.share_update(
+        users[0]["email"],
+        unshared_update["update_id"],
+        friend_ids=[api.user_ids[users[1]["email"]]],
+    )
+    logger.info(f"Share update result: {json.dumps(share_result, indent=2)}")
+
+    # Verify the response contains the complete update with shared_with_friends
+    assert "update_id" in share_result, "Share result missing update_id"
+    assert (
+        "shared_with_friends" in share_result
+    ), "Share result missing shared_with_friends"
+    assert (
+        len(share_result["shared_with_friends"]) == 1
+    ), "Should have exactly one shared friend"
+    assert (
+        share_result["shared_with_friends"][0]["user_id"]
+        == api.user_ids[users[1]["email"]]
+    ), "Shared friend should be user 2"
+    logger.info("✓ Share API returned complete update with shared friend information")
+
+    # Validate shared_with_groups field is also present and empty
+    assert (
+        "shared_with_groups" in share_result
+    ), "Share result missing shared_with_groups"
+    assert len(share_result["shared_with_groups"]) == 0, "Should have no shared groups"
+    assert (
+        "username" in share_result["shared_with_friends"][0]
+    ), "Shared friend missing username"
+    assert (
+        "name" in share_result["shared_with_friends"][0]
+    ), "Shared friend missing name"
+    assert (
+        "avatar" in share_result["shared_with_friends"][0]
+    ), "Shared friend missing avatar"
+    logger.info("✓ Share result contains complete shared friend profile information")
+
+    # Wait for triggers to process the sharing
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for share triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
+
+    # Verify user 2 can now see the shared update in user 1's updates
+    user1_updates_after_share = api.get_user_updates(
+        users[1]["email"], api.user_ids[users[0]["email"]]
+    )
+    shared_update_found = any(
+        update["update_id"] == unshared_update["update_id"]
+        for update in user1_updates_after_share["updates"]
+    )
+    assert shared_update_found, "Shared update should now be visible to user 2"
+    logger.info("✓ Confirmed shared update is now visible to user 2")
+
+    # Find the specific shared update and verify its properties
+    shared_update_in_list = next(
+        update
+        for update in user1_updates_after_share["updates"]
+        if update["update_id"] == unshared_update["update_id"]
+    )
+    assert (
+        "shared_with_friends" in shared_update_in_list
+    ), "Retrieved update missing shared_with_friends"
+    assert (
+        len(shared_update_in_list["shared_with_friends"]) == 1
+    ), "Should show one shared friend"
+    assert (
+        shared_update_in_list["shared_with_friends"][0]["user_id"]
+        == api.user_ids[users[1]["email"]]
+    ), "Shared friend info should match user 2"
+    logger.info(
+        "✓ Retrieved shared update contains correct shared_with_friends information"
+    )
+
+    # Validate shared_with_groups field
+    assert (
+        "shared_with_groups" in shared_update_in_list
+    ), "Retrieved update missing shared_with_groups"
+    assert (
+        len(shared_update_in_list["shared_with_groups"]) == 0
+    ), "Should have no shared groups"
+    assert (
+        "username" in shared_update_in_list["shared_with_friends"][0]
+    ), "Shared friend missing username"
+    assert (
+        "name" in shared_update_in_list["shared_with_friends"][0]
+    ), "Shared friend missing name"
+    assert (
+        "avatar" in shared_update_in_list["shared_with_friends"][0]
+    ), "Shared friend missing avatar"
+    logger.info(
+        "✓ Retrieved shared update contains complete friend profile information"
+    )
+
+    # Verify the shared update appears in user 2's feed
+    user2_feed_after_share = api.get_my_feed(users[1]["email"])
+    shared_update_in_feed = any(
+        update["update_id"] == unshared_update["update_id"]
+        for update in user2_feed_after_share["updates"]
+    )
+    assert shared_update_in_feed, "Shared update should appear in user 2's feed"
+    logger.info("✓ Confirmed shared update appears in user 2's feed")
+
+    # Find the shared update in the feed and verify enriched data
+    shared_update_feed_item = next(
+        update
+        for update in user2_feed_after_share["updates"]
+        if update["update_id"] == unshared_update["update_id"]
+    )
+    assert "username" in shared_update_feed_item, "Feed update missing username"
+    assert "name" in shared_update_feed_item, "Feed update missing name"
+    assert "avatar" in shared_update_feed_item, "Feed update missing avatar"
+    assert (
+        "shared_with_friends" in shared_update_feed_item
+    ), "Feed update missing shared_with_friends"
+    assert (
+        shared_update_feed_item["username"] == users[0]["email"].split("@")[0]
+    ), "Feed update has incorrect username"
+    logger.info("✓ Shared update in feed contains correct enriched profile data")
+
+    # Validate shared_with_groups field in feed
+    assert (
+        "shared_with_groups" in shared_update_feed_item
+    ), "Feed update missing shared_with_groups"
+    assert (
+        len(shared_update_feed_item["shared_with_groups"]) == 0
+    ), "Feed update should have no shared groups"
+    logger.info("✓ Shared update in feed contains correct shared_with fields")
+
+    logger.info("✓ Share update API test completed successfully")
+
     # Step 9: Test pagination for updates
     logger.info("Step 9: Testing pagination for all update endpoints")
 
@@ -415,8 +728,10 @@ def run_updates_tests():
     total_updates = len(all_updates["updates"])
     logger.info(f"User 1 has {total_updates} total updates")
 
-    # Verify we have exactly 3 updates (initial_updates_count)
-    expected_updates = TEST_CONFIG["initial_updates_count"]
+    # Verify we have exactly 4 updates (initial_updates_count + 1 unshared update for share test)
+    expected_updates = (
+        TEST_CONFIG["initial_updates_count"] + 1
+    )  # +1 for the share test update
     assert (
         total_updates == expected_updates
     ), f"Expected {expected_updates} updates, got {total_updates}"
@@ -446,6 +761,15 @@ def run_updates_tests():
             first_page_timestamps, reverse=True
         ), "First page updates are not in descending order by timestamp"
 
+        # Verify shared_with fields are present in first page
+        for update in first_page_updates:
+            assert (
+                "shared_with_friends" in update
+            ), "Paginated update missing shared_with_friends"
+            assert (
+                "shared_with_groups" in update
+            ), "Paginated update missing shared_with_groups"
+
         # Get second page
         second_page = api.get_my_updates(
             users[0]["email"],
@@ -472,6 +796,15 @@ def run_updates_tests():
         assert second_page_timestamps == sorted(
             second_page_timestamps, reverse=True
         ), "Second page updates are not in descending order by timestamp"
+
+        # Verify shared_with fields are present in second page
+        for update in second_page_updates:
+            assert (
+                "shared_with_friends" in update
+            ), "Paginated update missing shared_with_friends"
+            assert (
+                "shared_with_groups" in update
+            ), "Paginated update missing shared_with_groups"
 
         # Verify no duplicates between pages
         first_page_ids = {update["update_id"] for update in first_page_updates}
@@ -505,11 +838,12 @@ def run_updates_tests():
     total_feed_items = len(all_feed["updates"])
     logger.info(f"User 1 has {total_feed_items} total feed items")
 
-    # Verify we have exactly 4 feed items (3 own updates + 1 shared update)
+    # Verify we have exactly 8 feed items (4 user1 + 3 user2 + 1 shared update)
     expected_feed_items = (
         TEST_CONFIG["initial_updates_count"]
-        + TEST_CONFIG["initial_updates_count"]
-        + TEST_CONFIG["shared_updates_count"]
+        + 1  # User 1's updates + share test update
+        + TEST_CONFIG["initial_updates_count"]  # User 2's updates
+        + TEST_CONFIG["shared_updates_count"]  # User 2's shared update
     )
     assert (
         total_feed_items == expected_feed_items
@@ -542,6 +876,15 @@ def run_updates_tests():
             first_page_timestamps, reverse=True
         ), "First page feed updates are not in descending order by timestamp"
 
+        # Verify shared_with fields are present in first page feed
+        for update in first_page_updates:
+            assert (
+                "shared_with_friends" in update
+            ), "Feed update missing shared_with_friends"
+            assert (
+                "shared_with_groups" in update
+            ), "Feed update missing shared_with_groups"
+
         # Get second page
         second_page_feed = api.get_my_feed(
             users[0]["email"],
@@ -557,7 +900,7 @@ def run_updates_tests():
             update["created_at"] for update in second_page_updates
         ]
 
-        # Verify second page has exactly 5 items (7 total - 2 on first page)
+        # Verify second page has exactly 6 items (8 total - 2 on first page)
         expected_second_page_items = (
             expected_feed_items - TEST_CONFIG["pagination_limit"]
         )
@@ -569,6 +912,15 @@ def run_updates_tests():
         assert second_page_timestamps == sorted(
             second_page_timestamps, reverse=True
         ), "Second page feed updates are not in descending order by timestamp"
+
+        # Verify shared_with fields are present in second page feed
+        for update in second_page_updates:
+            assert (
+                "shared_with_friends" in update
+            ), "Feed update missing shared_with_friends"
+            assert (
+                "shared_with_groups" in update
+            ), "Feed update missing shared_with_groups"
 
         # Verify no duplicates between pages
         first_page_ids = {update["update_id"] for update in first_page_updates}
@@ -618,6 +970,15 @@ def run_updates_tests():
             first_page_timestamps, reverse=True
         ), "First page user updates are not in descending order by timestamp"
 
+        # Verify shared_with fields are present in first page user updates
+        for update in first_page_updates:
+            assert (
+                "shared_with_friends" in update
+            ), "User update missing shared_with_friends"
+            assert (
+                "shared_with_groups" in update
+            ), "User update missing shared_with_groups"
+
         # Get second page
         second_page_user = api.get_user_updates(
             users[0]["email"],
@@ -639,6 +1000,15 @@ def run_updates_tests():
         assert second_page_timestamps == sorted(
             second_page_timestamps, reverse=True
         ), "Second page user updates are not in descending order by timestamp"
+
+        # Verify shared_with fields are present in second page user updates
+        for update in second_page_updates:
+            assert (
+                "shared_with_friends" in update
+            ), "User update missing shared_with_friends"
+            assert (
+                "shared_with_groups" in update
+            ), "User update missing shared_with_groups"
 
         # Verify no duplicates between pages
         first_page_ids = {update["update_id"] for update in first_page_updates}
@@ -725,6 +1095,69 @@ def run_updates_tests():
         expected_status_code=401,
     )
     logger.info("✓ Unauthenticated update creation test passed")
+
+    # Test 4: Try to share an update without any friend_ids or group_ids
+    logger.info("Test 4: Attempting to share an update without friend_ids or group_ids")
+    # Use the first update from user 1
+    test_update_id = user1_updates[0]["update_id"]
+    api.make_request_expecting_error(
+        "put",
+        f"{API_BASE_URL}/updates/{test_update_id}/share",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={},  # Empty payload
+        expected_status_code=400,
+        expected_error_message="validation error",
+    )
+    logger.info("✓ Empty share request test passed")
+
+    # Test 5: Try to share another user's update
+    logger.info("Test 5: Attempting to share another user's update")
+    # User 2 tries to share User 1's update
+    user1_update_id = user1_updates[0]["update_id"]
+    api.make_request_expecting_error(
+        "put",
+        f"{API_BASE_URL}/updates/{user1_update_id}/share",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[1]['email']]}",
+        },
+        json_data={"friend_ids": [api.user_ids[users[0]["email"]]]},
+        expected_status_code=403,
+        expected_error_message="You can only share your own updates",
+    )
+    logger.info("✓ Share other user's update test passed")
+
+    # Test 6: Try to share update with non-existent update_id
+    logger.info("Test 6: Attempting to share non-existent update")
+    fake_update_id = "fake_update_123"
+    api.make_request_expecting_error(
+        "put",
+        f"{API_BASE_URL}/updates/{fake_update_id}/share",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={"friend_ids": [api.user_ids[users[1]["email"]]]},
+        expected_status_code=404,
+        expected_error_message="Update not found",
+    )
+    logger.info("✓ Non-existent update share test passed")
+
+    # Test 7: Try to share update without authentication
+    logger.info("Test 7: Attempting to share update without authentication")
+    api.make_request_expecting_error(
+        "put",
+        f"{API_BASE_URL}/updates/{test_update_id}/share",
+        headers={"Content-Type": "application/json"},
+        json_data={"friend_ids": [api.user_ids[users[1]["email"]]]},
+        expected_status_code=401,
+    )
+    logger.info("✓ Unauthenticated share test passed")
+
+    logger.info("✓ All share update negative tests completed successfully")
 
     # ============ PROFILE CHECKS AFTER UPDATES ============
     logger.info("========== CHECKING PROFILES AFTER UPDATES ==========")

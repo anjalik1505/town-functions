@@ -12,6 +12,7 @@ import { onProfileDeleted } from './triggers/on-profile-deletion.js';
 import { onReactionCreated } from './triggers/on-reaction-creation.js';
 import { onUpdateCreated } from './triggers/on-update-creation.js';
 import { onUpdateNotification } from './triggers/on-update-notification.js';
+import { onUpdateUpdated } from './triggers/on-update-update.js';
 import { processDailyNotifications } from './triggers/process-daily-notifications.js';
 import { processInvitationNotifications } from './triggers/process-invitation-notifications.js';
 
@@ -121,4 +122,13 @@ export const process_join_request_update_notification = onDocumentUpdated(
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onJoinRequestUpdated(event),
+);
+
+// Export the Firestore trigger function for update sharing
+export const process_update_share = onDocumentUpdated(
+  {
+    document: `${Collections.UPDATES}/{id}`,
+    secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onUpdateUpdated(event),
 );

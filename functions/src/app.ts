@@ -12,7 +12,6 @@ import { getJoinRequests } from './invitations/get-join-requests.js';
 import { rejectJoinRequest } from './invitations/reject-join-request.js';
 import { requestToJoin } from './invitations/request-to-join.js';
 import { resetInvitation } from './invitations/reset-invitation.js';
-import { getJoinRequest } from './own_profile/get-join-request.js';
 import { validateQueryParams, validateRequest } from './middleware/validation.js';
 import { ApiResponse, ErrorResponse, EventName } from './models/analytics-events.js';
 import {
@@ -25,6 +24,7 @@ import {
   deviceSchema,
   locationSchema,
   paginationSchema,
+  shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
   timezoneSchema,
@@ -34,11 +34,14 @@ import {
 } from './models/validation-schemas.js';
 import { createProfile } from './own_profile/create-my-profile.js';
 import { deleteProfile } from './own_profile/delete-my-profile.js';
+import { getJoinRequest } from './own_profile/get-join-request.js';
 import { getFeeds } from './own_profile/get-my-feeds.js';
 import { getMyFriends } from './own_profile/get-my-friends.js';
+import { getMyJoinRequests } from './own_profile/get-my-join-requests.js';
 import { getProfile } from './own_profile/get-my-profile.js';
 import { getUpdates } from './own_profile/get-my-updates.js';
 import { getQuestion } from './own_profile/get-question.js';
+import { removeFriend } from './own_profile/remove-friend.js';
 import { updateLocation } from './own_profile/update-location.js';
 import { updateProfile } from './own_profile/update-my-profile.js';
 import { updateTimezone } from './own_profile/update-timezone.js';
@@ -52,6 +55,7 @@ import { deleteComment } from './updates/delete-comment.js';
 import { deleteReaction } from './updates/delete-reaction.js';
 import { getComments } from './updates/get-comments.js';
 import { getUpdate } from './updates/get-update.js';
+import { shareUpdate } from './updates/share-update.js';
 import { transcribeAudio } from './updates/transcribe-audio.js';
 import { updateComment } from './updates/update-comment.js';
 import { getUserProfile } from './user_profile/get-user-profile.js';
@@ -68,7 +72,6 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from './utils/errors.js';
-import { getMyJoinRequests } from './own_profile/get-my-join-requests.js';
 
 // Response Handler
 const sendResponse = <T>(res: Response, response: ApiResponse<T>): void => {
@@ -199,6 +202,11 @@ app.get('/me/friends', validateQueryParams(paginationSchema), async (req, res) =
   sendResponse(res, result);
 });
 
+app.delete('/me/friends/:friend_user_id', async (req, res) => {
+  const result = await removeFriend(req);
+  sendResponse(res, result);
+});
+
 app.get('/me/requests', validateQueryParams(paginationSchema), async (req, res) => {
   const result = await getMyJoinRequests(req);
   sendResponse(res, result);
@@ -278,6 +286,12 @@ app.post('/updates', validateRequest(createUpdateSchema), async (req, res) => {
 
 app.get('/updates/:update_id', validateQueryParams(paginationSchema), async (req, res) => {
   const result = await getUpdate(req);
+  sendResponse(res, result);
+});
+
+// Share update with additional friends
+app.put('/updates/:update_id/share', validateRequest(shareUpdateSchema), async (req, res) => {
+  const result = await shareUpdate(req);
   sendResponse(res, result);
 });
 

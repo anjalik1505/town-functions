@@ -192,6 +192,21 @@ class VillageAPI:
         logger.info(f"Successfully retrieved friends for user: {email}")
         return response.json()
 
+    def remove_friend(self, email: str, friend_user_id: str) -> None:
+        """Remove a friend"""
+        logger.info(f"User {email} removing friend with ID: {friend_user_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(
+            f"{API_BASE_URL}/me/friends/{friend_user_id}", headers=headers
+        )
+        if response.status_code != 204:
+            logger.error(f"Failed to remove friend: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully removed friend {friend_user_id} for user: {email}")
+
     # Feed and Update Methods
     def get_my_feed(
         self, email: str, limit: int = 10, after_cursor: Optional[str] = None
@@ -254,6 +269,37 @@ class VillageAPI:
             response.raise_for_status()
 
         logger.info(f"Successfully created update for user: {email}")
+        return response.json()
+
+    def share_update(
+        self,
+        email: str,
+        update_id: str,
+        friend_ids: Optional[list] = None,
+        group_ids: Optional[list] = None,
+    ) -> Dict[str, Any]:
+        """Share an existing update with additional friends or groups"""
+        logger.info(f"Sharing update {update_id} for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {}
+        if friend_ids:
+            payload["friend_ids"] = friend_ids
+        if group_ids:
+            payload["group_ids"] = group_ids
+
+        response = requests.put(
+            f"{API_BASE_URL}/updates/{update_id}/share", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to share update: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully shared update {update_id} for user: {email}")
         return response.json()
 
     def get_user_profile(self, email: str, target_user_id: str) -> Dict[str, Any]:

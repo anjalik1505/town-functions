@@ -4,7 +4,7 @@ import { EventName, NotificationEventParams } from '../models/analytics-events.j
 import { Collections, DeviceFields, NotificationTypes, ReactionFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
+import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -105,6 +105,12 @@ const sendReactionNotification = async (
 
     await sendNotification(deviceId, 'New Reaction', notificationMessage, {
       type: NotificationTypes.REACTION,
+      update_id: updateId,
+    });
+
+    // Send background notification
+    await sendBackgroundNotification(deviceId, {
+      type: NotificationTypes.REACTION_BACKGROUND,
       update_id: updateId,
     });
 

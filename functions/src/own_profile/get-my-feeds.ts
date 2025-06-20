@@ -99,7 +99,7 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create enriched updates
-  const enrichedUpdates = processEnrichedFeedItems(feedDocs, updateMap, updateReactionsMap, profiles);
+  const enrichedUpdates = await processEnrichedFeedItems(feedDocs, updateMap, updateReactionsMap, profiles);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);
