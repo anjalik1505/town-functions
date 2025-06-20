@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, CommentFields, DeviceFields, UpdateFields } from '../models/constants.js';
+import { Collections, CommentFields, DeviceFields, NotificationTypes, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -100,7 +100,7 @@ const sendCommentNotification = async (
           : `${commenterName} also commented on a post you're following: "${truncatedComment}"`;
 
       await sendNotification(deviceId, 'New Comment', message, {
-        type: 'comment',
+        type: NotificationTypes.COMMENT,
         update_id: updateId,
       });
 

@@ -1,10 +1,10 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, JoinRequestFields } from '../models/constants.js';
+import { Collections, DeviceFields, JoinRequestFields, NotificationTypes } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
+import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -67,7 +67,13 @@ const sendJoinRequestNotification = async (
     const notificationMessage = `${requesterName} wants to join your village!`;
 
     await sendNotification(deviceId, 'New Request', notificationMessage, {
-      type: 'join_request',
+      type: NotificationTypes.JOIN_REQUEST,
+      request_id: requestId,
+    });
+
+    // Send background notification
+    await sendBackgroundNotification(deviceId, {
+      type: NotificationTypes.JOIN_REQUEST_BACKGROUND,
       request_id: requestId,
     });
 

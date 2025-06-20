@@ -224,6 +224,24 @@ export const NotificationFields = {
   URGENT: 'urgent',
 } as const;
 
+// Notification types for sendNotification
+export const NotificationTypes = {
+  NUDGE: 'nudge',
+  JOIN_REQUEST: 'join_request',
+  JOIN_REQUEST_BACKGROUND: 'join_request_background',
+  REACTION: 'reaction',
+  DAILY: 'daily',
+  NO_FRIENDS_REMINDER: 'no_friends_reminder',
+  UPDATE: 'update',
+  UPDATE_BACKGROUND: 'update_background',
+  JOIN_REQUEST_REJECTED: 'join_request_rejected',
+  JOIN_REQUEST_REJECTED_BACKGROUND: 'join_request_rejected_background',
+  FRIENDSHIP: 'friendship',
+  COMMENT: 'comment',
+  DEFAULT: 'default',
+  BACKGROUND: 'background',
+} as const;
+
 // Options for nudging settings
 export const NudgingFields = {
   DAILY: 'daily',

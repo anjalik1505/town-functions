@@ -1,7 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, ReactionFields, UpdateFields } from '../models/constants.js';
+import { Collections, DeviceFields, NotificationTypes, ReactionFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -104,7 +104,7 @@ const sendReactionNotification = async (
     const notificationMessage = `${reactorName} reacted to your update with ${reactionType}`;
 
     await sendNotification(deviceId, 'New Reaction', notificationMessage, {
-      type: 'reaction',
+      type: NotificationTypes.REACTION,
       update_id: updateId,
     });
 

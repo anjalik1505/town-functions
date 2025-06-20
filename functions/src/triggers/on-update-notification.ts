@@ -2,10 +2,17 @@ import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { generateNotificationMessageFlow } from '../ai/flows.js';
 import { EventName, NotificationEventParams, NotificationsEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NotificationFields, ProfileFields, UpdateFields } from '../models/constants.js';
+import {
+  Collections,
+  DeviceFields,
+  NotificationFields,
+  NotificationTypes,
+  ProfileFields,
+  UpdateFields,
+} from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
+import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
 
 import path from 'path';
@@ -158,7 +165,13 @@ const processUserNotification = async (
       });
 
       await sendNotification(deviceId, 'New Update', result.message, {
-        type: 'update',
+        type: NotificationTypes.UPDATE,
+        update_id: updateId,
+      });
+
+      // Send background notification
+      await sendBackgroundNotification(deviceId, {
+        type: NotificationTypes.UPDATE_BACKGROUND,
         update_id: updateId,
       });
 
