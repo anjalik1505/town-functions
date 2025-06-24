@@ -32,6 +32,7 @@ import { updateTimeBucketMembership } from '../utils/timezone-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { ConflictError } from '../utils/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -88,6 +89,22 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   const nudgingSettingsChanged = profileData.nudging_settings !== undefined;
   const currentTimezone = currentProfileData[ProfileFields.TIMEZONE];
 
+  // Check if phone number changed
+  const phoneChanged =
+    profileData.phone_number !== undefined &&
+    profileData.phone_number !== currentProfileData[ProfileFields.PHONE_NUMBER];
+
+  // If phone number is changing, ensure new phone is not taken
+  if (phoneChanged) {
+    const existingPhoneDoc = await db
+      .collection(Collections.PHONES)
+      .doc(profileData.phone_number as string)
+      .get();
+    if (existingPhoneDoc.exists && existingPhoneDoc.data()?.[ProfileFields.USER_ID] !== currentUserId) {
+      throw new ConflictError('Phone number is already registered by another user');
+    }
+  }
+
   // Prepare update data
   const profileUpdates: UpdateData<DocumentData> = {};
 
@@ -125,6 +142,9 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   if (profileData.tone !== undefined) {
     profileUpdates[ProfileFields.TONE] = profileData.tone;
   }
+  if (profileData.phone_number !== undefined) {
+    profileUpdates[ProfileFields.PHONE_NUMBER] = profileData.phone_number;
+  }
 
   // Create a batch for all updates
   const batch = db.batch();
@@ -140,6 +160,40 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   if (nudgingSettingsChanged && currentTimezone) {
     const newNudgingSettings = profileData.nudging_settings as NudgingSettings;
     await updateTimeBucketMembership(currentUserId, newNudgingSettings, batch, db);
+  }
+
+  // Update phones mapping within the same batch
+  if (phoneChanged) {
+    const oldPhone = currentProfileData[ProfileFields.PHONE_NUMBER] as string | undefined;
+    const newPhone = profileData.phone_number as string;
+
+    // Delete old mapping if it existed
+    if (oldPhone) {
+      const oldPhoneRef = db.collection(Collections.PHONES).doc(oldPhone);
+      batch.delete(oldPhoneRef);
+    }
+
+    // Create/overwrite new mapping with latest data
+    const newPhoneRef = db.collection(Collections.PHONES).doc(newPhone);
+    batch.set(newPhoneRef, {
+      [ProfileFields.USER_ID]: currentUserId,
+      [ProfileFields.USERNAME]: profileUpdates[ProfileFields.USERNAME] ?? currentProfileData[ProfileFields.USERNAME],
+      [ProfileFields.NAME]: profileUpdates[ProfileFields.NAME] ?? currentProfileData[ProfileFields.NAME],
+      [ProfileFields.AVATAR]: profileUpdates[ProfileFields.AVATAR] ?? currentProfileData[ProfileFields.AVATAR],
+    });
+  } else if (usernameChanged || nameChanged || avatarChanged) {
+    // Phone hasn't changed but user info did; update mapping doc
+    const phone = currentProfileData[ProfileFields.PHONE_NUMBER] as string | undefined;
+    if (phone) {
+      const phoneRef = db.collection(Collections.PHONES).doc(phone);
+      const updates: UpdateData<DocumentData> = {};
+      if (usernameChanged) updates[ProfileFields.USERNAME] = profileUpdates[ProfileFields.USERNAME];
+      if (nameChanged) updates[ProfileFields.NAME] = profileUpdates[ProfileFields.NAME];
+      if (avatarChanged) updates[ProfileFields.AVATAR] = profileUpdates[ProfileFields.AVATAR];
+      if (Object.keys(updates).length > 0) {
+        batch.update(phoneRef, updates);
+      }
+    }
   }
 
   // If username, name, or avatar changed, update references in other collections
@@ -307,7 +361,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   }
 
   // Commit all the updates in a single atomic operation
-  if (Object.keys(profileUpdates).length > 0 || usernameChanged || nameChanged || avatarChanged) {
+  if (Object.keys(profileUpdates).length > 0 || usernameChanged || nameChanged || avatarChanged || phoneChanged) {
     await batch.commit();
   }
 

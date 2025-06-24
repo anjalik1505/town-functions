@@ -14,6 +14,7 @@ import {
   locationSchema,
   ownProfileSchema,
   paginationSchema,
+  phoneLookupSchema,
   shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
@@ -61,6 +62,7 @@ export interface ProfileResponse extends BaseUser {
   updated_at: string;
   timezone: string;
   tone: string;
+  phone_number: string;
 }
 
 export interface FriendProfileResponse {
@@ -286,6 +288,10 @@ export interface TranscriptionResponse {
   emoji: string;
 }
 
+export interface PhoneLookupResponse {
+  matches: BaseUser[];
+}
+
 // Inferred types from Zod validation schemas
 export type CreateProfilePayload = z.infer<typeof createProfileSchema>;
 export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
@@ -308,3 +314,4 @@ export type TranscribeAudioPayload = z.infer<typeof transcribeAudioSchema>;
 export type TimezonePayload = z.infer<typeof timezoneSchema>;
 export type LocationPayload = z.infer<typeof locationSchema>;
 export type ShareUpdatePayload = z.infer<typeof shareUpdateSchema>;
+export type PhoneLookupPayload = z.infer<typeof phoneLookupSchema>;
