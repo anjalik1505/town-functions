@@ -246,6 +246,7 @@ export const formatProfileResponse = (
     suggestions: (profileData[ProfileFields.SUGGESTIONS] as string) || '',
     insights: insightsData,
     tone: (profileData[ProfileFields.TONE] as string) || '',
+    phone_number: (profileData[ProfileFields.PHONE_NUMBER] as string) || '',
   };
 };
 

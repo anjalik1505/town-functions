@@ -41,6 +41,7 @@ export enum EventName {
   FRIEND_SUMMARY_CREATED = 'friend_summary_created',
   USER_NUDGED = 'user_nudged',
   AUDIO_TRANSCRIBED = 'audio_transcribed',
+  PHONES_LOOKED_UP = 'phones_looked_up',
   INVITATION_NOTIFICATION_SENT = 'invitation_notification_sent',
   INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
   COMMENT_NOTIFICATION_SENT = 'comment_notification_sent',
@@ -256,6 +257,12 @@ export interface AudioTranscribedEventParams extends BaseEventParams {
   sentiment: string;
   score: number;
   emoji: string;
+}
+
+// Phone lookup event parameters
+export interface PhoneLookupEventParams extends BaseEventParams {
+  requested_count: number;
+  match_count: number;
 }
 
 // Delete profile event parameters

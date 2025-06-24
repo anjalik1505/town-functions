@@ -24,6 +24,7 @@ import {
   deviceSchema,
   locationSchema,
   paginationSchema,
+  phoneLookupSchema,
   shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
@@ -60,6 +61,7 @@ import { transcribeAudio } from './updates/transcribe-audio.js';
 import { updateComment } from './updates/update-comment.js';
 import { getUserProfile } from './user_profile/get-user-profile.js';
 import { getUserUpdates } from './user_profile/get-user-updates.js';
+import { lookupPhones } from './user_profile/lookup-phones.js';
 import { nudgeUser } from './user_profile/nudge-user.js';
 import { trackApiEvent } from './utils/analytics-utils.js';
 import {
@@ -220,6 +222,12 @@ app.get('/me/requests/:request_id', async (req, res) => {
 // User profile routes
 app.get('/users/:target_user_id/profile', async (req, res) => {
   const result = await getUserProfile(req);
+  sendResponse(res, result);
+});
+
+// Lookup users by phone numbers
+app.post('/phones/lookup', validateRequest(phoneLookupSchema), async (req, res) => {
+  const result = await lookupPhones(req);
   sendResponse(res, result);
 });
 
