@@ -916,3 +916,25 @@ class VillageAPI:
 
         logger.info(f"Successfully uploaded image to staging path: {staging_path}")
         return staging_path
+
+    # Phone lookup
+    def lookup_phones(self, email: str, phones: list[str]) -> Dict[str, Any]:
+        """Lookup users by phone numbers"""
+        logger.info(f"Looking up {len(phones)} phone(s) for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"phones": phones}
+
+        response = requests.post(
+            f"{API_BASE_URL}/phones/lookup", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Phone lookup failed: {response.text}")
+            response.raise_for_status()
+
+        logger.info("Phone lookup successful")
+        return response.json()
