@@ -299,7 +299,7 @@ export const generateQuestionFlow = async (params: {
   }
 
   const defaultOutput = {
-    question: "How's your day going? Share with your Village!",
+    question: 'What’s been the highlight of your day?',
   };
 
   logger.info(`Generating question with params: ${JSON.stringify(params, null, 2)}`);
