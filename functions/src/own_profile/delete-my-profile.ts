@@ -2,7 +2,6 @@ import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
 import { Collections, ProfileFields } from '../models/constants.js';
-import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   extractConnectToForAnalytics,
@@ -43,9 +42,6 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
   const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   const db = getFirestore();
-
-  // Ensure user's friend documents are migrated from old FRIENDSHIPS collection
-  await migrateFriendDocsForUser(currentUserId);
 
   // Extract friends list from subcollection before deletion
   const friendIds: string[] = [];

@@ -17,7 +17,7 @@ import {
   QueryOperators,
 } from '../models/constants.js';
 import { NudgingSettings, ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
-import { migrateFriendDocsForUser, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
+import { upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -220,9 +220,6 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     // 4. Update friend documents in FRIENDS subcollections (replaces old friendships collection updates)
     logger.info('Updating friend documents in FRIENDS subcollections');
 
-    // First ensure user's friend docs are migrated
-    await migrateFriendDocsForUser(currentUserId);
-
     // Get list of friends from user's FRIENDS subcollection
     const userFriendsQuery = db.collection(Collections.PROFILES).doc(currentUserId).collection(Collections.FRIENDS);
 
@@ -230,12 +227,6 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     for await (const doc of userFriendsQuery.stream()) {
       const friendDoc = doc as unknown as QueryDocumentSnapshot;
       friendIds.push(friendDoc.id);
-    }
-
-    // Migrate all friends in parallel before updating their subcollections
-    if (friendIds.length > 0) {
-      await Promise.all(friendIds.map((friendId) => migrateFriendDocsForUser(friendId)));
-      logger.info(`Migrated ${friendIds.length} friends before updating their subcollections`);
     }
 
     // Update this user's data in each friend's FRIENDS subcollection using utility

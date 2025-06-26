@@ -4,12 +4,7 @@ import { analyzeImagesFlow, generateCreatorProfileFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
 import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
-import {
-  getFriendDoc,
-  migrateFriendDocsForUser,
-  upsertFriendDoc,
-  type FriendDocUpdate,
-} from '../utils/friendship-utils.js';
+import { getFriendDoc, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -234,8 +229,7 @@ const processAllSummaries = async (
     tasks.push(processFriendSummary(db, updateData, creatorId, friendId, batch, imageAnalysis));
   }
 
-  // Migrate creator's friend docs and update friend documents with emoji
-  await migrateFriendDocsForUser(creatorId);
+  // Update friend documents with emoji
   const emoji = updateData[UpdateFields.EMOJI] as string;
   if (emoji) {
     const friendshipUpdateTasks = friendIds.map(async (friendId) => {

@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
 import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import {
-  Collections,
-  FriendshipFields,
-  GroupFields,
-  MAX_BATCH_SIZE,
-  ProfileFields,
-  QueryOperators,
-} from '../models/constants.js';
+import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
 import { CreateGroupPayload, Group } from '../models/data-models.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -110,69 +103,45 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
       throw new NotFoundError(`Member profiles not found: ${missingMembersStr}`);
     }
 
-    // 2. Optimized friendship check using batch fetching
+    // 2. Check friendships using FRIENDS subcollection
     // We need to verify that all members are friends with each other
+    // A friendship exists if both users have each other in their FRIENDS subcollection
 
-    // Create a dictionary to track friendships
-    // Key: tuple of (user1_id, user2_id) where user1_id < user2_id (for consistent ordering)
-    // Value: True if friendship exists, False otherwise
-    const friendshipExists: Record<string, boolean> = {};
+    // Track missing friendships
+    const missingFriendships: Array<[string, string]> = [];
 
-    // Initialize all possible member pairs as not friends
+    // Check all possible member pairs
     for (let i = 0; i < members.length; i++) {
       for (let j = i + 1; j < members.length; j++) {
         const member1 = members[i]!;
         const member2 = members[j]!;
-        const pair = member1 < member2 ? `${member1}_${member2}` : `${member2}_${member1}`;
-        friendshipExists[pair] = false;
-      }
-    }
 
-    // Firestore allows up to 10 values in array_contains_any
-    // We'll process members in batches of 10 if needed
-    for (let i = 0; i < members.length; i += MAX_BATCH_SIZE) {
-      const batchMembers = members.slice(i, i + MAX_BATCH_SIZE);
+        // Check if member1 has member2 in their friends subcollection
+        const member1FriendRef = db
+          .collection(Collections.PROFILES)
+          .doc(member1)
+          .collection(Collections.FRIENDS)
+          .doc(member2);
+        const member1FriendDoc = await member1FriendRef.get();
 
-      // Fetch all friendships where any of the batch members is in the members array
-      const friendshipsQuery = db
-        .collection(Collections.FRIENDSHIPS)
-        .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers);
+        // Check if member2 has member1 in their friends subcollection
+        const member2FriendRef = db
+          .collection(Collections.PROFILES)
+          .doc(member2)
+          .collection(Collections.FRIENDS)
+          .doc(member1);
+        const member2FriendDoc = await member2FriendRef.get();
 
-      const friendshipsSnapshot = await friendshipsQuery.get();
-      logger.info(`Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`);
-
-      // Process each friendship to mark member pairs as friends
-      for (const doc of friendshipsSnapshot.docs) {
-        const friendshipData = doc.data();
-        const membersInFriendship = friendshipData[FriendshipFields.MEMBERS] || [];
-
-        // Check which group members are in this friendship
-        const friendshipGroupMembers = members.filter((m: string) => membersInFriendship.includes(m));
-
-        // If we found at least 2 group members in this friendship, mark them as friends
-        if (friendshipGroupMembers.length >= 2) {
-          for (let x = 0; x < friendshipGroupMembers.length; x++) {
-            for (let y = x + 1; y < friendshipGroupMembers.length; y++) {
-              const member1 = friendshipGroupMembers[x]!;
-              const member2 = friendshipGroupMembers[y]!;
-              const pair = member1 < member2 ? `${member1}_${member2}` : `${member2}_${member1}`;
-              if (pair in friendshipExists) {
-                friendshipExists[pair] = true;
-              }
-            }
-          }
+        // Both documents must exist for a valid friendship
+        if (!member1FriendDoc.exists || !member2FriendDoc.exists) {
+          missingFriendships.push([member1, member2]);
         }
       }
     }
 
-    // Check if any member pairs are not friends
-    const notFriends = Object.entries(friendshipExists)
-      .filter((entry) => !entry[1])
-      .map((entry) => entry[0].split('_'));
-
-    if (notFriends.length > 0) {
+    if (missingFriendships.length > 0) {
       // Format the error message
-      const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(', ');
+      const notFriendsStr = missingFriendships.map(([id1, id2]) => `${id1} and ${id2}`).join(', ');
       logger.warn(`Members are not friends: ${notFriendsStr}`);
       throw new BadRequestError('All members must be friends with each other to be in the same group');
     }

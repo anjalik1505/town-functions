@@ -4,7 +4,6 @@ import { getStorage } from 'firebase-admin/storage';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
 import { Collections, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { CreateUpdatePayload, Update } from '../models/data-models.js';
-import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createFeedItem, fetchFriendProfiles, fetchGroupProfiles, formatUpdate } from '../utils/update-utils.js';
 import {
@@ -72,9 +71,6 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   // If allVillage is true, get all friends and groups of the user
   if (allVillage) {
     logger.info(`All village mode enabled, fetching all friends and groups for user: ${currentUserId}`);
-
-    // Ensure user's friend docs are migrated
-    await migrateFriendDocsForUser(currentUserId);
 
     // Get all friends from user's FRIENDS subcollection
     const friendsQuery = db.collection(Collections.PROFILES).doc(currentUserId).collection(Collections.FRIENDS);

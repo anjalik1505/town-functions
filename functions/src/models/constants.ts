@@ -7,7 +7,6 @@ export const SYSTEM_USER = 'system';
 export const Collections = {
   PROFILES: 'profiles',
   UPDATES: 'updates',
-  FRIENDSHIPS: 'friendships',
   GROUPS: 'groups',
   USER_SUMMARIES: 'user_summaries',
   CHATS: 'chats',
@@ -63,23 +62,6 @@ export const ProfileFields = {
   PERSONALITY: 'personality',
   TONE: 'tone',
   FRIENDS_TO_CLEANUP: 'friends_to_cleanup',
-} as const;
-
-// Field names for Friendship documents
-export const FriendshipFields = {
-  SENDER_ID: 'sender_id',
-  SENDER_USERNAME: 'sender_username',
-  SENDER_NAME: 'sender_name',
-  SENDER_AVATAR: 'sender_avatar',
-  SENDER_LAST_UPDATE_EMOJI: 'sender_last_update_emoji',
-  RECEIVER_ID: 'receiver_id',
-  RECEIVER_USERNAME: 'receiver_username',
-  RECEIVER_NAME: 'receiver_name',
-  RECEIVER_AVATAR: 'receiver_avatar',
-  RECEIVER_LAST_UPDATE_EMOJI: 'receiver_last_update_emoji',
-  MEMBERS: 'members',
-  CREATED_AT: 'created_at',
-  UPDATED_AT: 'updated_at',
 } as const;
 
 // Field names for Invitation documents
@@ -322,7 +304,6 @@ export const FriendPlaceholderTemplates = {
 
 // Context values for friend document creation
 export enum FriendDocContext {
-  MIGRATION = 'migration',
   JOIN_REQUEST_ACCEPTED = 'join_request_accepted',
 }
 

@@ -5,9 +5,7 @@ import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import {
   Collections,
-  FriendDocContext,
   FriendDocFields,
-  FriendshipFields,
   MAX_BATCH_OPERATIONS,
   QueryOperators,
   UpdateFields,
@@ -55,9 +53,6 @@ export const getFriendDoc = async (
   currentUserId: string,
   targetUserId: string,
 ): Promise<FriendDocumentResult | null> => {
-  // Ensure both users' friend docs are migrated in parallel
-  await Promise.all([migrateFriendDocsForUser(currentUserId), migrateFriendDocsForUser(targetUserId)]);
-
   const db = getFirestore();
   const friendDocRef = db
     .collection(Collections.PROFILES)
@@ -102,9 +97,6 @@ export const hasReachedCombinedLimit = async (
   friendCount: number;
   hasReachedLimit: boolean;
 }> => {
-  // Ensure user's friend docs are migrated
-  await migrateFriendDocsForUser(userId);
-
   const db = getFirestore();
 
   // Get count of friends from user's FRIENDS subcollection
@@ -124,12 +116,10 @@ export const hasReachedCombinedLimit = async (
  *
  * @param sourceUserId - The user whose updates are being shared
  * @param targetUserId - The user who will receive feed items and summary
- * @param friendshipData - The data associated with the friendship
  */
 export async function syncFriendshipDataForUser(
   sourceUserId: string,
   targetUserId: string,
-  friendshipData: FirebaseFirestore.DocumentData,
 ): Promise<{ emoji?: string; updatedAt?: FirebaseFirestore.Timestamp } | undefined> {
   try {
     const db = getFirestore();
@@ -270,10 +260,10 @@ export async function syncFriendshipDataForUser(
       );
     }
 
-    logger.info(`Successfully processed friendship ${friendshipData.id}`);
+    logger.info(`Successfully processed friendship ${sourceUserId} <-> ${targetUserId}`);
     return { emoji: latestEmoji, updatedAt: latestUpdateAt };
   } catch (error) {
-    logger.error(`Error processing friendship ${friendshipData.id}: ${error}`);
+    logger.error(`Error processing friendship ${sourceUserId} <-> ${targetUserId}: ${error}`);
     // In a production environment, we would implement retry logic here
     return undefined;
   }
@@ -319,53 +309,4 @@ export const upsertFriendDoc = async (
     write(b);
     await b.commit();
   }
-};
-
-/**
- * Migrates all friendship documents for a user into friend subcollection (idempotent).
- */
-export const migrateFriendDocsForUser = async (userId: string): Promise<void> => {
-  const db = getFirestore();
-
-  // Check if subcollection has any docs
-  const existingSnap = await db
-    .collection(Collections.PROFILES)
-    .doc(userId)
-    .collection(Collections.FRIENDS)
-    .limit(1)
-    .get();
-  if (!existingSnap.empty) {
-    return; // already migrated
-  }
-
-  const query = db
-    .collection(Collections.FRIENDSHIPS)
-    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
-
-  const batch = db.batch();
-  let count = 0;
-  const fiveYearsAgo = Timestamp.fromMillis(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000); // 5 years ago
-
-  for await (const doc of query.stream()) {
-    const snap = doc as unknown as QueryDocumentSnapshot;
-    const d = snap.data();
-    const isSender = d[FriendshipFields.SENDER_ID] === userId;
-    const friendId = isSender ? d[FriendshipFields.RECEIVER_ID] : d[FriendshipFields.SENDER_ID];
-    if (!friendId) return;
-    const friendData = {
-      username: isSender ? d[FriendshipFields.RECEIVER_USERNAME] : d[FriendshipFields.SENDER_USERNAME],
-      name: isSender ? d[FriendshipFields.RECEIVER_NAME] : d[FriendshipFields.SENDER_NAME],
-      avatar: isSender ? d[FriendshipFields.RECEIVER_AVATAR] : d[FriendshipFields.SENDER_AVATAR],
-      last_update_emoji: isSender
-        ? d[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI]
-        : d[FriendshipFields.SENDER_LAST_UPDATE_EMOJI],
-      last_update_at: fiveYearsAgo,
-      context: FriendDocContext.MIGRATION,
-    };
-    upsertFriendDoc(db, userId, friendId, friendData, batch);
-    count++;
-  }
-
-  await batch.commit();
-  logger.info(`Migrated ${count} friendships to friend docs for user ${userId}`);
 };

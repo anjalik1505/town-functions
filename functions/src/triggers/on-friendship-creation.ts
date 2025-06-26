@@ -70,12 +70,6 @@ export const onFriendshipCreated = async (
 
   logger.info(`Processing friend document creation: ${userId}/${friendId} with context: ${context || 'none'}`);
 
-  // Handle migration context - skip all processing
-  if (context === FriendDocContext.MIGRATION) {
-    logger.info(`Skipping migration friend document: ${userId}/${friendId}`);
-    return;
-  }
-
   // Only process from the "primary" user (lexicographically smaller ID) to avoid duplicate work
   const primaryUserId = [userId, friendId].sort()[0];
   if (userId !== primaryUserId) {
@@ -86,14 +80,12 @@ export const onFriendshipCreated = async (
   logger.info(`Processing friendship creation from primary user ${userId} with friend ${friendId}`);
 
   try {
-    const friendshipId = `${userId}_${friendId}`;
-
     // Run sync for both directions to update friend docs with latest update info
     // Get User 2's updates to update User 1's friend document about User 2
     // Get User 1's updates to update User 2's friend document about User 1
     const [user2UpdatesForUser1, user1UpdatesForUser2] = await Promise.all([
-      syncFriendshipDataForUser(friendId, userId, { id: friendshipId }), // User 2's updates
-      syncFriendshipDataForUser(userId, friendId, { id: friendshipId }), // User 1's updates
+      syncFriendshipDataForUser(friendId, userId), // User 2's updates
+      syncFriendshipDataForUser(userId, friendId), // User 1's updates
     ]);
 
     logger.info(`Successfully synced friendship data for ${userId} <-> ${friendId}`);
@@ -149,7 +141,6 @@ export const onFriendshipCreated = async (
 
             await sendNotification(deviceId, 'New Friend!', message, {
               type: 'friendship',
-              friendship_id: friendshipId,
             });
 
             logger.info(`Sent friendship acceptance notification to requester ${requesterId}`);

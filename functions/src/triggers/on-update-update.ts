@@ -4,12 +4,7 @@ import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import { Collections, GroupFields, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
-import {
-  getFriendDoc,
-  migrateFriendDocsForUser,
-  upsertFriendDoc,
-  type FriendDocUpdate,
-} from '../utils/friendship-utils.js';
+import { getFriendDoc, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
@@ -90,8 +85,6 @@ const processNewlyAddedFriendsAndGroups = async (
     }
   }
 
-  // Ensure creator's friend docs are migrated
-  await migrateFriendDocsForUser(creatorId);
   // Update friend documents with emoji for newly added direct friends
   if (emoji && newFriendIds.length > 0) {
     const friendshipUpdateTasks = newFriendIds.map(async (friendId) => {

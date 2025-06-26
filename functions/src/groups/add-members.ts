@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
 import { DocumentData, FieldValue, getFirestore, UpdateData } from 'firebase-admin/firestore';
-import {
-  Collections,
-  FriendshipFields,
-  GroupFields,
-  MAX_BATCH_SIZE,
-  ProfileFields,
-  QueryOperators,
-} from '../models/constants.js';
+import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
 import { AddGroupMembersPayload, Group } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -103,71 +96,76 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
     throw new NotFoundError(`Member profiles not found: ${missingMembersStr}`);
   }
 
-  // 4. Optimized friendship check using batch fetching
+  // 4. Check friendships using FRIENDS subcollection
   // We need to verify that all new members are friends with all existing members
+  // A friendship exists if both users have each other in their FRIENDS subcollection
 
-  // Create a dictionary to track friendships
-  // Key: tuple of (user1_id, user2_id) where user1_id < user2_id (for consistent ordering)
-  // Value: True if friendship exists, False otherwise
-  const friendshipExists: Record<string, boolean> = {};
+  // Track missing friendships
+  const missingFriendships: Array<[string, string]> = [];
 
-  // Initialize all possible member pairs as not friends
+  // Check if each new member is friends with all existing members
   for (const newMemberId of newMembersToAdd) {
     for (const currentMemberId of currentMembers) {
-      // Skip self-comparison
+      // Skip self-comparison (shouldn't happen, but just in case)
       if (newMemberId === currentMemberId) {
         continue;
       }
-      // Ensure consistent ordering of the pair
-      const pair =
-        newMemberId < currentMemberId ? `${newMemberId}_${currentMemberId}` : `${currentMemberId}_${newMemberId}`;
-      friendshipExists[pair] = false;
-    }
-  }
 
-  // Combine all members that need to be checked
-  const allMembersToCheck = [...new Set([...newMembersToAdd, ...currentMembers])];
-  // Firestore allows up to 10 values in array_contains_any
-  // We'll process members in batches of 10 if needed
-  for (let i = 0; i < allMembersToCheck.length; i += MAX_BATCH_SIZE) {
-    const batchMembers = allMembersToCheck.slice(i, i + MAX_BATCH_SIZE);
+      // Check if newMember has currentMember in their friends subcollection
+      const newMemberFriendRef = db
+        .collection(Collections.PROFILES)
+        .doc(newMemberId)
+        .collection(Collections.FRIENDS)
+        .doc(currentMemberId);
+      const newMemberFriendDoc = await newMemberFriendRef.get();
 
-    // Fetch all friendships where any of the batch members is in the member array
-    const friendshipsQuery = db
-      .collection(Collections.FRIENDSHIPS)
-      .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS_ANY, batchMembers);
+      // Check if currentMember has newMember in their friends subcollection
+      const currentMemberFriendRef = db
+        .collection(Collections.PROFILES)
+        .doc(currentMemberId)
+        .collection(Collections.FRIENDS)
+        .doc(newMemberId);
+      const currentMemberFriendDoc = await currentMemberFriendRef.get();
 
-    const friendshipsSnapshot = await friendshipsQuery.get();
-    logger.info(`Fetched ${friendshipsSnapshot.docs.length} friendships for batch of ${batchMembers.length} members`);
-
-    // Process each friendship to mark member pairs as friends
-    for (const doc of friendshipsSnapshot.docs) {
-      const friendshipData = doc.data();
-      const membersInFriendship = friendshipData[FriendshipFields.MEMBERS] || [];
-
-      // Check which members are in this friendship
-      for (const member1 of membersInFriendship) {
-        for (const member2 of membersInFriendship) {
-          if (member1 < member2) {
-            // Only process each pair once
-            const pair = `${member1}_${member2}`;
-            if (pair in friendshipExists) {
-              friendshipExists[pair] = true;
-            }
-          }
-        }
+      // Both documents must exist for a valid friendship
+      if (!newMemberFriendDoc.exists || !currentMemberFriendDoc.exists) {
+        missingFriendships.push([newMemberId, currentMemberId]);
       }
     }
   }
 
-  // Check if any required member pairs are not friends
-  const notFriends = Object.entries(friendshipExists)
-    .filter((entry) => !entry[1])
-    .map((entry) => entry[0].split('_'));
+  // Also check if all new members are friends with each other
+  for (let i = 0; i < newMembersToAdd.length; i++) {
+    for (let j = i + 1; j < newMembersToAdd.length; j++) {
+      const member1 = newMembersToAdd[i]!;
+      const member2 = newMembersToAdd[j]!;
 
-  if (notFriends.length) {
+      // Check if member1 has member2 in their friends subcollection
+      const member1FriendRef = db
+        .collection(Collections.PROFILES)
+        .doc(member1)
+        .collection(Collections.FRIENDS)
+        .doc(member2);
+      const member1FriendDoc = await member1FriendRef.get();
+
+      // Check if member2 has member1 in their friends subcollection
+      const member2FriendRef = db
+        .collection(Collections.PROFILES)
+        .doc(member2)
+        .collection(Collections.FRIENDS)
+        .doc(member1);
+      const member2FriendDoc = await member2FriendRef.get();
+
+      // Both documents must exist for a valid friendship
+      if (!member1FriendDoc.exists || !member2FriendDoc.exists) {
+        missingFriendships.push([member1, member2]);
+      }
+    }
+  }
+
+  if (missingFriendships.length) {
     // Format the error message
-    const notFriendsStr = notFriends.map(([id1, id2]) => `${id1} and ${id2}`).join(', ');
+    const notFriendsStr = missingFriendships.map(([id1, id2]) => `${id1} and ${id2}`).join(', ');
     logger.warn(`Members are not friends: ${notFriendsStr}`);
     throw new BadRequestError('All members must be friends with each other to be in the same group');
   }

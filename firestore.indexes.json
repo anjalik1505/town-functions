@@ -15,20 +15,6 @@
       ]
     },
     {
-      "collectionGroup": "friendships",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "members",
-          "arrayConfig": "CONTAINS"
-        },
-        {
-          "fieldPath": "created_at",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "updates",
       "queryScope": "COLLECTION",
       "fields": [

@@ -5,7 +5,6 @@ import { DeleteProfileEventParams, EventName } from '../models/analytics-events.
 import {
   Collections,
   FeedFields,
-  FriendshipFields,
   GroupFields,
   MAX_BATCH_OPERATIONS,
   ProfileFields,
@@ -72,35 +71,14 @@ const deleteFriendships = async (
     }
   }
 
-  // Delete old FRIENDSHIPS collection documents
-  const friendshipsQuery = db
-    .collection(Collections.FRIENDSHIPS)
-    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
-
-  // Process each friendship document
-  const processFriendshipDoc = (friendshipDoc: QueryDocumentSnapshot, currentBatch: FirebaseFirestore.WriteBatch) => {
-    currentBatch.delete(friendshipDoc.ref);
-  };
-
-  // Stream and process the friendships
-  const oldFriendshipsDeleted = await streamAndProcessCollection(
-    friendshipsQuery,
-    processFriendshipDoc,
-    db,
-    'friendship deletions',
-  );
-
   // Commit any remaining friend deletions
   if (batchCount > 0) {
     await batch.commit();
     logger.info(`Committed final batch with ${batchCount} friend deletions`);
   }
 
-  const totalFriendships = totalDeleted + oldFriendshipsDeleted;
-  logger.info(
-    `Deleted ${totalDeleted} friend docs and ${oldFriendshipsDeleted} old friendship docs for user ${userId}`,
-  );
-  return totalFriendships;
+  logger.info(`Deleted ${totalDeleted} friend docs for user ${userId}`);
+  return totalDeleted;
 };
 
 /**

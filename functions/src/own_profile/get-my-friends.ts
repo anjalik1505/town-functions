@@ -3,7 +3,6 @@ import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, FriendEventParams } from '../models/analytics-events.js';
 import { Collections, FriendDocFields, QueryOperators } from '../models/constants.js';
 import { Friend, FriendsResponse, PaginationPayload } from '../models/data-models.js';
-import { migrateFriendDocsForUser } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -31,9 +30,6 @@ const logger = getLogger(path.basename(__filename));
 export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsResponse>> => {
   const db = getFirestore();
   const currentUserId = req.userId;
-
-  // Ensure friend docs exist (lazy migration)
-  await migrateFriendDocsForUser(currentUserId);
 
   logger.info(`Retrieving friends and pending requests for user: ${currentUserId}`);
 
