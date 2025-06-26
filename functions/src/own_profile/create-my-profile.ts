@@ -10,6 +10,7 @@ import {
   ProfileFields,
 } from '../models/constants.js';
 import { CreateProfilePayload, Insights, ProfileResponse } from '../models/data-models.js';
+import { ConflictError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   extractConnectToForAnalytics,
@@ -66,6 +67,19 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
 
   const updatedAt = Timestamp.now();
 
+  // Extract phone number (optional)
+  const phoneNumber = profileData.phone_number;
+
+  // If phone provided ensure uniqueness and prepare mapping
+  let phoneRef: FirebaseFirestore.DocumentReference | null = null;
+  if (phoneNumber) {
+    phoneRef = db.collection(Collections.PHONES).doc(phoneNumber);
+    const phoneDoc = await phoneRef.get();
+    if (phoneDoc.exists) {
+      throw new ConflictError(`Phone number ${phoneNumber} is already registered`);
+    }
+  }
+
   // Create a profile with provided data
   const profileDataToSave: UpdateData<DocumentData> = {
     [ProfileFields.USERNAME]: profileData.username,
@@ -90,10 +104,27 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     [ProfileFields.CREATED_AT]: updatedAt,
   };
 
+  // Conditionally add phone number to saved data
+  if (phoneNumber) {
+    (profileDataToSave as Record<string, unknown>)[ProfileFields.PHONE_NUMBER] = phoneNumber;
+  }
+
   // Create the profile document
   const profileRef = db.collection(Collections.PROFILES).doc(currentUserId);
   await profileRef.set(profileDataToSave);
   logger.info(`Profile document created for user ${currentUserId}`);
+
+  // Create phones mapping document if phone provided
+  if (phoneNumber && phoneRef) {
+    await phoneRef.set({
+      [ProfileFields.USER_ID]: currentUserId,
+      [ProfileFields.USERNAME]: profileData.username,
+      [ProfileFields.NAME]: profileData.name || '',
+      [ProfileFields.AVATAR]: profileData.avatar || '',
+    });
+
+    logger.info(`Phone mapping created for ${phoneNumber}`);
+  }
 
   // Create an empty insight subcollection document with placeholders
   const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);

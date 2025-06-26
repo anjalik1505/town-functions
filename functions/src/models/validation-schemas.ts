@@ -108,6 +108,9 @@ const birthdaySchema = z
   }, 'Birthday must be a valid date')
   .optional();
 
+// Phone number schema (E.164 format)
+const phoneSchema = z.string().regex(/^\+\d{10,15}$/, 'Phone number must be in E.164 format (e.g., +1234567890)');
+
 // Profile schemas
 export const createProfileSchema = z.object({
   username: z.string().min(1),
@@ -121,6 +124,7 @@ export const createProfileSchema = z.object({
   connect_to: z.string().optional(),
   personality: z.enum(Object.values(PersonalityFields) as [string, ...string[]]).optional(),
   tone: z.enum(Object.values(ToneFields) as [string, ...string[]]).optional(),
+  phone_number: phoneSchema.optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -135,6 +139,7 @@ export const updateProfileSchema = z.object({
   connect_to: z.string().optional(),
   personality: z.enum(Object.values(PersonalityFields) as [string, ...string[]]).optional(),
   tone: z.enum(Object.values(ToneFields) as [string, ...string[]]).optional(),
+  phone_number: phoneSchema.optional(),
 });
 
 // Pagination schemas
@@ -318,3 +323,11 @@ export const shareUpdateSchema = z
   .refine((data) => (data.friend_ids && data.friend_ids.length > 0) || (data.group_ids && data.group_ids.length > 0), {
     message: 'At least one friend ID or group ID is required',
   });
+
+// Lookup phones request schema
+export const phoneLookupSchema = z.object({
+  phones: z
+    .array(phoneSchema)
+    .min(1, 'At least one phone number is required')
+    .max(500, 'Maximum 500 phone numbers allowed'),
+});

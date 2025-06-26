@@ -189,6 +189,7 @@ This repository contains the backend functions for the Village application.
   "username": "johndoe",
   "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg",
+  "phone_number": "+1234567890",
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["all"],
@@ -206,6 +207,7 @@ This repository contains the backend functions for the Village application.
 ```
 
 _Note: notification_settings is an optional array that can only contain "all" or "urgent". nudging_settings is an optional nested object with occurrence (daily/weekly/few_days/never), times_of_day (HH:MM format), and days_of_week. Validation rules: daily allows multiple times_of_day; weekly allows 1 time_of_day and 1 day_of_week; few_days allows 1 time_of_day and multiple days_of_week; never allows no times/days. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
+_If provided, phone_number must be in E.164 format and not already registered by another user._
 
 **Output**:
 
@@ -215,6 +217,7 @@ _Note: notification_settings is an optional array that can only contain "all" or
   "username": "johndoe",
   "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg",
+  "phone_number": "+1234567890",
   "location": "New York",
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
@@ -276,6 +279,7 @@ _Note: notification_settings is an optional array that can only contain "all" or
   "username": "johndoe_updated",
   "name": "John Doe Updated",
   "avatar": "https://example.com/new_avatar.jpg",
+  "phone_number": "+1234567890",
   "location": "San Francisco",
   "birthday": "1990-01-01",
   "notification_settings": ["urgent"],
@@ -292,6 +296,7 @@ _Note: notification_settings is an optional array that can only contain "all" or
 ```
 
 _Note: All fields are optional. Only the fields included in the request will be updated. notification_settings can only contain "all" or "urgent". nudging_settings is an optional nested object with occurrence (daily/weekly/few_days/never), times_of_day (HH:MM format), and days_of_week. Validation rules: daily allows multiple times_of_day; weekly allows 1 time_of_day and 1 day_of_week; few_days allows 1 time_of_day and multiple days_of_week; never allows no times/days. goal and connect_to accept any string (free-form). personality can only contain predefined values. tone can only contain predefined values._
+_If provided, phone_number must be in E.164 format and not already registered by another user._
 
 **Output**:
 
@@ -301,6 +306,7 @@ _Note: All fields are optional. Only the fields included in the request will be 
   "username": "johndoe_updated",
   "name": "John Doe Updated",
   "avatar": "https://example.com/new_avatar.jpg",
+  "phone_number": "+1234567890",
   "location": "San Francisco",
   "birthday": "1990-01-01",
   "updated_at": "2025-03-18T18:51:39.000+00:00",
@@ -364,6 +370,7 @@ _Note: All fields are optional. Only the fields included in the request will be 
   "username": "johndoe",
   "name": "John Doe",
   "avatar": "https://example.com/avatar.jpg",
+  "phone_number": "+1234567890",
   "location": "New York",
   "birthday": "1990-01-01",
   "notification_settings": ["all"],
@@ -2050,6 +2057,56 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 - 400: You cannot nudge yourself
 - 403: You must be friends with this user to nudge them
 - 409: You can only nudge this user once per hour
+- 500: Internal server error
+
+### Phone
+
+#### POST /phones/lookup
+
+**Purpose**: Check which phone numbers already belong to registered users.
+
+**Analytics Events**:
+
+- PHONES_LOOKED_UP: Fired when phone lookup is performed
+
+  **Event Body:**
+
+  ```json
+  {
+    "requested_count": 0,
+    "match_count": 0
+  }
+  ```
+
+**Input**:
+
+```json
+{
+  "phones": ["+1234567890", "+441234567890"]
+}
+```
+
+_Note: Minimum 1 and maximum 500 phone numbers. All numbers must be in valid E.164 format._
+
+**Output**:
+
+```json
+{
+  "matches": [
+    {
+      "user_id": "user123",
+      "username": "johndoe",
+      "name": "John Doe",
+      "avatar": "https://example.com/avatar.jpg"
+    }
+  ]
+}
+```
+
+**Errors**:
+
+- 400: Invalid request parameters
+- 401: Authentication required
 - 500: Internal server error
 
 ### Test Endpoints

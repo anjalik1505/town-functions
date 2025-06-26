@@ -22,6 +22,7 @@ export const Collections = {
   NUDGES: 'nudges',
   TIME_BUCKETS: 'time_buckets',
   TIME_BUCKET_USERS: 'users',
+  PHONES: 'phones',
   FRIENDS: 'friends',
 } as const;
 
@@ -61,6 +62,7 @@ export const ProfileFields = {
   CONNECT_TO: 'connect_to',
   PERSONALITY: 'personality',
   TONE: 'tone',
+  PHONE_NUMBER: 'phone_number',
   FRIENDS_TO_CLEANUP: 'friends_to_cleanup',
 } as const;
 

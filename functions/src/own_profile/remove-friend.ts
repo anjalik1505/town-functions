@@ -5,6 +5,7 @@ import { Collections } from '../models/constants.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getFriendDoc, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
+import { createSummaryId } from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -71,7 +72,19 @@ export const removeFriend = async (req: Request): Promise<ApiResponse<null>> => 
 
   await batch.commit();
 
-  logger.info(`Removed friendship between ${currentUserId} and ${friendUserId}`);
+  // Delete the summary documents created for this friendship
+  const summaryIdForCurrentUser = createSummaryId(currentUserId, friendUserId);
+  const summaryRefForCurrentUser = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForCurrentUser);
+  batch.delete(summaryRefForCurrentUser);
+
+  const summaryIdForFriend = createSummaryId(friendUserId, currentUserId);
+  const summaryRefForFriend = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForFriend);
+  batch.delete(summaryRefForFriend);
+
+  // Commit all operations in batch
+  await batch.commit();
+
+  logger.info(`Removed friendship and summaries between ${currentUserId} and ${friendUserId}`);
 
   // Friend count after deletion
   const friendCountAfter = friendCountBefore - 1;
