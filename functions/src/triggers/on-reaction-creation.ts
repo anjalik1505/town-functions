@@ -16,14 +16,14 @@ const logger = getLogger(path.basename(__filename));
  * Sends a notification to the update creator when a new reaction is added.
  *
  * @param db - Firestore client
- * @param reactionData - The reaction document data
+ * @param reactionTypes - The array of reaction types from the reaction document
  * @param updateId - The ID of the update that received the reaction
  * @param reactorId - The ID of the user who created the reaction
  * @returns Analytics data for this notification
  */
 const sendReactionNotification = async (
   db: FirebaseFirestore.Firestore,
-  reactionData: Record<string, unknown>,
+  reactionTypes: string[],
   updateId: string,
   reactorId: string,
 ): Promise<NotificationEventParams> => {
@@ -96,8 +96,8 @@ const sendReactionNotification = async (
   const reactorProfileData = reactorProfileDoc.exists ? reactorProfileDoc.data() || {} : {};
   const reactorName = reactorProfileData.name || reactorProfileData.username || 'Friend';
 
-  // Get reaction type
-  const reactionType = (reactionData[ReactionFields.TYPE] as string) || 'like';
+  // Get the most recent reaction type (last in the array)
+  const reactionType = reactionTypes.length > 0 ? reactionTypes[reactionTypes.length - 1] : 'like';
 
   // Send the notification
   try {
@@ -159,26 +159,29 @@ export const onReactionCreated = async (
     }
 
     const reactionData = reactionSnapshot.data() || {};
-    const reactionId = event.params.id;
+    const reactorId = event.params.id; // Document ID is now the userId
     const updateId = reactionSnapshot.ref.parent.parent?.id;
 
     if (!updateId) {
-      logger.error(`Could not determine parent update ID for reaction ${reactionId}`);
+      logger.error(`Could not determine parent update ID for reaction by user ${reactorId}`);
       return;
     }
 
-    logger.info(`Processing reaction creation: ${reactionId} on update ${updateId}`);
-
-    const reactorId = reactionData[ReactionFields.CREATED_BY] as string;
-    if (!reactorId) {
-      logger.error(`No creator ID found for reaction ${reactionId}`);
+    // Get the reaction types array from the document
+    const reactionTypes = (reactionData[ReactionFields.TYPES] as string[]) || [];
+    if (reactionTypes.length === 0) {
+      logger.warn(`No reaction types found in reaction document for user ${reactorId}`);
       return;
     }
+
+    logger.info(
+      `Processing reaction creation: user ${reactorId} on update ${updateId} with types ${reactionTypes.join(', ')}`,
+    );
 
     const db = getFirestore();
 
     // Send notification to the update creator
-    const notificationResult = await sendReactionNotification(db, reactionData, updateId, reactorId);
+    const notificationResult = await sendReactionNotification(db, reactionTypes, updateId, reactorId);
 
     // Track analytics
     await trackApiEvents(
@@ -191,7 +194,7 @@ export const onReactionCreated = async (
       reactorId,
     );
 
-    logger.info(`Successfully processed reaction notification for reaction ${reactionId}`);
+    logger.info(`Successfully processed reaction notification for user ${reactorId} on update ${updateId}`);
   } catch (error) {
     logger.error(`Error processing reaction notification:`, error);
   }

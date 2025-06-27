@@ -19,12 +19,12 @@ import {
   createCommentSchema,
   createFeedbackSchema,
   createProfileSchema,
-  createReactionSchema,
   createUpdateSchema,
   deviceSchema,
   locationSchema,
   paginationSchema,
   phoneLookupSchema,
+  reactionSchema,
   shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
@@ -325,12 +325,12 @@ app.delete('/updates/:update_id/comments/:comment_id', async (req, res) => {
 });
 
 // Reaction routes
-app.post('/updates/:update_id/reactions', validateRequest(createReactionSchema), async (req, res) => {
+app.post('/updates/:update_id/reactions/add', validateRequest(reactionSchema), async (req, res) => {
   const result = await createReaction(req);
   sendResponse(res, result);
 });
 
-app.delete('/updates/:update_id/reactions/:reaction_id', async (req, res) => {
+app.post('/updates/:update_id/reactions/remove', validateRequest(reactionSchema), async (req, res) => {
   const result = await deleteReaction(req);
   sendResponse(res, result);
 });

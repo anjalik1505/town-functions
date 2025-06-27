@@ -1,14 +1,13 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, UpdateViewEventParams } from '../models/analytics-events.js';
-import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
+import { Collections, FeedFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { areFriends } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
-import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
 import { fetchUpdatesByIds, processFeedItems } from '../utils/update-utils.js';
 
 import path from 'path';
@@ -120,8 +119,15 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   // Fetch all updates in parallel
   const updateMap = await fetchUpdatesByIds(updateIds);
 
-  // Fetch reactions for all updates
-  const updateReactionsMap = await fetchUpdatesReactions(updateIds);
+  // Extract reactions from denormalized reaction_types field in updates
+  const updateReactionsMap = new Map();
+  updateMap.forEach((updateData, updateId) => {
+    const reactionTypes = updateData[UpdateFields.REACTION_TYPES] || {};
+    const reactions = Object.entries(reactionTypes)
+      .map(([type, count]) => ({ type, count: count as number }))
+      .filter((reaction) => reaction.count > 0);
+    updateReactionsMap.set(updateId, reactions);
+  });
 
   // Process feed items and create updates
   const updates = await processFeedItems(feedDocs, updateMap, updateReactionsMap, targetUserId);

@@ -198,7 +198,9 @@ export const CommentProfileFields = {
 export const ReactionFields = {
   CREATED_BY: 'created_by',
   TYPE: 'type',
+  TYPES: 'types',
   CREATED_AT: 'created_at',
+  UPDATED_AT: 'updated_at',
 } as const;
 
 // Field names for Feed documents

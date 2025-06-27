@@ -4,7 +4,6 @@ import { UpdateFields } from '../models/constants.js';
 import { PaginationPayload, UpdateWithCommentsResponse } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { fetchUpdateReactions } from '../utils/reaction-utils.js';
 import { fetchUpdateComments, formatEnrichedUpdate, getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
 import path from 'path';
@@ -55,8 +54,11 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
   const updateResult = await getUpdateDoc(updateId);
   await hasUpdateAccess(updateResult.data, currentUserId);
 
-  // Fetch the update's reactions
-  const reactions = await fetchUpdateReactions(updateId);
+  // Extract reactions from denormalized reaction_types field
+  const reactionTypes = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+  const reactions = Object.entries(reactionTypes)
+    .map(([type, count]) => ({ type, count: count as number }))
+    .filter((reaction) => reaction.count > 0);
 
   // Get the creator ID
   const creatorId = updateResult.data.created_by;

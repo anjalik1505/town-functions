@@ -139,14 +139,11 @@ export const processFeedItems = async (
  * Process feed items and create enriched update objects with user profile information and shared_with data
  * @param feedDocs Array of feed document snapshots
  * @param updateMap Map of update IDs to update data
- * @param reactionsMap Map of update IDs to reactions
- * @param profiles Map of user IDs to profile data
  * @returns Array of formatted EnrichedUpdate objects
  */
 export const processEnrichedFeedItems = async (
   feedDocs: QueryDocumentSnapshot[],
   updateMap: Map<string, FirebaseFirestore.DocumentData>,
-  reactionsMap: Map<string, ReactionGroup[]>,
 ): Promise<EnrichedUpdate[]> => {
   const updates = await Promise.all(
     feedDocs.map(async (feedItem) => {
@@ -167,11 +164,17 @@ export const processEnrichedFeedItems = async (
       // Use denormalized creator profile or fall back to profiles map
       const creatorProfile = updateData.creator_profile || null;
 
+      // Extract reactions from denormalized reaction_types field
+      const reactionTypes = updateData[UpdateFields.REACTION_TYPES] || {};
+      const reactions = Object.entries(reactionTypes)
+        .map(([type, count]) => ({ type, count: count as number }))
+        .filter((reaction) => reaction.count > 0);
+
       return formatEnrichedUpdate(
         updateId,
         updateData,
         createdBy,
-        reactionsMap.get(updateId) || [],
+        reactions,
         creatorProfile,
         sharedWithFriends,
         sharedWithGroups,

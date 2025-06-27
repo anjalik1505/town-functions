@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
-import { Collections, QueryOperators, ReactionFields, UpdateFields } from '../models/constants.js';
+import { Collections, ReactionFields, UpdateFields } from '../models/constants.js';
 import { CreateReactionPayload, ReactionGroup } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -19,8 +19,8 @@ const logger = getLogger(path.basename(__filename));
  * This function:
  * 1. Verifies the user has access to update
  * 2. Checks if the user has already reacted with this type
- * 3. Creates a new reaction in reactions subcollection
- * 4. Updates the reaction count on the update document
+ * 3. Creates or updates the user's reaction document in reactions subcollection
+ * 4. Increments the total reaction count and per-type count on the update document
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -29,7 +29,7 @@ const logger = getLogger(path.basename(__filename));
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update to react to
  *
- * @returns An ApiResponse containing the reaction group and analytics
+ * @returns An ApiResponse containing the reaction summary and analytics
  *
  * @throws 400: You have already reacted with this type
  * @throws 403: You don't have access to this update
@@ -53,45 +53,42 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
   const updateResult = await getUpdateDoc(updateId);
   await hasUpdateAccess(updateResult.data, currentUserId);
 
-  // Check if a user has already reacted with this type
-  const existingReactionSnapshot = await updateResult.ref
-    .collection(Collections.REACTIONS)
-    .where(ReactionFields.CREATED_BY, QueryOperators.EQUALS, currentUserId)
-    .where(ReactionFields.TYPE, QueryOperators.EQUALS, reactionType)
-    .get();
+  // Look up the user's reaction document by userId
+  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc(currentUserId);
+  const reactionSnap = await reactionRef.get();
 
-  if (!existingReactionSnapshot.empty) {
+  // Get existing types array from the document
+  const existingTypes: string[] = reactionSnap.exists ? (reactionSnap.data()?.[ReactionFields.TYPES] ?? []) : [];
+
+  // Check if the reaction type already exists
+  if (existingTypes.includes(reactionType)) {
     logger.warn(`User ${currentUserId} attempted to create duplicate ${reactionType} reaction on update ${updateId}`);
     throw new BadRequestError('You have already reacted with this type');
   }
 
-  // Create the reaction document
-  const createdAt = Timestamp.now();
-
-  const reactionData: UpdateData<DocumentData> = {
-    [ReactionFields.CREATED_BY]: currentUserId,
-    [ReactionFields.TYPE]: reactionType,
-    [ReactionFields.CREATED_AT]: createdAt,
-  };
-
   // Create a batch for atomic operations
   const batch = db.batch();
-  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc();
-  const reactionId = reactionRef.id;
+  const now = Timestamp.now();
 
-  // Add the reaction document
-  batch.set(reactionRef, reactionData);
-
-  // Get current reaction summary to update recent_reactors
-  const currentTypes = updateResult.data[UpdateFields.REACTION_TYPES] || {};
-
-  // Prepare the update data for reaction summary
-  const updateData: UpdateData<DocumentData> = {
-    [UpdateFields.REACTION_COUNT]: FieldValue.increment(1),
-    [UpdateFields.REACTION_TYPES]: {
-      ...currentTypes,
-      [reactionType]: (currentTypes[reactionType] || 0) + 1,
+  // Set or update the reaction document with arrayUnion
+  batch.set(
+    reactionRef,
+    {
+      [ReactionFields.TYPES]: FieldValue.arrayUnion(reactionType),
+      [ReactionFields.UPDATED_AT]: now,
     },
+    { merge: true },
+  );
+
+  // Get current reaction types to calculate new count
+  const currentTypes = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+  const newPerTypeCount = (currentTypes[reactionType] || 0) + 1;
+
+  // Prepare the update data for the update document
+  const updateData: UpdateData<DocumentData> = {
+    // Always increment total count when a reaction is added
+    [UpdateFields.REACTION_COUNT]: FieldValue.increment(1),
+    [`${UpdateFields.REACTION_TYPES}.${reactionType}`]: FieldValue.increment(1),
   };
 
   // Update the update document
@@ -99,19 +96,18 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
 
   // Commit the batch
   await batch.commit();
-  logger.info(`Successfully created reaction ${reactionId} on update ${updateId}`);
+  logger.info(`Successfully created reaction type ${reactionType} for user ${currentUserId} on update ${updateId}`);
 
-  // Return the reaction group with an updated count
-  const newReactionCount = (updateResult.data[UpdateFields.REACTION_COUNT] || 0) + 1;
+  // Return the reaction summary with the per-type count
   const response: ReactionGroup = {
     type: reactionType,
-    count: newReactionCount,
-    reaction_id: reactionId,
+    count: newPerTypeCount,
   };
 
   // Create analytics event
+  const newTotalReactionCount = (updateResult.data[UpdateFields.REACTION_COUNT] || 0) + 1;
   const event: ReactionEventParams = {
-    reaction_count: newReactionCount,
+    reaction_count: newTotalReactionCount,
     comment_count: updateResult.data[UpdateFields.COMMENT_COUNT] || 0,
   };
 

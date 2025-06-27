@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Collections, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
-import { FeedResponse, PaginationPayload, ReactionGroup } from '../models/data-models.js';
+import { FeedResponse, PaginationPayload } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
@@ -96,11 +96,8 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
   // Fetch update data using util
   const updateMap = await fetchUpdatesByIds(updateIds);
 
-  // No reactions fetched for now (empty map)
-  const reactionsMap = new Map<string, ReactionGroup[]>();
-
   // Use util to enrich updates
-  const enrichedUpdates = await processEnrichedFeedItems(updateDocs, updateMap, reactionsMap);
+  const enrichedUpdates = await processEnrichedFeedItems(updateDocs, updateMap);
 
   logger.info('Query executed successfully');
 

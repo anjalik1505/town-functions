@@ -3,7 +3,7 @@ import { DocumentData, FieldValue, getFirestore, UpdateData } from 'firebase-adm
 import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
 import { Collections, ReactionFields, UpdateFields } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
@@ -18,27 +18,30 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Verifies the user has access to update
- * 2. Verifies the user created the reaction
- * 3. Deletes reaction document
+ * 2. Finds the user's reaction document
+ * 3. Removes the specified reaction type from the document
  * 4. Updates the reaction count on the update document
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
  *              - params: Route parameters containing:
  *                - update_id: The ID of the update
- *                - reaction_id: The ID of the reaction to delete
+ *              - validated_params: Request body containing:
+ *                - type: The type of reaction to delete
  *
- * @returns An ApiResponse containing the reaction group and analytics
+ * @returns An ApiResponse containing the reaction summary and analytics
  *
- * @throws 404: Update or reaction not found
- * @throws 403: You don't have access to this update, or you can only delete your own reactions
+ * @throws 400: Reaction type not found
+ * @throws 404: Update not found
+ * @throws 403: You don't have access to this update
  */
 export const deleteReaction = async (req: Request): Promise<ApiResponse<ReactionGroup>> => {
   const currentUserId = req.userId;
   const updateId = req.params.update_id;
-  const reactionId = req.params.reaction_id;
+  const validatedParams = req.validated_params as { type: string };
+  const reactionType = validatedParams.type;
 
-  logger.info(`Deleting reaction ${reactionId} from update ${updateId} by user ${currentUserId}`);
+  logger.info(`Deleting reaction type ${reactionType} from update ${updateId} by user ${currentUserId}`);
 
   const db = getFirestore();
 
@@ -46,49 +49,56 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
     throw new BadRequestError('Update ID is required');
   }
 
-  if (!reactionId) {
-    throw new BadRequestError('Reaction ID is required');
-  }
-
   // Get the update document and verify access
   const updateResult = await getUpdateDoc(updateId);
   await hasUpdateAccess(updateResult.data, currentUserId);
 
-  // Get the reaction document
-  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc(reactionId);
+  // Get the user's reaction document
+  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc(currentUserId);
   const reactionDoc = await reactionRef.get();
 
   if (!reactionDoc.exists) {
-    logger.warn(`Reaction ${reactionId} not found on update ${updateId}`);
-    throw new NotFoundError('Reaction not found');
+    logger.warn(`No reactions found for user ${currentUserId} on update ${updateId}`);
+    throw new BadRequestError('Reaction not found');
   }
 
   const reactionData = reactionDoc.data();
-  if (reactionData?.[ReactionFields.CREATED_BY] !== currentUserId) {
-    logger.warn(
-      `User ${currentUserId} attempted to delete reaction created by ${reactionData?.[ReactionFields.CREATED_BY]}`,
-    );
-    throw new ForbiddenError('You can only delete your own reactions');
-  }
+  const types = (reactionData?.[ReactionFields.TYPES] as string[]) || [];
 
-  const reactionType = reactionData?.[ReactionFields.TYPE] as string;
+  if (!types.includes(reactionType)) {
+    logger.warn(`Reaction type ${reactionType} not found for user ${currentUserId} on update ${updateId}`);
+    throw new BadRequestError('Reaction type not found');
+  }
 
   // Create a batch for atomic operations
   const batch = db.batch();
 
-  // Delete the reaction document
-  batch.delete(reactionRef);
+  // Get current timestamp
+  const now = new Date().toISOString();
 
-  // Get current reaction summary to update recent_reactors
+  // Update the reaction document to remove the type
+  const updatedTypes = types.filter((t) => t !== reactionType);
+
+  if (updatedTypes.length > 0) {
+    // Update the document with remaining types
+    batch.update(reactionRef, {
+      [ReactionFields.TYPES]: FieldValue.arrayRemove(reactionType),
+      [ReactionFields.UPDATED_AT]: now,
+    });
+  } else {
+    // Delete the document if no types remain
+    batch.delete(reactionRef);
+  }
+
+  // Get current reaction summary
   const currentSummary = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+  const currentTypeCount = currentSummary[reactionType] || 0;
+  const newPerTypeCount = Math.max(0, currentTypeCount - 1);
 
   // Prepare the update data for reaction summary
   const updateData: UpdateData<DocumentData> = {
     [UpdateFields.REACTION_COUNT]: FieldValue.increment(-1),
-    [UpdateFields.REACTION_TYPES]: {
-      ...currentSummary,
-      [reactionType]: (currentSummary[reactionType] || 0) - 1,
-    },
+    [`${UpdateFields.REACTION_TYPES}.${reactionType}`]: FieldValue.increment(-1),
   };
 
   // Update the update document
@@ -96,15 +106,16 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
 
   // Commit the batch
   await batch.commit();
-  logger.info(`Successfully deleted reaction ${reactionId} from update ${updateId}`);
+  logger.info(`Successfully deleted reaction type ${reactionType} from update ${updateId}`);
 
-  // Return the reaction group with the updated count
-  const newReactionCount = Math.max(0, (updateResult.data[UpdateFields.REACTION_COUNT] || 0) - 1);
+  // Return the reaction summary with the updated count
   const response: ReactionGroup = {
-    type: reactionType || '',
-    count: newReactionCount,
-    reaction_id: reactionId,
+    type: reactionType,
+    count: newPerTypeCount,
   };
+
+  // Calculate new total reaction count
+  const newReactionCount = Math.max(0, (updateResult.data[UpdateFields.REACTION_COUNT] || 0) - 1);
 
   // Create analytics event
   const event: ReactionEventParams = {

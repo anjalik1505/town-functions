@@ -746,11 +746,11 @@ class VillageAPI:
         logger.info(f"Successfully deleted comment {comment_id}")
 
     # Reaction Methods
-    def create_reaction(
+    def add_reaction(
         self, email: str, update_id: str, reaction_type: str
     ) -> Dict[str, Any]:
-        """Create a new reaction on an update"""
-        logger.info(f"Creating reaction on update {update_id}")
+        """Add a new reaction to an update"""
+        logger.info(f"Adding reaction to update {update_id}")
 
         headers = {
             "Content-Type": "application/json",
@@ -759,33 +759,40 @@ class VillageAPI:
 
         payload = {"type": reaction_type}
         response = requests.post(
-            f"{API_BASE_URL}/updates/{update_id}/reactions",
+            f"{API_BASE_URL}/updates/{update_id}/reactions/add",
             headers=headers,
             json=payload,
         )
         if response.status_code != 201:
-            logger.error(f"Failed to create reaction: {response.text}")
+            logger.error(f"Failed to add reaction: {response.text}")
             response.raise_for_status()
 
         data = response.json()
-        logger.info(f"Successfully created reaction on update {update_id}")
+        logger.info(f"Successfully added reaction to update {update_id}")
         return data
 
-    def delete_reaction(self, email: str, update_id: str, reaction_id: str) -> None:
-        """Delete a reaction"""
-        logger.info(f"Deleting reaction {reaction_id} from update {update_id}")
+    def remove_reaction(self, email: str, update_id: str, reaction_type: str) -> Dict[str, Any]:
+        """Remove a reaction from an update"""
+        logger.info(f"Removing reaction from update {update_id}")
 
-        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
 
-        response = requests.delete(
-            f"{API_BASE_URL}/updates/{update_id}/reactions/{reaction_id}",
+        payload = {"type": reaction_type}
+        response = requests.post(
+            f"{API_BASE_URL}/updates/{update_id}/reactions/remove",
             headers=headers,
+            json=payload,
         )
-        if response.status_code != 204:
-            logger.error(f"Failed to delete reaction: {response.text}")
+        if response.status_code != 200:
+            logger.error(f"Failed to remove reaction: {response.text}")
             response.raise_for_status()
 
-        logger.info(f"Successfully deleted reaction {reaction_id}")
+        data = response.json()
+        logger.info(f"Successfully removed reaction from update {update_id}")
+        return data
 
     # Feedback Methods
     def create_feedback(self, email: str, content: str) -> Dict[str, Any]:

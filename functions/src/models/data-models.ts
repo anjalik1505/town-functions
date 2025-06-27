@@ -7,7 +7,6 @@ import {
   createFeedbackSchema,
   createGroupSchema,
   createProfileSchema,
-  createReactionSchema,
   createUpdateSchema,
   deviceSchema,
   friendProfileSchema,
@@ -15,6 +14,7 @@ import {
   ownProfileSchema,
   paginationSchema,
   phoneLookupSchema,
+  reactionSchema,
   shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
@@ -78,7 +78,6 @@ export interface FriendProfileResponse extends BaseUser {
 export interface ReactionGroup {
   type: string;
   count: number;
-  reaction_id: string;
 }
 
 export interface Update {
@@ -303,7 +302,7 @@ export type TestPromptPayload = z.infer<typeof testPromptSchema>;
 export type TestNotificationPayload = z.infer<typeof testNotificationSchema>;
 export type CreateCommentPayload = z.infer<typeof createCommentSchema>;
 export type UpdateCommentPayload = z.infer<typeof updateCommentSchema>;
-export type CreateReactionPayload = z.infer<typeof createReactionSchema>;
+export type CreateReactionPayload = z.infer<typeof reactionSchema>;
 export type CreateFeedbackPayload = z.infer<typeof createFeedbackSchema>;
 export type AnalyzeSentimentPayload = z.infer<typeof analyzeSentimentSchema>;
 export type TranscribeAudioPayload = z.infer<typeof transcribeAudioSchema>;
