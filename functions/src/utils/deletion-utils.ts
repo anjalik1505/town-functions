@@ -1,8 +1,8 @@
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { MAX_BATCH_OPERATIONS } from '../models/constants.js';
-import { fileURLToPath } from 'url';
-import { getLogger } from './logging-utils.js';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { commitBatch, commitFinal } from './batch-utils.js';
+import { getLogger } from './logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -46,13 +46,7 @@ export const streamAndProcessCollection = async (
           totalProcessed++;
 
           // Commit the batch if it reaches the maximum size
-          if (batchCount >= MAX_BATCH_OPERATIONS) {
-            await batch.commit();
-            logger.info(`Committed batch with ${batchCount} ${operationName}`);
-            batchCount = 0;
-            // Create a new batch
-            batch = db.batch();
-          }
+          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
         } else {
           // Process without batching
           await processDocument(docSnapshot, batch, db);
@@ -65,9 +59,8 @@ export const streamAndProcessCollection = async (
     }
 
     // Commit any remaining documents if using batch
-    if (useBatch && batchCount > 0) {
-      await batch.commit();
-      logger.info(`Committed final batch with ${batchCount} ${operationName}`);
+    if (useBatch) {
+      await commitFinal(db, batch, batchCount);
     }
 
     // Run the final operation if provided

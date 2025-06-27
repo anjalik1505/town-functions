@@ -4,16 +4,8 @@ import { UpdateFields } from '../models/constants.js';
 import { PaginationPayload, UpdateWithCommentsResponse } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { fetchUsersProfiles } from '../utils/profile-utils.js';
 import { fetchUpdateReactions } from '../utils/reaction-utils.js';
-import {
-  fetchFriendProfiles,
-  fetchGroupProfiles,
-  fetchUpdateComments,
-  formatEnrichedUpdate,
-  getUpdateDoc,
-  hasUpdateAccess,
-} from '../utils/update-utils.js';
+import { fetchUpdateComments, formatEnrichedUpdate, getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -66,18 +58,14 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
   // Fetch the update's reactions
   const reactions = await fetchUpdateReactions(updateId);
 
-  // Get the creator's profile
+  // Get the creator ID
   const creatorId = updateResult.data.created_by;
-  const creatorProfiles = await fetchUsersProfiles([creatorId]);
-  const creatorProfile = creatorProfiles.get(creatorId);
 
-  // Fetch shared_with profiles
-  const friendIds = updateResult.data[UpdateFields.FRIEND_IDS] || [];
-  const groupIds = updateResult.data[UpdateFields.GROUP_IDS] || [];
-  const [sharedWithFriends, sharedWithGroups] = await Promise.all([
-    fetchFriendProfiles(friendIds),
-    fetchGroupProfiles(groupIds),
-  ]);
+  // Use denormalized data from the update document
+  // For older updates that might not have denormalized data, provide empty defaults
+  const creatorProfile = updateResult.data[UpdateFields.CREATOR_PROFILE] || null;
+  const sharedWithFriends = updateResult.data[UpdateFields.SHARED_WITH_FRIENDS_PROFILES] || [];
+  const sharedWithGroups = updateResult.data[UpdateFields.SHARED_WITH_GROUPS_PROFILES] || [];
 
   // Create the enriched update
   const enrichedUpdate = formatEnrichedUpdate(
@@ -85,7 +73,7 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
     updateResult.data,
     creatorId,
     reactions,
-    creatorProfile || null,
+    creatorProfile,
     sharedWithFriends,
     sharedWithGroups,
   );

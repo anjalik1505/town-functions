@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
-import { Collections, CommentFields, ProfileFields } from '../models/constants.js';
+import { Collections, CommentFields, CommentProfileFields, ProfileFields } from '../models/constants.js';
 import { Comment, CreateCommentPayload } from '../models/data-models.js';
 import { formatComment } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
@@ -20,9 +20,10 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Verifies the user has access to the update using visibility identifiers
- * 2. Creates a new comment document
- * 3. Updates the comment count on update
- * 4. Returns the created comment with profile data
+ * 2. Fetches the commenter's profile for denormalization
+ * 3. Creates a new comment document with denormalized profile data
+ * 4. Updates the comment count on update
+ * 5. Returns the created comment with profile data
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -55,12 +56,20 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
   const updateData = updateResult.data;
   hasUpdateAccess(updateData, currentUserId);
 
-  // Create the comment
+  // Get the commenter's profile to store with the comment
+  const { data: profileData } = await getProfileDoc(currentUserId);
+
+  // Create the comment with denormalized profile data
   const commentData: UpdateData<DocumentData> = {
     [CommentFields.CREATED_BY]: currentUserId,
     [CommentFields.CONTENT]: validatedData.content,
     [CommentFields.CREATED_AT]: Timestamp.now(),
     [CommentFields.UPDATED_AT]: Timestamp.now(),
+    [CommentFields.COMMENTER_PROFILE]: {
+      [CommentProfileFields.USERNAME]: profileData[ProfileFields.USERNAME] || '',
+      [CommentProfileFields.NAME]: profileData[ProfileFields.NAME] || '',
+      [CommentProfileFields.AVATAR]: profileData[ProfileFields.AVATAR] || '',
+    },
   };
 
   // Create comment and update comment count in a batch
@@ -79,13 +88,12 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
   const commentDoc = await commentRef.get();
   const commentDocData = commentDoc.data() || {};
 
-  // Get the creator's profile
-  const { data: profileData } = await getProfileDoc(currentUserId);
-
   const comment = formatComment(commentRef.id, commentDocData, currentUserId);
-  comment.username = profileData[ProfileFields.USERNAME] || '';
-  comment.name = profileData[ProfileFields.NAME] || '';
-  comment.avatar = profileData[ProfileFields.AVATAR] || '';
+  // Use the denormalized profile data from the comment document
+  const commenterProfile = commentDocData.commenter_profile || {};
+  comment.username = commenterProfile.username || '';
+  comment.name = commenterProfile.name || '';
+  comment.avatar = commenterProfile.avatar || '';
 
   // Create an analytics event with the updated comment count
   const event: CommentEventParams = {

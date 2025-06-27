@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
-import { Collections, QueryOperators, ReactionFields } from '../models/constants.js';
+import { Collections, QueryOperators, ReactionFields, UpdateFields } from '../models/constants.js';
 import { CreateReactionPayload, ReactionGroup } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -82,27 +82,37 @@ export const createReaction = async (req: Request): Promise<ApiResponse<Reaction
   // Add the reaction document
   batch.set(reactionRef, reactionData);
 
-  // Update the reaction count
-  const updateCountData: UpdateData<DocumentData> = {
-    reaction_count: (updateResult.data.reaction_count || 0) + 1,
+  // Get current reaction summary to update recent_reactors
+  const currentTypes = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+
+  // Prepare the update data for reaction summary
+  const updateData: UpdateData<DocumentData> = {
+    [UpdateFields.REACTION_COUNT]: FieldValue.increment(1),
+    [UpdateFields.REACTION_TYPES]: {
+      ...currentTypes,
+      [reactionType]: (currentTypes[reactionType] || 0) + 1,
+    },
   };
-  batch.update(updateResult.ref, updateCountData);
+
+  // Update the update document
+  batch.update(updateResult.ref, updateData);
 
   // Commit the batch
   await batch.commit();
   logger.info(`Successfully created reaction ${reactionId} on update ${updateId}`);
 
   // Return the reaction group with an updated count
+  const newReactionCount = (updateResult.data[UpdateFields.REACTION_COUNT] || 0) + 1;
   const response: ReactionGroup = {
     type: reactionType,
-    count: (updateResult.data.reaction_count || 0) + 1,
+    count: newReactionCount,
     reaction_id: reactionId,
   };
 
   // Create analytics event
   const event: ReactionEventParams = {
-    reaction_count: (updateResult.data.reaction_count || 0) + 1,
-    comment_count: updateResult.data.comment_count || 0,
+    reaction_count: newReactionCount,
+    comment_count: updateResult.data[UpdateFields.COMMENT_COUNT] || 0,
   };
 
   return {

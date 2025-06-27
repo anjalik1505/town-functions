@@ -65,11 +65,7 @@ export interface ProfileResponse extends BaseUser {
   phone_number: string;
 }
 
-export interface FriendProfileResponse {
-  user_id: string;
-  username: string;
-  name: string;
-  avatar: string;
+export interface FriendProfileResponse extends BaseUser {
   location: string;
   birthday: string; // Format: yyyy-mm-dd
   gender: string;
@@ -158,11 +154,7 @@ export interface JoinRequestResponse {
   next_cursor: string | null;
 }
 
-export interface Friend {
-  user_id: string;
-  username: string;
-  name: string;
-  avatar: string;
+export interface Friend extends BaseUser {
   last_update_emoji: string;
   last_update_time: string;
 }
@@ -247,15 +239,18 @@ export interface QuestionResponse {
   question: string;
 }
 
-export interface Comment {
+export interface CommentProfile {
+  username: string;
+  name: string;
+  avatar: string;
+}
+
+export interface Comment extends CommentProfile {
   comment_id: string;
   created_by: string;
   content: string;
   created_at: string;
   updated_at: string;
-  username: string;
-  name: string;
-  avatar: string;
 }
 
 export interface CommentsResponse {

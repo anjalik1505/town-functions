@@ -9,6 +9,7 @@ import { onFriendshipCreated } from './triggers/on-friendship-creation.js';
 import { onJoinRequestCreated } from './triggers/on-join-request-creation.js';
 import { onJoinRequestUpdated } from './triggers/on-join-request-update.js';
 import { onProfileDeleted } from './triggers/on-profile-deletion.js';
+import { onProfileUpdate } from './triggers/on-profile-update.js';
 import { onReactionCreated } from './triggers/on-reaction-creation.js';
 import { onUpdateCreated } from './triggers/on-update-creation.js';
 import { onUpdateNotification } from './triggers/on-update-notification.js';
@@ -77,6 +78,15 @@ export const process_profile_deletion = onDocumentDeleted(
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onProfileDeleted(event),
+);
+
+// Export the Firestore trigger function for profile updates
+export const process_profile_update = onDocumentUpdated(
+  {
+    document: `${Collections.PROFILES}/{userId}`,
+    secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
+  },
+  (event) => onProfileUpdate(event),
 );
 
 // Export the Firestore trigger function for friendship creation

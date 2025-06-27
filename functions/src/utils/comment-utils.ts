@@ -3,7 +3,6 @@ import { Collections, CommentFields } from '../models/constants.js';
 import { Comment } from '../models/data-models.js';
 import { NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
-import { enrichWithProfile } from './profile-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
 
 import path from 'path';
@@ -41,35 +40,37 @@ export const formatComment = (
  * @param commentId The ID of the comment
  * @param commentData The comment document data
  * @param createdBy The ID of the user who created the comment
- * @param profile Optional profile data for the creator
  * @returns A formatted Comment object with profile data
  */
 export const formatEnrichedComment = (
   commentId: string,
   commentData: FirebaseFirestore.DocumentData,
   createdBy: string,
-  profile: { username: string; name: string; avatar: string } | null = null,
 ): Comment => {
   const comment = formatComment(commentId, commentData, createdBy);
-  return enrichWithProfile(comment, profile);
+
+  // Always include profile data, using empty strings if missing
+  const commenterProfile = commentData.commenter_profile || {};
+  comment.username = commenterProfile.username || '';
+  comment.name = commenterProfile.name || '';
+  comment.avatar = commenterProfile.avatar || '';
+
+  return comment;
 };
 
 /**
  * Process comment documents and create enriched comment objects with user profile information
+ * using denormalized commenter_profile data
  * @param commentDocs Array of comment document snapshots
- * @param profiles Map of user IDs to profile data
  * @returns Array of formatted Comment objects with profile data
  */
-export const processEnrichedComments = (
-  commentDocs: QueryDocumentSnapshot[],
-  profiles: Map<string, { username: string; name: string; avatar: string }>,
-): Comment[] => {
+export const processEnrichedComments = (commentDocs: QueryDocumentSnapshot[]): Comment[] => {
   return commentDocs
     .map((commentDoc) => {
       const commentData = commentDoc.data();
       const createdBy = commentData[CommentFields.CREATED_BY] || '';
 
-      return formatEnrichedComment(commentDoc.id, commentData, createdBy, profiles.get(createdBy) || null);
+      return formatEnrichedComment(commentDoc.id, commentData, createdBy);
     })
     .filter((comment): comment is Comment => comment !== null);
 };

@@ -20,6 +20,7 @@ import { calculateTimeBucket } from '../utils/timezone-utils.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GroupMember } from '../models/data-models.js';
+import { commitBatch } from '../utils/batch-utils.js';
 import { deleteInvitation } from '../utils/invitation-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,13 +63,7 @@ const deleteFriendships = async (
     batchCount++;
     totalDeleted++;
 
-    // Commit batch if it reaches the maximum size
-    if (batchCount >= MAX_BATCH_OPERATIONS) {
-      await batch.commit();
-      logger.info(`Committed batch with ${batchCount} friend deletions`);
-      batch = db.batch();
-      batchCount = 0;
-    }
+    ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
   }
 
   // Commit any remaining friend deletions
@@ -249,7 +244,7 @@ const deleteUpdateAndFeedData = async (
       batchCount++;
 
       // Commit a batch if it reaches the maximum size
-      if (batchCount >= MAX_BATCH_OPERATIONS) {
+      if (batchCount >= MAX_BATCH_OPERATIONS - 1) {
         await batch.commit();
         logger.info(`Committed batch with ${batchCount} operations`);
         batch = db.batch();

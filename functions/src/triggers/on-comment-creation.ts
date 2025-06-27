@@ -8,6 +8,7 @@ import { sendBackgroundNotification, sendNotification } from '../utils/notificat
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { CommentProfile } from '../models/data-models.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -68,10 +69,9 @@ const sendCommentNotification = async (
   // Exclude the author of the new comment
   participantIds.delete(commenterId);
 
-  // Get commenter profile to personalise the message
-  const commenterProfileDoc = await db.collection(Collections.PROFILES).doc(commenterId).get();
-  const commenterProfileData = commenterProfileDoc.exists ? commenterProfileDoc.data() || {} : {};
-  const commenterName = commenterProfileData.name || commenterProfileData.username || 'Friend';
+  // Get commenter profile from denormalized data
+  const commenterProfile = commentData[CommentFields.COMMENTER_PROFILE] as CommentProfile;
+  const commenterName = commenterProfile.name || commenterProfile.username || 'Friend';
 
   // Prepare comment snippet
   const commentContent = (commentData[CommentFields.CONTENT] as string) || '';

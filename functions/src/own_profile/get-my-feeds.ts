@@ -5,7 +5,7 @@ import { Collections, FeedFields, QueryOperators } from '../models/constants.js'
 import { FeedResponse, PaginationPayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
-import { fetchUsersProfiles, getProfileDoc } from '../utils/profile-utils.js';
+import { getProfileDoc } from '../utils/profile-utils.js';
 import { fetchUpdatesReactions } from '../utils/reaction-utils.js';
 import { fetchUpdatesByIds, processEnrichedFeedItems } from '../utils/update-utils.js';
 
@@ -92,14 +92,11 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
   // Get unique user IDs from the updates
   const uniqueUserIds = Array.from(new Set(feedDocs.map((doc) => doc.data()[FeedFields.CREATED_BY])));
 
-  // Fetch all user profiles in parallel
-  const profiles = await fetchUsersProfiles(uniqueUserIds);
-
   // Fetch reactions for all updates
   const updateReactionsMap = await fetchUpdatesReactions(updateIds);
 
   // Process feed items and create enriched updates
-  const enrichedUpdates = await processEnrichedFeedItems(feedDocs, updateMap, updateReactionsMap, profiles);
+  const enrichedUpdates = await processEnrichedFeedItems(feedDocs, updateMap, updateReactionsMap);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, feedDocs.length, limit);

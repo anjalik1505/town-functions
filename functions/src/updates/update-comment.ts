@@ -1,12 +1,11 @@
 import { Request } from 'express';
 import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
-import { CommentFields, ProfileFields } from '../models/constants.js';
+import { CommentFields } from '../models/constants.js';
 import { Comment, UpdateCommentPayload } from '../models/data-models.js';
 import { formatComment, getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { getProfileDoc } from '../utils/profile-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,8 +18,8 @@ const logger = getLogger(path.basename(__filename));
  *
  * This function:
  * 1. Verifies the user is comment creator
- * 2. Updates comment content
- * 3. Returns the updated comment with profile data
+ * 2. Updates comment content only
+ * 3. Returns the updated comment with existing profile data
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -65,7 +64,7 @@ export const updateComment = async (req: Request): Promise<ApiResponse<Comment>>
     throw new ForbiddenError('You can only update your own comments');
   }
 
-  // Update the comment
+  // Update only the comment content
   const updatedData: UpdateData<DocumentData> = {
     [CommentFields.CONTENT]: validatedPayload.content,
     [CommentFields.UPDATED_AT]: Timestamp.now(),
@@ -77,13 +76,12 @@ export const updateComment = async (req: Request): Promise<ApiResponse<Comment>>
   const updatedCommentDoc = await commentResult.ref.get();
   const updatedCommentData = updatedCommentDoc.data() || {};
 
-  // Get the creator's profile
-  const { data: profileData } = await getProfileDoc(currentUserId);
-
   const comment = formatComment(commentResult.ref.id, updatedCommentData, currentUserId);
-  comment.username = profileData[ProfileFields.USERNAME] || '';
-  comment.name = profileData[ProfileFields.NAME] || '';
-  comment.avatar = profileData[ProfileFields.AVATAR] || '';
+  // Use the existing denormalized profile data from the comment document
+  const denormalizedProfile = updatedCommentData.commenter_profile || {};
+  comment.username = denormalizedProfile.username || '';
+  comment.name = denormalizedProfile.name || '';
+  comment.avatar = denormalizedProfile.avatar || '';
 
   // Create analytics event
   const event: CommentEventParams = {

@@ -1,24 +1,9 @@
 import { Request } from 'express';
-import {
-  DocumentData,
-  getFirestore,
-  QueryDocumentSnapshot,
-  Timestamp,
-  UpdateData,
-  WhereFilterOp,
-} from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  GroupFields,
-  InvitationFields,
-  JoinRequestFields,
-  ProfileFields,
-  QueryOperators,
-} from '../models/constants.js';
+import { Collections, ProfileFields } from '../models/constants.js';
 import { NudgingSettings, ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
-import { upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
-import { getUserInvitationLink } from '../utils/invitation-utils.js';
+import { ConflictError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   extractConnectToForAnalytics,
@@ -32,7 +17,6 @@ import { updateTimeBucketMembership } from '../utils/timezone-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ConflictError } from '../utils/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -43,11 +27,9 @@ const logger = getLogger(path.basename(__filename));
  * This function:
  * 1. Checks if a profile exists for the authenticated user
  * 2. Updates the profile with the provided data
- * 3. If username, name, or avatar changes, updates these fields in related collections:
- *    - Invitations
- *    - Join Requests (both as requester and receiver)
- *    - Friendships (both as sender and receiver)
- *    - Groups (in member_profiles)
+ * 3. Updates time bucket membership if nudging settings change
+ *
+ * Note: Denormalized data updates are handled by the profile update trigger.
  *
  * @param req - The Express request object containing:
  *              - userId: The authenticated user's ID (attached by authentication middleware)
@@ -60,6 +42,11 @@ const logger = getLogger(path.basename(__filename));
  *                - notification_settings: Optional updated list of notification preferences
  *                - nudging_settings: Optional updated list of nudging preferences
  *                - gender: Optional updated gender information
+ *                - goal: Optional updated goal
+ *                - connect_to: Optional updated connect_to preferences
+ *                - personality: Optional updated personality type
+ *                - tone: Optional updated tone preference
+ *                - phone_number: Optional updated phone number
  *
  * @returns A ProfileResponse containing the updated profile information
  *
@@ -75,15 +62,6 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   // Get the profile document using the utility function
   const { ref: profileRef, data: currentProfileData } = await getProfileDoc(currentUserId);
   logger.info(`Retrieved current profile data for user ${currentUserId}`);
-
-  // Check if the username, name, or avatar has changed
-  const usernameChanged =
-    profileData.username !== undefined && profileData.username !== currentProfileData[ProfileFields.USERNAME];
-
-  const nameChanged = profileData.name !== undefined && profileData.name !== currentProfileData[ProfileFields.NAME];
-
-  const avatarChanged =
-    profileData.avatar !== undefined && profileData.avatar !== currentProfileData[ProfileFields.AVATAR];
 
   // Check if nudging settings have changed
   const nudgingSettingsChanged = profileData.nudging_settings !== undefined;
@@ -162,188 +140,10 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
     await updateTimeBucketMembership(currentUserId, newNudgingSettings, batch, db);
   }
 
-  // Update phones mapping within the same batch
-  if (phoneChanged) {
-    const oldPhone = currentProfileData[ProfileFields.PHONE_NUMBER] as string | undefined;
-    const newPhone = profileData.phone_number as string;
-
-    // Delete old mapping if it existed
-    if (oldPhone) {
-      const oldPhoneRef = db.collection(Collections.PHONES).doc(oldPhone);
-      batch.delete(oldPhoneRef);
-    }
-
-    // Create/overwrite new mapping with latest data
-    const newPhoneRef = db.collection(Collections.PHONES).doc(newPhone);
-    batch.set(newPhoneRef, {
-      [ProfileFields.USER_ID]: currentUserId,
-      [ProfileFields.USERNAME]: profileUpdates[ProfileFields.USERNAME] ?? currentProfileData[ProfileFields.USERNAME],
-      [ProfileFields.NAME]: profileUpdates[ProfileFields.NAME] ?? currentProfileData[ProfileFields.NAME],
-      [ProfileFields.AVATAR]: profileUpdates[ProfileFields.AVATAR] ?? currentProfileData[ProfileFields.AVATAR],
-    });
-  } else if (usernameChanged || nameChanged || avatarChanged) {
-    // Phone hasn't changed but user info did; update mapping doc
-    const phone = currentProfileData[ProfileFields.PHONE_NUMBER] as string | undefined;
-    if (phone) {
-      const phoneRef = db.collection(Collections.PHONES).doc(phone);
-      const updates: UpdateData<DocumentData> = {};
-      if (usernameChanged) updates[ProfileFields.USERNAME] = profileUpdates[ProfileFields.USERNAME];
-      if (nameChanged) updates[ProfileFields.NAME] = profileUpdates[ProfileFields.NAME];
-      if (avatarChanged) updates[ProfileFields.AVATAR] = profileUpdates[ProfileFields.AVATAR];
-      if (Object.keys(updates).length > 0) {
-        batch.update(phoneRef, updates);
-      }
-    }
-  }
-
-  // If username, name, or avatar changed, update references in other collections
-  if (usernameChanged || nameChanged || avatarChanged) {
-    logger.info(`Updating username/name/avatar references for user ${currentUserId}`);
-
-    // 1. Update the user's invitation if it exists
-    const existingInvitation = await getUserInvitationLink(currentUserId);
-    if (existingInvitation) {
-      const invitationRef = existingInvitation.ref;
-      const invitationUpdates: UpdateData<DocumentData> = {};
-
-      if (usernameChanged) {
-        invitationUpdates[InvitationFields.USERNAME] = profileUpdates[ProfileFields.USERNAME];
-      }
-      if (nameChanged) {
-        invitationUpdates[InvitationFields.NAME] = profileUpdates[ProfileFields.NAME];
-      }
-      if (avatarChanged) {
-        invitationUpdates[InvitationFields.AVATAR] = profileUpdates[ProfileFields.AVATAR];
-      }
-
-      if (Object.keys(invitationUpdates).length > 0) {
-        batch.update(invitationRef, invitationUpdates);
-        logger.info(`Added invitation update to batch for user ${currentUserId}`);
-
-        // 2. Update join requests where the user is the receiver (invitation owner)
-        const joinRequestsQuery = invitationRef
-          .collection(Collections.JOIN_REQUESTS)
-          .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
-
-        for await (const doc of joinRequestsQuery.stream()) {
-          const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
-          const joinRequestUpdates: UpdateData<DocumentData> = {};
-
-          if (usernameChanged) {
-            joinRequestUpdates[JoinRequestFields.RECEIVER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
-          }
-          if (nameChanged) {
-            joinRequestUpdates[JoinRequestFields.RECEIVER_NAME] = profileUpdates[ProfileFields.NAME];
-          }
-          if (avatarChanged) {
-            joinRequestUpdates[JoinRequestFields.RECEIVER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
-          }
-
-          if (Object.keys(joinRequestUpdates).length > 0) {
-            batch.update(joinRequestDoc.ref, joinRequestUpdates);
-          }
-        }
-      }
-    }
-
-    // 3. Update join requests where the user is the requester
-    const requesterJoinRequestsQuery = db
-      .collectionGroup(Collections.JOIN_REQUESTS)
-      .where(JoinRequestFields.REQUESTER_ID, QueryOperators.EQUALS, currentUserId)
-      .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
-
-    for await (const doc of requesterJoinRequestsQuery.stream()) {
-      const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
-      const joinRequestUpdates: UpdateData<DocumentData> = {};
-
-      if (usernameChanged) {
-        joinRequestUpdates[JoinRequestFields.REQUESTER_USERNAME] = profileUpdates[ProfileFields.USERNAME];
-      }
-      if (nameChanged) {
-        joinRequestUpdates[JoinRequestFields.REQUESTER_NAME] = profileUpdates[ProfileFields.NAME];
-      }
-      if (avatarChanged) {
-        joinRequestUpdates[JoinRequestFields.REQUESTER_AVATAR] = profileUpdates[ProfileFields.AVATAR];
-      }
-
-      if (Object.keys(joinRequestUpdates).length > 0) {
-        batch.update(joinRequestDoc.ref, joinRequestUpdates);
-      }
-    }
-
-    // 4. Update friend documents in FRIENDS subcollections (replaces old friendships collection updates)
-    logger.info('Updating friend documents in FRIENDS subcollections');
-
-    // Get list of friends from user's FRIENDS subcollection
-    const userFriendsQuery = db.collection(Collections.PROFILES).doc(currentUserId).collection(Collections.FRIENDS);
-
-    const friendIds: string[] = [];
-    for await (const doc of userFriendsQuery.stream()) {
-      const friendDoc = doc as unknown as QueryDocumentSnapshot;
-      friendIds.push(friendDoc.id);
-    }
-
-    // Update this user's data in each friend's FRIENDS subcollection using utility
-    for (const friendId of friendIds) {
-      const friendDocUpdate: FriendDocUpdate = {};
-
-      if (usernameChanged) {
-        friendDocUpdate.username = profileUpdates[ProfileFields.USERNAME] as string;
-      }
-      if (nameChanged) {
-        friendDocUpdate.name = profileUpdates[ProfileFields.NAME] as string;
-      }
-      if (avatarChanged) {
-        friendDocUpdate.avatar = profileUpdates[ProfileFields.AVATAR] as string;
-      }
-
-      upsertFriendDoc(db, friendId, currentUserId, friendDocUpdate, batch);
-    }
-
-    // 5. Update groups where the user is a member
-    const groupsQuery = db
-      .collection(Collections.GROUPS)
-      .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
-
-    for await (const doc of groupsQuery.stream()) {
-      const groupDoc = doc as unknown as QueryDocumentSnapshot;
-      const groupData = groupDoc.data();
-      const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
-
-      // Find and update the user's profile in the member_profiles array
-      for (let i = 0; i < memberProfiles.length; i++) {
-        const memberProfile = memberProfiles[i];
-        if (memberProfile[ProfileFields.USER_ID] === currentUserId) {
-          const groupMemberSpecificUpdate: UpdateData<DocumentData> = {};
-
-          if (usernameChanged && profileUpdates[ProfileFields.USERNAME] !== undefined) {
-            groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.USERNAME}`] =
-              profileUpdates[ProfileFields.USERNAME];
-          }
-          if (nameChanged && profileUpdates[ProfileFields.NAME] !== undefined) {
-            groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.NAME}`] =
-              profileUpdates[ProfileFields.NAME];
-          }
-          if (avatarChanged && profileUpdates[ProfileFields.AVATAR] !== undefined) {
-            groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.AVATAR}`] =
-              profileUpdates[ProfileFields.AVATAR];
-          }
-
-          if (Object.keys(groupMemberSpecificUpdate).length > 0) {
-            batch.update(groupDoc.ref, groupMemberSpecificUpdate);
-          }
-          break;
-        }
-      }
-    }
-
-    // After all reference updates
-    logger.info(`Committed batch updates for user ${currentUserId}`);
-  }
-
   // Commit all the updates in a single atomic operation
-  if (Object.keys(profileUpdates).length > 0 || usernameChanged || nameChanged || avatarChanged || phoneChanged) {
+  if (Object.keys(profileUpdates).length > 0 || nudgingSettingsChanged) {
     await batch.commit();
+    logger.info(`Committed batch updates for user ${currentUserId}`);
   }
 
   // Get the updated profile data

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields, QueryOperators, UpdateFields } from '../models/constants.js';
+import { Collections, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { FeedResponse, PaginationPayload, ReactionGroup } from '../models/data-models.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -96,22 +96,11 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
   // Fetch update data using util
   const updateMap = await fetchUpdatesByIds(updateIds);
 
-  // Prepare a map of user IDs to profile data from group memberProfiles
-  const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
-  const profilesMap = new Map<string, { username: string; name: string; avatar: string }>();
-  for (const profile of memberProfiles) {
-    profilesMap.set(profile[ProfileFields.USER_ID], {
-      username: profile[ProfileFields.USERNAME] || '',
-      name: profile[ProfileFields.NAME] || '',
-      avatar: profile[ProfileFields.AVATAR] || '',
-    });
-  }
-
   // No reactions fetched for now (empty map)
   const reactionsMap = new Map<string, ReactionGroup[]>();
 
   // Use util to enrich updates
-  const enrichedUpdates = await processEnrichedFeedItems(updateDocs, updateMap, reactionsMap, profilesMap);
+  const enrichedUpdates = await processEnrichedFeedItems(updateDocs, updateMap, reactionsMap);
 
   logger.info('Query executed successfully');
 

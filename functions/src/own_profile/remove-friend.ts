@@ -70,8 +70,6 @@ export const removeFriend = async (req: Request): Promise<ApiResponse<null>> => 
     .doc(currentUserId);
   batch.delete(friendUserFriendRef);
 
-  await batch.commit();
-
   // Delete the summary documents created for this friendship
   const summaryIdForCurrentUser = createSummaryId(currentUserId, friendUserId);
   const summaryRefForCurrentUser = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForCurrentUser);

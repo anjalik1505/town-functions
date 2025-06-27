@@ -64,6 +64,7 @@ export const ProfileFields = {
   TONE: 'tone',
   PHONE_NUMBER: 'phone_number',
   FRIENDS_TO_CLEANUP: 'friends_to_cleanup',
+  FRIEND_COUNT: 'friend_count',
 } as const;
 
 // Field names for Invitation documents
@@ -93,6 +94,13 @@ export const JoinRequestFields = {
   RECEIVER_AVATAR: 'receiver_avatar',
 } as const;
 
+// Field names for CreatorProfile
+export const CreatorProfileFields = {
+  USERNAME: 'username',
+  NAME: 'name',
+  AVATAR: 'avatar',
+} as const;
+
 // Field names for Update documents
 export const UpdateFields = {
   CREATED_BY: 'created_by',
@@ -107,8 +115,12 @@ export const UpdateFields = {
   ID: 'id',
   COMMENT_COUNT: 'comment_count',
   REACTION_COUNT: 'reaction_count',
+  REACTION_TYPES: 'reaction_types',
   ALL_VILLAGE: 'all_village',
   IMAGE_PATHS: 'image_paths',
+  CREATOR_PROFILE: 'creator_profile',
+  SHARED_WITH_FRIENDS_PROFILES: 'shared_with_friends_profiles',
+  SHARED_WITH_GROUPS_PROFILES: 'shared_with_groups_profiles',
 } as const;
 
 // Field names for Group documents
@@ -172,6 +184,14 @@ export const CommentFields = {
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
   PARENT_ID: 'parent_id',
+  COMMENTER_PROFILE: 'commenter_profile',
+} as const;
+
+// Options for comment profile
+export const CommentProfileFields = {
+  USERNAME: 'username',
+  NAME: 'name',
+  AVATAR: 'avatar',
 } as const;
 
 // Field names for Reaction documents

@@ -81,15 +81,34 @@ export const fetchUsersProfiles = async (userIds: string[]) => {
   const profiles = new Map<string, { username: string; name: string; avatar: string }>();
   const uniqueUserIds = Array.from(new Set(userIds));
 
-  // Fetch profiles in parallel
-  const profilePromises = uniqueUserIds.map(async (userId) => {
-    const profile = await fetchUserProfile(userId);
-    if (profile) {
-      profiles.set(userId, profile);
+  // Return early if no user IDs to fetch
+  if (uniqueUserIds.length === 0) {
+    return profiles;
+  }
+
+  const db = getFirestore();
+
+  // Create document references for all unique user IDs
+  const refs = uniqueUserIds.map((userId) => db.collection(Collections.PROFILES).doc(userId));
+
+  // Fetch all documents in one batch operation
+  const docs = await db.getAll(...refs);
+
+  // Process the results
+  docs.forEach((doc, index) => {
+    if (doc.exists) {
+      const profileData = doc.data() || {};
+      const userId = uniqueUserIds[index];
+      if (userId) {
+        profiles.set(userId, {
+          username: profileData[ProfileFields.USERNAME] || '',
+          name: profileData[ProfileFields.NAME] || '',
+          avatar: profileData[ProfileFields.AVATAR] || '',
+        });
+      }
     }
   });
 
-  await Promise.all(profilePromises);
   return profiles;
 };
 

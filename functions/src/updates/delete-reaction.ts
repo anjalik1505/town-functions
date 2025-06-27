@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
+import { DocumentData, FieldValue, getFirestore, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
-import { Collections, ReactionFields } from '../models/constants.js';
+import { Collections, ReactionFields, UpdateFields } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -71,33 +71,45 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
     throw new ForbiddenError('You can only delete your own reactions');
   }
 
+  const reactionType = reactionData?.[ReactionFields.TYPE] as string;
+
   // Create a batch for atomic operations
   const batch = db.batch();
 
   // Delete the reaction document
   batch.delete(reactionRef);
 
-  // Update the reaction count
-  const updateCountData: UpdateData<DocumentData> = {
-    reaction_count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
+  // Get current reaction summary to update recent_reactors
+  const currentSummary = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+
+  // Prepare the update data for reaction summary
+  const updateData: UpdateData<DocumentData> = {
+    [UpdateFields.REACTION_COUNT]: FieldValue.increment(-1),
+    [UpdateFields.REACTION_TYPES]: {
+      ...currentSummary,
+      [reactionType]: (currentSummary[reactionType] || 0) - 1,
+    },
   };
-  batch.update(updateResult.ref, updateCountData);
+
+  // Update the update document
+  batch.update(updateResult.ref, updateData);
 
   // Commit the batch
   await batch.commit();
   logger.info(`Successfully deleted reaction ${reactionId} from update ${updateId}`);
 
   // Return the reaction group with the updated count
+  const newReactionCount = Math.max(0, (updateResult.data[UpdateFields.REACTION_COUNT] || 0) - 1);
   const response: ReactionGroup = {
-    type: reactionData?.[ReactionFields.TYPE] || '',
-    count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
+    type: reactionType || '',
+    count: newReactionCount,
     reaction_id: reactionId,
   };
 
   // Create analytics event
   const event: ReactionEventParams = {
-    reaction_count: Math.max(0, (updateResult.data.reaction_count || 0) - 1),
-    comment_count: updateResult.data.comment_count || 0,
+    reaction_count: newReactionCount,
+    comment_count: updateResult.data[UpdateFields.COMMENT_COUNT] || 0,
   };
 
   return {

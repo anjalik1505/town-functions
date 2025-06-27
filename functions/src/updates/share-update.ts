@@ -2,10 +2,11 @@ import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ShareUpdateEventParams } from '../models/analytics-events.js';
 import { Collections, GroupFields, UpdateFields } from '../models/constants.js';
-import { ShareUpdatePayload, Update } from '../models/data-models.js';
+import { BaseGroup, BaseUser, ShareUpdatePayload, Update } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { fetchFriendProfiles, fetchGroupProfiles, formatUpdate } from '../utils/update-utils.js';
+import { fetchUsersProfiles } from '../utils/profile-utils.js';
+import { fetchGroupProfiles, formatUpdate } from '../utils/update-utils.js';
 import { createFriendVisibilityIdentifiers, createGroupVisibilityIdentifiers } from '../utils/visibility-utils.js';
 
 import path from 'path';
@@ -79,12 +80,10 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
   const friendsToAdd = newFriendIds.filter((friendId) => !currentFriendIds.includes(friendId));
   const groupsToAdd = newGroupIds.filter((groupId) => !currentGroupIds.includes(groupId));
 
+  const sharedWithFriends = (updateData.shared_with_friends_profiles as BaseUser[]) || [];
+  const sharedWithGroups = (updateData.shared_with_groups_profiles as BaseGroup[]) || [];
+
   if (friendsToAdd.length === 0 && groupsToAdd.length === 0) {
-    // Even if no new friends/groups were added, return the current update
-    const [sharedWithFriends, sharedWithGroups] = await Promise.all([
-      fetchFriendProfiles(currentFriendIds),
-      fetchGroupProfiles(currentGroupIds),
-    ]);
     const response = formatUpdate(updateId, updateData, currentUserId, [], sharedWithFriends, sharedWithGroups);
 
     return {
@@ -132,11 +131,31 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
   const newGroupVisibilityIdentifiers = createGroupVisibilityIdentifiers(groupsToAdd);
   const updatedVisibleTo = [...currentVisibleTo, ...newFriendVisibilityIdentifiers, ...newGroupVisibilityIdentifiers];
 
+  // Fetch profiles only for newly added friends and groups
+  const [newFriendProfiles, newGroupProfiles] = await Promise.all([
+    fetchUsersProfiles(friendsToAdd),
+    fetchGroupProfiles(groupsToAdd),
+  ]);
+
+  // Convert new friend profiles from Map to array format
+  const newFriendProfilesArray: BaseUser[] = Array.from(newFriendProfiles.entries()).map(([userId, profile]) => ({
+    user_id: userId,
+    username: profile.username,
+    name: profile.name,
+    avatar: profile.avatar,
+  }));
+
+  // Since we only add (never remove), just combine existing and new profiles
+  const updatedFriendProfiles = [...sharedWithFriends, ...newFriendProfilesArray];
+  const updatedGroupProfiles = [...sharedWithGroups, ...newGroupProfiles];
+
   // Update the document
   const updateDocData: UpdateData<DocumentData> = {
     [UpdateFields.FRIEND_IDS]: updatedFriendIds,
     [UpdateFields.GROUP_IDS]: updatedGroupIds,
     [UpdateFields.VISIBLE_TO]: updatedVisibleTo,
+    shared_with_friends_profiles: updatedFriendProfiles,
+    shared_with_groups_profiles: updatedGroupProfiles,
     updated_at: Timestamp.now(),
   };
 
@@ -147,19 +166,20 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
       `Total friends now: ${updatedFriendIds.length}, Total groups now: ${updatedGroupIds.length}`,
   );
 
-  // Fetch friend and group profiles for the response
-  const [sharedWithFriends, sharedWithGroups] = await Promise.all([
-    fetchFriendProfiles(updatedFriendIds),
-    fetchGroupProfiles(updatedGroupIds),
-  ]);
-
   // Format and return the complete update object
   // Merge the original update data with the updated fields
   const completeUpdateData = {
     ...updateData,
     ...updateDocData,
   };
-  const response = formatUpdate(updateId, completeUpdateData, currentUserId, [], sharedWithFriends, sharedWithGroups);
+  const response = formatUpdate(
+    updateId,
+    completeUpdateData,
+    currentUserId,
+    [],
+    updatedFriendProfiles,
+    updatedGroupProfiles,
+  );
 
   const event: ShareUpdateEventParams = {
     new_friends_count: friendsToAdd.length,

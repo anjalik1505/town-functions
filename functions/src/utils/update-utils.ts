@@ -117,13 +117,9 @@ export const processFeedItems = async (
         return null;
       }
 
-      // Fetch shared_with profiles and groups separately
-      const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
-      const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
-      const [sharedWithFriends, sharedWithGroups] = await Promise.all([
-        fetchFriendProfiles(friendIds),
-        fetchGroupProfiles(groupIds),
-      ]);
+      // Use denormalized data from the update document
+      const sharedWithFriends = updateData.shared_with_friends_profiles || [];
+      const sharedWithGroups = updateData.shared_with_groups_profiles || [];
 
       return formatUpdate(
         updateId,
@@ -151,7 +147,6 @@ export const processEnrichedFeedItems = async (
   feedDocs: QueryDocumentSnapshot[],
   updateMap: Map<string, FirebaseFirestore.DocumentData>,
   reactionsMap: Map<string, ReactionGroup[]>,
-  profiles: Map<string, { username: string; name: string; avatar: string }>,
 ): Promise<EnrichedUpdate[]> => {
   const updates = await Promise.all(
     feedDocs.map(async (feedItem) => {
@@ -165,20 +160,19 @@ export const processEnrichedFeedItems = async (
         return null;
       }
 
-      // Fetch shared_with profiles and groups separately
-      const friendIds = updateData[UpdateFields.FRIEND_IDS] || [];
-      const groupIds = updateData[UpdateFields.GROUP_IDS] || [];
-      const [sharedWithFriends, sharedWithGroups] = await Promise.all([
-        fetchFriendProfiles(friendIds),
-        fetchGroupProfiles(groupIds),
-      ]);
+      // Use denormalized data from the update document
+      const sharedWithFriends = updateData.shared_with_friends_profiles || [];
+      const sharedWithGroups = updateData.shared_with_groups_profiles || [];
+
+      // Use denormalized creator profile or fall back to profiles map
+      const creatorProfile = updateData.creator_profile || null;
 
       return formatEnrichedUpdate(
         updateId,
         updateData,
         createdBy,
         reactionsMap.get(updateId) || [],
-        profiles.get(createdBy) || null,
+        creatorProfile,
         sharedWithFriends,
         sharedWithGroups,
       );
@@ -307,11 +301,8 @@ export const fetchUpdateComments = async (
     }
   });
 
-  // Get profiles for all users who commented
-  const profiles = await fetchUsersProfiles(Array.from(uniqueUserIds));
-
-  // Process comments and create enriched comment objects
-  const enrichedComments = processEnrichedComments(commentDocs, profiles);
+  // Process comments and create enriched comment objects using denormalized data
+  const enrichedComments = processEnrichedComments(commentDocs);
 
   // Set up pagination for the next request
   const nextCursor = generateNextCursor(lastDoc, enrichedComments.length, limit);

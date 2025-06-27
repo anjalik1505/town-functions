@@ -3,14 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  FriendDocFields,
-  MAX_BATCH_OPERATIONS,
-  QueryOperators,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, FriendDocFields, QueryOperators, UpdateFields } from '../models/constants.js';
 import { trackApiEvents } from './analytics-utils.js';
+import { commitBatch, commitFinal } from './batch-utils.js';
 import { processImagesForPrompt } from './image-utils.js';
 import { getLogger } from './logging-utils.js';
 import { generateFriendSummary, getSummaryContext, SummaryResult, writeFriendSummary } from './summary-utils.js';
@@ -183,20 +178,11 @@ export async function syncFriendshipDataForUser(
       totalProcessed++;
 
       // Commit the batch if it reaches the maximum size
-      if (batchCount >= MAX_BATCH_OPERATIONS) {
-        await batch.commit();
-        logger.info(`Committed batch with ${batchCount} feed items`);
-        batchCount = 0;
-        // Create a new batch
-        batch = db.batch();
-      }
+      ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
     }
 
     // Commit any remaining operations in the batch
-    if (batchCount > 0) {
-      await batch.commit();
-      logger.info(`Committed final batch with ${batchCount} feed items`);
-    }
+    await commitFinal(db, batch, batchCount);
 
     logger.info(`Created ${totalProcessed} feed items for receiver ${targetUserId}`);
 

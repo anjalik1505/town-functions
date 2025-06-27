@@ -2,9 +2,17 @@ import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
-import { Collections, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
-import { CreateUpdatePayload, Update } from '../models/data-models.js';
+import {
+  Collections,
+  CreatorProfileFields,
+  GroupFields,
+  ProfileFields,
+  QueryOperators,
+  UpdateFields,
+} from '../models/constants.js';
+import { BaseGroup, BaseUser, CreateUpdatePayload, Update } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
+import { fetchUsersProfiles, getProfileDoc } from '../utils/profile-utils.js';
 import { createFeedItem, fetchFriendProfiles, fetchGroupProfiles, formatUpdate } from '../utils/update-utils.js';
 import {
   createFriendVisibilityIdentifier,
@@ -102,6 +110,9 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   // Get current timestamp
   const createdAt = Timestamp.now();
 
+  // Fetch creator's profile for denormalization
+  const { data: creatorProfileData } = await getProfileDoc(currentUserId);
+
   // Prepare the visible_to array for efficient querying
   const visibleTo: string[] = [];
 
@@ -158,7 +169,33 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     }
   }
 
-  // Create the update document
+  // Fetch shared_with profiles if needed
+  let sharedWithFriendsProfiles: BaseUser[] = [];
+  let sharedWithGroupsProfiles: BaseGroup[] = [];
+
+  if (friendIds.length > 0) {
+    const friendProfiles = await fetchUsersProfiles(friendIds);
+    sharedWithFriendsProfiles = friendIds
+      .map((userId) => {
+        const profile = friendProfiles.get(userId);
+        if (profile) {
+          return {
+            user_id: userId,
+            username: profile.username,
+            name: profile.name,
+            avatar: profile.avatar,
+          };
+        }
+        return null;
+      })
+      .filter((profile) => profile !== null);
+  }
+
+  if (groupIds.length > 0) {
+    sharedWithGroupsProfiles = await fetchGroupProfiles(groupIds);
+  }
+
+  // Create the update document with denormalized data
   const updateData: UpdateData<DocumentData> = {
     [UpdateFields.CREATED_BY]: currentUserId,
     [UpdateFields.CONTENT]: content,
@@ -171,8 +208,17 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     [UpdateFields.VISIBLE_TO]: visibleTo,
     [UpdateFields.ALL_VILLAGE]: allVillage,
     [UpdateFields.IMAGE_PATHS]: finalImagePaths,
-    comment_count: 0,
-    reaction_count: 0,
+    [UpdateFields.COMMENT_COUNT]: 0,
+    [UpdateFields.REACTION_COUNT]: 0,
+    [UpdateFields.REACTION_TYPES]: {},
+    // Denormalized data
+    [UpdateFields.CREATOR_PROFILE]: {
+      [CreatorProfileFields.USERNAME]: creatorProfileData[ProfileFields.USERNAME] || '',
+      [CreatorProfileFields.NAME]: creatorProfileData[ProfileFields.NAME] || '',
+      [CreatorProfileFields.AVATAR]: creatorProfileData[ProfileFields.AVATAR] || '',
+    },
+    [UpdateFields.SHARED_WITH_FRIENDS_PROFILES]: sharedWithFriendsProfiles,
+    [UpdateFields.SHARED_WITH_GROUPS_PROFILES]: sharedWithGroupsProfiles,
   };
 
   batch.set(updateRef, updateData);

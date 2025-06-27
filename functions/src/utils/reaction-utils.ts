@@ -1,5 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
-import { Collections } from '../models/constants.js';
+import { Collections, UpdateFields } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
 import { getLogger } from './logging-utils.js';
 
@@ -10,33 +10,37 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Fetches and processes reactions for an update.
+ * Fetches and processes reactions for an update from the denormalized reaction_summary.
  *
  * @param updateId - The ID of the update to fetch reactions for
- * @returns Map of reaction groups by type
+ * @returns Array of reaction groups by type
  */
 export const fetchUpdateReactions = async (updateId: string): Promise<ReactionGroup[]> => {
   const db = getFirestore();
   try {
-    const reactionsSnapshot = await db
-      .collection(Collections.UPDATES)
-      .doc(updateId)
-      .collection(Collections.REACTIONS)
-      .get();
+    const updateDoc = await db.collection(Collections.UPDATES).doc(updateId).get();
 
-    const reactions: ReactionGroup[] = [];
-    const reactionsByType = new Map<string, { count: number; id: string }>();
+    if (!updateDoc.exists) {
+      logger.warn(`Update ${updateId} not found`);
+      return [];
+    }
 
-    reactionsSnapshot.docs.forEach((doc) => {
-      const reactionData = doc.data();
-      const type = reactionData.type;
-      const current = reactionsByType.get(type) || { count: 0, id: doc.id };
-      reactionsByType.set(type, { count: current.count + 1, id: doc.id });
-    });
+    const updateData = updateDoc.data();
+    const reactionSummary = updateData?.[UpdateFields.REACTION_TYPES];
 
-    reactionsByType.forEach((data, type) => {
-      reactions.push({ type, count: data.count, reaction_id: data.id });
-    });
+    // If no reaction_summary exists, return empty array
+    if (!reactionSummary) {
+      return [];
+    }
+
+    // Convert the by_type object to ReactionGroup array
+    const reactions: ReactionGroup[] = Object.entries(reactionSummary)
+      .map(([type, count]) => ({
+        type,
+        count: count as number,
+        reaction_id: '', // reaction_id is no longer meaningful with denormalized data
+      }))
+      .filter((reaction) => reaction.count > 0); // Only include reactions with count > 0
 
     return reactions;
   } catch (error) {
@@ -46,6 +50,8 @@ export const fetchUpdateReactions = async (updateId: string): Promise<ReactionGr
 };
 
 /**
+ * Use fetchUpdateReactions for individual updates or access reaction_summary directly from update documents.
+ *
  * Fetches and processes reactions for multiple updates in parallel.
  *
  * @param updateIds - Array of update IDs to fetch reactions for
