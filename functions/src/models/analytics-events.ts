@@ -42,12 +42,22 @@ export enum EventName {
   USER_NUDGED = 'user_nudged',
   AUDIO_TRANSCRIBED = 'audio_transcribed',
   PHONES_LOOKED_UP = 'phones_looked_up',
+  PHONE_MAPPING_CREATED = 'phone_mapping_created',
+  PHONE_MAPPING_UPDATED = 'phone_mapping_updated',
+  PHONE_MAPPING_DELETED = 'phone_mapping_deleted',
   INVITATION_NOTIFICATION_SENT = 'invitation_notification_sent',
   INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
   COMMENT_NOTIFICATION_SENT = 'comment_notification_sent',
   REACTION_NOTIFICATION_SENT = 'reaction_notification_sent',
   JOIN_REQUEST_NOTIFICATION_SENT = 'join_request_notification_sent',
   JOIN_REQUEST_UPDATE_NOTIFICATION_SENT = 'join_request_update_notifications_sent',
+  LOCATION_UPDATED = 'location_updated',
+  TIMEZONE_UPDATED = 'timezone_updated',
+  FRIENDSHIP_UPDATED = 'friendship_updated',
+  FRIENDSHIP_DELETED = 'friendship_deleted',
+  FRIENDSHIP_SYNCED = 'friendship_synced',
+  FRIENDSHIP_SYNC_FAILED = 'friendship_sync_failed',
+  FRIENDS_BATCH_DELETED = 'friends_batch_deleted',
 }
 
 // Base interface for all event parameters
