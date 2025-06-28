@@ -1,7 +1,9 @@
 import { differenceInYears, parse } from 'date-fns';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, ConnectToFields, GoalFields, InsightsFields, ProfileFields } from '../models/constants.js';
+import { getFirestore } from 'firebase-admin/firestore';
+import { Collections } from '../models/constants.js';
+import { ConnectTo, Goals } from '../models/firestore/profile-doc.js';
 import { FriendProfileResponse, Insights, NudgingSettings, ProfileResponse } from '../models/data-models.js';
+import { profileConverter, ProfileDoc, insightsConverter, insf, InsightsDoc } from '../models/firestore/index.js';
 import { BadRequestError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -16,9 +18,9 @@ const logger = getLogger(path.basename(__filename));
  * Profile document result type
  */
 type ProfileDocumentResult = {
-  ref: FirebaseFirestore.DocumentReference;
-  doc: FirebaseFirestore.DocumentSnapshot;
-  data: FirebaseFirestore.DocumentData;
+  ref: FirebaseFirestore.DocumentReference<ProfileDoc>;
+  doc: FirebaseFirestore.DocumentSnapshot<ProfileDoc>;
+  data: ProfileDoc;
 };
 
 /**
@@ -33,7 +35,7 @@ const getProfileDocument = async (
   throwIfNotFound: boolean = false,
 ): Promise<ProfileDocumentResult | null> => {
   const db = getFirestore();
-  const profileRef = db.collection(Collections.PROFILES).doc(userId);
+  const profileRef = db.collection(Collections.PROFILES).withConverter(profileConverter).doc(userId);
   const profileDoc = await profileRef.get();
 
   if (!profileDoc.exists) {
@@ -44,10 +46,15 @@ const getProfileDocument = async (
     return null;
   }
 
+  const data = profileDoc.data();
+  if (!data) {
+    throw new Error(`Profile data is undefined for user ${userId}`);
+  }
+
   return {
     ref: profileRef,
     doc: profileDoc,
-    data: profileDoc.data() || {},
+    data,
   };
 };
 
@@ -65,9 +72,9 @@ export const fetchUserProfile = async (userId: string) => {
 
   const profileData = result.data;
   return {
-    username: profileData[ProfileFields.USERNAME] || '',
-    name: profileData[ProfileFields.NAME] || '',
-    avatar: profileData[ProfileFields.AVATAR] || '',
+    username: profileData.username || '',
+    name: profileData.name || '',
+    avatar: profileData.avatar || '',
   };
 };
 
@@ -88,8 +95,9 @@ export const fetchUsersProfiles = async (userIds: string[]) => {
 
   const db = getFirestore();
 
-  // Create document references for all unique user IDs
-  const refs = uniqueUserIds.map((userId) => db.collection(Collections.PROFILES).doc(userId));
+  // Create document references for all unique user IDs with converter
+  const profilesCollection = db.collection(Collections.PROFILES).withConverter(profileConverter);
+  const refs = uniqueUserIds.map((userId) => profilesCollection.doc(userId));
 
   // Fetch all documents in one batch operation
   const docs = await db.getAll(...refs);
@@ -97,13 +105,13 @@ export const fetchUsersProfiles = async (userIds: string[]) => {
   // Process the results
   docs.forEach((doc, index) => {
     if (doc.exists) {
-      const profileData = doc.data() || {};
+      const profileData = doc.data();
       const userId = uniqueUserIds[index];
-      if (userId) {
+      if (userId && profileData) {
         profiles.set(userId, {
-          username: profileData[ProfileFields.USERNAME] || '',
-          name: profileData[ProfileFields.NAME] || '',
-          avatar: profileData[ProfileFields.AVATAR] || '',
+          username: profileData.username || '',
+          name: profileData.name || '',
+          avatar: profileData.avatar || '',
         });
       }
     }
@@ -154,7 +162,7 @@ export const getProfileDoc = async (userId: string): Promise<ProfileDocumentResu
  */
 export const profileExists = async (userId: string): Promise<void> => {
   const db = getFirestore();
-  const profileRef = db.collection(Collections.PROFILES).doc(userId);
+  const profileRef = db.collection(Collections.PROFILES).withConverter(profileConverter).doc(userId);
   const profileDoc = await profileRef.get();
 
   if (profileDoc.exists) {
@@ -168,16 +176,22 @@ export const profileExists = async (userId: string): Promise<void> => {
  * @param profileRef The reference to the profile document
  * @returns The insights data
  */
-export const getProfileInsights = async (profileRef: FirebaseFirestore.DocumentReference): Promise<Insights> => {
-  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
+export const getProfileInsights = async (
+  profileRef: FirebaseFirestore.DocumentReference<ProfileDoc>,
+): Promise<Insights> => {
+  const insightsSnapshot = await profileRef
+    .collection(Collections.INSIGHTS)
+    .withConverter(insightsConverter)
+    .limit(1)
+    .get();
   const insightsDoc = insightsSnapshot.docs[0];
-  const insightsData = insightsDoc?.data() || {};
+  const insightsData = insightsDoc?.data() || ({} as Partial<InsightsDoc>);
 
   return {
-    emotional_overview: insightsData[InsightsFields.EMOTIONAL_OVERVIEW] || '',
-    key_moments: insightsData[InsightsFields.KEY_MOMENTS] || '',
-    recurring_themes: insightsData[InsightsFields.RECURRING_THEMES] || '',
-    progress_and_growth: insightsData[InsightsFields.PROGRESS_AND_GROWTH] || '',
+    emotional_overview: insightsData[insf('emotional_overview')] || '',
+    key_moments: insightsData[insf('key_moments')] || '',
+    recurring_themes: insightsData[insf('recurring_themes')] || '',
+    progress_and_growth: insightsData[insf('progress_and_growth')] || '',
   };
 };
 
@@ -187,19 +201,17 @@ export const getProfileInsights = async (profileRef: FirebaseFirestore.DocumentR
  * @param profileData The profile data
  * @returns Common profile fields
  */
-const formatCommonProfileFields = (userId: string, profileData: Record<string, unknown>) => {
+const formatCommonProfileFields = (userId: string, profileData: ProfileDoc) => {
   return {
     user_id: userId,
-    username: (profileData[ProfileFields.USERNAME] as string) || '',
-    name: (profileData[ProfileFields.NAME] as string) || '',
-    avatar: (profileData[ProfileFields.AVATAR] as string) || '',
-    location: (profileData[ProfileFields.LOCATION] as string) || '',
-    birthday: (profileData[ProfileFields.BIRTHDAY] as string) || '',
-    gender: (profileData[ProfileFields.GENDER] as string) || '',
-    timezone: (profileData[ProfileFields.TIMEZONE] as string) || '',
-    updated_at: profileData[ProfileFields.UPDATED_AT]
-      ? formatTimestamp(profileData[ProfileFields.UPDATED_AT] as Timestamp)
-      : '',
+    username: profileData.username || '',
+    name: profileData.name || '',
+    avatar: profileData.avatar || '',
+    location: profileData.location || '',
+    birthday: profileData.birthday || '',
+    gender: profileData.gender || '',
+    timezone: profileData.timezone || '',
+    updated_at: profileData.updated_at ? formatTimestamp(profileData.updated_at) : '',
   };
 };
 
@@ -208,26 +220,16 @@ const formatCommonProfileFields = (userId: string, profileData: Record<string, u
  * @param profileData The profile data from Firestore
  * @returns Properly formatted NudgingSettings or null
  */
-const extractNudgingSettings = (profileData: Record<string, unknown>): NudgingSettings | null => {
-  const rawNudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS];
+const extractNudgingSettings = (profileData: ProfileDoc): NudgingSettings | null => {
+  const nudgingSettings = profileData.nudging_settings;
 
-  // Return null if nudging_settings doesn't exist or is null/undefined
-  if (!rawNudgingSettings || typeof rawNudgingSettings !== 'object') {
+  // Return null if nudging_settings doesn't exist or is null
+  if (!nudgingSettings) {
     return null;
   }
 
-  const nudgingObj = rawNudgingSettings as Record<string, unknown>;
-
-  // Only return valid nudging settings if occurrence exists
-  if (!nudgingObj.occurrence || typeof nudgingObj.occurrence !== 'string') {
-    return null;
-  }
-
-  return {
-    occurrence: nudgingObj.occurrence,
-    times_of_day: Array.isArray(nudgingObj.times_of_day) ? nudgingObj.times_of_day : undefined,
-    days_of_week: Array.isArray(nudgingObj.days_of_week) ? nudgingObj.days_of_week : undefined,
-  };
+  // Return the nudging settings as is, since it's already typed
+  return nudgingSettings;
 };
 
 /**
@@ -235,7 +237,7 @@ const extractNudgingSettings = (profileData: Record<string, unknown>): NudgingSe
  * @param profileData The profile data from Firestore
  * @returns The nudging occurrence string or empty string if not set
  */
-export const extractNudgingOccurrence = (profileData: Record<string, unknown>): string => {
+export const extractNudgingOccurrence = (profileData: ProfileDoc): string => {
   const nudgingSettings = extractNudgingSettings(profileData);
   return nudgingSettings?.occurrence || '';
 };
@@ -249,7 +251,7 @@ export const extractNudgingOccurrence = (profileData: Record<string, unknown>): 
  */
 export const formatProfileResponse = (
   userId: string,
-  profileData: Record<string, unknown>,
+  profileData: ProfileDoc,
   insightsData: Insights,
 ): ProfileResponse => {
   const commonFields = formatCommonProfileFields(userId, profileData);
@@ -259,13 +261,13 @@ export const formatProfileResponse = (
 
   return {
     ...commonFields,
-    notification_settings: (profileData[ProfileFields.NOTIFICATION_SETTINGS] as string[]) || [],
+    notification_settings: profileData.notification_settings || [],
     nudging_settings: nudgingSettings,
-    summary: (profileData[ProfileFields.SUMMARY] as string) || '',
-    suggestions: (profileData[ProfileFields.SUGGESTIONS] as string) || '',
+    summary: profileData.summary || '',
+    suggestions: profileData.suggestions || '',
     insights: insightsData,
-    tone: (profileData[ProfileFields.TONE] as string) || '',
-    phone_number: (profileData[ProfileFields.PHONE_NUMBER] as string) || '',
+    tone: profileData.tone || '',
+    phone_number: profileData.phone_number || '',
   };
 };
 
@@ -279,7 +281,7 @@ export const formatProfileResponse = (
  */
 export const formatFriendProfileResponse = (
   userId: string,
-  profileData: Record<string, unknown>,
+  profileData: ProfileDoc,
   summary: string = '',
   suggestions: string = '',
 ): FriendProfileResponse => {
@@ -331,10 +333,10 @@ export const createSummaryId = (userId1: string, userId2: string): string => {
  */
 export const hasLimitOverride = async (userId: string): Promise<boolean> => {
   const db = getFirestore();
-  const profileRef = db.collection(Collections.PROFILES).doc(userId);
+  const profileRef = db.collection(Collections.PROFILES).withConverter(profileConverter).doc(userId);
   const profileDoc = await profileRef.get();
-  const profileData = profileDoc.data() || {};
-  return profileData[ProfileFields.LIMIT_OVERRIDE] || false;
+  const profileData = profileDoc.data();
+  return !!profileData?.limit_override;
 };
 
 /**
@@ -342,12 +344,12 @@ export const hasLimitOverride = async (userId: string): Promise<boolean> => {
  * @param profileData The profile data from Firestore
  * @returns The goal string or "something_else" if not in predefined options
  */
-export const extractGoalForAnalytics = (profileData: Record<string, unknown>): string => {
-  const goal = profileData[ProfileFields.GOAL] as string;
+export const extractGoalForAnalytics = (profileData: ProfileDoc): string => {
+  const goal = profileData.goal;
   if (!goal) return '';
 
   // Check if the goal matches any predefined option
-  const predefinedGoals = Object.values(GoalFields) as string[];
+  const predefinedGoals = Object.values(Goals) as string[];
   if (predefinedGoals.includes(goal)) {
     return goal;
   }
@@ -361,12 +363,12 @@ export const extractGoalForAnalytics = (profileData: Record<string, unknown>): s
  * @param profileData The profile data from Firestore
  * @returns The connect_to string or "other" if not in predefined options
  */
-export const extractConnectToForAnalytics = (profileData: Record<string, unknown>): string => {
-  const connectTo = profileData[ProfileFields.CONNECT_TO] as string;
+export const extractConnectToForAnalytics = (profileData: ProfileDoc): string => {
+  const connectTo = profileData.connect_to?.[0];
   if (!connectTo) return '';
 
   // Check if the connect_to matches any predefined option
-  const predefinedOptions = Object.values(ConnectToFields) as string[];
+  const predefinedOptions = Object.values(ConnectTo) as string[];
   if (predefinedOptions.includes(connectTo)) {
     return connectTo;
   }

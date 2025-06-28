@@ -1,10 +1,13 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NotificationTypes, ReactionFields, UpdateFields } from '../models/constants.js';
+import { Collections, NotificationTypes } from '../models/constants.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
+import { ReactionDoc } from '../models/firestore/reaction-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
+import { updateConverter } from '../models/firestore/update-doc.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -28,7 +31,7 @@ const sendReactionNotification = async (
   reactorId: string,
 ): Promise<NotificationEventParams> => {
   // Get the update document to find the creator
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  const updateRef = db.collection(Collections.UPDATES).withConverter(updateConverter).doc(updateId);
   const updateDoc = await updateRef.get();
 
   if (!updateDoc.exists) {
@@ -43,8 +46,19 @@ const sendReactionNotification = async (
     };
   }
 
-  const updateData = updateDoc.data() || {};
-  const updateCreatorId = updateData[UpdateFields.CREATED_BY] as string;
+  const updateData = updateDoc.data();
+  if (!updateData) {
+    logger.warn(`Update data is null for ID ${updateId}`);
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: true,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false,
+    };
+  }
+  const updateCreatorId = updateData.created_by;
 
   // Skip if the reactor is the update creator (reacting to their own update)
   if (reactorId === updateCreatorId) {
@@ -75,8 +89,8 @@ const sendReactionNotification = async (
     };
   }
 
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+  const deviceId = deviceData?.device_id;
 
   if (!deviceId) {
     logger.info(`No device ID found for update creator ${updateCreatorId}, skipping notification`);
@@ -158,7 +172,7 @@ export const onReactionCreated = async (
       return;
     }
 
-    const reactionData = reactionSnapshot.data() || {};
+    const reactionData = reactionSnapshot.data() as ReactionDoc;
     const reactorId = event.params.id; // Document ID is now the userId
     const updateId = reactionSnapshot.ref.parent.parent?.id;
 
@@ -168,7 +182,7 @@ export const onReactionCreated = async (
     }
 
     // Get the reaction types array from the document
-    const reactionTypes = (reactionData[ReactionFields.TYPES] as string[]) || [];
+    const reactionTypes = reactionData.types || [];
     if (reactionTypes.length === 0) {
       logger.warn(`No reaction types found in reaction document for user ${reactorId}`);
       return;

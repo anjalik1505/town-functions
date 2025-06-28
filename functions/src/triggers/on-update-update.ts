@@ -1,14 +1,15 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
-import { Collections, GroupFields, UpdateFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getFriendDoc, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
 import { createFeedItem } from '../utils/update-utils.js';
+import { groupConverter, UpdateDoc } from '../models/firestore/index.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,7 +30,7 @@ const logger = getLogger(path.basename(__filename));
  */
 const processNewlyAddedFriendsAndGroups = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, unknown>,
+  updateData: UpdateDoc,
   newFriendIds: string[],
   newGroupIds: string[],
   updateId: string,
@@ -39,9 +40,9 @@ const processNewlyAddedFriendsAndGroups = async (
     return [];
   }
 
-  const creatorId = updateData[UpdateFields.CREATED_BY] as string;
-  const emoji = updateData[UpdateFields.EMOJI] as string;
-  const createdAt = updateData[UpdateFields.CREATED_AT] as Timestamp;
+  const creatorId = updateData.created_by;
+  const emoji = updateData.emoji;
+  const createdAt = updateData.created_at;
 
   // Create a batch for atomic writes
   const batch = db.batch();
@@ -58,18 +59,15 @@ const processNewlyAddedFriendsAndGroups = async (
 
   // Get group members for newly added groups
   if (newGroupIds.length > 0) {
-    const groupDocs = await Promise.all(
-      newGroupIds.map((groupId) => db.collection(Collections.GROUPS).doc(groupId).get()),
-    );
+    const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+    const groupDocs = await Promise.all(newGroupIds.map((groupId) => groups.doc(groupId).get()));
 
     groupDocs.forEach((groupDoc) => {
-      if (groupDoc.exists) {
-        const groupData = groupDoc.data();
-        if (groupData && groupData[GroupFields.MEMBERS]) {
-          const members = new Set(groupData[GroupFields.MEMBERS] as string[]);
-          groupMembersMap.set(groupDoc.id, members);
-          members.forEach((memberId) => allNewUsers.add(memberId));
-        }
+      const groupData = groupDoc.data();
+      if (groupData) {
+        const members = new Set(groupData.members);
+        groupMembersMap.set(groupDoc.id, members);
+        members.forEach((memberId) => allNewUsers.add(memberId));
       }
     });
   }
@@ -174,8 +172,8 @@ export const onUpdateUpdated = async (
     return;
   }
 
-  const beforeData = event.data.before?.data() || {};
-  const afterData = event.data.after?.data() || {};
+  const beforeData = (event.data.before?.data() || {}) as UpdateDoc;
+  const afterData = (event.data.after?.data() || {}) as UpdateDoc;
   const updateId = event.params.id;
 
   if (!updateId) {
@@ -184,10 +182,10 @@ export const onUpdateUpdated = async (
   }
 
   // Compare friend and group lists to detect newly added ones
-  const oldFriendIds = (beforeData[UpdateFields.FRIEND_IDS] as string[]) || [];
-  const newFriendIds = (afterData[UpdateFields.FRIEND_IDS] as string[]) || [];
-  const oldGroupIds = (beforeData[UpdateFields.GROUP_IDS] as string[]) || [];
-  const newGroupIds = (afterData[UpdateFields.GROUP_IDS] as string[]) || [];
+  const oldFriendIds = beforeData.friend_ids || [];
+  const newFriendIds = afterData.friend_ids || [];
+  const oldGroupIds = beforeData.group_ids || [];
+  const newGroupIds = afterData.group_ids || [];
 
   const { addedFriends, addedGroups } = detectNewlyAddedFriendsAndGroups(
     oldFriendIds,
@@ -206,15 +204,14 @@ export const onUpdateUpdated = async (
   );
 
   // Add the document ID to the update data
-  const updateData = { ...afterData };
-  updateData[UpdateFields.ID] = updateId;
+  const updateData: UpdateDoc = { ...afterData, id: updateId };
 
   // Initialize Firestore client
   const db = getFirestore();
 
   try {
     // Process images for analysis
-    const imagePaths = (updateData[UpdateFields.IMAGE_PATHS] as string[]) || [];
+    const imagePaths = updateData.image_paths || [];
     const processedImages = await processImagesForPrompt(imagePaths);
 
     // Analyze images for friend summaries
@@ -241,7 +238,7 @@ export const onUpdateUpdated = async (
     }));
 
     if (events.length > 0) {
-      trackApiEvents(events, updateData[UpdateFields.CREATED_BY] as string);
+      trackApiEvents(events, updateData.created_by);
       logger.info(`Tracked ${events.length} friend summary analytics events`);
     }
   } catch (error) {

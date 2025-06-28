@@ -1,13 +1,16 @@
 import { getFirestore, QueryDocumentSnapshot, Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import {
-  Collections,
-  CommentFields,
-  FeedFields,
-  GroupFields,
-  QueryOperators,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { BaseGroup, BaseUser, Comment, EnrichedUpdate, ReactionGroup, Update } from '../models/data-models.js';
+import {
+  cf,
+  commentConverter,
+  CommentDoc,
+  feedConverter,
+  FeedDoc,
+  groupConverter,
+  updateConverter,
+  UpdateDoc,
+} from '../models/firestore/index.js';
 import { processEnrichedComments } from './comment-utils.js';
 import { ForbiddenError, NotFoundError } from './errors.js';
 import { areFriends } from './friendship-utils.js';
@@ -35,7 +38,7 @@ const logger = getLogger(path.basename(__filename));
  */
 export const formatUpdate = (
   updateId: string,
-  updateData: FirebaseFirestore.DocumentData,
+  updateData: UpdateDoc,
   createdBy: string,
   reactions: ReactionGroup[] = [],
   sharedWithFriends: BaseUser[] = [],
@@ -44,18 +47,18 @@ export const formatUpdate = (
   return {
     update_id: updateId,
     created_by: createdBy,
-    content: updateData[UpdateFields.CONTENT] || '',
-    group_ids: updateData[UpdateFields.GROUP_IDS] || [],
-    friend_ids: updateData[UpdateFields.FRIEND_IDS] || [],
-    sentiment: updateData[UpdateFields.SENTIMENT] || '',
-    score: updateData[UpdateFields.SCORE] || 3,
-    emoji: updateData[UpdateFields.EMOJI] || '😊',
-    created_at: formatTimestamp(updateData[UpdateFields.CREATED_AT]),
+    content: updateData.content || '',
+    group_ids: updateData.group_ids || [],
+    friend_ids: updateData.friend_ids || [],
+    sentiment: updateData.sentiment || '',
+    score: updateData.score || 3,
+    emoji: updateData.emoji || '😊',
+    created_at: formatTimestamp(updateData.created_at),
     comment_count: updateData.comment_count || 0,
     reaction_count: updateData.reaction_count || 0,
     reactions: reactions,
-    all_village: updateData[UpdateFields.ALL_VILLAGE] || false,
-    images: updateData[UpdateFields.IMAGE_PATHS] || [],
+    all_village: updateData.all_village || false,
+    images: updateData.image_paths || [],
     shared_with_friends: sharedWithFriends,
     shared_with_groups: sharedWithGroups,
   };
@@ -74,7 +77,7 @@ export const formatUpdate = (
  */
 export const formatEnrichedUpdate = (
   updateId: string,
-  updateData: FirebaseFirestore.DocumentData,
+  updateData: UpdateDoc,
   createdBy: string,
   reactions: ReactionGroup[] = [],
   profile: { username: string; name: string; avatar: string } | null = null,
@@ -101,15 +104,15 @@ export const formatEnrichedUpdate = (
  * @returns Array of formatted Update objects
  */
 export const processFeedItems = async (
-  feedDocs: QueryDocumentSnapshot[],
-  updateMap: Map<string, FirebaseFirestore.DocumentData>,
+  feedDocs: QueryDocumentSnapshot<FeedDoc>[],
+  updateMap: Map<string, UpdateDoc>,
   reactionsMap: Map<string, ReactionGroup[]>,
   currentUserId: string,
 ): Promise<Update[]> => {
   const updates = await Promise.all(
     feedDocs.map(async (feedItem) => {
       const feedData = feedItem.data();
-      const updateId = feedData[FeedFields.UPDATE_ID];
+      const updateId = feedData.update_id;
       const updateData = updateMap.get(updateId);
 
       if (!updateData) {
@@ -118,12 +121,26 @@ export const processFeedItems = async (
       }
 
       // Use denormalized data from the update document
-      const sharedWithFriends = updateData.shared_with_friends_profiles || [];
-      const sharedWithGroups = updateData.shared_with_groups_profiles || [];
+      const sharedWithFriendsProfiles = updateData.shared_with_friends_profiles || [];
+      const sharedWithGroupsProfiles = updateData.shared_with_groups_profiles || [];
+
+      // Convert to BaseUser[] and BaseGroup[]
+      const sharedWithFriends: BaseUser[] = sharedWithFriendsProfiles.map((profile) => ({
+        user_id: profile.user_id,
+        username: profile.username,
+        name: profile.name,
+        avatar: profile.avatar,
+      }));
+
+      const sharedWithGroups: BaseGroup[] = sharedWithGroupsProfiles.map((profile) => ({
+        group_id: profile.group_id,
+        name: profile.name,
+        icon: profile.icon,
+      }));
 
       return formatUpdate(
         updateId,
-        updateData,
+        updateData as UpdateDoc,
         currentUserId,
         reactionsMap.get(updateId) || [],
         sharedWithFriends,
@@ -142,15 +159,15 @@ export const processFeedItems = async (
  * @returns Array of formatted EnrichedUpdate objects
  */
 export const processEnrichedFeedItems = async (
-  feedDocs: QueryDocumentSnapshot[],
-  updateMap: Map<string, FirebaseFirestore.DocumentData>,
+  feedDocs: QueryDocumentSnapshot<FeedDoc>[],
+  updateMap: Map<string, UpdateDoc>,
 ): Promise<EnrichedUpdate[]> => {
   const updates = await Promise.all(
     feedDocs.map(async (feedItem) => {
       const feedData = feedItem.data();
-      const updateId = feedData[FeedFields.UPDATE_ID];
+      const updateId = feedData.update_id;
       const updateData = updateMap.get(updateId);
-      const createdBy = feedData[FeedFields.CREATED_BY];
+      const createdBy = feedData.created_by;
 
       if (!updateData) {
         logger.warn(`Missing update data for feed item ${feedItem.id}`);
@@ -158,21 +175,35 @@ export const processEnrichedFeedItems = async (
       }
 
       // Use denormalized data from the update document
-      const sharedWithFriends = updateData.shared_with_friends_profiles || [];
-      const sharedWithGroups = updateData.shared_with_groups_profiles || [];
+      const sharedWithFriendsProfiles = updateData.shared_with_friends_profiles || [];
+      const sharedWithGroupsProfiles = updateData.shared_with_groups_profiles || [];
+
+      // Convert to BaseUser[] and BaseGroup[]
+      const sharedWithFriends: BaseUser[] = sharedWithFriendsProfiles.map((profile) => ({
+        user_id: profile.user_id,
+        username: profile.username,
+        name: profile.name,
+        avatar: profile.avatar,
+      }));
+
+      const sharedWithGroups: BaseGroup[] = sharedWithGroupsProfiles.map((profile) => ({
+        group_id: profile.group_id,
+        name: profile.name,
+        icon: profile.icon,
+      }));
 
       // Use denormalized creator profile or fall back to profiles map
       const creatorProfile = updateData.creator_profile || null;
 
       // Extract reactions from denormalized reaction_types field
-      const reactionTypes = updateData[UpdateFields.REACTION_TYPES] || {};
+      const reactionTypes = updateData.reaction_types || {};
       const reactions = Object.entries(reactionTypes)
         .map(([type, count]) => ({ type, count: count as number }))
         .filter((reaction) => reaction.count > 0);
 
       return formatEnrichedUpdate(
         updateId,
-        updateData,
+        updateData as UpdateDoc,
         createdBy,
         reactions,
         creatorProfile,
@@ -190,7 +221,7 @@ export const processEnrichedFeedItems = async (
  * @param updateIds Array of update IDs to fetch
  * @returns Map of update IDs to update data
  */
-export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string, FirebaseFirestore.DocumentData>> => {
+export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string, UpdateDoc>> => {
   const db = getFirestore();
 
   // Fetch all updates in parallel
@@ -198,9 +229,7 @@ export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string
   const updateSnapshots = await Promise.all(updatePromises);
 
   // Create a map of update data for an easy lookup
-  return new Map(
-    updateSnapshots.filter((doc) => doc.exists).map((doc) => [doc.id, doc.data() as FirebaseFirestore.DocumentData]),
-  );
+  return new Map(updateSnapshots.filter((doc) => doc.exists).map((doc) => [doc.id, doc.data() as UpdateDoc]));
 };
 
 /**
@@ -212,21 +241,23 @@ export const fetchUpdatesByIds = async (updateIds: string[]): Promise<Map<string
 export const getUpdateDoc = async (
   updateId: string,
 ): Promise<{
-  ref: FirebaseFirestore.DocumentReference;
-  data: FirebaseFirestore.DocumentData;
+  ref: FirebaseFirestore.DocumentReference<UpdateDoc>;
+  data: UpdateDoc;
 }> => {
   const db = getFirestore();
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  const updates = db.collection(Collections.UPDATES).withConverter(updateConverter);
+  const updateRef = updates.doc(updateId);
   const updateDoc = await updateRef.get();
 
-  if (!updateDoc.exists) {
+  const data = updateDoc.data();
+  if (!data) {
     logger.warn(`Update not found: ${updateId}`);
     throw new NotFoundError('Update not found');
   }
 
   return {
     ref: updateRef,
-    data: updateDoc.data() || {},
+    data,
   };
 };
 
@@ -236,15 +267,15 @@ export const getUpdateDoc = async (
  * @param userId The ID of the user to check access for
  * @throws ForbiddenError if the user doesn't have access to the update
  */
-export const hasUpdateAccess = async (updateData: FirebaseFirestore.DocumentData, userId: string): Promise<void> => {
+export const hasUpdateAccess = async (updateData: UpdateDoc, userId: string): Promise<void> => {
   // Creator always has access
-  const creatorId = updateData[UpdateFields.CREATED_BY];
+  const creatorId = updateData.created_by;
   if (creatorId === userId) {
     return;
   }
 
   // Check if the user is a friend with visibility
-  const visibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
+  const visibleTo = updateData.visible_to || [];
   const friendVisibility = createFriendVisibilityIdentifier(userId);
 
   if (visibleTo.includes(friendVisibility)) {
@@ -252,7 +283,7 @@ export const hasUpdateAccess = async (updateData: FirebaseFirestore.DocumentData
   }
 
   // If all_village is true, check if the user is a friend
-  const isAllVillage = updateData[UpdateFields.ALL_VILLAGE] || false;
+  const isAllVillage = updateData.all_village || false;
 
   if (isAllVillage) {
     // Check if the users are friends
@@ -274,7 +305,7 @@ export const hasUpdateAccess = async (updateData: FirebaseFirestore.DocumentData
  * @returns Object containing enriched comments and next cursor
  */
 export const fetchUpdateComments = async (
-  updateRef: FirebaseFirestore.DocumentReference,
+  updateRef: FirebaseFirestore.DocumentReference<UpdateDoc>,
   limit: number,
   afterCursor?: string,
 ): Promise<{
@@ -283,22 +314,26 @@ export const fetchUpdateComments = async (
   nextCursor: string | null;
 }> => {
   // Build the query
-  let query = updateRef.collection(Collections.COMMENTS).orderBy(CommentFields.CREATED_AT, QueryOperators.ASC);
+  let query = updateRef
+    .collection(Collections.COMMENTS)
+    .withConverter(commentConverter)
+    .orderBy(cf('created_at'), QueryOperators.ASC);
 
   // Apply cursor-based pagination
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
 
   // Process comments using streaming
-  const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+  const { items: commentDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot<CommentDoc>>(
     paginatedQuery,
-    (doc: QueryDocumentSnapshot) => doc,
+    (doc) => doc as QueryDocumentSnapshot<CommentDoc>,
     limit,
   );
 
   // Collect user IDs from comments
   const uniqueUserIds = new Set<string>();
-  commentDocs.forEach((doc: QueryDocumentSnapshot) => {
-    const createdBy = doc.data()[CommentFields.CREATED_BY] || '';
+  commentDocs.forEach((doc: QueryDocumentSnapshot<CommentDoc>) => {
+    const commentData = doc.data();
+    const createdBy = commentData.created_by || '';
     if (createdBy) {
       uniqueUserIds.add(createdBy);
     }
@@ -341,15 +376,20 @@ export const createFeedItem = (
   groupIds: string[],
   createdBy: string,
 ): void => {
-  const feedItemRef = db.collection(Collections.USER_FEEDS).doc(userId).collection(Collections.FEED).doc(updateId);
+  const feedItemRef = db
+    .collection(Collections.USER_FEEDS)
+    .doc(userId)
+    .collection(Collections.FEED)
+    .withConverter(feedConverter)
+    .doc(updateId);
 
-  const feedItemData = {
-    [FeedFields.UPDATE_ID]: updateId,
-    [FeedFields.CREATED_AT]: createdAt,
-    [FeedFields.DIRECT_VISIBLE]: isDirectFriend,
-    [FeedFields.FRIEND_ID]: friendId,
-    [FeedFields.GROUP_IDS]: groupIds,
-    [FeedFields.CREATED_BY]: createdBy,
+  const feedItemData: FeedDoc = {
+    update_id: updateId,
+    created_at: createdAt,
+    direct_visible: isDirectFriend,
+    friend_id: friendId ?? undefined,
+    group_ids: groupIds,
+    created_by: createdBy,
   };
 
   batch.set(feedItemRef, feedItemData);
@@ -397,21 +437,18 @@ export const fetchGroupProfiles = async (groupIds: string[]): Promise<BaseGroup[
   }
 
   const db = getFirestore();
-  const groupDocs = await Promise.all(
-    groupIds.map((groupId: string) => db.collection(Collections.GROUPS).doc(groupId).get()),
-  );
+  const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const groupDocs = await Promise.all(groupIds.map((groupId: string) => groups.doc(groupId).get()));
 
   return groupDocs
     .map((groupDoc) => {
-      if (groupDoc.exists) {
-        const groupData = groupDoc.data();
-        if (groupData) {
-          return {
-            group_id: groupDoc.id,
-            name: groupData[GroupFields.NAME] || '',
-            icon: groupData[GroupFields.ICON] || '',
-          };
-        }
+      const groupData = groupDoc.data();
+      if (groupData) {
+        return {
+          group_id: groupDoc.id,
+          name: groupData.name || '',
+          icon: groupData.icon || '',
+        };
       }
       return null;
     })

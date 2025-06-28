@@ -1,18 +1,16 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { generateDailyNotificationFlow } from '../ai/flows.js';
 import { DailyNotificationsEventParams, EventName, NotificationEventParams } from '../models/analytics-events.js';
+import { Collections, NotificationTypes, QueryOperators, SYSTEM_USER } from '../models/constants.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
 import {
-  Collections,
   DaysOfWeek,
-  DeviceFields,
-  NotificationFields,
-  NotificationTypes,
-  NudgingFields,
-  ProfileFields,
-  QueryOperators,
-  SYSTEM_USER,
-  UpdateFields,
-} from '../models/constants.js';
+  NotificationSettings,
+  NudgingOccurrence,
+  ProfileDoc,
+  profileConverter,
+} from '../models/firestore/profile-doc.js';
+import { updateConverter, uf } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -30,7 +28,7 @@ const logger = getLogger(path.basename(__filename));
 const processUserNotification = async (
   db: FirebaseFirestore.Firestore,
   userId: string,
-  profileData: FirebaseFirestore.DocumentData,
+  profileData: ProfileDoc,
 ): Promise<NotificationEventParams> => {
   // Get the user's device
   const deviceDoc = await db.collection(Collections.DEVICES).doc(userId).get();
@@ -46,8 +44,8 @@ const processUserNotification = async (
     };
   }
 
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+  const deviceId = deviceData?.device_id;
   if (!deviceId) {
     logger.info(`No device ID found for user ${userId}`);
     return {
@@ -61,20 +59,22 @@ const processUserNotification = async (
   }
 
   // Get notification settings from the profile
-  const notificationSettings = profileData[ProfileFields.NOTIFICATION_SETTINGS] || [];
-  const hasAllSetting = notificationSettings.includes(NotificationFields.ALL);
-  const hasUrgentSetting = notificationSettings.includes(NotificationFields.URGENT);
+  const notificationSettings = profileData.notification_settings || [];
+  const hasAllSetting = notificationSettings.includes(NotificationSettings.ALL);
+  const hasUrgentSetting = notificationSettings.includes(NotificationSettings.URGENT);
 
   // Skip if the user created an update in the last 24 hours
   const recentSnapshot = await db
     .collection(Collections.UPDATES)
-    .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
-    .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC)
+    .withConverter(updateConverter)
+    .where(uf('created_by'), QueryOperators.EQUALS, userId)
+    .orderBy(uf('created_at'), QueryOperators.DESC)
     .limit(1)
     .get();
   const lastDoc = recentSnapshot.docs[0];
   if (lastDoc) {
-    const lastTimestamp = (lastDoc.data()[UpdateFields.CREATED_AT] as FirebaseFirestore.Timestamp).toDate().getTime();
+    const updateData = lastDoc.data();
+    const lastTimestamp = updateData.created_at.toDate().getTime();
     if (Date.now() - lastTimestamp < 24 * 60 * 60 * 1000) {
       logger.info(`Skipping daily notification for user ${userId} due to recent update`);
       return {
@@ -170,7 +170,7 @@ const processTimeBucketNotifications = async (db: FirebaseFirestore.Firestore): 
 
       try {
         // Get the user's profile
-        const profileDoc = await db.collection(Collections.PROFILES).doc(userId).get();
+        const profileDoc = await db.collection(Collections.PROFILES).withConverter(profileConverter).doc(userId).get();
 
         if (!profileDoc.exists) {
           logger.warn(`Profile not found for user ${userId} in bucket ${currentBucket}`);
@@ -216,16 +216,19 @@ const processLegacyNotifications = async (db: FirebaseFirestore.Firestore): Prom
 
   try {
     // Stream all profiles that don't have timezone or have nudge settings set to "never"
-    const profilesStream = db.collection(Collections.PROFILES).stream() as AsyncIterable<QueryDocumentSnapshot>;
+    const profilesStream = db
+      .collection(Collections.PROFILES)
+      .withConverter(profileConverter)
+      .stream() as AsyncIterable<QueryDocumentSnapshot<ProfileDoc>>;
 
     for await (const profileDoc of profilesStream) {
       const profileData = profileDoc.data();
-      const timezone = profileData[ProfileFields.TIMEZONE];
-      const nudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS];
+      const timezone = profileData.timezone;
+      const nudgingSettings = profileData.nudging_settings;
 
       // Process users who don't have timezone or nudging settings configured
       // Users with occurrence "never" should NOT be notified
-      const hasNeverOccurrence = nudgingSettings && nudgingSettings.occurrence === NudgingFields.NEVER;
+      const hasNeverOccurrence = nudgingSettings && nudgingSettings.occurrence === NudgingOccurrence.NEVER;
       const shouldProcessLegacy = !timezone || !nudgingSettings;
 
       if (shouldProcessLegacy && !hasNeverOccurrence) {

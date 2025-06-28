@@ -1,5 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { Collections, CommentFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
+import { CommentDoc, commentConverter } from '../models/firestore/comment-doc.js';
 import { Comment } from '../models/data-models.js';
 import { NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
@@ -18,17 +19,13 @@ const logger = getLogger(path.basename(__filename));
  * @param createdBy The ID of the user who created the comment
  * @returns A formatted Comment object
  */
-export const formatComment = (
-  commentId: string,
-  commentData: FirebaseFirestore.DocumentData,
-  createdBy: string,
-): Comment => {
+export const formatComment = (commentId: string, commentData: CommentDoc, createdBy: string): Comment => {
   return {
     comment_id: commentId,
     created_by: createdBy,
-    content: commentData[CommentFields.CONTENT] || '',
-    created_at: formatTimestamp(commentData[CommentFields.CREATED_AT]),
-    updated_at: formatTimestamp(commentData[CommentFields.UPDATED_AT]),
+    content: commentData.content || '',
+    created_at: formatTimestamp(commentData.created_at),
+    updated_at: formatTimestamp(commentData.updated_at),
     username: '', // Will be populated from profile
     name: '', // Will be populated from profile
     avatar: '', // Will be populated from profile
@@ -42,15 +39,11 @@ export const formatComment = (
  * @param createdBy The ID of the user who created the comment
  * @returns A formatted Comment object with profile data
  */
-export const formatEnrichedComment = (
-  commentId: string,
-  commentData: FirebaseFirestore.DocumentData,
-  createdBy: string,
-): Comment => {
+export const formatEnrichedComment = (commentId: string, commentData: CommentDoc, createdBy: string): Comment => {
   const comment = formatComment(commentId, commentData, createdBy);
 
   // Always include profile data, using empty strings if missing
-  const commenterProfile = commentData.commenter_profile || {};
+  const commenterProfile = commentData.commenter_profile;
   comment.username = commenterProfile.username || '';
   comment.name = commenterProfile.name || '';
   comment.avatar = commenterProfile.avatar || '';
@@ -64,11 +57,11 @@ export const formatEnrichedComment = (
  * @param commentDocs Array of comment document snapshots
  * @returns Array of formatted Comment objects with profile data
  */
-export const processEnrichedComments = (commentDocs: QueryDocumentSnapshot[]): Comment[] => {
+export const processEnrichedComments = (commentDocs: QueryDocumentSnapshot<CommentDoc>[]): Comment[] => {
   return commentDocs
     .map((commentDoc) => {
       const commentData = commentDoc.data();
-      const createdBy = commentData[CommentFields.CREATED_BY] || '';
+      const createdBy = commentData.created_by || '';
 
       return formatEnrichedComment(commentDoc.id, commentData, createdBy);
     })
@@ -86,12 +79,12 @@ export const getCommentDoc = async (
   updateId: string,
   commentId: string,
 ): Promise<{
-  ref: FirebaseFirestore.DocumentReference;
-  data: FirebaseFirestore.DocumentData;
+  ref: FirebaseFirestore.DocumentReference<CommentDoc>;
+  data: CommentDoc;
 }> => {
   const db = getFirestore();
   const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-  const commentRef = updateRef.collection(Collections.COMMENTS).doc(commentId);
+  const commentRef = updateRef.collection(Collections.COMMENTS).withConverter(commentConverter).doc(commentId);
   const commentDoc = await commentRef.get();
 
   if (!commentDoc.exists) {
@@ -99,8 +92,13 @@ export const getCommentDoc = async (
     throw new NotFoundError('Comment not found');
   }
 
+  const data = commentDoc.data();
+  if (!data) {
+    throw new NotFoundError('Comment data not found');
+  }
+
   return {
     ref: commentRef,
-    data: commentDoc.data() || {},
+    data,
   };
 };

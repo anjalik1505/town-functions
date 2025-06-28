@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { ChatFields, Collections, GroupFields } from '../models/constants.js';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Collections } from '../models/constants.js';
 import { ChatMessage, CreateChatMessagePayload } from '../models/data-models.js';
+import { chatConverter, ChatDoc } from '../models/firestore/chat-doc.js';
+import { groupConverter } from '../models/firestore/group-doc.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -47,7 +49,7 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
   const db = getFirestore();
 
   // First, check if the group exists and if the user is a member
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groupRef = db.collection(Collections.GROUPS).withConverter(groupConverter).doc(groupId);
   const groupDoc = await groupRef.get();
 
   if (!groupDoc.exists) {
@@ -55,8 +57,8 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
     throw new NotFoundError('Group not found');
   }
 
-  const groupData = groupDoc.data() || {};
-  const members = groupData[GroupFields.MEMBERS] || [];
+  const groupData = groupDoc.data();
+  const members = groupData?.members || [];
 
   // Check if the current user is a member of the group
   if (!members.includes(currentUserId)) {
@@ -65,16 +67,20 @@ export const createGroupChatMessage = async (req: Request, res: Response, groupI
   }
 
   // Create the chat message
-  const chatsRef = groupRef.collection(Collections.CHATS);
+  const chatsRef = db
+    .collection(Collections.GROUPS)
+    .doc(groupId)
+    .collection(Collections.CHATS)
+    .withConverter(chatConverter);
 
   const currentTime = Timestamp.now();
 
   // Prepare the message data
-  const messageData: UpdateData<DocumentData> = {
-    [ChatFields.SENDER_ID]: currentUserId,
-    [ChatFields.TEXT]: text,
-    [ChatFields.CREATED_AT]: currentTime,
-    [ChatFields.ATTACHMENTS]: attachments,
+  const messageData: ChatDoc = {
+    sender_id: currentUserId,
+    text: text,
+    created_at: currentTime,
+    attachments: attachments.map((url) => ({ type: 'image', url })),
   };
 
   // Add the message to Firestore

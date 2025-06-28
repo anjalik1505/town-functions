@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { DocumentData, FieldValue, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { CreateGroupPayload, Group } from '../models/data-models.js';
+import { GroupDoc, groupConverter, profileConverter, pf } from '../models/firestore/index.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -57,26 +58,30 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
   // Skip current user in validation since we know they exist
   const membersToValidate = members.filter((memberId: string) => memberId !== currentUserId);
 
-  // Store profile data for denormalization
-  const memberProfiles = [];
+  // Store profile data for denormalization as a Record
+  const memberProfiles: Record<string, { username: string; name: string; avatar: string }> = {};
 
   // First, add the current user's profile (we know they exist)
-  const currentUserProfile = await db.collection(Collections.PROFILES).doc(currentUserId).get();
+  const currentUserProfile = await db
+    .collection(Collections.PROFILES)
+    .withConverter(profileConverter)
+    .doc(currentUserId)
+    .get();
   if (currentUserProfile.exists) {
-    const profileData = currentUserProfile.data() || {};
-    memberProfiles.push({
-      [ProfileFields.USER_ID]: currentUserId,
-      [ProfileFields.USERNAME]: profileData[ProfileFields.USERNAME] || '',
-      [ProfileFields.NAME]: profileData[ProfileFields.NAME] || '',
-      [ProfileFields.AVATAR]: profileData[ProfileFields.AVATAR] || '',
-    });
+    const profileData = currentUserProfile.data();
+    if (profileData) {
+      memberProfiles[currentUserId] = {
+        username: profileData.username || '',
+        name: profileData.name || '',
+        avatar: profileData.avatar || '',
+      };
+    }
   }
 
   if (membersToValidate.length > 0) {
     // 1. Verify members exist
-    const memberProfileRefs = membersToValidate.map((memberId: string) =>
-      db.collection(Collections.PROFILES).doc(memberId),
-    );
+    const profilesCollection = db.collection(Collections.PROFILES).withConverter(profileConverter);
+    const memberProfileRefs = membersToValidate.map((memberId: string) => profilesCollection.doc(memberId));
     const memberProfilesData = await db.getAll(...memberProfileRefs);
 
     // Check if all member profiles exist
@@ -87,13 +92,14 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
         missingMembers.push(membersToValidate[i]);
       } else {
         // Store profile data for denormalization
-        const profileData = profileSnapshot?.data() || {};
-        memberProfiles.push({
-          [ProfileFields.USER_ID]: profileSnapshot?.id,
-          [ProfileFields.USERNAME]: profileData[ProfileFields.USERNAME] || '',
-          [ProfileFields.NAME]: profileData[ProfileFields.NAME] || '',
-          [ProfileFields.AVATAR]: profileData[ProfileFields.AVATAR] || '',
-        });
+        const profileData = profileSnapshot?.data();
+        if (profileData) {
+          memberProfiles[profileSnapshot?.id] = {
+            username: profileData.username || '',
+            name: profileData.name || '',
+            avatar: profileData.avatar || '',
+          };
+        }
       }
     }
 
@@ -159,26 +165,28 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
   const currentTime = Timestamp.now();
 
   // Prepare group data
-  const groupData: UpdateData<DocumentData> = {
-    [GroupFields.NAME]: name,
-    [GroupFields.ICON]: icon,
-    [GroupFields.MEMBERS]: members,
-    [GroupFields.MEMBER_PROFILES]: memberProfiles,
-    [GroupFields.CREATED_AT]: currentTime,
+  const groupData: GroupDoc = {
+    name: name,
+    icon: icon || '',
+    members: members,
+    member_profiles: memberProfiles,
+    created_at: currentTime,
   };
 
   // Create a batch operation for all database writes
   const batch = db.batch();
 
-  // Add the group to Firestore
-  batch.set(groupRef, groupData);
+  // Add the group to Firestore with converter
+  const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const typedGroupRef = groups.doc(groupId);
+  batch.set(typedGroupRef, groupData);
   logger.info(`Adding group ${groupId} with name '${name}' to batch`);
 
   // Add the group ID to each member's profile
   for (const memberId of members) {
     const profileRef = db.collection(Collections.PROFILES).doc(memberId);
     const profileUpdate: UpdateData<DocumentData> = {
-      [ProfileFields.GROUP_IDS]: FieldValue.arrayUnion(groupId),
+      [pf('group_ids')]: FieldValue.arrayUnion(groupId),
     };
     batch.update(profileRef, profileUpdate);
     logger.info(`Adding group ${groupId} to member ${memberId}'s profile in batch`);
@@ -188,13 +196,21 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
   await batch.commit();
   logger.info(`Batch committed successfully: created group ${groupId} and updated all member profiles`);
 
+  // Convert member_profiles from Record to array format for the response
+  const memberProfilesArray = Object.entries(memberProfiles).map(([userId, profile]) => ({
+    user_id: userId,
+    username: profile.username,
+    name: profile.name,
+    avatar: profile.avatar,
+  }));
+
   // Return the created group data
   const response: Group = {
     group_id: groupId,
     name,
     icon: icon || '', // Ensure icon is always a string for the response
     members,
-    member_profiles: memberProfiles,
+    member_profiles: memberProfilesArray,
     created_at: formatTimestamp(currentTime),
   };
 

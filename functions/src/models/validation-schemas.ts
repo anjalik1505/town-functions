@@ -2,12 +2,12 @@ import { isValid, parse } from 'date-fns';
 import { getTimezoneOffset } from 'date-fns-tz';
 import emojiRegex from 'emoji-regex';
 import { z } from 'zod';
-import { DaysOfWeek, NotificationFields, NudgingFields, PersonalityFields, ToneFields } from './constants.js';
+import { DaysOfWeek, NotificationSettings, NudgingOccurrence, Personalities, Tones } from './firestore/profile-doc.js';
 
 // Nudging settings schema
 export const nudgingSettingsSchema = z
   .object({
-    occurrence: z.enum(Object.values(NudgingFields) as [string, ...string[]]),
+    occurrence: z.enum(Object.values(NudgingOccurrence) as [string, ...string[]]),
     times_of_day: z
       .array(z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Time must be in HH:MM format'))
       .optional(),
@@ -18,9 +18,9 @@ export const nudgingSettingsSchema = z
       // times_of_day can be used with daily, weekly, or few_days occurrence
       if (data.times_of_day && data.times_of_day.length > 0) {
         return (
-          data.occurrence === NudgingFields.DAILY ||
-          data.occurrence === NudgingFields.WEEKLY ||
-          data.occurrence === NudgingFields.FEW_DAYS
+          data.occurrence === NudgingOccurrence.DAILY ||
+          data.occurrence === NudgingOccurrence.WEEKLY ||
+          data.occurrence === NudgingOccurrence.FEW_DAYS
         );
       }
       return true;
@@ -34,7 +34,7 @@ export const nudgingSettingsSchema = z
     (data) => {
       // days_of_week can only be together with weekly or few_days
       if (data.days_of_week && data.days_of_week.length > 0) {
-        return data.occurrence === NudgingFields.WEEKLY || data.occurrence === NudgingFields.FEW_DAYS;
+        return data.occurrence === NudgingOccurrence.WEEKLY || data.occurrence === NudgingOccurrence.FEW_DAYS;
       }
       return true;
     },
@@ -47,7 +47,7 @@ export const nudgingSettingsSchema = z
     (data) => {
       // days_of_week can only be multiple days if occurrence is few_days
       if (data.days_of_week && data.days_of_week.length > 1) {
-        return data.occurrence === NudgingFields.FEW_DAYS;
+        return data.occurrence === NudgingOccurrence.FEW_DAYS;
       }
       return true;
     },
@@ -60,7 +60,7 @@ export const nudgingSettingsSchema = z
     (data) => {
       // times_of_day can only be more than one with occurrence daily
       if (data.times_of_day && data.times_of_day.length > 1) {
-        return data.occurrence === NudgingFields.DAILY;
+        return data.occurrence === NudgingOccurrence.DAILY;
       }
       return true;
     },
@@ -73,12 +73,12 @@ export const nudgingSettingsSchema = z
     // Apply defaults based on occurrence
     const result = { ...data };
 
-    if (data.occurrence === NudgingFields.DAILY) {
+    if (data.occurrence === NudgingOccurrence.DAILY) {
       // Default time to 09:00 if not provided
       if (!result.times_of_day || result.times_of_day.length === 0) {
         result.times_of_day = ['09:00'];
       }
-    } else if (data.occurrence === NudgingFields.WEEKLY) {
+    } else if (data.occurrence === NudgingOccurrence.WEEKLY) {
       // Default time to 09:00 if not provided
       if (!result.times_of_day || result.times_of_day.length === 0) {
         result.times_of_day = ['09:00'];
@@ -87,7 +87,7 @@ export const nudgingSettingsSchema = z
       if (!result.days_of_week || result.days_of_week.length === 0) {
         result.days_of_week = [DaysOfWeek.MONDAY];
       }
-    } else if (data.occurrence === NudgingFields.FEW_DAYS) {
+    } else if (data.occurrence === NudgingOccurrence.FEW_DAYS) {
       // Default days to monday and thursday if not provided
       if (!result.days_of_week || result.days_of_week.length === 0) {
         result.days_of_week = [DaysOfWeek.MONDAY, DaysOfWeek.THURSDAY];
@@ -117,13 +117,13 @@ export const createProfileSchema = z.object({
   name: z.string().optional(),
   avatar: z.string().optional(),
   birthday: birthdaySchema,
-  notification_settings: z.array(z.enum(Object.values(NotificationFields) as [string, ...string[]])).optional(),
+  notification_settings: z.array(z.enum(Object.values(NotificationSettings) as [string, ...string[]])).optional(),
   nudging_settings: nudgingSettingsSchema.optional(),
   gender: z.string().optional(),
   goal: z.string().optional(),
   connect_to: z.string().optional(),
-  personality: z.enum(Object.values(PersonalityFields) as [string, ...string[]]).optional(),
-  tone: z.enum(Object.values(ToneFields) as [string, ...string[]]).optional(),
+  personality: z.enum(Object.values(Personalities) as [string, ...string[]]).optional(),
+  tone: z.enum(Object.values(Tones) as [string, ...string[]]).optional(),
   phone_number: phoneSchema.optional(),
 });
 
@@ -132,13 +132,13 @@ export const updateProfileSchema = z.object({
   name: z.string().optional(),
   avatar: z.string().optional(),
   birthday: birthdaySchema,
-  notification_settings: z.array(z.enum(Object.values(NotificationFields) as [string, ...string[]])).optional(),
+  notification_settings: z.array(z.enum(Object.values(NotificationSettings) as [string, ...string[]])).optional(),
   nudging_settings: nudgingSettingsSchema.optional(),
   gender: z.string().optional(),
   goal: z.string().optional(),
   connect_to: z.string().optional(),
-  personality: z.enum(Object.values(PersonalityFields) as [string, ...string[]]).optional(),
-  tone: z.enum(Object.values(ToneFields) as [string, ...string[]]).optional(),
+  personality: z.enum(Object.values(Personalities) as [string, ...string[]]).optional(),
+  tone: z.enum(Object.values(Tones) as [string, ...string[]]).optional(),
   phone_number: phoneSchema.optional(),
 });
 

@@ -1,8 +1,9 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, FeedViewEventParams } from '../models/analytics-events.js';
-import { Collections, FeedFields, QueryOperators } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { FeedResponse, PaginationPayload } from '../models/data-models.js';
+import { feedConverter, FeedDoc, fdf } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
@@ -53,15 +54,16 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
     .collection(Collections.USER_FEEDS)
     .doc(currentUserId)
     .collection(Collections.FEED)
-    .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
+    .withConverter(feedConverter)
+    .orderBy(fdf('created_at'), QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+  const { items: feedDocs, lastDoc } = await processQueryStream(
     paginatedQuery,
-    (doc) => doc,
+    (doc) => doc as QueryDocumentSnapshot<FeedDoc>,
     limit,
   );
 
@@ -83,13 +85,13 @@ export const getFeeds = async (req: Request): Promise<ApiResponse<FeedResponse>>
   }
 
   // Get all update IDs from feed items
-  const updateIds = feedDocs.map((doc) => doc.data()[FeedFields.UPDATE_ID]);
+  const updateIds = feedDocs.map((doc) => doc.data().update_id);
 
   // Fetch all updates in parallel
   const updateMap = await fetchUpdatesByIds(updateIds);
 
   // Get unique user IDs from the updates
-  const uniqueUserIds = Array.from(new Set(feedDocs.map((doc) => doc.data()[FeedFields.CREATED_BY])));
+  const uniqueUserIds = Array.from(new Set(feedDocs.map((doc) => doc.data().created_by)));
 
   // Process feed items and create enriched updates
   const enrichedUpdates = await processEnrichedFeedItems(feedDocs, updateMap);

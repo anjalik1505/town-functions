@@ -1,16 +1,10 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  FriendDocContext,
-  FriendPlaceholderTemplates,
-  JoinRequestFields,
-  ProfileFields,
-  Status,
-  UserSummaryFields,
-} from '../models/constants.js';
+import { Collections, FriendPlaceholderTemplates } from '../models/constants.js';
 import { Friend } from '../models/data-models.js';
+import { JoinRequestStatus } from '../models/firestore/join-request-doc.js';
+import { UserSummaryDoc } from '../models/firestore/user-summary-doc.js';
 import { BadRequestError } from '../utils/errors.js';
 import type { FriendDocUpdate } from '../utils/friendship-utils.js';
 import { getFriendDoc, upsertFriendDoc } from '../utils/friendship-utils.js';
@@ -63,9 +57,9 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
 
   // Get the join request from the subcollection
   const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationId, requestId);
-  const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;
-  const receiverId = requestData[JoinRequestFields.RECEIVER_ID] as string;
-  const currentStatus = requestData[JoinRequestFields.STATUS] as string;
+  const requesterId = requestData.requester_id;
+  const receiverId = requestData.receiver_id;
+  const currentStatus = requestData.status;
 
   // Validate that the current user is the recipient of the request
   validateJoinRequestOwnership(receiverId, currentUserId);
@@ -73,7 +67,7 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   const { friendCount } = await hasReachedCombinedLimitOrOverride(currentUserId, requesterId);
 
   // Check if the request is already accepted or rejected
-  if (currentStatus !== Status.PENDING) {
+  if (currentStatus !== JoinRequestStatus.PENDING) {
     logger.warn(`Join request from ${requesterId} is already ${currentStatus}`);
     throw new BadRequestError(`Join request is already ${currentStatus}`);
   }
@@ -103,9 +97,9 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
     // Return the friend object using data from the friend document
     const friend: Friend = {
       user_id: requesterId,
-      username: friendData.username || senderProfile[ProfileFields.USERNAME] || '',
-      name: friendData.name || senderProfile[ProfileFields.NAME] || '',
-      avatar: friendData.avatar || senderProfile[ProfileFields.AVATAR] || '',
+      username: friendData.username || senderProfile.username || '',
+      name: friendData.name || senderProfile.name || '',
+      avatar: friendData.avatar || senderProfile.avatar || '',
       last_update_emoji: friendData.last_update_emoji || '',
       last_update_time: formatTimestamp(friendData.last_update_at),
     };
@@ -129,37 +123,36 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   // Create the friendship document using profile data directly (backwards compatibility)
   const currentTime = Timestamp.now();
 
-  const senderName = senderProfile[ProfileFields.NAME] || senderProfile[ProfileFields.USERNAME] || 'Friend';
-  const currentUserName =
-    currentUserProfile[ProfileFields.NAME] || currentUserProfile[ProfileFields.USERNAME] || 'Friend';
+  const senderName = senderProfile.name || senderProfile.username || 'Friend';
+  const currentUserName = currentUserProfile.name || currentUserProfile.username || 'Friend';
 
   // Create summary for current user about sender
   const summaryIdForCurrentUser = createSummaryId(currentUserId, requesterId);
   const summaryRefForCurrentUser = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForCurrentUser);
-  const summaryDataForCurrentUser: UpdateData<DocumentData> = {
-    [UserSummaryFields.CREATOR_ID]: requesterId,
-    [UserSummaryFields.TARGET_ID]: currentUserId,
-    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace('<FRIEND_NAME>', senderName),
-    [UserSummaryFields.SUGGESTIONS]: FriendPlaceholderTemplates.SUGGESTIONS.replace('<FRIEND_NAME>', senderName),
-    [UserSummaryFields.LAST_UPDATE_ID]: '',
-    [UserSummaryFields.UPDATE_COUNT]: 0,
-    [UserSummaryFields.CREATED_AT]: currentTime,
-    [UserSummaryFields.UPDATED_AT]: currentTime,
+  const summaryDataForCurrentUser: UserSummaryDoc = {
+    creator_id: requesterId,
+    target_id: currentUserId,
+    summary: FriendPlaceholderTemplates.SUMMARY.replace('<FRIEND_NAME>', senderName),
+    suggestions: FriendPlaceholderTemplates.SUGGESTIONS.replace('<FRIEND_NAME>', senderName),
+    last_update_id: '',
+    update_count: 0,
+    created_at: currentTime,
+    updated_at: currentTime,
   };
   batch.set(summaryRefForCurrentUser, summaryDataForCurrentUser);
 
   // Create a summary for sender about the current user
   const summaryIdForSender = createSummaryId(requesterId, currentUserId);
   const summaryRefForSender = db.collection(Collections.USER_SUMMARIES).doc(summaryIdForSender);
-  const summaryDataForSender: UpdateData<DocumentData> = {
-    [UserSummaryFields.CREATOR_ID]: currentUserId,
-    [UserSummaryFields.TARGET_ID]: requesterId,
-    [UserSummaryFields.SUMMARY]: FriendPlaceholderTemplates.SUMMARY.replace('<FRIEND_NAME>', currentUserName),
-    [UserSummaryFields.SUGGESTIONS]: FriendPlaceholderTemplates.SUGGESTIONS.replace('<FRIEND_NAME>', currentUserName),
-    [UserSummaryFields.LAST_UPDATE_ID]: '',
-    [UserSummaryFields.UPDATE_COUNT]: 0,
-    [UserSummaryFields.CREATED_AT]: currentTime,
-    [UserSummaryFields.UPDATED_AT]: currentTime,
+  const summaryDataForSender: UserSummaryDoc = {
+    creator_id: currentUserId,
+    target_id: requesterId,
+    summary: FriendPlaceholderTemplates.SUMMARY.replace('<FRIEND_NAME>', currentUserName),
+    suggestions: FriendPlaceholderTemplates.SUGGESTIONS.replace('<FRIEND_NAME>', currentUserName),
+    last_update_id: '',
+    update_count: 0,
+    created_at: currentTime,
+    updated_at: currentTime,
   };
   batch.set(summaryRefForSender, summaryDataForSender);
 
@@ -171,22 +164,20 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   const fiveYearsAgo = Timestamp.fromMillis(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000); // 5 years ago
 
   const toCurrent: FriendDocUpdate = {
-    context: FriendDocContext.JOIN_REQUEST_ACCEPTED,
     accepter_id: currentUserId,
     last_update_at: fiveYearsAgo,
   };
-  if (senderProfile[ProfileFields.USERNAME]) toCurrent.username = senderProfile[ProfileFields.USERNAME];
-  if (senderProfile[ProfileFields.NAME]) toCurrent.name = senderProfile[ProfileFields.NAME];
-  if (senderProfile[ProfileFields.AVATAR]) toCurrent.avatar = senderProfile[ProfileFields.AVATAR];
+  if (senderProfile.username) toCurrent.username = senderProfile.username;
+  if (senderProfile.name) toCurrent.name = senderProfile.name;
+  if (senderProfile.avatar) toCurrent.avatar = senderProfile.avatar;
 
   const toRequester: FriendDocUpdate = {
-    context: FriendDocContext.JOIN_REQUEST_ACCEPTED,
     accepter_id: currentUserId,
     last_update_at: fiveYearsAgo,
   };
-  if (currentUserProfile[ProfileFields.USERNAME]) toRequester.username = currentUserProfile[ProfileFields.USERNAME];
-  if (currentUserProfile[ProfileFields.NAME]) toRequester.name = currentUserProfile[ProfileFields.NAME];
-  if (currentUserProfile[ProfileFields.AVATAR]) toRequester.avatar = currentUserProfile[ProfileFields.AVATAR];
+  if (currentUserProfile.username) toRequester.username = currentUserProfile.username;
+  if (currentUserProfile.name) toRequester.name = currentUserProfile.name;
+  if (currentUserProfile.avatar) toRequester.avatar = currentUserProfile.avatar;
 
   await Promise.all([
     upsertFriendDoc(db, currentUserId, requesterId, toCurrent),
@@ -196,9 +187,9 @@ export const acceptJoinRequest = async (req: Request): Promise<ApiResponse<Frien
   // Return the friend object using sender's profile data
   const friend: Friend = {
     user_id: requesterId,
-    username: senderProfile[ProfileFields.USERNAME] || '',
-    name: senderProfile[ProfileFields.NAME] || '',
-    avatar: senderProfile[ProfileFields.AVATAR] || '',
+    username: senderProfile.username || '',
+    name: senderProfile.name || '',
+    avatar: senderProfile.avatar || '',
     last_update_emoji: '',
     last_update_time: '',
   };

@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { Collections, GroupFields, QueryOperators, UpdateFields } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { FeedResponse, PaginationPayload } from '../models/data-models.js';
+import { FeedDoc, groupConverter, UpdateDoc, updateConverter, uf } from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
@@ -57,16 +58,17 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
   logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // First, check if the group exists and if the user is a member
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const groupRef = groups.doc(groupId);
   const groupDoc = await groupRef.get();
 
-  if (!groupDoc.exists) {
+  const groupData = groupDoc.data();
+  if (!groupData) {
     logger.warn(`Group ${groupId} not found`);
     throw new NotFoundError('Group not found');
   }
 
-  const groupData = groupDoc.data() || {};
-  const members = groupData[GroupFields.MEMBERS] || [];
+  const members = groupData.members || [];
 
   // Check if the current user is a member of the group
   if (!members.includes(currentUserId)) {
@@ -77,8 +79,9 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
   // Build the query for updates from this group
   let query = db
     .collection(Collections.UPDATES)
-    .where(UpdateFields.GROUP_IDS, QueryOperators.ARRAY_CONTAINS, groupId)
-    .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC);
+    .withConverter(updateConverter)
+    .where(uf('group_ids'), QueryOperators.ARRAY_CONTAINS, groupId)
+    .orderBy(uf('created_at'), QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
@@ -96,8 +99,25 @@ export const getGroupFeed = async (req: Request, res: Response, groupId: string)
   // Fetch update data using util
   const updateMap = await fetchUpdatesByIds(updateIds);
 
+  // Convert update documents to feed documents for processEnrichedFeedItems
+  const feedDocs = updateDocs.map((updateDoc) => {
+    const updateData = updateDoc.data() as UpdateDoc;
+    const feedData: FeedDoc = {
+      update_id: updateDoc.id,
+      created_at: updateData.created_at,
+      created_by: updateData.created_by,
+      direct_visible: false,
+      friend_id: undefined,
+      group_ids: updateData.group_ids || [],
+    };
+    return {
+      id: updateDoc.id,
+      data: () => feedData,
+    } as QueryDocumentSnapshot<FeedDoc>;
+  });
+
   // Use util to enrich updates
-  const enrichedUpdates = await processEnrichedFeedItems(updateDocs, updateMap);
+  const enrichedUpdates = await processEnrichedFeedItems(feedDocs, updateMap);
 
   logger.info('Query executed successfully');
 

@@ -1,8 +1,9 @@
 import { Request } from 'express';
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteJoinEventParams } from '../models/analytics-events.js';
-import { Collections, JoinRequestFields, QueryOperators } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { JoinRequest, JoinRequestResponse, PaginationPayload } from '../models/data-models.js';
+import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/join-request-doc.js';
 import { formatJoinRequest, getInvitationDocForUser, validateJoinRequestOwnership } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
@@ -55,7 +56,8 @@ export const getMyJoinRequests = async (req: Request): Promise<ApiResponse<JoinR
   // Build the query on the subcollection
   let query = invitationRef
     .collection(Collections.JOIN_REQUESTS)
-    .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
+    .withConverter(joinRequestConverter)
+    .orderBy(jrf('created_at'), QueryOperators.DESC);
 
   // Apply cursor-based pagination
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
@@ -89,7 +91,7 @@ export const getMyJoinRequests = async (req: Request): Promise<ApiResponse<JoinR
   }
 
   // Format the join requests
-  const joinRequests: JoinRequest[] = requestDocs.map((doc) => formatJoinRequest(doc.id, doc.data()));
+  const joinRequests: JoinRequest[] = requestDocs.map((doc) => formatJoinRequest(doc.id, doc.data() as JoinRequestDoc));
 
   // Generate next cursor if there are more results
   const nextCursor = generateNextCursor(lastDoc, requestDocs.length, limit);

@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
-import { CommentFields } from '../models/constants.js';
+import { CommentDoc } from '../models/firestore/comment-doc.js';
 import { Comment, UpdateCommentPayload } from '../models/data-models.js';
 import { formatComment, getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
@@ -57,28 +57,30 @@ export const updateComment = async (req: Request): Promise<ApiResponse<Comment>>
   const commentData = commentResult.data;
 
   // Check if the user is the comment creator
-  if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
-    logger.warn(
-      `User ${currentUserId} attempted to update comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`,
-    );
+  if (commentData.created_by !== currentUserId) {
+    logger.warn(`User ${currentUserId} attempted to update comment ${commentId} created by ${commentData.created_by}`);
     throw new ForbiddenError('You can only update your own comments');
   }
 
   // Update only the comment content
-  const updatedData: UpdateData<DocumentData> = {
-    [CommentFields.CONTENT]: validatedPayload.content,
-    [CommentFields.UPDATED_AT]: Timestamp.now(),
+  const updatedData: UpdateData<CommentDoc> = {
+    content: validatedPayload.content,
+    updated_at: Timestamp.now(),
   };
 
   await commentResult.ref.update(updatedData);
 
   // Get the updated comment
   const updatedCommentDoc = await commentResult.ref.get();
-  const updatedCommentData = updatedCommentDoc.data() || {};
+  const updatedCommentData = updatedCommentDoc.data();
+
+  if (!updatedCommentData) {
+    throw new Error('Failed to retrieve updated comment');
+  }
 
   const comment = formatComment(commentResult.ref.id, updatedCommentData, currentUserId);
   // Use the existing denormalized profile data from the comment document
-  const denormalizedProfile = updatedCommentData.commenter_profile || {};
+  const denormalizedProfile = updatedCommentData.commenter_profile;
   comment.username = denormalizedProfile.username || '';
   comment.name = denormalizedProfile.name || '';
   comment.avatar = denormalizedProfile.avatar || '';
@@ -86,8 +88,8 @@ export const updateComment = async (req: Request): Promise<ApiResponse<Comment>>
   // Create analytics event
   const event: CommentEventParams = {
     comment_length: validatedPayload.content.length,
-    comment_count: commentData.comment_count || 0,
-    reaction_count: commentData.reaction_count || 0,
+    comment_count: 0, // This data is on the update, not the comment
+    reaction_count: 0, // This data is on the update, not the comment
   };
 
   return {

@@ -8,7 +8,6 @@ import { getLogger } from '../utils/logging-utils.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getProfileDoc } from '../utils/profile-utils.js';
-import { ProfileFields } from '../models/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -39,9 +38,9 @@ export const getInvitation = async (req: Request): Promise<ApiResponse<Invitatio
 
   // Get or create an invitation link for the user
   const { ref, data } = await getOrCreateInvitationLink(currentUserId, {
-    name: profileData[ProfileFields.NAME] as string,
-    username: profileData[ProfileFields.USERNAME] as string,
-    avatar: profileData[ProfileFields.AVATAR] as string,
+    name: profileData.name,
+    username: profileData.username,
+    avatar: profileData.avatar,
   });
 
   // Format the invitation

@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { ApiResponse, EventName, InviteResetEventParams } from '../models/analytics-events.js';
-import { ProfileFields } from '../models/constants.js';
 import { Invitation } from '../models/data-models.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import { deleteInvitation, formatInvitation, getOrCreateInvitationLink } from '../utils/invitation-utils.js';
@@ -41,9 +40,9 @@ export const resetInvitation = async (req: Request): Promise<ApiResponse<Invitat
 
   // Create a new invitation
   const { ref, data } = await getOrCreateInvitationLink(currentUserId, {
-    name: profileData[ProfileFields.NAME] as string,
-    username: profileData[ProfileFields.USERNAME] as string,
-    avatar: profileData[ProfileFields.AVATAR] as string,
+    name: profileData.name,
+    username: profileData.username,
+    avatar: profileData.avatar,
   });
 
   // Format the invitation

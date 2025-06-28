@@ -1,7 +1,8 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, ProfileFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
+import { pf } from '../models/firestore/profile-doc.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
   extractConnectToForAnalytics,
@@ -61,7 +62,7 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
   // Store friends list in profile document for trigger to use
   if (friendIds.length > 0) {
     await profileRef.update({
-      [ProfileFields.FRIENDS_TO_CLEANUP]: friendIds,
+      [pf('friends_to_cleanup')]: friendIds,
     });
     logger.info(`Stored ${friendIds.length} friend IDs in profile document for cleanup`);
   }
@@ -72,19 +73,18 @@ export const deleteProfile = async (req: Request): Promise<ApiResponse<null>> =>
 
   // Track profile deletion event
   const event: ProfileEventParams = {
-    has_name: !!profileData[ProfileFields.NAME],
-    has_avatar: !!profileData[ProfileFields.AVATAR],
-    has_location: !!profileData[ProfileFields.LOCATION],
-    has_birthday: !!profileData[ProfileFields.BIRTHDAY],
+    has_name: !!profileData.name,
+    has_avatar: !!profileData.avatar,
+    has_location: !!profileData.location,
+    has_birthday: !!profileData.birthday,
     has_notification_settings:
-      Array.isArray(profileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
-      profileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+      Array.isArray(profileData.notification_settings) && profileData.notification_settings.length > 0,
     nudging_occurrence: extractNudgingOccurrence(profileData),
-    has_gender: !!profileData[ProfileFields.GENDER],
+    has_gender: !!profileData.gender,
     goal: extractGoalForAnalytics(profileData),
     connect_to: extractConnectToForAnalytics(profileData),
-    personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
-    tone: (profileData[ProfileFields.TONE] as string) || '',
+    personality: profileData.personality || '',
+    tone: profileData.tone || '',
   };
 
   return {

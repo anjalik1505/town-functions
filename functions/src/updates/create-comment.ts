@@ -1,7 +1,8 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
-import { Collections, CommentFields, CommentProfileFields, ProfileFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
+import { CommentDoc, commentConverter } from '../models/firestore/comment-doc.js';
 import { Comment, CreateCommentPayload } from '../models/data-models.js';
 import { formatComment } from '../utils/comment-utils.js';
 import { BadRequestError } from '../utils/errors.js';
@@ -60,22 +61,23 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
   const { data: profileData } = await getProfileDoc(currentUserId);
 
   // Create the comment with denormalized profile data
-  const commentData: UpdateData<DocumentData> = {
-    [CommentFields.CREATED_BY]: currentUserId,
-    [CommentFields.CONTENT]: validatedData.content,
-    [CommentFields.CREATED_AT]: Timestamp.now(),
-    [CommentFields.UPDATED_AT]: Timestamp.now(),
-    [CommentFields.COMMENTER_PROFILE]: {
-      [CommentProfileFields.USERNAME]: profileData[ProfileFields.USERNAME] || '',
-      [CommentProfileFields.NAME]: profileData[ProfileFields.NAME] || '',
-      [CommentProfileFields.AVATAR]: profileData[ProfileFields.AVATAR] || '',
+  const commentData: Omit<CommentDoc, 'id'> = {
+    created_by: currentUserId,
+    content: validatedData.content,
+    created_at: Timestamp.now(),
+    updated_at: Timestamp.now(),
+    parent_id: null,
+    commenter_profile: {
+      username: profileData.username || '',
+      name: profileData.name || '',
+      avatar: profileData.avatar || '',
     },
   };
 
   // Create comment and update comment count in a batch
   const batch = db.batch();
-  const commentRef = updateResult.ref.collection(Collections.COMMENTS).doc();
-  batch.set(commentRef, commentData);
+  const commentRef = updateResult.ref.collection(Collections.COMMENTS).withConverter(commentConverter).doc();
+  batch.set(commentRef, { ...commentData, id: commentRef.id });
 
   const updateCountData: UpdateData<DocumentData> = {
     comment_count: (updateData.comment_count || 0) + 1,
@@ -86,11 +88,15 @@ export const createComment = async (req: Request): Promise<ApiResponse<Comment>>
 
   // Get the created comment
   const commentDoc = await commentRef.get();
-  const commentDocData = commentDoc.data() || {};
+  const commentDocData = commentDoc.data();
+
+  if (!commentDocData) {
+    throw new Error('Failed to retrieve created comment');
+  }
 
   const comment = formatComment(commentRef.id, commentDocData, currentUserId);
   // Use the denormalized profile data from the comment document
-  const commenterProfile = commentDocData.commenter_profile || {};
+  const commenterProfile = commentDocData.commenter_profile;
   comment.username = commenterProfile.username || '';
   comment.name = commenterProfile.name || '';
   comment.avatar = commenterProfile.avatar || '';

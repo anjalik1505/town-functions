@@ -1,23 +1,36 @@
-import { DocumentData, getFirestore, QueryDocumentSnapshot, UpdateData, WhereFilterOp } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot, WhereFilterOp, getFirestore } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
-import {
-  Collections,
-  CommentFields,
-  CommentProfileFields,
-  CreatorProfileFields,
-  GroupFields,
-  InvitationFields,
-  JoinRequestFields,
-  ProfileFields,
-  QueryOperators,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { getUserInvitationLink } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
+// Import typed converters and field selectors
+import { CommentDoc, cf, commentConverter } from '../models/firestore/comment-doc.js';
+import { FriendDoc, friendConverter } from '../models/firestore/friend-doc.js';
+import { GroupDoc, gf, groupConverter } from '../models/firestore/group-doc.js';
+import { InvitationDoc, if_, invitationConverter } from '../models/firestore/invitation-doc.js';
+import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/join-request-doc.js';
+import { ProfileDoc, pf } from '../models/firestore/profile-doc.js';
+import { CreatorProfile, UpdateDoc, UserProfile, uf, updateConverter } from '../models/firestore/update-doc.js';
+
 const logger = getLogger('on-profile-update');
+
+// Define PhoneDoc interface (since it's not in a separate file)
+interface PhoneDoc {
+  user_id: string;
+  username: string;
+  name: string;
+  avatar: string;
+}
+
+const phoneConverter: FirebaseFirestore.FirestoreDataConverter<PhoneDoc> = {
+  toFirestore: (p) => p,
+  fromFirestore: (snap) => snap.data() as PhoneDoc,
+};
+
+const phf = <K extends keyof PhoneDoc>(k: K) => k;
 
 /**
  * Handles profile updates and denormalizes user data across related collections.
@@ -44,14 +57,20 @@ export const onProfileUpdate = async (
     return;
   }
 
-  const beforeData = before.data() || {};
-  const afterData = after.data() || {};
+  // Convert the snapshots to typed documents
+  const beforeData = before.data() as ProfileDoc;
+  const afterData = after.data() as ProfileDoc;
+
+  if (!beforeData || !afterData) {
+    logger.error('Missing data in profile documents');
+    return;
+  }
 
   // Check if relevant fields changed
-  const usernameChanged = beforeData[ProfileFields.USERNAME] !== afterData[ProfileFields.USERNAME];
-  const nameChanged = beforeData[ProfileFields.NAME] !== afterData[ProfileFields.NAME];
-  const avatarChanged = beforeData[ProfileFields.AVATAR] !== afterData[ProfileFields.AVATAR];
-  const phoneChanged = beforeData[ProfileFields.PHONE_NUMBER] !== afterData[ProfileFields.PHONE_NUMBER];
+  const usernameChanged = beforeData[pf('username')] !== afterData[pf('username')];
+  const nameChanged = beforeData[pf('name')] !== afterData[pf('name')];
+  const avatarChanged = beforeData[pf('avatar')] !== afterData[pf('avatar')];
+  const phoneChanged = beforeData[pf('phone_number')] !== afterData[pf('phone_number')];
 
   if (!usernameChanged && !nameChanged && !avatarChanged && !phoneChanged) {
     logger.info(`No relevant profile changes for user ${userId}`);
@@ -74,12 +93,12 @@ export const onProfileUpdate = async (
 
     // 1. Update phones collection mapping
     if (phoneChanged) {
-      const oldPhone = beforeData[ProfileFields.PHONE_NUMBER] as string | undefined;
-      const newPhone = afterData[ProfileFields.PHONE_NUMBER] as string | undefined;
+      const oldPhone = beforeData[pf('phone_number')];
+      const newPhone = afterData[pf('phone_number')];
 
       // Delete old mapping if it existed
       if (oldPhone) {
-        const oldPhoneRef = db.collection(Collections.PHONES).doc(oldPhone);
+        const oldPhoneRef = db.collection(Collections.PHONES).doc(oldPhone).withConverter(phoneConverter);
         batch.delete(oldPhoneRef);
         batchCount++;
 
@@ -89,26 +108,27 @@ export const onProfileUpdate = async (
 
       // Create new mapping if new phone exists
       if (newPhone) {
-        const newPhoneRef = db.collection(Collections.PHONES).doc(newPhone);
-        batch.set(newPhoneRef, {
-          [ProfileFields.USER_ID]: userId,
-          [ProfileFields.USERNAME]: afterData[ProfileFields.USERNAME],
-          [ProfileFields.NAME]: afterData[ProfileFields.NAME],
-          [ProfileFields.AVATAR]: afterData[ProfileFields.AVATAR],
-        });
+        const newPhoneRef = db.collection(Collections.PHONES).doc(newPhone).withConverter(phoneConverter);
+        const phoneData: PhoneDoc = {
+          [phf('user_id')]: userId,
+          [phf('username')]: afterData[pf('username')],
+          [phf('name')]: afterData[pf('name')],
+          [phf('avatar')]: afterData[pf('avatar')],
+        };
+        batch.set(newPhoneRef, phoneData);
         batchCount++;
 
         // Commit batch if approaching limit
         ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
       }
-    } else if ((usernameChanged || nameChanged || avatarChanged) && afterData[ProfileFields.PHONE_NUMBER]) {
+    } else if ((usernameChanged || nameChanged || avatarChanged) && afterData[pf('phone_number')]) {
       // Phone hasn't changed but user info did; update mapping doc
-      const phone = afterData[ProfileFields.PHONE_NUMBER] as string;
-      const phoneRef = db.collection(Collections.PHONES).doc(phone);
-      const updates: UpdateData<DocumentData> = {};
-      if (usernameChanged) updates[ProfileFields.USERNAME] = afterData[ProfileFields.USERNAME];
-      if (nameChanged) updates[ProfileFields.NAME] = afterData[ProfileFields.NAME];
-      if (avatarChanged) updates[ProfileFields.AVATAR] = afterData[ProfileFields.AVATAR];
+      const phone = afterData[pf('phone_number')];
+      const phoneRef = db.collection(Collections.PHONES).doc(phone).withConverter(phoneConverter);
+      const updates: Partial<PhoneDoc> = {};
+      if (usernameChanged) updates[phf('username')] = afterData[pf('username')];
+      if (nameChanged) updates[phf('name')] = afterData[pf('name')];
+      if (avatarChanged) updates[phf('avatar')] = afterData[pf('avatar')];
       batch.update(phoneRef, updates);
       batchCount++;
 
@@ -121,17 +141,17 @@ export const onProfileUpdate = async (
       // 2. Update the user's invitation if it exists
       const existingInvitation = await getUserInvitationLink(userId);
       if (existingInvitation) {
-        const invitationRef = existingInvitation.ref;
-        const invitationUpdates: UpdateData<DocumentData> = {};
+        const invitationRef = existingInvitation.ref.withConverter(invitationConverter);
+        const invitationUpdates: Partial<InvitationDoc> = {};
 
         if (usernameChanged) {
-          invitationUpdates[InvitationFields.USERNAME] = afterData[ProfileFields.USERNAME];
+          invitationUpdates[if_('username')] = afterData[pf('username')];
         }
         if (nameChanged) {
-          invitationUpdates[InvitationFields.NAME] = afterData[ProfileFields.NAME];
+          invitationUpdates[if_('name')] = afterData[pf('name')];
         }
         if (avatarChanged) {
-          invitationUpdates[InvitationFields.AVATAR] = afterData[ProfileFields.AVATAR];
+          invitationUpdates[if_('avatar')] = afterData[pf('avatar')];
         }
 
         if (Object.keys(invitationUpdates).length > 0) {
@@ -144,20 +164,21 @@ export const onProfileUpdate = async (
           // Update join requests where the user is the receiver (invitation owner)
           const joinRequestsQuery = invitationRef
             .collection(Collections.JOIN_REQUESTS)
-            .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
+            .withConverter(joinRequestConverter)
+            .orderBy(jrf('created_at'), QueryOperators.DESC);
 
           for await (const doc of joinRequestsQuery.stream()) {
-            const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
-            const joinRequestUpdates: UpdateData<DocumentData> = {};
+            const joinRequestDoc = doc as unknown as QueryDocumentSnapshot<JoinRequestDoc>;
+            const joinRequestUpdates: Partial<JoinRequestDoc> = {};
 
             if (usernameChanged) {
-              joinRequestUpdates[JoinRequestFields.RECEIVER_USERNAME] = afterData[ProfileFields.USERNAME];
+              joinRequestUpdates[jrf('receiver_username')] = afterData[pf('username')];
             }
             if (nameChanged) {
-              joinRequestUpdates[JoinRequestFields.RECEIVER_NAME] = afterData[ProfileFields.NAME];
+              joinRequestUpdates[jrf('receiver_name')] = afterData[pf('name')];
             }
             if (avatarChanged) {
-              joinRequestUpdates[JoinRequestFields.RECEIVER_AVATAR] = afterData[ProfileFields.AVATAR];
+              joinRequestUpdates[jrf('receiver_avatar')] = afterData[pf('avatar')];
             }
 
             if (Object.keys(joinRequestUpdates).length > 0) {
@@ -174,25 +195,26 @@ export const onProfileUpdate = async (
       // 3. Update join requests where the user is the requester
       const requesterJoinRequestsQuery = db
         .collectionGroup(Collections.JOIN_REQUESTS)
-        .where(JoinRequestFields.REQUESTER_ID, QueryOperators.EQUALS, userId)
-        .orderBy(JoinRequestFields.CREATED_AT, QueryOperators.DESC);
+        .where(jrf('requester_id'), QueryOperators.EQUALS, userId)
+        .orderBy(jrf('created_at'), QueryOperators.DESC);
 
       for await (const doc of requesterJoinRequestsQuery.stream()) {
         const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
-        const joinRequestUpdates: UpdateData<DocumentData> = {};
+        const joinRequestRef = joinRequestDoc.ref.withConverter(joinRequestConverter);
+        const joinRequestUpdates: Partial<JoinRequestDoc> = {};
 
         if (usernameChanged) {
-          joinRequestUpdates[JoinRequestFields.REQUESTER_USERNAME] = afterData[ProfileFields.USERNAME];
+          joinRequestUpdates[jrf('requester_username')] = afterData[pf('username')];
         }
         if (nameChanged) {
-          joinRequestUpdates[JoinRequestFields.REQUESTER_NAME] = afterData[ProfileFields.NAME];
+          joinRequestUpdates[jrf('requester_name')] = afterData[pf('name')];
         }
         if (avatarChanged) {
-          joinRequestUpdates[JoinRequestFields.REQUESTER_AVATAR] = afterData[ProfileFields.AVATAR];
+          joinRequestUpdates[jrf('requester_avatar')] = afterData[pf('avatar')];
         }
 
         if (Object.keys(joinRequestUpdates).length > 0) {
-          batch.update(joinRequestDoc.ref, joinRequestUpdates);
+          batch.update(joinRequestRef, joinRequestUpdates);
           batchCount++;
 
           // Commit batch if approaching limit
@@ -204,11 +226,15 @@ export const onProfileUpdate = async (
       logger.info('Updating friend documents in FRIENDS subcollections');
 
       // Get list of friends from user's FRIENDS subcollection
-      const userFriendsQuery = db.collection(Collections.PROFILES).doc(userId).collection(Collections.FRIENDS);
+      const userFriendsQuery = db
+        .collection(Collections.PROFILES)
+        .doc(userId)
+        .collection(Collections.FRIENDS)
+        .withConverter(friendConverter);
 
       const friendIds: string[] = [];
       for await (const doc of userFriendsQuery.stream()) {
-        const friendDoc = doc as unknown as QueryDocumentSnapshot;
+        const friendDoc = doc as unknown as QueryDocumentSnapshot<FriendDoc>;
         friendIds.push(friendDoc.id);
       }
 
@@ -217,13 +243,13 @@ export const onProfileUpdate = async (
         const friendDocUpdate: FriendDocUpdate = {};
 
         if (usernameChanged) {
-          friendDocUpdate.username = afterData[ProfileFields.USERNAME] as string;
+          friendDocUpdate.username = afterData[pf('username')];
         }
         if (nameChanged) {
-          friendDocUpdate.name = afterData[ProfileFields.NAME] as string;
+          friendDocUpdate.name = afterData[pf('name')];
         }
         if (avatarChanged) {
-          friendDocUpdate.avatar = afterData[ProfileFields.AVATAR] as string;
+          friendDocUpdate.avatar = afterData[pf('avatar')];
         }
 
         // Note: upsertFriendDoc performs a batch.set operation internally
@@ -237,41 +263,41 @@ export const onProfileUpdate = async (
       // 5. Update groups where the user is a member
       const groupsQuery = db
         .collection(Collections.GROUPS)
-        .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, userId);
+        .where(gf('members'), QueryOperators.ARRAY_CONTAINS as WhereFilterOp, userId);
 
       for await (const doc of groupsQuery.stream()) {
         const groupDoc = doc as unknown as QueryDocumentSnapshot;
-        const groupData = groupDoc.data();
-        const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
+        const groupRef = groupDoc.ref.withConverter(groupConverter);
+        const groupData = groupDoc.data() as GroupDoc;
+        const memberProfiles = groupData[gf('member_profiles')] || {};
 
-        // Find and update the user's profile in the member_profiles array
-        for (let i = 0; i < memberProfiles.length; i++) {
-          const memberProfile = memberProfiles[i];
-          if (memberProfile[ProfileFields.USER_ID] === userId) {
-            const groupMemberSpecificUpdate: UpdateData<DocumentData> = {};
+        // Update the user's profile in the member_profiles map
+        if (memberProfiles[userId]) {
+          const memberProfileUpdate: Partial<GroupDoc> = {};
+          const updatedProfile: CreatorProfile = { ...memberProfiles[userId] };
 
-            if (usernameChanged && afterData[ProfileFields.USERNAME] !== undefined) {
-              groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.USERNAME}`] =
-                afterData[ProfileFields.USERNAME];
-            }
-            if (nameChanged && afterData[ProfileFields.NAME] !== undefined) {
-              groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.NAME}`] =
-                afterData[ProfileFields.NAME];
-            }
-            if (avatarChanged && afterData[ProfileFields.AVATAR] !== undefined) {
-              groupMemberSpecificUpdate[`${GroupFields.MEMBER_PROFILES}.${i}.${ProfileFields.AVATAR}`] =
-                afterData[ProfileFields.AVATAR];
-            }
-
-            if (Object.keys(groupMemberSpecificUpdate).length > 0) {
-              batch.update(groupDoc.ref, groupMemberSpecificUpdate);
-              batchCount++;
-
-              // Commit batch if approaching limit
-              ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-            }
-            break;
+          if (usernameChanged) {
+            updatedProfile.username = afterData[pf('username')];
           }
+          if (nameChanged) {
+            updatedProfile.name = afterData[pf('name')];
+          }
+          if (avatarChanged) {
+            updatedProfile.avatar = afterData[pf('avatar')];
+          }
+
+          // Use direct property access instead of computed property for type safety
+          const memberProfilesKey = gf('member_profiles');
+          memberProfileUpdate[memberProfilesKey] = {
+            ...memberProfiles,
+            [userId]: updatedProfile,
+          };
+
+          batch.update(groupRef, memberProfileUpdate);
+          batchCount++;
+
+          // Commit batch if approaching limit
+          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
         }
       }
 
@@ -279,73 +305,76 @@ export const onProfileUpdate = async (
       logger.info('Updating creator profiles in updates');
       const creatorUpdatesQuery = db
         .collection(Collections.UPDATES)
-        .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId);
+        .where(uf('created_by'), QueryOperators.EQUALS, userId);
 
       for await (const doc of creatorUpdatesQuery.stream()) {
         const updateDoc = doc as unknown as QueryDocumentSnapshot;
-        const creatorProfileUpdates: UpdateData<DocumentData> = {};
+        const updateRef = updateDoc.ref.withConverter(updateConverter);
+        const creatorProfileUpdates: Partial<UpdateDoc> = {};
 
-        if (usernameChanged) {
-          creatorProfileUpdates[`${UpdateFields.CREATOR_PROFILE}.${CreatorProfileFields.USERNAME}`] =
-            afterData[ProfileFields.USERNAME];
-        }
-        if (nameChanged) {
-          creatorProfileUpdates[`${UpdateFields.CREATOR_PROFILE}.${CreatorProfileFields.NAME}`] =
-            afterData[ProfileFields.NAME];
-        }
-        if (avatarChanged) {
-          creatorProfileUpdates[`${UpdateFields.CREATOR_PROFILE}.${CreatorProfileFields.AVATAR}`] =
-            afterData[ProfileFields.AVATAR];
-        }
+        // Build the nested update path for creator_profile
+        const creatorProfile: CreatorProfile = {
+          username: afterData[pf('username')],
+          name: afterData[pf('name')],
+          avatar: afterData[pf('avatar')],
+        };
 
-        if (Object.keys(creatorProfileUpdates).length > 0) {
-          batch.update(updateDoc.ref, creatorProfileUpdates);
-          batchCount++;
+        creatorProfileUpdates[uf('creator_profile')] = creatorProfile;
 
-          // Commit batch if approaching limit
-          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-        }
+        batch.update(updateRef, creatorProfileUpdates);
+        batchCount++;
+
+        // Commit batch if approaching limit
+        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
       }
 
       // 7. Update shared_with_friends_profiles in updates where user appears
       logger.info('Updating shared with friends profiles in updates');
       const sharedUpdatesQuery = db
         .collection(Collections.UPDATES)
-        .where(UpdateFields.FRIEND_IDS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, userId);
+        .where(uf('friend_ids'), QueryOperators.ARRAY_CONTAINS as WhereFilterOp, userId);
 
       for await (const doc of sharedUpdatesQuery.stream()) {
         const updateDoc = doc as unknown as QueryDocumentSnapshot;
-        const updateData = updateDoc.data();
-        const sharedWithFriendsProfiles = updateData[UpdateFields.SHARED_WITH_FRIENDS_PROFILES] || [];
+        const updateRef = updateDoc.ref.withConverter(updateConverter);
+        const updateData = updateDoc.data() as UpdateDoc;
+        const sharedWithFriendsProfiles = updateData[uf('shared_with_friends_profiles')] || [];
 
         // Find and update the user's profile in the shared_with_friends_profiles array
-        for (let i = 0; i < sharedWithFriendsProfiles.length; i++) {
-          const friendProfile = sharedWithFriendsProfiles[i];
-          if (friendProfile[ProfileFields.USER_ID] === userId) {
-            const sharedProfileUpdates: UpdateData<DocumentData> = {};
+        const userProfileIndex = sharedWithFriendsProfiles.findIndex((profile) => profile.user_id === userId);
 
-            if (usernameChanged) {
-              sharedProfileUpdates[`${UpdateFields.SHARED_WITH_FRIENDS_PROFILES}.${i}.${ProfileFields.USERNAME}`] =
-                afterData[ProfileFields.USERNAME];
-            }
-            if (nameChanged) {
-              sharedProfileUpdates[`${UpdateFields.SHARED_WITH_FRIENDS_PROFILES}.${i}.${ProfileFields.NAME}`] =
-                afterData[ProfileFields.NAME];
-            }
-            if (avatarChanged) {
-              sharedProfileUpdates[`${UpdateFields.SHARED_WITH_FRIENDS_PROFILES}.${i}.${ProfileFields.AVATAR}`] =
-                afterData[ProfileFields.AVATAR];
-            }
+        if (userProfileIndex !== -1) {
+          const sharedProfileUpdate: Partial<UpdateDoc> = {};
+          const updatedProfiles = [...sharedWithFriendsProfiles];
+          const existingProfile = updatedProfiles[userProfileIndex]!;
+          const updatedProfile: UserProfile = {
+            user_id: existingProfile.user_id,
+            username: existingProfile.username,
+            name: existingProfile.name,
+            avatar: existingProfile.avatar,
+          };
 
-            if (Object.keys(sharedProfileUpdates).length > 0) {
-              batch.update(updateDoc.ref, sharedProfileUpdates);
-              batchCount++;
-
-              // Commit batch if approaching limit
-              ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-            }
-            break;
+          if (usernameChanged) {
+            updatedProfile.username = afterData[pf('username')];
           }
+          if (nameChanged) {
+            updatedProfile.name = afterData[pf('name')];
+          }
+          if (avatarChanged) {
+            updatedProfile.avatar = afterData[pf('avatar')];
+          }
+
+          updatedProfiles[userProfileIndex] = updatedProfile;
+
+          // Use direct property access instead of computed property for type safety
+          const sharedProfilesKey = uf('shared_with_friends_profiles');
+          sharedProfileUpdate[sharedProfilesKey] = updatedProfiles;
+
+          batch.update(updateRef, sharedProfileUpdate);
+          batchCount++;
+
+          // Commit batch if approaching limit
+          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
         }
       }
 
@@ -353,32 +382,27 @@ export const onProfileUpdate = async (
       logger.info('Updating commenter profiles in comments');
       const commentsQuery = db
         .collectionGroup(Collections.COMMENTS)
-        .where(CommentFields.CREATED_BY, QueryOperators.EQUALS, userId);
+        .where(cf('created_by'), QueryOperators.EQUALS, userId);
 
       for await (const doc of commentsQuery.stream()) {
         const commentDoc = doc as unknown as QueryDocumentSnapshot;
-        const commenterProfileUpdates: UpdateData<DocumentData> = {};
+        const commentRef = commentDoc.ref.withConverter(commentConverter);
+        const commenterProfileUpdates: Partial<CommentDoc> = {};
 
-        if (usernameChanged) {
-          commenterProfileUpdates[`${CommentFields.COMMENTER_PROFILE}.${CommentProfileFields.USERNAME}`] =
-            afterData[ProfileFields.USERNAME];
-        }
-        if (nameChanged) {
-          commenterProfileUpdates[`${CommentFields.COMMENTER_PROFILE}.${CommentProfileFields.NAME}`] =
-            afterData[ProfileFields.NAME];
-        }
-        if (avatarChanged) {
-          commenterProfileUpdates[`${CommentFields.COMMENTER_PROFILE}.${CommentProfileFields.AVATAR}`] =
-            afterData[ProfileFields.AVATAR];
-        }
+        // Build the commenter profile
+        const commenterProfile: CreatorProfile = {
+          username: afterData[pf('username')],
+          name: afterData[pf('name')],
+          avatar: afterData[pf('avatar')],
+        };
 
-        if (Object.keys(commenterProfileUpdates).length > 0) {
-          batch.update(commentDoc.ref, commenterProfileUpdates);
-          batchCount++;
+        commenterProfileUpdates[cf('commenter_profile')] = commenterProfile;
 
-          // Commit batch if approaching limit
-          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-        }
+        batch.update(commentRef, commenterProfileUpdates);
+        batchCount++;
+
+        // Commit batch if approaching limit
+        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
       }
     }
 

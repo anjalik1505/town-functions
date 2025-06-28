@@ -1,7 +1,6 @@
 import { Request } from 'express';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
 import { JoinRequest } from '../models/data-models.js';
-import { JoinRequestFields } from '../models/constants.js';
 import { ForbiddenError } from '../utils/errors.js';
 import { formatJoinRequest, getInvitationDocForUser, getJoinRequestDoc } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -47,8 +46,8 @@ export const getJoinRequest = async (req: Request): Promise<ApiResponse<JoinRequ
   const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationId, requestId);
 
   // Extract requester and receiver IDs from the join request
-  const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;
-  const receiverId = requestData[JoinRequestFields.RECEIVER_ID] as string;
+  const requesterId = requestData.requester_id;
+  const receiverId = requestData.receiver_id;
 
   // Validate that the current user is either the sender or receiver
   if (currentUserId !== requesterId && currentUserId !== receiverId) {

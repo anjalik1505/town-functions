@@ -1,5 +1,7 @@
 import { Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import { Collections, NudgingFields, ProfileFields, QueryOperators, TimeBucketFields } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { TimeBucketDoc, TimeBucketUserDoc } from '../models/firestore/time-bucket-doc.js';
+import { NudgingOccurrence, pf } from '../models/firestore/profile-doc.js';
 import { getLogger } from './logging-utils.js';
 
 import path from 'path';
@@ -66,12 +68,14 @@ export function calculateTimeBucket(timezone: string): number {
  *
  * @param userId - The user's ID
  * @param nudgingSettings - The user's nudging settings (or null/undefined)
+ * @param timezone - The user's timezone
  * @param batch - The Firestore batch to add operations to
  * @param db - The Firestore database instance (optional, will use getFirestore() if not provided)
  */
 export async function updateTimeBucketMembership(
   userId: string,
   nudgingSettings: NudgingSettings,
+  timezone: string,
   batch: WriteBatch,
   db: FirebaseFirestore.Firestore,
 ): Promise<void> {
@@ -80,7 +84,7 @@ export async function updateTimeBucketMembership(
   // Remove user from all existing buckets
   const existingBucketsQuery = await db
     .collectionGroup(Collections.TIME_BUCKET_USERS)
-    .where(ProfileFields.USER_ID, QueryOperators.EQUALS, userId)
+    .where(pf('user_id'), QueryOperators.EQUALS, userId)
     .get();
 
   existingBucketsQuery.docs.forEach((doc) => {
@@ -89,7 +93,7 @@ export async function updateTimeBucketMembership(
   });
 
   // Add user to new buckets if nudging is not "never"
-  if (nudgingSettings && nudgingSettings.occurrence !== NudgingFields.NEVER) {
+  if (nudgingSettings && nudgingSettings.occurrence !== NudgingOccurrence.NEVER) {
     const { times_of_day, days_of_week } = nudgingSettings;
 
     if (times_of_day && days_of_week) {
@@ -105,23 +109,28 @@ export async function updateTimeBucketMembership(
 
           if (!bucketDoc.exists) {
             // Create the main bucket document if it doesn't exist
-            batch.set(bucketRef, {
-              [TimeBucketFields.UPDATED_AT]: currentTime,
-            });
+            const bucketData: TimeBucketDoc = {
+              bucket_hour: bucketIdentifier,
+              updated_at: currentTime,
+            };
+            batch.set(bucketRef, bucketData);
           } else {
             // Update the timestamp on the main bucket document
             batch.update(bucketRef, {
-              [TimeBucketFields.UPDATED_AT]: currentTime,
+              updated_at: currentTime,
             });
           }
 
           // Add user to the bucket's users subcollection
           const userBucketRef = bucketRef.collection(Collections.TIME_BUCKET_USERS).doc(userId);
 
-          batch.set(userBucketRef, {
-            [ProfileFields.USER_ID]: userId,
-            [ProfileFields.UPDATED_AT]: currentTime,
-          });
+          const userBucketData: TimeBucketUserDoc = {
+            user_id: userId,
+            timezone: timezone || '',
+            nudging_occurrence: nudgingSettings.occurrence,
+            created_at: currentTime,
+          };
+          batch.set(userBucketRef, userBucketData);
 
           logger.info(`Adding user ${userId} to time bucket ${bucketIdentifier}`);
         }

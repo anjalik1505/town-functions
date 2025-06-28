@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { Collections, DeviceFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
 import { NotificationResponse, TestNotificationPayload } from '../models/data-models.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -45,8 +46,8 @@ export const testNotification = async (req: Request, res: Response): Promise<voi
     throw new NotFoundError('Device not found. Please register a device first.');
   }
 
-  const deviceData = deviceDoc.data();
-  const deviceToken = deviceData?.[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+  const deviceToken = deviceData?.device_id;
 
   if (!deviceToken) {
     logger.warn(`No device token found for user ${currentUserId}`);

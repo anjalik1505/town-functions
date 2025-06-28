@@ -1,7 +1,9 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendDocContext, FriendDocFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
+import { FriendDocContext, FriendDoc } from '../models/firestore/friend-doc.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { syncFriendshipDataForUser, upsertFriendDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -63,9 +65,9 @@ export const onFriendshipCreated = async (
 
   const userId = event.params.userId; // Owner of the subcollection
   const friendId = event.params.friendId; // Document ID in subcollection
-  const friendDocData = event.data.data() || {};
-  const context = friendDocData[FriendDocFields.CONTEXT] as string | undefined;
-  const accepterId = friendDocData[FriendDocFields.ACCEPTER_ID] as string | undefined;
+  const friendDocData = event.data.data() as FriendDoc;
+  const context = friendDocData.context;
+  const accepterId = friendDocData.accepter_id;
   const db = getFirestore();
 
   logger.info(`Processing friend document creation: ${userId}/${friendId} with context: ${context || 'none'}`);
@@ -130,8 +132,8 @@ export const onFriendshipCreated = async (
         const deviceDoc = await deviceRef.get();
 
         if (deviceDoc.exists) {
-          const deviceData = deviceDoc.data() || {};
-          const deviceId = deviceData[DeviceFields.DEVICE_ID];
+          const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+          const deviceId = deviceData?.device_id;
 
           if (deviceId) {
             // Get accepter's name for notification

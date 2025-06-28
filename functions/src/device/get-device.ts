@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Collections, DeviceFields } from '../models/constants.js';
+import { getFirestore } from 'firebase-admin/firestore';
+import { Collections } from '../models/constants.js';
 import { Device } from '../models/data-models.js';
+import { deviceConverter } from '../models/firestore/device-doc.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -29,7 +30,7 @@ export const getDevice = async (req: Request, res: Response): Promise<void> => {
 
   // Reference to the user's device document
   const db = getFirestore();
-  const deviceRef = db.collection(Collections.DEVICES).doc(currentUserId);
+  const deviceRef = db.collection(Collections.DEVICES).withConverter(deviceConverter).doc(currentUserId);
 
   // Get the device document
   const deviceDoc = await deviceRef.get();
@@ -43,11 +44,10 @@ export const getDevice = async (req: Request, res: Response): Promise<void> => {
   logger.info(`Device retrieved for user ${currentUserId}`);
 
   // Format timestamp for consistent API response
-  const updatedAt = deviceData?.[DeviceFields.UPDATED_AT] as Timestamp;
-  const updatedAtIso = updatedAt ? formatTimestamp(updatedAt) : '';
+  const updatedAtIso = deviceData ? formatTimestamp(deviceData.updated_at) : '';
 
   const device: Device = {
-    device_id: deviceData?.[DeviceFields.DEVICE_ID] || '',
+    device_id: deviceData?.device_id || '',
     updated_at: updatedAtIso,
   };
 

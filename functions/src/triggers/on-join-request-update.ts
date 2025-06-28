@@ -1,7 +1,9 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, JoinRequestFields, NotificationTypes, Status } from '../models/constants.js';
+import { Collections, NotificationTypes } from '../models/constants.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
+import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-request-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
@@ -24,12 +26,12 @@ const logger = getLogger(path.basename(__filename));
  */
 const sendJoinRequestUpdateNotification = async (
   db: FirebaseFirestore.Firestore,
-  requestData: Record<string, unknown>,
+  requestData: JoinRequestDoc,
   requestId: string,
   requesterId: string,
 ): Promise<NotificationEventParams> => {
   // Get the requester's device
-  if (requestData[JoinRequestFields.STATUS] !== Status.REJECTED) {
+  if (requestData.status !== JoinRequestStatus.REJECTED) {
     logger.info(`Request was not rejected for request ${requestId}, skipping notification`);
     return {
       notification_all: false,
@@ -56,8 +58,8 @@ const sendJoinRequestUpdateNotification = async (
     };
   }
 
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+  const deviceId = deviceData?.device_id;
 
   if (!deviceId) {
     logger.info(`No device ID found for requester ${requesterId}, skipping notification`);
@@ -72,8 +74,7 @@ const sendJoinRequestUpdateNotification = async (
   }
 
   // Get requester's profile to include their name in the notification
-  const receiverName =
-    requestData[JoinRequestFields.RECEIVER_NAME] || requestData[JoinRequestFields.RECEIVER_USERNAME] || 'Friend';
+  const receiverName = requestData.receiver_name || requestData.receiver_username || 'Friend';
 
   // Send the notification
   try {
@@ -134,14 +135,14 @@ export const onJoinRequestUpdated = async (
       return;
     }
 
-    const requestData = requestSnapshot.after.data() || {};
+    const requestData = requestSnapshot.after.data() as JoinRequestDoc;
     const requestId = event.params.id;
     if (!requestId) {
       logger.error(`No request ID found for request ${requestId}`);
       return;
     }
 
-    const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;
+    const requesterId = requestData.requester_id;
     if (!requesterId) {
       logger.error(`No requester ID found for request ${requestId}`);
       return;

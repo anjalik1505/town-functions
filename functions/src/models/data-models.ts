@@ -87,7 +87,7 @@ export interface Update {
   group_ids: string[];
   friend_ids: string[];
   sentiment: string;
-  score: string;
+  score: number;
   emoji: string;
   created_at: string;
   comment_count: number;

@@ -1,8 +1,9 @@
 import { Request } from 'express';
 import { generateQuestionFlow } from '../ai/flows.js';
 import { ApiResponse, EventName, QuestionEventParams } from '../models/analytics-events.js';
-import { Collections, InsightsFields, ProfileFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { QuestionResponse } from '../models/data-models.js';
+import { InsightsDoc, insightsConverter, insf } from '../models/firestore/insights-doc.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, getProfileDoc } from '../utils/profile-utils.js';
 
@@ -36,14 +37,18 @@ export const getQuestion = async (req: Request): Promise<ApiResponse<QuestionRes
   const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Extract data from the profile
-  const existingSummary = profileData[ProfileFields.SUMMARY];
-  const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
+  const existingSummary = profileData.summary;
+  const existingSuggestions = profileData.suggestions;
   logger.info(`Retrieved profile data for user: ${currentUserId}`);
 
   // Get insight data from the profile's insight subcollection
-  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
+  const insightsSnapshot = await profileRef
+    .collection(Collections.INSIGHTS)
+    .withConverter(insightsConverter)
+    .limit(1)
+    .get();
   const insightsDoc = insightsSnapshot.docs[0];
-  const existingInsights = insightsDoc?.data() || {};
+  const existingInsights = insightsDoc?.data() || ({} as Partial<InsightsDoc>);
   logger.info(`Retrieved insights data for user: ${currentUserId}`);
 
   // Generate the personalized question
@@ -51,13 +56,13 @@ export const getQuestion = async (req: Request): Promise<ApiResponse<QuestionRes
   const result = await generateQuestionFlow({
     existingSummary: existingSummary || '',
     existingSuggestions: existingSuggestions || '',
-    existingEmotionalOverview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
-    existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || '',
-    existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || '',
-    existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
-    gender: profileData[ProfileFields.GENDER] || 'unknown',
-    location: profileData[ProfileFields.LOCATION] || 'unknown',
-    age: calculateAge(profileData[ProfileFields.BIRTHDAY] || ''),
+    existingEmotionalOverview: existingInsights[insf('emotional_overview')] || '',
+    existingKeyMoments: existingInsights[insf('key_moments')] || '',
+    existingRecurringThemes: existingInsights[insf('recurring_themes')] || '',
+    existingProgressAndGrowth: existingInsights[insf('progress_and_growth')] || '',
+    gender: profileData.gender || 'unknown',
+    location: profileData.location || 'unknown',
+    age: calculateAge(profileData.birthday || ''),
   });
   logger.info(`Generated question for user: ${currentUserId}`);
 

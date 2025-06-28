@@ -1,8 +1,10 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { getFirestore, PartialWithFieldValue, Timestamp } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, ProfileFields } from '../models/constants.js';
-import { NudgingSettings, ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
+import { Collections } from '../models/constants.js';
+import { ProfileResponse, UpdateProfilePayload } from '../models/data-models.js';
+import { pf, ProfileDoc } from '../models/firestore/index.js';
+import { NotificationSetting, NudgingSettings, Personality, Tone } from '../models/firestore/profile-doc.js';
 import { ConflictError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -65,12 +67,11 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
 
   // Check if nudging settings have changed
   const nudgingSettingsChanged = profileData.nudging_settings !== undefined;
-  const currentTimezone = currentProfileData[ProfileFields.TIMEZONE];
+  const currentTimezone = currentProfileData.timezone;
 
   // Check if phone number changed
   const phoneChanged =
-    profileData.phone_number !== undefined &&
-    profileData.phone_number !== currentProfileData[ProfileFields.PHONE_NUMBER];
+    profileData.phone_number !== undefined && profileData.phone_number !== currentProfileData.phone_number;
 
   // If phone number is changing, ensure new phone is not taken
   if (phoneChanged) {
@@ -78,50 +79,50 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
       .collection(Collections.PHONES)
       .doc(profileData.phone_number as string)
       .get();
-    if (existingPhoneDoc.exists && existingPhoneDoc.data()?.[ProfileFields.USER_ID] !== currentUserId) {
+    if (existingPhoneDoc.exists && existingPhoneDoc.data()?.user_id !== currentUserId) {
       throw new ConflictError('Phone number is already registered by another user');
     }
   }
 
   // Prepare update data
-  const profileUpdates: UpdateData<DocumentData> = {};
+  const profileUpdates: PartialWithFieldValue<ProfileDoc> = {};
 
   // Only update fields that are provided in the request
   if (profileData.username !== undefined) {
-    profileUpdates[ProfileFields.USERNAME] = profileData.username;
+    profileUpdates[pf('username')] = profileData.username;
   }
   if (profileData.name !== undefined) {
-    profileUpdates[ProfileFields.NAME] = profileData.name;
+    profileUpdates[pf('name')] = profileData.name;
   }
   if (profileData.avatar !== undefined) {
-    profileUpdates[ProfileFields.AVATAR] = profileData.avatar;
+    profileUpdates[pf('avatar')] = profileData.avatar;
   }
   if (profileData.birthday !== undefined) {
-    profileUpdates[ProfileFields.BIRTHDAY] = profileData.birthday;
+    profileUpdates[pf('birthday')] = profileData.birthday;
   }
   if (profileData.notification_settings !== undefined) {
-    profileUpdates[ProfileFields.NOTIFICATION_SETTINGS] = profileData.notification_settings;
+    profileUpdates[pf('notification_settings')] = profileData.notification_settings as NotificationSetting[];
   }
   if (profileData.nudging_settings !== undefined) {
-    profileUpdates[ProfileFields.NUDGING_SETTINGS] = profileData.nudging_settings;
+    profileUpdates[pf('nudging_settings')] = profileData.nudging_settings as NudgingSettings;
   }
   if (profileData.gender !== undefined) {
-    profileUpdates[ProfileFields.GENDER] = profileData.gender;
+    profileUpdates[pf('gender')] = profileData.gender;
   }
   if (profileData.goal !== undefined) {
-    profileUpdates[ProfileFields.GOAL] = profileData.goal;
+    profileUpdates[pf('goal')] = profileData.goal;
   }
   if (profileData.connect_to !== undefined) {
-    profileUpdates[ProfileFields.CONNECT_TO] = profileData.connect_to;
+    profileUpdates[pf('connect_to')] = profileData.connect_to;
   }
   if (profileData.personality !== undefined) {
-    profileUpdates[ProfileFields.PERSONALITY] = profileData.personality;
+    profileUpdates[pf('personality')] = profileData.personality as Personality;
   }
   if (profileData.tone !== undefined) {
-    profileUpdates[ProfileFields.TONE] = profileData.tone;
+    profileUpdates[pf('tone')] = profileData.tone as Tone;
   }
   if (profileData.phone_number !== undefined) {
-    profileUpdates[ProfileFields.PHONE_NUMBER] = profileData.phone_number;
+    profileUpdates[pf('phone_number')] = profileData.phone_number;
   }
 
   // Create a batch for all updates
@@ -129,7 +130,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
 
   // Update the profile in the batch
   if (Object.keys(profileUpdates).length > 0) {
-    profileUpdates[ProfileFields.UPDATED_AT] = Timestamp.now();
+    profileUpdates[pf('updated_at')] = Timestamp.now();
     batch.update(profileRef, profileUpdates);
     logger.info(`Added profile update to batch for user ${currentUserId}`);
   }
@@ -137,7 +138,7 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   // Handle time bucket membership if nudging settings changed and user has timezone
   if (nudgingSettingsChanged && currentTimezone) {
     const newNudgingSettings = profileData.nudging_settings as NudgingSettings;
-    await updateTimeBucketMembership(currentUserId, newNudgingSettings, batch, db);
+    await updateTimeBucketMembership(currentUserId, newNudgingSettings, currentTimezone, batch, db);
   }
 
   // Commit all the updates in a single atomic operation
@@ -148,7 +149,10 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
 
   // Get the updated profile data
   const updatedProfileDoc = await profileRef.get();
-  const updatedProfileData = updatedProfileDoc.data() || {};
+  const updatedProfileData = updatedProfileDoc.data();
+  if (!updatedProfileData) {
+    throw new Error(`Profile data is undefined for user ${currentUserId}`);
+  }
 
   // Get insights data
   const insightsData = await getProfileInsights(profileRef);
@@ -158,19 +162,18 @@ export const updateProfile = async (req: Request): Promise<ApiResponse<ProfileRe
 
   // Track profile update event
   const event: ProfileEventParams = {
-    has_name: !!updatedProfileData[ProfileFields.NAME],
-    has_avatar: !!updatedProfileData[ProfileFields.AVATAR],
-    has_location: !!updatedProfileData[ProfileFields.LOCATION],
-    has_birthday: !!updatedProfileData[ProfileFields.BIRTHDAY],
+    has_name: !!updatedProfileData.name,
+    has_avatar: !!updatedProfileData.avatar,
+    has_location: !!updatedProfileData.location,
+    has_birthday: !!updatedProfileData.birthday,
     has_notification_settings:
-      Array.isArray(updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
-      updatedProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+      Array.isArray(updatedProfileData.notification_settings) && updatedProfileData.notification_settings.length > 0,
     nudging_occurrence: extractNudgingOccurrence(updatedProfileData),
-    has_gender: !!updatedProfileData[ProfileFields.GENDER],
+    has_gender: !!updatedProfileData.gender,
     goal: extractGoalForAnalytics(updatedProfileData),
     connect_to: extractConnectToForAnalytics(updatedProfileData),
-    personality: (updatedProfileData[ProfileFields.PERSONALITY] as string) || '',
-    tone: (updatedProfileData[ProfileFields.TONE] as string) || '',
+    personality: updatedProfileData.personality || '',
+    tone: updatedProfileData.tone || '',
   };
 
   return {

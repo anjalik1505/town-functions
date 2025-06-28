@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { GroupMember, GroupMembersResponse } from '../models/data-models.js';
+import { groupConverter } from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 
@@ -39,16 +40,17 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
   const db = getFirestore();
 
   // Get the group document
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const groupRef = groups.doc(groupId);
   const groupDoc = await groupRef.get();
 
-  if (!groupDoc.exists) {
+  const groupData = groupDoc.data();
+  if (!groupData) {
     logger.warn(`Group ${groupId} not found`);
     throw new NotFoundError('Group not found');
   }
 
-  const groupData = groupDoc.data() || {};
-  const membersIds = groupData[GroupFields.MEMBERS] || [];
+  const membersIds = groupData.members || [];
 
   // Check if the current user is a member of the group
   if (!membersIds.includes(currentUserId)) {
@@ -59,17 +61,17 @@ export const getGroupMembers = async (req: Request, res: Response, groupId: stri
   const members: GroupMember[] = [];
 
   // Check if we have denormalized member profiles available
-  const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
+  const memberProfiles = groupData.member_profiles || {};
 
-  if (memberProfiles.length > 0) {
+  if (Object.keys(memberProfiles).length > 0) {
     // Use the denormalized data
     logger.info(`Using denormalized member profiles for group: ${groupId}`);
-    for (const profile of memberProfiles) {
+    for (const [userId, profile] of Object.entries(memberProfiles)) {
       const member: GroupMember = {
-        user_id: profile[ProfileFields.USER_ID] || '',
-        username: profile[ProfileFields.USERNAME] || '',
-        name: profile[ProfileFields.NAME] || '',
-        avatar: profile[ProfileFields.AVATAR] || '',
+        user_id: userId,
+        username: profile.username || '',
+        name: profile.name || '',
+        avatar: profile.avatar || '',
       };
       members.push(member);
     }

@@ -1,14 +1,18 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, CommentFields, DeviceFields, NotificationTypes, UpdateFields } from '../models/constants.js';
+import { Collections, NotificationTypes } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 
+// Import typed converters and field selectors
+import { CommentDoc, commentConverter, cf } from '../models/firestore/comment-doc.js';
+import { updateConverter, uf } from '../models/firestore/update-doc.js';
+import { deviceConverter, df } from '../models/firestore/device-doc.js';
+
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { CommentProfile } from '../models/data-models.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -24,12 +28,12 @@ const logger = getLogger(path.basename(__filename));
  */
 const sendCommentNotification = async (
   db: FirebaseFirestore.Firestore,
-  commentData: Record<string, unknown>,
+  commentData: CommentDoc,
   updateId: string,
   commenterId: string,
 ): Promise<NotificationEventParams> => {
-  // Fetch the update creator
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  // Fetch the update creator with typed converter
+  const updateRef = db.collection(Collections.UPDATES).doc(updateId).withConverter(updateConverter);
   const updateDoc = await updateRef.get();
 
   if (!updateDoc.exists) {
@@ -44,8 +48,20 @@ const sendCommentNotification = async (
     };
   }
 
-  const updateData = updateDoc.data() || {};
-  const updateCreatorId = updateData[UpdateFields.CREATED_BY] as string;
+  const updateData = updateDoc.data();
+  if (!updateData) {
+    logger.error('Update data is null');
+    return {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: true,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false,
+    };
+  }
+
+  const updateCreatorId = updateData[uf('created_by')];
 
   // Build a set of all participants: update creator + every previous commenter
   const participantIds = new Set<string>();
@@ -54,10 +70,12 @@ const sendCommentNotification = async (
   }
 
   try {
-    const commentsStream = updateRef.collection(Collections.COMMENTS).stream() as AsyncIterable<QueryDocumentSnapshot>;
+    const commentsQuery = updateRef.collection(Collections.COMMENTS).withConverter(commentConverter);
+    const commentsStream = commentsQuery.stream() as AsyncIterable<QueryDocumentSnapshot<CommentDoc>>;
 
     for await (const doc of commentsStream) {
-      const createdBy = doc.data()[CommentFields.CREATED_BY] as string;
+      const commentDoc = doc.data();
+      const createdBy = commentDoc[cf('created_by')];
       if (createdBy) {
         participantIds.add(createdBy);
       }
@@ -70,11 +88,11 @@ const sendCommentNotification = async (
   participantIds.delete(commenterId);
 
   // Get commenter profile from denormalized data
-  const commenterProfile = commentData[CommentFields.COMMENTER_PROFILE] as CommentProfile;
+  const commenterProfile = commentData[cf('commenter_profile')];
   const commenterName = commenterProfile.name || commenterProfile.username || 'Friend';
 
   // Prepare comment snippet
-  const commentContent = (commentData[CommentFields.CONTENT] as string) || '';
+  const commentContent = commentData[cf('content')] || '';
   const truncatedComment = commentContent.length > 50 ? `${commentContent.substring(0, 47)}...` : commentContent;
 
   let noDeviceCount = 0;
@@ -82,13 +100,21 @@ const sendCommentNotification = async (
 
   for (const targetUserId of participantIds) {
     try {
-      const deviceDoc = await db.collection(Collections.DEVICES).doc(targetUserId).get();
+      const deviceRef = db.collection(Collections.DEVICES).doc(targetUserId).withConverter(deviceConverter);
+      const deviceDoc = await deviceRef.get();
+
       if (!deviceDoc.exists) {
         noDeviceCount++;
         continue;
       }
-      const deviceData = deviceDoc.data() || {};
-      const deviceId = deviceData[DeviceFields.DEVICE_ID];
+
+      const deviceData = deviceDoc.data();
+      if (!deviceData) {
+        noDeviceCount++;
+        continue;
+      }
+
+      const deviceId = deviceData[df('device_id')];
       if (!deviceId) {
         noDeviceCount++;
         continue;
@@ -148,7 +174,14 @@ export const onCommentCreated = async (
       return;
     }
 
-    const commentData = commentSnapshot.data() || {};
+    // Convert to typed document
+    const commentData = commentSnapshot.data() as CommentDoc;
+
+    if (!commentData) {
+      logger.error('Comment data is null');
+      return;
+    }
+
     const commentId = event.params.id;
     const updateId = commentSnapshot.ref.parent.parent?.id;
 
@@ -159,7 +192,7 @@ export const onCommentCreated = async (
 
     logger.info(`Processing comment creation: ${commentId} on update ${updateId}`);
 
-    const commenterId = commentData[CommentFields.CREATED_BY] as string;
+    const commenterId = commentData[cf('created_by')];
     if (!commenterId) {
       logger.error(`No creator ID found for comment ${commentId}`);
       return;

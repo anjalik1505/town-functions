@@ -1,7 +1,8 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, UserNudgeEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NotificationTypes, NudgeFields } from '../models/constants.js';
+import { Collections, NotificationTypes } from '../models/constants.js';
+import { deviceConverter, nudgeConverter, NudgeDoc, profileConverter } from '../models/firestore/index.js';
 import { BadRequestError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { areFriends } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -63,33 +64,40 @@ export const nudgeUser = async (req: Request): Promise<ApiResponse<{ message: st
 
   // Check if the user has already nudged the target user within the cooldown period
   const nudgeId = `${currentUserId}_${targetUserId}`;
-  const nudgeRef = db.collection(Collections.NUDGES).doc(nudgeId);
+  const nudgeRef = db.collection(Collections.NUDGES).withConverter(nudgeConverter).doc(nudgeId);
   const nudgeDoc = await nudgeRef.get();
 
   if (nudgeDoc.exists) {
-    const lastNudgeTime = nudgeDoc.data()?.[NudgeFields.TIMESTAMP].toDate().getTime();
-    const currentTime = Date.now();
+    const nudgeData = nudgeDoc.data();
+    if (nudgeData) {
+      const lastNudgeTime = nudgeData.timestamp.toDate().getTime();
+      const currentTime = Date.now();
 
-    if (currentTime - lastNudgeTime < NUDGE_COOLDOWN_MS) {
-      logger.warn(`User ${currentUserId} attempted to nudge user ${targetUserId} too soon after previous nudge`);
-      throw new ConflictError('You can only nudge this user once per hour');
+      if (currentTime - lastNudgeTime < NUDGE_COOLDOWN_MS) {
+        logger.warn(`User ${currentUserId} attempted to nudge user ${targetUserId} too soon after previous nudge`);
+        throw new ConflictError('You can only nudge this user once per hour');
+      }
     }
   }
 
   // Get the target user's device
-  const deviceDoc = await db.collection(Collections.DEVICES).doc(targetUserId).get();
+  const deviceDoc = await db.collection(Collections.DEVICES).withConverter(deviceConverter).doc(targetUserId).get();
   if (!deviceDoc.exists) {
     logger.info(`No device found for user ${targetUserId}`);
     // We'll still record the nudge but won't send a notification
   } else {
-    const deviceData = deviceDoc.data() || {};
-    const deviceId = deviceData[DeviceFields.DEVICE_ID];
+    const deviceData = deviceDoc.data();
+    const deviceId = deviceData?.device_id;
 
     if (deviceId) {
       // Get the current user's name or username for the notification
-      const currentUserProfileDoc = await db.collection(Collections.PROFILES).doc(currentUserId).get();
-      const currentUserData = currentUserProfileDoc.data() || {};
-      const currentUserName = currentUserData.name || currentUserData.username || 'A friend';
+      const currentUserProfileDoc = await db
+        .collection(Collections.PROFILES)
+        .withConverter(profileConverter)
+        .doc(currentUserId)
+        .get();
+      const currentUserData = currentUserProfileDoc.data();
+      const currentUserName = currentUserData?.name || currentUserData?.username || 'A friend';
 
       // Send the notification
       try {
@@ -111,10 +119,10 @@ export const nudgeUser = async (req: Request): Promise<ApiResponse<{ message: st
   }
 
   // Record the nudge with the current timestamp
-  const nudgeData: UpdateData<DocumentData> = {
-    [NudgeFields.SENDER_ID]: currentUserId,
-    [NudgeFields.RECEIVER_ID]: targetUserId,
-    [NudgeFields.TIMESTAMP]: new Date(),
+  const nudgeData: NudgeDoc = {
+    sender_id: currentUserId,
+    receiver_id: targetUserId,
+    timestamp: Timestamp.now(),
   };
   await nudgeRef.set(nudgeData);
 

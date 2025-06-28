@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { ProfileFields } from '../models/constants.js';
 import { Location, LocationPayload } from '../models/data-models.js';
+import { pf } from '../models/firestore/profile-doc.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -41,8 +41,8 @@ export const updateLocation = async (req: Request, res: Response): Promise<void>
 
   // Update profile with new location
   batch.update(profileRef, {
-    [ProfileFields.LOCATION]: newLocation,
-    [ProfileFields.UPDATED_AT]: currentTime,
+    [pf('location')]: newLocation,
+    [pf('updated_at')]: currentTime,
   });
 
   // Commit the batch

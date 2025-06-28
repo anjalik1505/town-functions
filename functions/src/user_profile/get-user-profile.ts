@@ -1,7 +1,8 @@
 import { Request } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
-import { Collections, ProfileFields, UserSummaryFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
+import { UserSummaryDoc } from '../models/firestore/user-summary-doc.js';
 import { FriendProfileResponse } from '../models/data-models.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { areFriends } from '../utils/friendship-utils.js';
@@ -87,11 +88,11 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
   let suggestions = '';
 
   if (userSummaryDoc.exists) {
-    const userSummaryData = userSummaryDoc.data() || {};
+    const userSummaryData = userSummaryDoc.data() as UserSummaryDoc | undefined;
     // Only return the summary if the current user is the target (the one who should see it)
-    if (userSummaryData[UserSummaryFields.TARGET_ID] === currentUserId) {
-      summary = userSummaryData[UserSummaryFields.SUMMARY] || '';
-      suggestions = userSummaryData[UserSummaryFields.SUGGESTIONS] || '';
+    if (userSummaryData && userSummaryData.target_id === currentUserId) {
+      summary = userSummaryData.summary || '';
+      suggestions = userSummaryData.suggestions || '';
       logger.info(`Retrieved user summary for relationship ${currentUserId} <-> ${targetUserId}`);
     } else {
       logger.info(`User ${currentUserId} is not the target for this summary`);
@@ -105,19 +106,19 @@ export const getUserProfile = async (req: Request): Promise<ApiResponse<FriendPr
 
   // Track friend profile view event
   const event: ProfileEventParams = {
-    has_name: !!targetUserProfileData[ProfileFields.NAME],
-    has_avatar: !!targetUserProfileData[ProfileFields.AVATAR],
-    has_location: !!targetUserProfileData[ProfileFields.LOCATION],
-    has_birthday: !!targetUserProfileData[ProfileFields.BIRTHDAY],
+    has_name: !!targetUserProfileData.name,
+    has_avatar: !!targetUserProfileData.avatar,
+    has_location: !!targetUserProfileData.location,
+    has_birthday: !!targetUserProfileData.birthday,
     has_notification_settings:
-      Array.isArray(targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS]) &&
-      targetUserProfileData[ProfileFields.NOTIFICATION_SETTINGS].length > 0,
+      Array.isArray(targetUserProfileData.notification_settings) &&
+      targetUserProfileData.notification_settings.length > 0,
     nudging_occurrence: extractNudgingOccurrence(targetUserProfileData),
-    has_gender: !!targetUserProfileData[ProfileFields.GENDER],
+    has_gender: !!targetUserProfileData.gender,
     goal: extractGoalForAnalytics(targetUserProfileData),
     connect_to: extractConnectToForAnalytics(targetUserProfileData),
-    personality: (targetUserProfileData[ProfileFields.PERSONALITY] as string) || '',
-    tone: (targetUserProfileData[ProfileFields.TONE] as string) || '',
+    personality: targetUserProfileData.personality || '',
+    tone: targetUserProfileData.tone || '',
   };
 
   return {

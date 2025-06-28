@@ -1,9 +1,11 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
-import { Collections, FriendDocFields, QueryOperators, UpdateFields } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { FriendDoc } from '../models/firestore/friend-doc.js';
+import { uf, updateConverter, UpdateDoc } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from './analytics-utils.js';
 import { commitBatch, commitFinal } from './batch-utils.js';
 import { processImagesForPrompt } from './image-utils.js';
@@ -32,7 +34,6 @@ export type FriendDocUpdate = {
   avatar?: string;
   last_update_emoji?: string;
   last_update_at?: FirebaseFirestore.Timestamp;
-  context?: string;
   accepter_id?: string;
 };
 
@@ -120,9 +121,10 @@ export async function syncFriendshipDataForUser(
     const db = getFirestore();
     const updatesQuery = db
       .collection(Collections.UPDATES)
-      .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, sourceUserId)
-      .where(UpdateFields.ALL_VILLAGE, QueryOperators.EQUALS, true)
-      .orderBy(UpdateFields.CREATED_AT, QueryOperators.DESC);
+      .withConverter(updateConverter)
+      .where(uf('created_by'), QueryOperators.EQUALS, sourceUserId)
+      .where(uf('all_village'), QueryOperators.EQUALS, true)
+      .orderBy(uf('created_at'), QueryOperators.DESC);
 
     // Create a batch for atomic operations
     let batch = db.batch();
@@ -130,7 +132,7 @@ export async function syncFriendshipDataForUser(
     let totalProcessed = 0;
 
     // Store the last 10 updates for friend summary processing
-    const lastUpdates: FirebaseFirestore.DocumentData[] = [];
+    const lastUpdates: UpdateDoc[] = [];
     let latestEmoji: string | undefined = undefined;
     let latestUpdateAt: FirebaseFirestore.Timestamp | undefined = undefined;
 
@@ -139,18 +141,18 @@ export async function syncFriendshipDataForUser(
 
     // Process each update document in the stream
     for await (const doc of updatesQuery.stream()) {
-      const updateDoc = doc as unknown as QueryDocumentSnapshot;
+      const updateDoc = doc as unknown as QueryDocumentSnapshot<UpdateDoc>;
       const updateData = updateDoc.data();
       const updateId = updateDoc.id;
-      const createdAt = updateData[UpdateFields.CREATED_AT];
+      const createdAt = updateData.created_at;
 
       // Add the ID to the update data
-      updateData[UpdateFields.ID] = updateId;
+      updateData.id = updateId;
 
       // Capture data from the very first update (latest)
       if (latestEmoji === undefined) {
-        latestEmoji = (updateData[UpdateFields.EMOJI] as string) || '';
-        latestUpdateAt = createdAt as FirebaseFirestore.Timestamp;
+        latestEmoji = updateData.emoji || '';
+        latestUpdateAt = createdAt;
       }
 
       // Add to the list of last updates (we'll keep only the first 10)
@@ -163,13 +165,13 @@ export async function syncFriendshipDataForUser(
 
       // Update the update document's visible_to array to include the target user
       const targetUserVisibilityId = createFriendVisibilityIdentifier(targetUserId);
-      const currentVisibleTo = updateData[UpdateFields.VISIBLE_TO] || [];
+      const currentVisibleTo = updateData.visible_to || [];
 
       // Only add if not already present
       if (!currentVisibleTo.includes(targetUserVisibilityId)) {
-        const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+        const updateRef = db.collection(Collections.UPDATES).withConverter(updateConverter).doc(updateId);
         batch.update(updateRef, {
-          [UpdateFields.VISIBLE_TO]: [...currentVisibleTo, targetUserVisibilityId],
+          visible_to: [...currentVisibleTo, targetUserVisibilityId],
         });
         batchCount++; // Account for the additional batch operation
       }
@@ -210,7 +212,7 @@ export async function syncFriendshipDataForUser(
     // Process each update for friend summary
     for (const updateData of lastUpdates) {
       // Process images for this update
-      const imagePaths = (updateData[UpdateFields.IMAGE_PATHS] as string[]) || [];
+      const imagePaths = updateData.image_paths || [];
       const processedImages = await processImagesForPrompt(imagePaths);
 
       // Analyze images for this update
@@ -268,24 +270,23 @@ export const upsertFriendDoc = async (
   const friendRef = db.collection(Collections.PROFILES).doc(userId).collection(Collections.FRIENDS).doc(friendUserId);
 
   const now = Timestamp.now();
-  const payload: UpdateData<FirebaseFirestore.DocumentData> = {};
-  if (data.username) payload[FriendDocFields.USERNAME] = data.username;
-  if (data.name) payload[FriendDocFields.NAME] = data.name;
-  if (data.avatar) payload[FriendDocFields.AVATAR] = data.avatar;
-  if (data.last_update_emoji) payload[FriendDocFields.LAST_UPDATE_EMOJI] = data.last_update_emoji;
-  if (data.last_update_at) payload[FriendDocFields.LAST_UPDATE_AT] = data.last_update_at;
-  if (data.context) payload[FriendDocFields.CONTEXT] = data.context;
-  if (data.accepter_id) payload[FriendDocFields.ACCEPTER_ID] = data.accepter_id;
+  const payload: Partial<FriendDoc> = {};
+  if (data.username) payload.username = data.username;
+  if (data.name) payload.name = data.name;
+  if (data.avatar) payload.avatar = data.avatar;
+  if (data.last_update_emoji) payload.last_update_emoji = data.last_update_emoji;
+  if (data.last_update_at) payload.last_update_at = data.last_update_at;
+  if (data.accepter_id) payload.accepter_id = data.accepter_id;
 
   if (Object.keys(payload).length === 0) {
     return; // nothing to update
   }
 
   // always touch updated_at when we have changes
-  payload[FriendDocFields.UPDATED_AT] = now;
+  payload.updated_at = now;
 
   const write = (b: FirebaseFirestore.WriteBatch) => {
-    b.set(friendRef, { [FriendDocFields.CREATED_AT]: now, ...payload }, { merge: true });
+    b.set(friendRef, { created_at: now, ...payload }, { merge: true });
   };
 
   if (batch) {

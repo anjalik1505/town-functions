@@ -1,8 +1,9 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ShareUpdateEventParams } from '../models/analytics-events.js';
-import { Collections, GroupFields, UpdateFields } from '../models/constants.js';
-import { BaseGroup, BaseUser, ShareUpdatePayload, Update } from '../models/data-models.js';
+import { Collections } from '../models/constants.js';
+import { BaseUser, ShareUpdatePayload, Update } from '../models/data-models.js';
+import { groupConverter, updateConverter, UpdateDoc, UserProfile, GroupProfile } from '../models/firestore/index.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { fetchUsersProfiles } from '../utils/profile-utils.js';
@@ -54,34 +55,46 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
   const db = getFirestore();
 
   // Get the update document
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
+  const updates = db.collection(Collections.UPDATES).withConverter(updateConverter);
+  const updateRef = updates.doc(updateId);
   const updateDoc = await updateRef.get();
-
-  if (!updateDoc.exists) {
-    throw new NotFoundError('Update not found');
-  }
 
   const updateData = updateDoc.data();
   if (!updateData) {
-    throw new NotFoundError('Update data not found');
+    throw new NotFoundError('Update not found');
   }
 
   // Verify that the current user is the owner of the update
-  if (updateData[UpdateFields.CREATED_BY] !== currentUserId) {
+  if (updateData.created_by !== currentUserId) {
     throw new ForbiddenError('You can only share your own updates');
   }
 
   // Get current friend IDs and group IDs
-  const currentFriendIds = (updateData[UpdateFields.FRIEND_IDS] as string[]) || [];
-  const currentGroupIds = (updateData[UpdateFields.GROUP_IDS] as string[]) || [];
-  const currentVisibleTo = (updateData[UpdateFields.VISIBLE_TO] as string[]) || [];
+  const currentFriendIds = updateData.friend_ids || [];
+  const currentGroupIds = updateData.group_ids || [];
+  const currentVisibleTo = updateData.visible_to || [];
 
   // Filter out friend IDs and group IDs that are already in the update
   const friendsToAdd = newFriendIds.filter((friendId) => !currentFriendIds.includes(friendId));
   const groupsToAdd = newGroupIds.filter((groupId) => !currentGroupIds.includes(groupId));
 
-  const sharedWithFriends = (updateData.shared_with_friends_profiles as BaseUser[]) || [];
-  const sharedWithGroups = (updateData.shared_with_groups_profiles as BaseGroup[]) || [];
+  // Get existing shared profiles (now arrays)
+  const sharedWithFriendsProfiles = updateData.shared_with_friends_profiles || [];
+  const sharedWithGroupsProfiles = updateData.shared_with_groups_profiles || [];
+
+  // Convert to BaseUser[] and BaseGroup[]
+  const sharedWithFriends = sharedWithFriendsProfiles.map((profile) => ({
+    user_id: profile.user_id,
+    username: profile.username,
+    name: profile.name,
+    avatar: profile.avatar,
+  }));
+
+  const sharedWithGroups = sharedWithGroupsProfiles.map((profile) => ({
+    group_id: profile.group_id,
+    name: profile.name,
+    icon: profile.icon,
+  }));
 
   if (friendsToAdd.length === 0 && groupsToAdd.length === 0) {
     const response = formatUpdate(updateId, updateData, currentUserId, [], sharedWithFriends, sharedWithGroups);
@@ -104,17 +117,16 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
 
   // Verify that the user is a member of the groups they're trying to add
   if (groupsToAdd.length > 0) {
-    const groupDocs = await Promise.all(
-      groupsToAdd.map((groupId) => db.collection(Collections.GROUPS).doc(groupId).get()),
-    );
+    const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+    const groupDocs = await Promise.all(groupsToAdd.map((groupId) => groups.doc(groupId).get()));
 
     for (const groupDoc of groupDocs) {
-      if (!groupDoc.exists) {
+      const groupData = groupDoc.data();
+      if (!groupData) {
         throw new NotFoundError(`Group ${groupDoc.id} not found`);
       }
 
-      const groupData = groupDoc.data();
-      const members = (groupData?.[GroupFields.MEMBERS] as string[]) || [];
+      const members = groupData.members || [];
 
       if (!members.includes(currentUserId)) {
         throw new ForbiddenError(`You are not a member of group ${groupDoc.id}`);
@@ -149,13 +161,27 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
   const updatedFriendProfiles = [...sharedWithFriends, ...newFriendProfilesArray];
   const updatedGroupProfiles = [...sharedWithGroups, ...newGroupProfiles];
 
+  // Convert to UserProfile[] and GroupProfile[] for storage
+  const updatedFriendProfilesArray: UserProfile[] = updatedFriendProfiles.map((profile) => ({
+    user_id: profile.user_id,
+    username: profile.username,
+    name: profile.name,
+    avatar: profile.avatar,
+  }));
+
+  const updatedGroupProfilesArray: GroupProfile[] = updatedGroupProfiles.map((profile) => ({
+    group_id: profile.group_id,
+    name: profile.name,
+    icon: profile.icon,
+  }));
+
   // Update the document
-  const updateDocData: UpdateData<DocumentData> = {
-    [UpdateFields.FRIEND_IDS]: updatedFriendIds,
-    [UpdateFields.GROUP_IDS]: updatedGroupIds,
-    [UpdateFields.VISIBLE_TO]: updatedVisibleTo,
-    shared_with_friends_profiles: updatedFriendProfiles,
-    shared_with_groups_profiles: updatedGroupProfiles,
+  const updateDocData = {
+    friend_ids: updatedFriendIds,
+    group_ids: updatedGroupIds,
+    visible_to: updatedVisibleTo,
+    shared_with_friends_profiles: updatedFriendProfilesArray,
+    shared_with_groups_profiles: updatedGroupProfilesArray,
     updated_at: Timestamp.now(),
   };
 
@@ -168,9 +194,13 @@ export const shareUpdate = async (req: Request): Promise<ApiResponse<Update>> =>
 
   // Format and return the complete update object
   // Merge the original update data with the updated fields
-  const completeUpdateData = {
+  const completeUpdateData: UpdateDoc = {
     ...updateData,
-    ...updateDocData,
+    friend_ids: updatedFriendIds,
+    group_ids: updatedGroupIds,
+    visible_to: updatedVisibleTo,
+    shared_with_friends_profiles: updatedFriendProfilesArray,
+    shared_with_groups_profiles: updatedGroupProfilesArray,
   };
   const response = formatUpdate(
     updateId,

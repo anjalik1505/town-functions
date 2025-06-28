@@ -1,7 +1,6 @@
 import { Request } from 'express';
 import { DocumentData, getFirestore, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, CommentEventParams, EventName } from '../models/analytics-events.js';
-import { CommentFields } from '../models/constants.js';
 import { getCommentDoc } from '../utils/comment-utils.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -55,10 +54,8 @@ export const deleteComment = async (req: Request): Promise<ApiResponse<null>> =>
   const commentData = commentResult.data;
 
   // Check if the user is the comment creator
-  if (commentData[CommentFields.CREATED_BY] !== currentUserId) {
-    logger.warn(
-      `User ${currentUserId} attempted to delete comment ${commentId} created by ${commentData[CommentFields.CREATED_BY]}`,
-    );
+  if (commentData.created_by !== currentUserId) {
+    logger.warn(`User ${currentUserId} attempted to delete comment ${commentId} created by ${commentData.created_by}`);
     throw new ForbiddenError('You can only delete your own comments');
   }
 
@@ -75,7 +72,7 @@ export const deleteComment = async (req: Request): Promise<ApiResponse<null>> =>
 
   // Create analytics event
   const event: CommentEventParams = {
-    comment_length: commentData[CommentFields.CONTENT].length,
+    comment_length: commentData.content.length,
     comment_count: Math.max(0, (updateResult.data.comment_count || 0) - 1),
     reaction_count: updateResult.data.reaction_count || 0,
   };

@@ -1,6 +1,8 @@
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
-import { Collections, InvitationFields, JoinRequestFields, QueryOperators } from '../models/constants.js';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { Invitation, JoinRequest } from '../models/data-models.js';
+import { InvitationDoc, invitationConverter, if_ } from '../models/firestore/invitation-doc.js';
+import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/join-request-doc.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
@@ -42,7 +44,7 @@ export const getInvitationDocForUser = async (userId: string) => {
  */
 export const getInvitationDoc = async (invitationId: string) => {
   const db = getFirestore();
-  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
+  const invitationRef = db.collection(Collections.INVITATIONS).withConverter(invitationConverter).doc(invitationId);
   const invitationDoc = await invitationRef.get();
 
   if (!invitationDoc.exists) {
@@ -53,7 +55,7 @@ export const getInvitationDoc = async (invitationId: string) => {
   return {
     ref: invitationRef,
     doc: invitationDoc,
-    data: invitationDoc.data() || {},
+    data: invitationDoc.data() as InvitationDoc,
   };
 };
 
@@ -68,7 +70,8 @@ export const getUserInvitationLink = async (userId: string) => {
   // Query invitations where sender_id matches the user ID
   const invitationSnapshot = await db
     .collection(Collections.INVITATIONS)
-    .where(InvitationFields.SENDER_ID, QueryOperators.EQUALS, userId)
+    .withConverter(invitationConverter)
+    .where(if_('sender_id'), QueryOperators.EQUALS, userId)
     .limit(1)
     .get();
 
@@ -79,7 +82,7 @@ export const getUserInvitationLink = async (userId: string) => {
       return {
         ref: invitationDoc.ref,
         doc: invitationDoc,
-        data: invitationDoc.data() || {},
+        data: invitationDoc.data() as InvitationDoc,
         isNew: false,
       };
     }
@@ -108,15 +111,15 @@ export const getOrCreateInvitationLink = async (
 
   // Create a new invitation link with a random ID
   const db = getFirestore();
-  const invitationRef = db.collection(Collections.INVITATIONS).doc();
+  const invitationRef = db.collection(Collections.INVITATIONS).withConverter(invitationConverter).doc();
   const currentTime = Timestamp.now();
 
-  const invitationData: UpdateData<DocumentData> = {
-    [InvitationFields.SENDER_ID]: userId,
-    [InvitationFields.USERNAME]: profileData.username || '',
-    [InvitationFields.NAME]: profileData.name || '',
-    [InvitationFields.AVATAR]: profileData.avatar || '',
-    [InvitationFields.CREATED_AT]: currentTime,
+  const invitationData: InvitationDoc = {
+    sender_id: userId,
+    username: profileData.username || '',
+    name: profileData.name || '',
+    avatar: profileData.avatar || '',
+    created_at: currentTime,
   };
 
   await invitationRef.set(invitationData);
@@ -138,10 +141,14 @@ export const getOrCreateInvitationLink = async (
  * @throws NotFoundError if the invitation doesn't exist
  */
 export const getJoinRequestDoc = async (invitationId: string, requestId: string) => {
-  const { ref: invitationRef } = await getInvitationDoc(invitationId);
+  const db = getFirestore();
+  const invitationRef = db.collection(Collections.INVITATIONS).doc(invitationId);
 
   // Now get the join request from the subcollection
-  const requestRef = invitationRef.collection(Collections.JOIN_REQUESTS).doc(requestId);
+  const requestRef = invitationRef
+    .collection(Collections.JOIN_REQUESTS)
+    .withConverter(joinRequestConverter)
+    .doc(requestId);
   const requestDoc = await requestRef.get();
 
   if (!requestDoc.exists) {
@@ -152,7 +159,7 @@ export const getJoinRequestDoc = async (invitationId: string, requestId: string)
   return {
     ref: requestRef,
     doc: requestDoc,
-    data: requestDoc.data() || {},
+    data: requestDoc.data() as JoinRequestDoc,
   };
 };
 
@@ -175,23 +182,21 @@ export const validateJoinRequestOwnership = (receiverId: string, currentUserId: 
  * @param requestData The join request data
  * @returns A formatted JoinRequest object
  */
-export const formatJoinRequest = (requestId: string, requestData: Record<string, unknown>): JoinRequest => {
+export const formatJoinRequest = (requestId: string, requestData: JoinRequestDoc): JoinRequest => {
   return {
     request_id: requestId,
-    invitation_id: requestData[JoinRequestFields.INVITATION_ID] as string,
-    requester_id: requestData[JoinRequestFields.REQUESTER_ID] as string,
-    receiver_id: requestData[JoinRequestFields.RECEIVER_ID] as string,
-    status: requestData[JoinRequestFields.STATUS] as string,
-    created_at: formatTimestamp(requestData[JoinRequestFields.CREATED_AT] as Timestamp),
-    updated_at: formatTimestamp(requestData[JoinRequestFields.UPDATED_AT] as Timestamp),
-    requester_name: requestData[JoinRequestFields.REQUESTER_NAME] as string,
-    requester_username: requestData[JoinRequestFields.REQUESTER_USERNAME] as string,
-    requester_avatar: requestData[JoinRequestFields.REQUESTER_AVATAR] as string,
-    receiver_name: requestData[JoinRequestFields.RECEIVER_NAME] as string,
-    receiver_username: requestData[JoinRequestFields.RECEIVER_USERNAME] as string,
-    receiver_avatar:
-      (requestData[JoinRequestFields.RECEIVER_AVATAR] as string) ||
-      (requestData[JoinRequestFields.RECEIVER_AVATAR_OLD] as string),
+    invitation_id: requestData.invitation_id,
+    requester_id: requestData.requester_id,
+    receiver_id: requestData.receiver_id,
+    status: requestData.status,
+    created_at: formatTimestamp(requestData.created_at),
+    updated_at: formatTimestamp(requestData.updated_at),
+    requester_name: requestData.requester_name,
+    requester_username: requestData.requester_username,
+    requester_avatar: requestData.requester_avatar,
+    receiver_name: requestData.receiver_name,
+    receiver_username: requestData.receiver_username,
+    receiver_avatar: requestData.receiver_avatar,
   };
 };
 
@@ -209,14 +214,17 @@ export const getJoinRequestsForInvitation = async (invitationId: string): Promis
   // Query the join requests subcollection
   const requestsSnapshot = await invitationRef
     .collection(Collections.JOIN_REQUESTS)
-    .orderBy(JoinRequestFields.CREATED_AT, 'desc')
+    .withConverter(joinRequestConverter)
+    .orderBy(jrf('created_at'), 'desc')
     .get();
 
   const joinRequests: JoinRequest[] = [];
 
   requestsSnapshot.forEach((doc) => {
     const requestData = doc.data();
-    joinRequests.push(formatJoinRequest(doc.id, requestData));
+    if (requestData) {
+      joinRequests.push(formatJoinRequest(doc.id, requestData));
+    }
   });
 
   return joinRequests;
@@ -228,16 +236,16 @@ export const getJoinRequestsForInvitation = async (invitationId: string): Promis
  * @param invitationData The invitation data
  * @returns A formatted Invitation object
  */
-export const formatInvitation = (invitationId: string, invitationData: Record<string, unknown>): Invitation => {
-  const createdAt = invitationData[InvitationFields.CREATED_AT] as Timestamp;
+export const formatInvitation = (invitationId: string, invitationData: InvitationDoc): Invitation => {
+  const createdAt = invitationData.created_at;
 
   return {
     invitation_id: invitationId,
     created_at: formatTimestamp(createdAt),
-    sender_id: (invitationData[InvitationFields.SENDER_ID] as string) || '',
-    username: (invitationData[InvitationFields.USERNAME] as string) || '',
-    name: (invitationData[InvitationFields.NAME] as string) || '',
-    avatar: (invitationData[InvitationFields.AVATAR] as string) || '',
+    sender_id: invitationData.sender_id || '',
+    username: invitationData.username || '',
+    name: invitationData.name || '',
+    avatar: invitationData.avatar || '',
   };
 };
 

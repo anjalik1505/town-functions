@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { NudgingFields, ProfileFields } from '../models/constants.js';
+import { NudgingOccurrence, pf } from '../models/firestore/profile-doc.js';
 import { Timezone, TimezonePayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
@@ -45,23 +45,23 @@ export const updateTimezone = async (req: Request, res: Response): Promise<void>
   const { ref: profileRef, data: profileData } = await getProfileDoc(currentUserId);
 
   // Get current timezone if it exists
-  const currentTimezone = profileData[ProfileFields.TIMEZONE] || '';
+  const currentTimezone = profileData.timezone || '';
 
   // Get nudging settings from profile
-  const nudgingSettings = profileData[ProfileFields.NUDGING_SETTINGS];
+  const nudgingSettings = profileData.nudging_settings;
 
   // Create a batch to ensure all database operations are atomic
   const batch = db.batch();
 
   // Update profile with new timezone
   batch.update(profileRef, {
-    [ProfileFields.TIMEZONE]: newTimezone,
-    [ProfileFields.UPDATED_AT]: currentTime,
+    [pf('timezone')]: newTimezone,
+    [pf('updated_at')]: currentTime,
   });
 
   // Handle time bucket membership if timezone has changed and nudging settings exist
-  if (currentTimezone !== newTimezone && nudgingSettings && nudgingSettings.occurrence !== NudgingFields.NEVER) {
-    await updateTimeBucketMembership(currentUserId, nudgingSettings, batch, db);
+  if (currentTimezone !== newTimezone && nudgingSettings && nudgingSettings.occurrence !== NudgingOccurrence.NEVER) {
+    await updateTimeBucketMembership(currentUserId, nudgingSettings, newTimezone, batch, db);
   }
 
   // Always commit the batch (timezone update is always included)

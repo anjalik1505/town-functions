@@ -2,16 +2,18 @@ import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { DeleteProfileEventParams, EventName } from '../models/analytics-events.js';
+import { Collections, MAX_BATCH_OPERATIONS, QueryOperators } from '../models/constants.js';
 import {
-  Collections,
-  FeedFields,
-  GroupFields,
-  MAX_BATCH_OPERATIONS,
-  ProfileFields,
-  QueryOperators,
-  UpdateFields,
-  UserSummaryFields,
-} from '../models/constants.js';
+  fdf,
+  GroupDoc,
+  groupConverter,
+  gf,
+  ProfileDoc,
+  updateConverter,
+  uf,
+  userSummaryConverter,
+  usf,
+} from '../models/firestore/index.js';
 import { trackApiEvent } from '../utils/analytics-utils.js';
 import { streamAndProcessCollection } from '../utils/deletion-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -19,7 +21,6 @@ import { calculateTimeBucket } from '../utils/timezone-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GroupMember } from '../models/data-models.js';
 import { commitBatch } from '../utils/batch-utils.js';
 import { deleteInvitation } from '../utils/invitation-utils.js';
 
@@ -37,12 +38,12 @@ const logger = getLogger(path.basename(__filename));
 const deleteFriendships = async (
   db: FirebaseFirestore.Firestore,
   userId: string,
-  profileData: FirebaseFirestore.DocumentData,
+  profileData: ProfileDoc,
 ): Promise<number> => {
   logger.info(`Deleting friendship data for user ${userId}`);
 
   // Get friends list from the deleted profile document
-  const friendIds: string[] = profileData[ProfileFields.FRIENDS_TO_CLEANUP] || [];
+  const friendIds: string[] = profileData.friends_to_cleanup || [];
 
   if (friendIds.length === 0) {
     logger.info(`No friends found in cleanup data for user ${userId}`);
@@ -89,11 +90,13 @@ const deleteUserSummaries = async (db: FirebaseFirestore.Firestore, userId: stri
   // Get all user summaries where the user is either the creator or the target
   const creatorSummariesQuery = db
     .collection(Collections.USER_SUMMARIES)
-    .where(UserSummaryFields.CREATOR_ID, QueryOperators.EQUALS, userId);
+    .withConverter(userSummaryConverter)
+    .where(usf('creator_id'), QueryOperators.EQUALS, userId);
 
   const targetSummariesQuery = db
     .collection(Collections.USER_SUMMARIES)
-    .where(UserSummaryFields.TARGET_ID, QueryOperators.EQUALS, userId);
+    .withConverter(userSummaryConverter)
+    .where(usf('target_id'), QueryOperators.EQUALS, userId);
 
   // Process each summary document
   const processSummaryDoc = (summaryDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
@@ -132,28 +135,26 @@ const exitGroups = async (db: FirebaseFirestore.Firestore, userId: string): Prom
   logger.info(`Removing user ${userId} from groups`);
 
   // Get all groups the user is a member of
-  const groupsQuery = db
-    .collection(Collections.GROUPS)
-    .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId);
+  const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const groupsQuery = groups.where(gf('members'), QueryOperators.ARRAY_CONTAINS, userId);
 
   // Process each group document
   const processGroupDoc = (groupDoc: QueryDocumentSnapshot, batch: FirebaseFirestore.WriteBatch) => {
-    const groupData = groupDoc.data();
-    const members = groupData[GroupFields.MEMBERS] || [];
-    const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
+    const groupData = groupDoc.data() as GroupDoc;
+    const members = groupData.members || [];
+    const memberProfiles = groupData.member_profiles || {};
 
     // Remove the user from the member array
     const updatedMembers = members.filter((memberId: string) => memberId !== userId);
 
-    // Remove the user's profile from the member_profiles array
-    const updatedMemberProfiles = memberProfiles.filter((profile: GroupMember) => {
-      return profile.user_id !== userId;
-    });
+    // Remove the user's profile from the member_profiles object
+    const updatedMemberProfiles = { ...memberProfiles };
+    delete updatedMemberProfiles[userId];
 
     // Update the group document
     batch.update(groupDoc.ref, {
-      [GroupFields.MEMBERS]: updatedMembers,
-      [GroupFields.MEMBER_PROFILES]: updatedMemberProfiles,
+      members: updatedMembers,
+      member_profiles: updatedMemberProfiles,
     });
   };
 
@@ -208,7 +209,8 @@ const deleteUpdateAndFeedData = async (
   // 1. First, get all update IDs created by the user
   const updatesQuery = db
     .collection(Collections.UPDATES)
-    .where(UpdateFields.CREATED_BY, QueryOperators.EQUALS, userId)
+    .withConverter(updateConverter)
+    .where(uf('created_by'), QueryOperators.EQUALS, userId)
     .select();
 
   const updateIds: string[] = [];
@@ -234,7 +236,7 @@ const deleteUpdateAndFeedData = async (
     const chunk = updateIds.slice(i, i + CHUNK_SIZE);
 
     // 4. Query all feed entries that reference any of these updates
-    const feedEntriesQuery = db.collectionGroup(Collections.FEED).where(FeedFields.UPDATE_ID, QueryOperators.IN, chunk);
+    const feedEntriesQuery = db.collectionGroup(Collections.FEED).where(fdf('update_id'), QueryOperators.IN, chunk);
 
     // Process feed entries
     for await (const doc of feedEntriesQuery.stream()) {
@@ -302,12 +304,12 @@ const deleteUpdateAndFeedData = async (
 const deleteTimeBucket = async (
   db: FirebaseFirestore.Firestore,
   userId: string,
-  profileData: FirebaseFirestore.DocumentData,
+  profileData: ProfileDoc,
 ): Promise<boolean> => {
   logger.info(`Removing user ${userId} from time buckets`);
 
   try {
-    const timezone = profileData[ProfileFields.TIMEZONE];
+    const timezone = profileData.timezone;
     if (!timezone) {
       logger.info(`User ${userId} has no timezone set, skipping time bucket cleanup`);
       return true;
@@ -339,10 +341,10 @@ const deleteTimeBucket = async (
  * @param profileData - The profile data of the deleted user
  * @returns Whether the avatar was successfully deleted
  */
-const deleteAvatar = async (userId: string, profileData: FirebaseFirestore.DocumentData): Promise<boolean> => {
+const deleteAvatar = async (userId: string, profileData: ProfileDoc): Promise<boolean> => {
   logger.info(`Checking for avatar to delete for user ${userId}`);
 
-  const avatarUrl = profileData[ProfileFields.AVATAR];
+  const avatarUrl = profileData.avatar;
   if (!avatarUrl) {
     logger.info(`User ${userId} has no avatar, skipping avatar deletion`);
     return true;
@@ -386,7 +388,7 @@ const deleteAvatar = async (userId: string, profileData: FirebaseFirestore.Docum
         }
 
         const bucketName = match[1];
-        const filePath = decodeURIComponent(match[2]);
+        const filePath = decodeURIComponent(match[2] || '');
 
         await storage.bucket(bucketName).file(filePath).delete();
       }
@@ -414,7 +416,7 @@ const deleteAvatar = async (userId: string, profileData: FirebaseFirestore.Docum
 const deleteAllUserData = async (
   db: FirebaseFirestore.Firestore,
   userId: string,
-  profileData: FirebaseFirestore.DocumentData,
+  profileData: ProfileDoc,
 ): Promise<void> => {
   logger.info(`Starting deletion of all data for user ${userId}`);
 
@@ -572,7 +574,7 @@ export const onProfileDeleted = async (
   }
 
   const userId = event.params.id;
-  const profileData = event.data.data() || {};
+  const profileData = event.data.data() as ProfileDoc;
   logger.info(`Processing profile deletion for user: ${userId}`);
 
   // Initialize Firestore client

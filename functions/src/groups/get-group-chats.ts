@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { ChatFields, Collections, GroupFields, QueryOperators } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { ChatDoc, chatConverter, chf } from '../models/firestore/chat-doc.js';
 import { ChatMessage, ChatResponse, PaginationPayload } from '../models/data-models.js';
+import { groupConverter } from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
@@ -56,16 +58,17 @@ export const getGroupChats = async (req: Request, res: Response, groupId: string
   logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
   // First, check if the group exists and if the user is a member
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const groupRef = groups.doc(groupId);
   const groupDoc = await groupRef.get();
 
-  if (!groupDoc.exists) {
+  const groupData = groupDoc.data();
+  if (!groupData) {
     logger.warn(`Group ${groupId} not found`);
     throw new NotFoundError('Group not found');
   }
 
-  const groupData = groupDoc.data() || {};
-  const members = groupData[GroupFields.MEMBERS] || [];
+  const members = groupData.members || [];
 
   // Check if the current user is a member of the group
   if (!members.includes(currentUserId)) {
@@ -74,10 +77,12 @@ export const getGroupChats = async (req: Request, res: Response, groupId: string
   }
 
   // Set up the query for chat messages
-  const chatsRef = groupRef.collection(Collections.CHATS);
+  // Note: we need to use the raw document reference for subcollections
+  const rawGroupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const chatsRef = rawGroupRef.collection(Collections.CHATS).withConverter(chatConverter);
 
   // Build the query: first ordering, then pagination, then limit
-  let query = chatsRef.orderBy(ChatFields.CREATED_AT, QueryOperators.DESC);
+  let query = chatsRef.orderBy(chf('created_at'), QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
@@ -91,13 +96,13 @@ export const getGroupChats = async (req: Request, res: Response, groupId: string
 
   // Convert Firestore documents to ChatMessage models
   const messages: ChatMessage[] = chatDocs.map((chatDoc) => {
-    const docData = chatDoc.data();
+    const docData = chatDoc.data() as ChatDoc;
     const message: ChatMessage = {
       message_id: chatDoc.id,
-      sender_id: docData[ChatFields.SENDER_ID] || '',
-      text: docData[ChatFields.TEXT] || '',
-      created_at: docData[ChatFields.CREATED_AT] ? formatTimestamp(docData[ChatFields.CREATED_AT]) : '',
-      attachments: docData[ChatFields.ATTACHMENTS] || [],
+      sender_id: docData.sender_id || '',
+      text: docData.text || '',
+      created_at: docData.created_at ? formatTimestamp(docData.created_at) : '',
+      attachments: docData.attachments?.map((att) => att.url || att.type) || [],
     };
     return message;
   });

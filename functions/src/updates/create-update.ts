@@ -1,16 +1,10 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { DocumentData, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { ApiResponse, EventName, UpdateEventParams } from '../models/analytics-events.js';
-import {
-  Collections,
-  CreatorProfileFields,
-  GroupFields,
-  ProfileFields,
-  QueryOperators,
-  UpdateFields,
-} from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { BaseGroup, BaseUser, CreateUpdatePayload, Update } from '../models/data-models.js';
+import { gf, groupConverter, updateConverter, UpdateDoc } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { fetchUsersProfiles, getProfileDoc } from '../utils/profile-utils.js';
 import { createFeedItem, fetchFriendProfiles, fetchGroupProfiles, formatUpdate } from '../utils/update-utils.js';
@@ -92,9 +86,8 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
     friendIds = Array.from(new Set(friendIds));
 
     // Get all groups where the user is a member
-    const groupsQuery = db
-      .collection(Collections.GROUPS)
-      .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, currentUserId);
+    const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+    const groupsQuery = groups.where(gf('members'), QueryOperators.ARRAY_CONTAINS, currentUserId);
 
     // Stream groups to extract group IDs
     for await (const doc of groupsQuery.stream()) {
@@ -129,7 +122,7 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   const batch = db.batch();
 
   // 1. Create the update document
-  const updateRef = db.collection(Collections.UPDATES).doc();
+  const updateRef = db.collection(Collections.UPDATES).withConverter(updateConverter).doc();
   const updateId = updateRef.id;
 
   // Process images - move from staging to final location
@@ -196,29 +189,39 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
   }
 
   // Create the update document with denormalized data
-  const updateData: UpdateData<DocumentData> = {
-    [UpdateFields.CREATED_BY]: currentUserId,
-    [UpdateFields.CONTENT]: content,
-    [UpdateFields.SENTIMENT]: sentiment,
-    [UpdateFields.SCORE]: score,
-    [UpdateFields.EMOJI]: emoji,
-    [UpdateFields.CREATED_AT]: createdAt,
-    [UpdateFields.GROUP_IDS]: groupIds,
-    [UpdateFields.FRIEND_IDS]: friendIds,
-    [UpdateFields.VISIBLE_TO]: visibleTo,
-    [UpdateFields.ALL_VILLAGE]: allVillage,
-    [UpdateFields.IMAGE_PATHS]: finalImagePaths,
-    [UpdateFields.COMMENT_COUNT]: 0,
-    [UpdateFields.REACTION_COUNT]: 0,
-    [UpdateFields.REACTION_TYPES]: {},
+  const updateData: UpdateDoc = {
+    id: updateId,
+    created_by: currentUserId,
+    content: content,
+    sentiment: sentiment,
+    score: score,
+    emoji: emoji,
+    created_at: createdAt,
+    group_ids: groupIds,
+    friend_ids: friendIds,
+    visible_to: visibleTo,
+    all_village: allVillage,
+    image_paths: finalImagePaths,
+    comment_count: 0,
+    reaction_count: 0,
+    reaction_types: {},
     // Denormalized data
-    [UpdateFields.CREATOR_PROFILE]: {
-      [CreatorProfileFields.USERNAME]: creatorProfileData[ProfileFields.USERNAME] || '',
-      [CreatorProfileFields.NAME]: creatorProfileData[ProfileFields.NAME] || '',
-      [CreatorProfileFields.AVATAR]: creatorProfileData[ProfileFields.AVATAR] || '',
+    creator_profile: {
+      username: creatorProfileData.username || '',
+      name: creatorProfileData.name || '',
+      avatar: creatorProfileData.avatar || '',
     },
-    [UpdateFields.SHARED_WITH_FRIENDS_PROFILES]: sharedWithFriendsProfiles,
-    [UpdateFields.SHARED_WITH_GROUPS_PROFILES]: sharedWithGroupsProfiles,
+    shared_with_friends_profiles: sharedWithFriendsProfiles.map((profile) => ({
+      user_id: profile.user_id,
+      username: profile.username,
+      name: profile.name,
+      avatar: profile.avatar,
+    })),
+    shared_with_groups_profiles: sharedWithGroupsProfiles.map((group) => ({
+      group_id: group.group_id,
+      name: group.name,
+      icon: group.icon,
+    })),
   };
 
   batch.set(updateRef, updateData);
@@ -237,17 +240,14 @@ export const createUpdate = async (req: Request): Promise<ApiResponse<Update>> =
 
   // Get all group members if there are groups
   if (groupIds.length > 0) {
-    const groupDocs = await Promise.all(
-      groupIds.map((groupId: string) => db.collection(Collections.GROUPS).doc(groupId).get()),
-    );
+    const groups = db.collection(Collections.GROUPS).withConverter(groupConverter);
+    const groupDocs = await Promise.all(groupIds.map((groupId: string) => groups.doc(groupId).get()));
 
     groupDocs.forEach((groupDoc) => {
-      if (groupDoc.exists) {
-        const groupData = groupDoc.data();
-        if (groupData && groupData.members) {
-          groupMembersMap.set(groupDoc.id, new Set(groupData.members));
-          groupData.members.forEach((memberId: string) => usersToNotify.add(memberId));
-        }
+      const groupData = groupDoc.data();
+      if (groupData) {
+        groupMembersMap.set(groupDoc.id, new Set(groupData.members));
+        groupData.members.forEach((memberId: string) => usersToNotify.add(memberId));
       }
     });
   }

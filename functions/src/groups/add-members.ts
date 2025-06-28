@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { DocumentData, FieldValue, getFirestore, UpdateData } from 'firebase-admin/firestore';
-import { Collections, GroupFields, ProfileFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { AddGroupMembersPayload, Group } from '../models/data-models.js';
+import { groupConverter, pf, profileConverter } from '../models/firestore/index.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -55,16 +56,16 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
   const db = getFirestore();
 
   // 1. Check if the group exists and the current user is a member
-  const groupRef = db.collection(Collections.GROUPS).doc(groupId);
+  const groupRef = db.collection(Collections.GROUPS).withConverter(groupConverter).doc(groupId);
   const groupDoc = await groupRef.get();
 
-  if (!groupDoc.exists) {
+  const groupData = groupDoc.data();
+  if (!groupData) {
     logger.warn(`Group ${groupId} not found`);
     throw new NotFoundError('Group not found');
   }
 
-  const groupData = groupDoc.data() || {};
-  const currentMembers = groupData[GroupFields.MEMBERS] || [];
+  const currentMembers = groupData.members || [];
 
   if (!currentMembers.includes(currentUserId)) {
     logger.warn(`User ${currentUserId} is not a member of group ${groupId}`);
@@ -80,9 +81,8 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
   }
 
   // 3. Verify new members exist
-  const newMemberProfileRefs = newMembersToAdd.map((memberId: string) =>
-    db.collection(Collections.PROFILES).doc(memberId),
-  );
+  const profilesCollection = db.collection(Collections.PROFILES).withConverter(profileConverter);
+  const newMemberProfileRefs = newMembersToAdd.map((memberId: string) => profilesCollection.doc(memberId));
   const newMemberProfiles = await db.getAll(...newMemberProfileRefs);
 
   // Check if all new member profiles exist
@@ -178,29 +178,31 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
   // Update the group with the new members
   const updatedMembers = [...currentMembers, ...newMembersToAdd];
 
-  // Get the existing member profiles
-  const existingMemberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
+  // Get the existing member profiles as a Record
+  const existingMemberProfiles = groupData.member_profiles || {};
 
   // Get profile information for new members to add to denormalized data
-  const newMemberProfileData = newMemberProfiles
+  const newMemberProfileData: Record<string, { username: string; name: string; avatar: string }> = {};
+  newMemberProfiles
     .filter((profile) => profile.exists)
-    .map((profile) => {
-      const profileData = profile.data() || {};
-      return {
-        [ProfileFields.USER_ID]: profile.id,
-        [ProfileFields.USERNAME]: profileData[ProfileFields.USERNAME] || '',
-        [ProfileFields.NAME]: profileData[ProfileFields.NAME] || '',
-        [ProfileFields.AVATAR]: profileData[ProfileFields.AVATAR] || '',
-      };
+    .forEach((profile) => {
+      const profileData = profile.data();
+      if (profileData) {
+        newMemberProfileData[profile.id] = {
+          username: profileData.username || '',
+          name: profileData.name || '',
+          avatar: profileData.avatar || '',
+        };
+      }
     });
 
   // Combine existing and new member profiles
-  const updatedMemberProfiles = [...existingMemberProfiles, ...newMemberProfileData];
+  const updatedMemberProfiles = { ...existingMemberProfiles, ...newMemberProfileData };
 
   // Update the group document with both members array and denormalized profiles
   const groupUpdate: UpdateData<DocumentData> = {
-    [GroupFields.MEMBERS]: updatedMembers,
-    [GroupFields.MEMBER_PROFILES]: updatedMemberProfiles,
+    members: updatedMembers,
+    member_profiles: updatedMemberProfiles,
   };
   batch.update(groupRef, groupUpdate);
   logger.info(`Adding ${newMembersToAdd.length} new members to group ${groupId}`);
@@ -209,7 +211,7 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
   for (const memberId of newMembersToAdd) {
     const profileRef = db.collection(Collections.PROFILES).doc(memberId);
     const profileUpdate: UpdateData<DocumentData> = {
-      [ProfileFields.GROUP_IDS]: FieldValue.arrayUnion(groupId),
+      [pf('group_ids')]: FieldValue.arrayUnion(groupId),
     };
     batch.update(profileRef, profileUpdate);
     logger.info(`Adding group ${groupId} to member ${memberId}'s profile`);
@@ -221,18 +223,28 @@ export const addMembersToGroup = async (req: Request, res: Response, groupId: st
 
   // Get the updated group data
   const updatedGroupDoc = await groupRef.get();
-  const updatedGroupData = updatedGroupDoc.data() || {};
+  const updatedGroupData = updatedGroupDoc.data();
+
+  if (!updatedGroupData) {
+    throw new Error('Failed to retrieve updated group data');
+  }
+
+  // Convert member_profiles from Record to array format for the response
+  const memberProfilesArray = Object.entries(updatedGroupData.member_profiles || {}).map(([userId, profile]) => ({
+    user_id: userId,
+    username: profile.username,
+    name: profile.name,
+    avatar: profile.avatar,
+  }));
 
   // Return the updated group data
   const response: Group = {
     group_id: groupId,
-    name: updatedGroupData[GroupFields.NAME] || '',
-    icon: updatedGroupData[GroupFields.ICON] || '',
-    members: updatedGroupData[GroupFields.MEMBERS] || [],
-    member_profiles: updatedGroupData[GroupFields.MEMBER_PROFILES] || [],
-    created_at: updatedGroupData[GroupFields.CREATED_AT]
-      ? formatTimestamp(updatedGroupData[GroupFields.CREATED_AT])
-      : '',
+    name: updatedGroupData.name || '',
+    icon: updatedGroupData.icon || '',
+    members: updatedGroupData.members || [],
+    member_profiles: memberProfilesArray,
+    created_at: updatedGroupData.created_at ? formatTimestamp(updatedGroupData.created_at) : '',
   };
 
   res.json(response);

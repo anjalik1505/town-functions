@@ -6,7 +6,8 @@ import {
   InvitationNotificationEventParams,
   InvitationNotificationsEventParams,
 } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NotificationTypes, ProfileFields, SYSTEM_USER } from '../models/constants.js';
+import { Collections, NotificationTypes, SYSTEM_USER } from '../models/constants.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -40,8 +41,8 @@ const processUserNoFriendsNotification = async (
     };
   }
 
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+  const deviceId = deviceData?.device_id;
   if (!deviceId) {
     logger.info(`No device ID found for user ${userId}`);
     return {
@@ -71,7 +72,7 @@ const processUserNoFriendsNotification = async (
   }
 
   // Check profile age
-  const profileTimestamp = profileData[ProfileFields.CREATED_AT] || profileData[ProfileFields.UPDATED_AT];
+  const profileTimestamp = profileData.created_at || profileData.updated_at;
   if (!profileTimestamp) {
     logger.warn(`User ${userId} has no created_at or updated_at timestamp.`);
     return {

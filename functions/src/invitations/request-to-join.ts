@@ -1,7 +1,8 @@
 import { Request } from 'express';
-import { DocumentData, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
-import { Collections, JoinRequestFields, QueryOperators, Status } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { JoinRequestDoc, JoinRequestStatus, joinRequestConverter, jrf } from '../models/firestore/join-request-doc.js';
 import { JoinRequest } from '../models/data-models.js';
 import { areFriends, hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
@@ -71,21 +72,26 @@ export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinReque
   // Check if the user already has a pending join request for this invitation
   // Now using the subcollection approach
 
-  const joinRequestsCollection = invitationRef.collection(Collections.JOIN_REQUESTS);
+  const joinRequestsCollection = invitationRef
+    .collection(Collections.JOIN_REQUESTS)
+    .withConverter(joinRequestConverter);
   const existingRequests = await joinRequestsCollection
-    .where(JoinRequestFields.REQUESTER_ID, QueryOperators.EQUALS, currentUserId)
-    .where(JoinRequestFields.STATUS, QueryOperators.IN, [Status.PENDING, Status.REJECTED])
+    .where(jrf('requester_id'), QueryOperators.EQUALS, currentUserId)
+    .where(jrf('status'), QueryOperators.IN, [JoinRequestStatus.PENDING, JoinRequestStatus.REJECTED])
     .limit(1)
     .get();
 
   if (!existingRequests.empty) {
     const existingRequest = existingRequests.docs[0];
-    const requestData = existingRequest?.data() || {};
-    const status = requestData[JoinRequestFields.STATUS];
+    const requestData = existingRequest?.data();
+    if (!requestData) {
+      throw new Error('No request data found');
+    }
+    const status = requestData.status;
 
-    if (status === Status.PENDING) {
+    if (status === JoinRequestStatus.PENDING) {
       logger.info(`User ${currentUserId} already has a pending join request for invitation ${invitationId}`);
-    } else if (status === Status.REJECTED) {
+    } else if (status === JoinRequestStatus.REJECTED) {
       logger.info(`User ${currentUserId} has a rejected join request for invitation ${invitationId}`);
       throw new ConflictError('Your previous join request was rejected. You cannot request to join again.');
     }
@@ -116,20 +122,20 @@ export const requestToJoin = async (req: Request): Promise<ApiResponse<JoinReque
   const requestRef = joinRequestsCollection.doc();
   const currentTime = Timestamp.now();
 
-  const requestData: UpdateData<DocumentData> = {
-    [JoinRequestFields.REQUEST_ID]: requestRef.id,
-    [JoinRequestFields.INVITATION_ID]: invitationId,
-    [JoinRequestFields.REQUESTER_ID]: currentUserId,
-    [JoinRequestFields.RECEIVER_ID]: receiverId,
-    [JoinRequestFields.STATUS]: Status.PENDING,
-    [JoinRequestFields.CREATED_AT]: currentTime,
-    [JoinRequestFields.UPDATED_AT]: currentTime,
-    [JoinRequestFields.REQUESTER_NAME]: profileData.name || '',
-    [JoinRequestFields.REQUESTER_USERNAME]: profileData.username || '',
-    [JoinRequestFields.REQUESTER_AVATAR]: profileData.avatar || '',
-    [JoinRequestFields.RECEIVER_NAME]: invitationData.name || '',
-    [JoinRequestFields.RECEIVER_USERNAME]: invitationData.username || '',
-    [JoinRequestFields.RECEIVER_AVATAR]: invitationData.avatar || '',
+  const requestData: JoinRequestDoc = {
+    request_id: requestRef.id,
+    invitation_id: invitationId,
+    requester_id: currentUserId,
+    receiver_id: receiverId,
+    status: JoinRequestStatus.PENDING,
+    created_at: currentTime,
+    updated_at: currentTime,
+    requester_name: profileData.name || '',
+    requester_username: profileData.username || '',
+    requester_avatar: profileData.avatar || '',
+    receiver_name: invitationData.name || '',
+    receiver_username: invitationData.username || '',
+    receiver_avatar: invitationData.avatar || '',
   };
 
   await requestRef.set(requestData);

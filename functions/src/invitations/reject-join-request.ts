@@ -2,7 +2,7 @@ import { Request } from 'express';
 import { Timestamp } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, InviteEventParams } from '../models/analytics-events.js';
 import { JoinRequest } from '../models/data-models.js';
-import { JoinRequestFields, Status } from '../models/constants.js';
+import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-request-doc.js';
 import { BadRequestError } from '../utils/errors.js';
 import { hasReachedCombinedLimit } from '../utils/friendship-utils.js';
 import {
@@ -51,15 +51,15 @@ export const rejectJoinRequest = async (req: Request): Promise<ApiResponse<JoinR
 
   // Get the join request from the subcollection
   const { ref: requestRef, data: requestData } = await getJoinRequestDoc(invitationId, requestId);
-  const requesterId = requestData[JoinRequestFields.REQUESTER_ID] as string;
-  const receiverId = requestData[JoinRequestFields.RECEIVER_ID] as string;
-  const currentStatus = requestData[JoinRequestFields.STATUS] as string;
+  const requesterId = requestData.requester_id;
+  const receiverId = requestData.receiver_id;
+  const currentStatus = requestData.status;
 
   // Validate that the current user is the recipient of the request
   validateJoinRequestOwnership(receiverId, currentUserId);
 
   // Check if the request is already accepted or rejected
-  if (currentStatus !== Status.PENDING) {
+  if (currentStatus !== JoinRequestStatus.PENDING) {
     logger.warn(`Join request from ${requesterId} is already ${currentStatus}`);
     throw new BadRequestError(`Join request is already ${currentStatus}`);
   }
@@ -67,8 +67,8 @@ export const rejectJoinRequest = async (req: Request): Promise<ApiResponse<JoinR
   // Update the join request status to rejected
   const currentTime = Timestamp.now();
   await requestRef.update({
-    [JoinRequestFields.STATUS]: Status.REJECTED,
-    [JoinRequestFields.UPDATED_AT]: currentTime,
+    status: JoinRequestStatus.REJECTED,
+    updated_at: currentTime,
   });
 
   logger.info(`Rejected join request from ${requesterId}`);
@@ -82,12 +82,13 @@ export const rejectJoinRequest = async (req: Request): Promise<ApiResponse<JoinR
   };
 
   // Return the updated join request
+  const updatedRequestData: JoinRequestDoc = {
+    ...requestData,
+    status: JoinRequestStatus.REJECTED,
+    updated_at: currentTime,
+  };
   return {
-    data: formatJoinRequest(requestRef.id, {
-      ...requestData,
-      [JoinRequestFields.STATUS]: Status.REJECTED,
-      [JoinRequestFields.UPDATED_AT]: currentTime,
-    }),
+    data: formatJoinRequest(requestRef.id, updatedRequestData),
     status: 200,
     analytics: {
       event: EventName.JOIN_REJECTED,

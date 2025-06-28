@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { ApiResponse, EventName, UpdateViewEventWithCommentsParams } from '../models/analytics-events.js';
-import { UpdateFields } from '../models/constants.js';
 import { PaginationPayload, UpdateWithCommentsResponse } from '../models/data-models.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -55,9 +54,9 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
   await hasUpdateAccess(updateResult.data, currentUserId);
 
   // Extract reactions from denormalized reaction_types field
-  const reactionTypes = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+  const reactionTypes = updateResult.data.reaction_types || {};
   const reactions = Object.entries(reactionTypes)
-    .map(([type, count]) => ({ type, count: count as number }))
+    .map(([type, count]) => ({ type, count }))
     .filter((reaction) => reaction.count > 0);
 
   // Get the creator ID
@@ -65,9 +64,24 @@ export const getUpdate = async (req: Request): Promise<ApiResponse<UpdateWithCom
 
   // Use denormalized data from the update document
   // For older updates that might not have denormalized data, provide empty defaults
-  const creatorProfile = updateResult.data[UpdateFields.CREATOR_PROFILE] || null;
-  const sharedWithFriends = updateResult.data[UpdateFields.SHARED_WITH_FRIENDS_PROFILES] || [];
-  const sharedWithGroups = updateResult.data[UpdateFields.SHARED_WITH_GROUPS_PROFILES] || [];
+  const creatorProfile = updateResult.data.creator_profile || null;
+  const sharedWithFriendsObj = updateResult.data.shared_with_friends_profiles || {};
+  const sharedWithGroupsObj = updateResult.data.shared_with_groups_profiles || {};
+
+  // Convert Record<string, CreatorProfile> to BaseUser[]
+  const sharedWithFriends = Object.values(sharedWithFriendsObj).map((profile) => ({
+    user_id: '',
+    username: profile.username,
+    name: profile.name,
+    avatar: profile.avatar,
+  }));
+
+  // Convert Record<string, CreatorProfile> to BaseGroup[]
+  const sharedWithGroups = Object.entries(sharedWithGroupsObj).map(([groupId, profile]) => ({
+    group_id: groupId,
+    name: profile.name,
+    icon: profile.icon,
+  }));
 
   // Create the enriched update
   const enrichedUpdate = formatEnrichedUpdate(

@@ -2,7 +2,7 @@ import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/f
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { analyzeImagesFlow, generateCreatorProfileFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
-import { Collections, Documents, InsightsFields, ProfileFields, UpdateFields } from '../models/constants.js';
+import { Collections, Documents } from '../models/constants.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getFriendDoc, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
@@ -15,11 +15,30 @@ import {
 } from '../utils/profile-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
 
+// Import typed converters and field selectors
+import { ProfileDoc, profileConverter, pf } from '../models/firestore/profile-doc.js';
+import { UpdateDoc, uf } from '../models/firestore/update-doc.js';
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
+
+// Define InsightsDoc interface (since it's not in a separate file)
+interface InsightsDoc {
+  emotional_overview: string;
+  key_moments: string;
+  recurring_themes: string;
+  progress_and_growth: string;
+}
+
+const insightsConverter: FirebaseFirestore.FirestoreDataConverter<InsightsDoc> = {
+  toFirestore: (i) => i,
+  fromFirestore: (snap) => snap.data() as InsightsDoc,
+};
+
+const inf = <K extends keyof InsightsDoc>(k: K) => k;
 
 /**
  * Update the creator's own profile with summary, suggestions, and insights.
@@ -33,7 +52,7 @@ const logger = getLogger(path.basename(__filename));
  */
 const updateCreatorProfile = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, unknown>,
+  updateData: UpdateDoc,
   creatorId: string,
   batch: FirebaseFirestore.WriteBatch,
   imageAnalysis: string,
@@ -55,8 +74,8 @@ const updateCreatorProfile = async (
   personality: string;
   tone: string;
 }> => {
-  // Get the profile document
-  const profileRef = db.collection(Collections.PROFILES).doc(creatorId);
+  // Get the profile document with typed converter
+  const profileRef = db.collection(Collections.PROFILES).doc(creatorId).withConverter(profileConverter);
   const profileDoc = await profileRef.get();
 
   if (!profileDoc.exists) {
@@ -81,46 +100,69 @@ const updateCreatorProfile = async (
     };
   }
 
-  // Extract data from the profile
-  const profileData = profileDoc.data() || {};
-  const existingSummary = profileData[ProfileFields.SUMMARY];
-  const existingSuggestions = profileData[ProfileFields.SUGGESTIONS];
+  // Extract data from the profile - now typed
+  const profileData = profileDoc.data();
+  if (!profileData) {
+    logger.error('Profile data is null');
+    return {
+      summary_length: 0,
+      suggestions_length: 0,
+      emotional_overview_length: 0,
+      key_moments_length: 0,
+      recurring_themes_length: 0,
+      progress_and_growth_length: 0,
+      has_name: false,
+      has_avatar: false,
+      has_location: false,
+      has_birthday: false,
+      has_gender: false,
+      nudging_occurrence: '',
+      goal: '',
+      connect_to: '',
+      personality: '',
+      tone: '',
+    };
+  }
+
+  const existingSummary = profileData[pf('summary')];
+  const existingSuggestions = profileData[pf('suggestions')];
 
   // Extract update content and sentiment
-  const updateContent = updateData[UpdateFields.CONTENT] as string;
-  const sentiment = updateData[UpdateFields.SENTIMENT] as string;
-  const updateId = updateData[UpdateFields.ID] as string;
+  const updateContent = updateData[uf('content')];
+  const sentiment = updateData[uf('sentiment')];
+  const updateId = updateData[uf('id')];
 
   // Get insight data from the profile's insight subcollection
-  const insightsSnapshot = await profileRef.collection(Collections.INSIGHTS).limit(1).get();
+  const insightsRef = profileRef.collection(Collections.INSIGHTS).withConverter(insightsConverter);
+  const insightsSnapshot = await insightsRef.limit(1).get();
   const insightsDoc = insightsSnapshot.docs[0];
-  const existingInsights = insightsDoc?.data() || {};
+  const existingInsights = insightsDoc?.data() || ({} as Partial<InsightsDoc>);
 
   // Calculate age from the birthday
-  const age = calculateAge(profileData[ProfileFields.BIRTHDAY] || '');
+  const age = calculateAge(profileData[pf('birthday')] || '');
 
   // Use the creator profile flow to generate insights
   const result = await generateCreatorProfileFlow({
     existingSummary: existingSummary || '',
     existingSuggestions: existingSuggestions || '',
-    existingEmotionalOverview: existingInsights[InsightsFields.EMOTIONAL_OVERVIEW] || '',
-    existingKeyMoments: existingInsights[InsightsFields.KEY_MOMENTS] || '',
-    existingRecurringThemes: existingInsights[InsightsFields.RECURRING_THEMES] || '',
-    existingProgressAndGrowth: existingInsights[InsightsFields.PROGRESS_AND_GROWTH] || '',
+    existingEmotionalOverview: existingInsights[inf('emotional_overview')] || '',
+    existingKeyMoments: existingInsights[inf('key_moments')] || '',
+    existingRecurringThemes: existingInsights[inf('recurring_themes')] || '',
+    existingProgressAndGrowth: existingInsights[inf('progress_and_growth')] || '',
     updateContent: updateContent || '',
     sentiment: sentiment || '',
-    gender: profileData[ProfileFields.GENDER] || 'unknown',
-    location: profileData[ProfileFields.LOCATION] || 'unknown',
+    gender: profileData[pf('gender')] || 'unknown',
+    location: profileData[pf('location')] || 'unknown',
     age: age,
     imageAnalysis: imageAnalysis,
   });
 
   // Update the profile
-  const profileUpdate = {
-    [ProfileFields.SUMMARY]: result.summary || '',
-    [ProfileFields.SUGGESTIONS]: result.suggestions || '',
-    [ProfileFields.LAST_UPDATE_ID]: updateId,
-    [ProfileFields.UPDATED_AT]: Timestamp.now(),
+  const profileUpdate: Partial<ProfileDoc> = {
+    [pf('summary')]: result.summary || '',
+    [pf('suggestions')]: result.suggestions || '',
+    [pf('last_update_id')]: updateId,
+    [pf('updated_at')]: Timestamp.now(),
   };
 
   // Add profile update to batch
@@ -128,19 +170,17 @@ const updateCreatorProfile = async (
   logger.info(`Added profile update for user ${creatorId} to batch`);
 
   // Update or create the insights document
-  const insightsData = {
-    [InsightsFields.EMOTIONAL_OVERVIEW]: result.emotional_overview || '',
-    [InsightsFields.KEY_MOMENTS]: result.key_moments || '',
-    [InsightsFields.RECURRING_THEMES]: result.recurring_themes || '',
-    [InsightsFields.PROGRESS_AND_GROWTH]: result.progress_and_growth || '',
+  const insightsData: InsightsDoc = {
+    [inf('emotional_overview')]: result.emotional_overview || '',
+    [inf('key_moments')]: result.key_moments || '',
+    [inf('recurring_themes')]: result.recurring_themes || '',
+    [inf('progress_and_growth')]: result.progress_and_growth || '',
   };
 
-  const insightsRef = insightsDoc
-    ? insightsDoc.ref
-    : profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
+  const insightDocRef = insightsDoc ? insightsDoc.ref : insightsRef.doc(Documents.DEFAULT_INSIGHTS);
 
   // Add insight update to batch
-  batch.set(insightsRef, insightsData, { merge: true });
+  batch.set(insightDocRef, insightsData, { merge: true });
   logger.info(`Added insights update for user ${creatorId} to batch`);
 
   return {
@@ -150,16 +190,16 @@ const updateCreatorProfile = async (
     key_moments_length: (result.key_moments || '').length,
     recurring_themes_length: (result.recurring_themes || '').length,
     progress_and_growth_length: (result.progress_and_growth || '').length,
-    has_name: !!profileData[ProfileFields.NAME],
-    has_avatar: !!profileData[ProfileFields.AVATAR],
-    has_location: !!profileData[ProfileFields.LOCATION],
-    has_birthday: !!profileData[ProfileFields.BIRTHDAY],
-    has_gender: !!profileData[ProfileFields.GENDER],
+    has_name: !!profileData[pf('name')],
+    has_avatar: !!profileData[pf('avatar')],
+    has_location: !!profileData[pf('location')],
+    has_birthday: !!profileData[pf('birthday')],
+    has_gender: !!profileData[pf('gender')],
     nudging_occurrence: extractNudgingOccurrence(profileData),
     goal: extractGoalForAnalytics(profileData),
     connect_to: extractConnectToForAnalytics(profileData),
-    personality: (profileData[ProfileFields.PERSONALITY] as string) || '',
-    tone: (profileData[ProfileFields.TONE] as string) || '',
+    personality: profileData[pf('personality')] || '',
+    tone: profileData[pf('tone')] || '',
   };
 };
 
@@ -172,13 +212,13 @@ const updateCreatorProfile = async (
  */
 const processAllSummaries = async (
   db: FirebaseFirestore.Firestore,
-  updateData: Record<string, unknown>,
+  updateData: UpdateDoc,
 ): Promise<{
   mainSummary: SummaryEventParams;
   friendSummaries: FriendSummaryEventParams[];
 }> => {
-  const creatorId = updateData[UpdateFields.CREATED_BY] as string;
-  const friendIds = (updateData[UpdateFields.FRIEND_IDS] as string[]) || [];
+  const creatorId = updateData[uf('created_by')];
+  const friendIds = updateData[uf('friend_ids')] || [];
 
   if (!creatorId) {
     logger.error('Update has no creator ID');
@@ -209,7 +249,7 @@ const processAllSummaries = async (
   }
 
   // Process images once for all summaries
-  const imagePaths = (updateData[UpdateFields.IMAGE_PATHS] as string[]) || [];
+  const imagePaths = updateData[uf('image_paths')] || [];
   const processedImages = await processImagesForPrompt(imagePaths);
 
   // Analyze images once for all summaries
@@ -230,7 +270,7 @@ const processAllSummaries = async (
   }
 
   // Update friend documents with emoji
-  const emoji = updateData[UpdateFields.EMOJI] as string;
+  const emoji = updateData[uf('emoji')];
   if (emoji) {
     const friendshipUpdateTasks = friendIds.map(async (friendId) => {
       // Check if they are friends using the new system and get friend data
@@ -239,7 +279,7 @@ const processAllSummaries = async (
       if (friendDocResult) {
         const friendDocUpdate: FriendDocUpdate = {
           last_update_emoji: emoji,
-          last_update_at: updateData[UpdateFields.CREATED_AT] as Timestamp,
+          last_update_at: updateData[uf('created_at')],
         };
         upsertFriendDoc(db, friendId, creatorId, friendDocUpdate, batch);
       }
@@ -283,8 +323,8 @@ const processAllSummaries = async (
   // Return all analytics data
   return {
     mainSummary: {
-      update_length: ((updateData[UpdateFields.CONTENT] as string) || '').length,
-      update_sentiment: (updateData[UpdateFields.SENTIMENT] as string) || '',
+      update_length: (updateData[uf('content')] || '').length,
+      update_sentiment: updateData[uf('sentiment')] || '',
       summary_length: creatorResult.summary_length,
       suggestions_length: creatorResult.suggestions_length,
       emotional_overview_length: creatorResult.emotional_overview_length,
@@ -328,14 +368,14 @@ export const onUpdateCreated = async (
   logger.info(`Processing new update: ${event.data.id}`);
 
   // Get the update data directly from the event
-  const updateData = event.data.data() || {};
+  const updateData = event.data.data() as UpdateDoc;
 
   // Add the document ID to the update data
-  updateData[UpdateFields.ID] = event.data.id;
+  updateData[uf('id')] = event.data.id;
 
   // Check if the update has the required fields
   if (!updateData || Object.keys(updateData).length === 0) {
-    logger.error(`Update ${updateData[UpdateFields.ID] || 'unknown'} has no data`);
+    logger.error(`Update ${updateData[uf('id')] || 'unknown'} has no data`);
     return;
   }
 
@@ -344,7 +384,7 @@ export const onUpdateCreated = async (
 
   try {
     const { mainSummary, friendSummaries } = await processAllSummaries(db, updateData);
-    logger.info(`Successfully processed update ${updateData[UpdateFields.ID] || 'unknown'}`);
+    logger.info(`Successfully processed update ${updateData[uf('id')] || 'unknown'}`);
 
     // Track all events at once
     const events = [
@@ -358,11 +398,11 @@ export const onUpdateCreated = async (
       })),
     ];
 
-    trackApiEvents(events, updateData[UpdateFields.CREATED_BY]);
+    trackApiEvents(events, updateData[uf('created_by')]);
 
     logger.info(`Tracked ${events.length} analytics events`);
   } catch (error) {
-    logger.error(`Error processing update ${updateData[UpdateFields.ID] || 'unknown'}: ${error}`);
+    logger.error(`Error processing update ${updateData[uf('id')] || 'unknown'}: ${error}`);
     // In a production environment, we would implement retry logic here
   }
 };

@@ -1,7 +1,9 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, JoinRequestFields, NotificationTypes } from '../models/constants.js';
+import { Collections, NotificationTypes } from '../models/constants.js';
+import { DeviceDoc } from '../models/firestore/device-doc.js';
+import { JoinRequestDoc } from '../models/firestore/join-request-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
@@ -23,7 +25,7 @@ const logger = getLogger(path.basename(__filename));
  */
 const sendJoinRequestNotification = async (
   db: FirebaseFirestore.Firestore,
-  requestData: Record<string, unknown>,
+  requestData: JoinRequestDoc,
   requestId: string,
   receiverId: string,
 ): Promise<NotificationEventParams> => {
@@ -43,8 +45,8 @@ const sendJoinRequestNotification = async (
     };
   }
 
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
+  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
+  const deviceId = deviceData?.device_id;
 
   if (!deviceId) {
     logger.info(`No device ID found for invitation owner ${receiverId}, skipping notification`);
@@ -59,8 +61,7 @@ const sendJoinRequestNotification = async (
   }
 
   // Get requester's profile to include their name in the notification
-  const requesterName =
-    requestData[JoinRequestFields.REQUESTER_NAME] || requestData[JoinRequestFields.REQUESTER_USERNAME] || 'Friend';
+  const requesterName = requestData.requester_name || requestData.requester_username || 'Friend';
 
   // Send the notification
   try {
@@ -121,10 +122,10 @@ export const onJoinRequestCreated = async (
       return;
     }
 
-    const requestData = requestSnapshot.data() || {};
+    const requestData = requestSnapshot.data() as JoinRequestDoc;
     const requestId = event.params.id;
 
-    const receiverId = requestData[JoinRequestFields.RECEIVER_ID] as string;
+    const receiverId = requestData.receiver_id;
     if (!receiverId) {
       logger.error(`No requester ID found for request ${requestId}`);
       return;

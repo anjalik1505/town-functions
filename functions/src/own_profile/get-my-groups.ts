@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { getFirestore, QueryDocumentSnapshot, WhereFilterOp } from 'firebase-admin/firestore';
-import { Collections, GroupFields, QueryOperators } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { Group, GroupsResponse } from '../models/data-models.js';
+import { GroupDoc, groupConverter, gf } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 
@@ -32,9 +33,8 @@ export const getMyGroups = async (req: Request, res: Response): Promise<void> =>
   const db = getFirestore();
 
   // Get all groups where the user is a member
-  const groupsQuery = db
-    .collection(Collections.GROUPS)
-    .where(GroupFields.MEMBERS, QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
+  const groupsCol = db.collection(Collections.GROUPS).withConverter(groupConverter);
+  const groupsQuery = groupsCol.where(gf('members'), QueryOperators.ARRAY_CONTAINS as WhereFilterOp, currentUserId);
 
   logger.info(`Querying groups for user: ${currentUserId}`);
 
@@ -42,19 +42,26 @@ export const getMyGroups = async (req: Request, res: Response): Promise<void> =>
 
   // Process each group as it streams in
   for await (const doc of groupsQuery.stream()) {
-    const groupDoc = doc as unknown as QueryDocumentSnapshot;
+    const groupDoc = doc as unknown as QueryDocumentSnapshot<GroupDoc>;
     const groupData = groupDoc.data();
-    const memberProfiles = groupData[GroupFields.MEMBER_PROFILES] || [];
     const groupId = groupDoc.id;
     logger.info(`Processing group: ${groupId}`);
 
+    // Convert member_profiles from Record to array format
+    const memberProfilesArray = Object.entries(groupData.member_profiles || {}).map(([userId, profile]) => ({
+      user_id: userId,
+      username: profile.username,
+      name: profile.name,
+      avatar: profile.avatar,
+    }));
+
     groups.push({
       group_id: groupId,
-      name: groupData[GroupFields.NAME] || '',
-      icon: groupData[GroupFields.ICON] || '',
-      members: groupData[GroupFields.MEMBERS] || [],
-      created_at: groupData[GroupFields.CREATED_AT] ? formatTimestamp(groupData[GroupFields.CREATED_AT]) : '',
-      member_profiles: memberProfiles,
+      name: groupData.name || '',
+      icon: groupData.icon || '',
+      members: groupData.members || [],
+      created_at: groupData.created_at ? formatTimestamp(groupData.created_at) : '',
+      member_profiles: memberProfilesArray,
     });
     logger.info(`Added group ${groupId} to results`);
   }

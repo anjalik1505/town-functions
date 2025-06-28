@@ -1,7 +1,8 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, FriendEventParams } from '../models/analytics-events.js';
-import { Collections, FriendDocFields, QueryOperators } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { FriendDoc, friendConverter, ff } from '../models/firestore/friend-doc.js';
 import { Friend, FriendsResponse, PaginationPayload } from '../models/data-models.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
@@ -44,7 +45,8 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
     .collection(Collections.PROFILES)
     .doc(currentUserId)
     .collection(Collections.FRIENDS)
-    .orderBy(FriendDocFields.LAST_UPDATE_AT, QueryOperators.DESC);
+    .withConverter(friendConverter)
+    .orderBy(ff('last_update_at'), QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(query, afterCursor, limit);
@@ -60,16 +62,16 @@ export const getMyFriends = async (req: Request): Promise<ApiResponse<FriendsRes
 
   // Process friendships
   for (const friendshipDoc of friendshipDocs) {
-    const friendshipData = friendshipDoc.data();
+    const friendshipData = friendshipDoc.data() as FriendDoc;
 
     const friend: Friend = {
       user_id: friendshipDoc.id,
-      username: friendshipData[FriendDocFields.USERNAME] || '',
-      name: friendshipData[FriendDocFields.NAME] || '',
-      avatar: friendshipData[FriendDocFields.AVATAR] || '',
-      last_update_emoji: friendshipData[FriendDocFields.LAST_UPDATE_EMOJI] || '',
+      username: friendshipData.username || '',
+      name: friendshipData.name || '',
+      avatar: friendshipData.avatar || '',
+      last_update_emoji: friendshipData.last_update_emoji || '',
       last_update_time: (() => {
-        const ts = friendshipData[FriendDocFields.LAST_UPDATE_AT];
+        const ts = friendshipData.last_update_at;
         return ts ? formatTimestamp(ts) : '';
       })(),
     };

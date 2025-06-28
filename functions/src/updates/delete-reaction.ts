@@ -1,8 +1,10 @@
 import { Request } from 'express';
-import { DocumentData, FieldValue, getFirestore, UpdateData } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, UpdateData } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ReactionEventParams } from '../models/analytics-events.js';
-import { Collections, ReactionFields, UpdateFields } from '../models/constants.js';
+import { Collections } from '../models/constants.js';
 import { ReactionGroup } from '../models/data-models.js';
+import { UpdateDoc } from '../models/firestore/index.js';
+import { ReactionDoc, reactionConverter } from '../models/firestore/reaction-doc.js';
 import { BadRequestError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { getUpdateDoc, hasUpdateAccess } from '../utils/update-utils.js';
@@ -54,7 +56,10 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
   await hasUpdateAccess(updateResult.data, currentUserId);
 
   // Get the user's reaction document
-  const reactionRef = updateResult.ref.collection(Collections.REACTIONS).doc(currentUserId);
+  const reactionRef = updateResult.ref
+    .collection(Collections.REACTIONS)
+    .withConverter(reactionConverter)
+    .doc(currentUserId);
   const reactionDoc = await reactionRef.get();
 
   if (!reactionDoc.exists) {
@@ -63,7 +68,11 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
   }
 
   const reactionData = reactionDoc.data();
-  const types = (reactionData?.[ReactionFields.TYPES] as string[]) || [];
+  if (!reactionData) {
+    throw new BadRequestError('Reaction data not found');
+  }
+
+  const types = reactionData.types || [];
 
   if (!types.includes(reactionType)) {
     logger.warn(`Reaction type ${reactionType} not found for user ${currentUserId} on update ${updateId}`);
@@ -73,36 +82,34 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
   // Create a batch for atomic operations
   const batch = db.batch();
 
-  // Get current timestamp
-  const now = new Date().toISOString();
-
   // Update the reaction document to remove the type
   const updatedTypes = types.filter((t) => t !== reactionType);
 
   if (updatedTypes.length > 0) {
     // Update the document with remaining types
     batch.update(reactionRef, {
-      [ReactionFields.TYPES]: FieldValue.arrayRemove(reactionType),
-      [ReactionFields.UPDATED_AT]: now,
-    });
+      types: FieldValue.arrayRemove(reactionType),
+      updated_at: FieldValue.serverTimestamp(),
+    } as UpdateData<ReactionDoc>);
   } else {
     // Delete the document if no types remain
     batch.delete(reactionRef);
   }
 
   // Get current reaction summary
-  const currentSummary = updateResult.data[UpdateFields.REACTION_TYPES] || {};
+  const updateData = updateResult.data as UpdateDoc;
+  const currentSummary = updateData.reaction_types || {};
   const currentTypeCount = currentSummary[reactionType] || 0;
   const newPerTypeCount = Math.max(0, currentTypeCount - 1);
 
   // Prepare the update data for reaction summary
-  const updateData: UpdateData<DocumentData> = {
-    [UpdateFields.REACTION_COUNT]: FieldValue.increment(-1),
-    [`${UpdateFields.REACTION_TYPES}.${reactionType}`]: FieldValue.increment(-1),
+  const updateFieldData: UpdateData<UpdateDoc> = {
+    reaction_count: FieldValue.increment(-1),
+    [`reaction_types.${reactionType}`]: FieldValue.increment(-1),
   };
 
   // Update the update document
-  batch.update(updateResult.ref, updateData);
+  batch.update(updateResult.ref, updateFieldData);
 
   // Commit the batch
   await batch.commit();
@@ -115,12 +122,12 @@ export const deleteReaction = async (req: Request): Promise<ApiResponse<Reaction
   };
 
   // Calculate new total reaction count
-  const newReactionCount = Math.max(0, (updateResult.data[UpdateFields.REACTION_COUNT] || 0) - 1);
+  const newReactionCount = Math.max(0, (updateData.reaction_count || 0) - 1);
 
   // Create analytics event
   const event: ReactionEventParams = {
     reaction_count: newReactionCount,
-    comment_count: updateResult.data[UpdateFields.COMMENT_COUNT] || 0,
+    comment_count: updateData.comment_count || 0,
   };
 
   return {

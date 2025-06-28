@@ -1,15 +1,20 @@
 import { Request } from 'express';
-import { DocumentData, getFirestore, Timestamp, UpdateData } from 'firebase-admin/firestore';
+import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, ProfileEventParams } from '../models/analytics-events.js';
+import { Collections, Documents, Placeholders } from '../models/constants.js';
+import { CreateProfilePayload, ProfileResponse } from '../models/data-models.js';
+import { InsightsDoc, ProfileDoc, insightsConverter, profileConverter } from '../models/firestore/index.js';
 import {
-  Collections,
-  Documents,
-  InsightsFields,
-  NudgingFields,
-  Placeholders,
-  ProfileFields,
-} from '../models/constants.js';
-import { CreateProfilePayload, Insights, ProfileResponse } from '../models/data-models.js';
+  ConnectTo,
+  Goals,
+  NotificationSetting,
+  NudgingOccurrence,
+  NudgingSettings,
+  Personalities,
+  Personality,
+  Tone,
+  Tones,
+} from '../models/firestore/profile-doc.js';
 import { ConflictError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -81,58 +86,59 @@ export const createProfile = async (req: Request): Promise<ApiResponse<ProfileRe
   }
 
   // Create a profile with provided data
-  const profileDataToSave: UpdateData<DocumentData> = {
-    [ProfileFields.USERNAME]: profileData.username,
-    [ProfileFields.NAME]: profileData.name || '',
-    [ProfileFields.AVATAR]: profileData.avatar || '',
-    [ProfileFields.LOCATION]: '',
-    [ProfileFields.BIRTHDAY]: profileData.birthday || '',
-    [ProfileFields.NOTIFICATION_SETTINGS]: profileData.notification_settings || [],
-    [ProfileFields.NUDGING_SETTINGS]: profileData.nudging_settings || {
-      occurrence: NudgingFields.NEVER,
+  const profileDataToSave: ProfileDoc = {
+    user_id: currentUserId,
+    username: profileData.username,
+    name: profileData.name || '',
+    avatar: profileData.avatar || '',
+    location: '',
+    birthday: profileData.birthday || '',
+    notification_settings: (profileData.notification_settings || []) as NotificationSetting[],
+    nudging_settings: (profileData.nudging_settings as NudgingSettings) || {
+      occurrence: NudgingOccurrence.NEVER,
     },
-    [ProfileFields.GENDER]: profileData.gender || '',
-    [ProfileFields.TIMEZONE]: '',
-    [ProfileFields.GOAL]: profileData.goal || '',
-    [ProfileFields.CONNECT_TO]: profileData.connect_to || '',
-    [ProfileFields.PERSONALITY]: profileData.personality || '',
-    [ProfileFields.TONE]: profileData.tone || '',
-    [ProfileFields.SUMMARY]: Placeholders.SUMMARY,
-    [ProfileFields.SUGGESTIONS]: Placeholders.SUGGESTIONS,
-    [ProfileFields.GROUP_IDS]: [],
-    [ProfileFields.UPDATED_AT]: updatedAt,
-    [ProfileFields.CREATED_AT]: updatedAt,
+    gender: profileData.gender || '',
+    timezone: '',
+    goal: profileData.goal || Goals.EMPTY,
+    connect_to: profileData.connect_to || ConnectTo.EMPTY,
+    personality: (profileData.personality as Personality) || Personalities.EMPTY,
+    tone: (profileData.tone as Tone) || Tones.SURPRISE_ME,
+    summary: Placeholders.SUMMARY,
+    suggestions: Placeholders.SUGGESTIONS,
+    group_ids: [],
+    updated_at: updatedAt,
+    created_at: updatedAt,
+    phone_number: phoneNumber || '',
+    friend_count: 0,
   };
 
-  // Conditionally add phone number to saved data
-  if (phoneNumber) {
-    (profileDataToSave as Record<string, unknown>)[ProfileFields.PHONE_NUMBER] = phoneNumber;
-  }
-
   // Create the profile document
-  const profileRef = db.collection(Collections.PROFILES).doc(currentUserId);
+  const profileRef = db.collection(Collections.PROFILES).withConverter(profileConverter).doc(currentUserId);
   await profileRef.set(profileDataToSave);
   logger.info(`Profile document created for user ${currentUserId}`);
 
   // Create phones mapping document if phone provided
   if (phoneNumber && phoneRef) {
     await phoneRef.set({
-      [ProfileFields.USER_ID]: currentUserId,
-      [ProfileFields.USERNAME]: profileData.username,
-      [ProfileFields.NAME]: profileData.name || '',
-      [ProfileFields.AVATAR]: profileData.avatar || '',
+      user_id: currentUserId,
+      username: profileData.username,
+      name: profileData.name || '',
+      avatar: profileData.avatar || '',
     });
 
     logger.info(`Phone mapping created for ${phoneNumber}`);
   }
 
   // Create an empty insight subcollection document with placeholders
-  const insightsRef = profileRef.collection(Collections.INSIGHTS).doc(Documents.DEFAULT_INSIGHTS);
-  const insightsData: Insights = {
-    [InsightsFields.EMOTIONAL_OVERVIEW]: Placeholders.EMOTIONAL_OVERVIEW,
-    [InsightsFields.KEY_MOMENTS]: Placeholders.KEY_MOMENTS,
-    [InsightsFields.RECURRING_THEMES]: Placeholders.RECURRING_THEMES,
-    [InsightsFields.PROGRESS_AND_GROWTH]: Placeholders.PROGRESS_AND_GROWTH,
+  const insightsRef = profileRef
+    .collection(Collections.INSIGHTS)
+    .withConverter(insightsConverter)
+    .doc(Documents.DEFAULT_INSIGHTS);
+  const insightsData: InsightsDoc = {
+    emotional_overview: Placeholders.EMOTIONAL_OVERVIEW,
+    key_moments: Placeholders.KEY_MOMENTS,
+    recurring_themes: Placeholders.RECURRING_THEMES,
+    progress_and_growth: Placeholders.PROGRESS_AND_GROWTH,
   };
   await insightsRef.set(insightsData);
   logger.info(`Insights document created for user ${currentUserId}`);

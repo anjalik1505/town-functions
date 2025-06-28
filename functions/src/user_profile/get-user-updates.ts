@@ -1,8 +1,9 @@
 import { Request } from 'express';
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { ApiResponse, EventName, UpdateViewEventParams } from '../models/analytics-events.js';
-import { Collections, FeedFields, QueryOperators, UpdateFields } from '../models/constants.js';
+import { Collections, QueryOperators } from '../models/constants.js';
 import { PaginationPayload, UpdatesResponse } from '../models/data-models.js';
+import { feedConverter, FeedDoc, fdf, UpdateDoc } from '../models/firestore/index.js';
 import { BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { areFriends } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -83,16 +84,17 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
     .collection(Collections.USER_FEEDS)
     .doc(currentUserId)
     .collection(Collections.FEED)
-    .where(FeedFields.CREATED_BY, QueryOperators.EQUALS, targetUserId)
-    .orderBy(FeedFields.CREATED_AT, QueryOperators.DESC);
+    .withConverter(feedConverter)
+    .where(fdf('created_by'), QueryOperators.EQUALS, targetUserId)
+    .orderBy(fdf('created_at'), QueryOperators.DESC);
 
   // Apply cursor-based pagination - Express will automatically catch errors
   const paginatedQuery = await applyPagination(feedQuery, afterCursor, limit);
 
   // Process feed items using streaming
-  const { items: feedDocs, lastDoc } = await processQueryStream<QueryDocumentSnapshot>(
+  const { items: feedDocs, lastDoc } = await processQueryStream(
     paginatedQuery,
-    (doc) => doc,
+    (doc) => doc as QueryDocumentSnapshot<FeedDoc>,
     limit,
   );
 
@@ -114,7 +116,7 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   }
 
   // Get all update IDs from feed items
-  const updateIds = feedDocs.map((doc) => doc.data()[FeedFields.UPDATE_ID]);
+  const updateIds = feedDocs.map((doc) => doc.data().update_id);
 
   // Fetch all updates in parallel
   const updateMap = await fetchUpdatesByIds(updateIds);
@@ -122,7 +124,8 @@ export const getUserUpdates = async (req: Request): Promise<ApiResponse<UpdatesR
   // Extract reactions from denormalized reaction_types field in updates
   const updateReactionsMap = new Map();
   updateMap.forEach((updateData, updateId) => {
-    const reactionTypes = updateData[UpdateFields.REACTION_TYPES] || {};
+    const updateDoc = updateData as UpdateDoc;
+    const reactionTypes = updateDoc.reaction_types || {};
     const reactions = Object.entries(reactionTypes)
       .map(([type, count]) => ({ type, count: count as number }))
       .filter((reaction) => reaction.count > 0);
