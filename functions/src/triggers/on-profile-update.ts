@@ -12,25 +12,11 @@ import { FriendDoc, friendConverter } from '../models/firestore/friend-doc.js';
 import { GroupDoc, gf, groupConverter } from '../models/firestore/group-doc.js';
 import { InvitationDoc, if_, invitationConverter } from '../models/firestore/invitation-doc.js';
 import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/join-request-doc.js';
+import { PhoneDoc, phf, phoneConverter } from '../models/firestore/phone-doc.js';
 import { ProfileDoc, pf } from '../models/firestore/profile-doc.js';
 import { CreatorProfile, UpdateDoc, UserProfile, uf, updateConverter } from '../models/firestore/update-doc.js';
 
 const logger = getLogger('on-profile-update');
-
-// Define PhoneDoc interface (since it's not in a separate file)
-interface PhoneDoc {
-  user_id: string;
-  username: string;
-  name: string;
-  avatar: string;
-}
-
-const phoneConverter: FirebaseFirestore.FirestoreDataConverter<PhoneDoc> = {
-  toFirestore: (p) => p,
-  fromFirestore: (snap) => snap.data() as PhoneDoc,
-};
-
-const phf = <K extends keyof PhoneDoc>(k: K) => k;
 
 /**
  * Handles profile updates and denormalizes user data across related collections.

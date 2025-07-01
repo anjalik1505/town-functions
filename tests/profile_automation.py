@@ -30,6 +30,7 @@ TEST_CONFIG = {
     "wait_time": 5,  # Time to wait between operations
 }
 
+
 def run_profile_tests():
     """Run tests for the Village API profile functionality"""
     api = VillageAPI()

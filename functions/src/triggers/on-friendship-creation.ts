@@ -2,8 +2,8 @@ import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
-import { FriendDocContext, FriendDoc } from '../models/firestore/friend-doc.js';
 import { DeviceDoc } from '../models/firestore/device-doc.js';
+import { FriendDoc } from '../models/firestore/friend-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { syncFriendshipDataForUser, upsertFriendDoc } from '../utils/friendship-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -66,11 +66,10 @@ export const onFriendshipCreated = async (
   const userId = event.params.userId; // Owner of the subcollection
   const friendId = event.params.friendId; // Document ID in subcollection
   const friendDocData = event.data.data() as FriendDoc;
-  const context = friendDocData.context;
   const accepterId = friendDocData.accepter_id;
   const db = getFirestore();
 
-  logger.info(`Processing friend document creation: ${userId}/${friendId} with context: ${context || 'none'}`);
+  logger.info(`Processing friend document creation: ${userId}/${friendId}`);
 
   // Only process from the "primary" user (lexicographically smaller ID) to avoid duplicate work
   const primaryUserId = [userId, friendId].sort()[0];
@@ -121,7 +120,7 @@ export const onFriendshipCreated = async (
     }
 
     // Handle join request acceptance context - send notifications
-    if (context === FriendDocContext.JOIN_REQUEST_ACCEPTED && accepterId) {
+    if (accepterId) {
       const requesterId = accepterId === userId ? friendId : userId;
 
       logger.info(`Handling join request acceptance: requester=${requesterId}, accepter=${accepterId}`);
@@ -160,7 +159,7 @@ export const onFriendshipCreated = async (
         // Continue execution even if notification fails
       }
     } else {
-      logger.info(`No notification handling needed for context: ${context || 'none'}`);
+      logger.info(`No notification handling needed for accepter: ${accepterId || 'none'}`);
     }
   } catch (error) {
     logger.error(`Failed to process friendship creation ${userId}/${friendId}`, error);

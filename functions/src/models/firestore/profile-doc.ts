@@ -69,8 +69,8 @@ export type Tone = (typeof Tones)[keyof typeof Tones];
 
 export interface NudgingSettings {
   occurrence: NudgingOccurrenceType;
-  times_of_day?: string[];
-  days_of_week?: DayOfWeek[];
+  times_of_day: string[];
+  days_of_week: DayOfWeek[];
 }
 
 export interface ProfileDoc {
@@ -86,17 +86,17 @@ export interface ProfileDoc {
   group_ids: string[];
   summary: string;
   suggestions: string;
-  last_update_id?: string;
+  last_update_id: string;
   updated_at: Timestamp;
   created_at: Timestamp;
-  limit_override?: number;
+  limit_override: boolean;
   timezone: string;
   goal: Goal;
   connect_to: ConnectToType;
   personality: Personality;
   tone: Tone;
   phone_number: string;
-  friends_to_cleanup?: string[];
+  friends_to_cleanup: string[];
   friend_count: number;
 }
 

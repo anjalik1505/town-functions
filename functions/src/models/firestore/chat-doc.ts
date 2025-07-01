@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 export interface ChatAttachment {
   type: string;
   url: string;
-  thumbnail?: string;
+  thumbnail: string;
 }
 
 export interface ChatDoc {

@@ -33,7 +33,7 @@ export type FriendDocUpdate = {
   name?: string;
   avatar?: string;
   last_update_emoji?: string;
-  last_update_at?: FirebaseFirestore.Timestamp;
+  last_update_at?: Timestamp;
   accepter_id?: string;
 };
 
@@ -116,7 +116,7 @@ export const hasReachedCombinedLimit = async (
 export async function syncFriendshipDataForUser(
   sourceUserId: string,
   targetUserId: string,
-): Promise<{ emoji?: string; updatedAt?: FirebaseFirestore.Timestamp } | undefined> {
+): Promise<{ emoji?: string; updatedAt?: Timestamp } | undefined> {
   try {
     const db = getFirestore();
     const updatesQuery = db
@@ -134,7 +134,7 @@ export async function syncFriendshipDataForUser(
     // Store the last 10 updates for friend summary processing
     const lastUpdates: UpdateDoc[] = [];
     let latestEmoji: string | undefined = undefined;
-    let latestUpdateAt: FirebaseFirestore.Timestamp | undefined = undefined;
+    let latestUpdateAt: Timestamp | undefined = undefined;
 
     // Stream the updates instead of getting them all at once
     logger.info(`Streaming all_village updates from sender ${sourceUserId}`);

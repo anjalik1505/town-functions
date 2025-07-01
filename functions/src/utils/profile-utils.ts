@@ -1,10 +1,10 @@
 import { differenceInYears, parse } from 'date-fns';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Collections } from '../models/constants.js';
+import { Insights, NudgingSettings, ProfileResponse } from '../models/data-models.js';
+import { profileConverter, ProfileDoc } from '../models/firestore/index.js';
 import { ConnectTo, Goals } from '../models/firestore/profile-doc.js';
-import { FriendProfileResponse, Insights, NudgingSettings, ProfileResponse } from '../models/data-models.js';
-import { profileConverter, ProfileDoc, insightsConverter, insf, InsightsDoc } from '../models/firestore/index.js';
-import { BadRequestError, NotFoundError } from './errors.js';
+import { NotFoundError } from './errors.js';
 import { getLogger } from './logging-utils.js';
 import { formatTimestamp } from './timestamp-utils.js';
 
@@ -59,91 +59,6 @@ const getProfileDocument = async (
 };
 
 /**
- * Fetches profile data for a user.
- *
- * @param userId - The ID of the user to fetch profile data for
- * @returns Profile data or null if not found
- */
-export const fetchUserProfile = async (userId: string) => {
-  const result = await getProfileDocument(userId, false);
-  if (!result) {
-    return null;
-  }
-
-  const profileData = result.data;
-  return {
-    username: profileData.username || '',
-    name: profileData.name || '',
-    avatar: profileData.avatar || '',
-  };
-};
-
-/**
- * Fetches profile data for multiple users in parallel.
- *
- * @param userIds - Array of user IDs to fetch profile data for
- * @returns Map of user IDs to their profile data
- */
-export const fetchUsersProfiles = async (userIds: string[]) => {
-  const profiles = new Map<string, { username: string; name: string; avatar: string }>();
-  const uniqueUserIds = Array.from(new Set(userIds));
-
-  // Return early if no user IDs to fetch
-  if (uniqueUserIds.length === 0) {
-    return profiles;
-  }
-
-  const db = getFirestore();
-
-  // Create document references for all unique user IDs with converter
-  const profilesCollection = db.collection(Collections.PROFILES).withConverter(profileConverter);
-  const refs = uniqueUserIds.map((userId) => profilesCollection.doc(userId));
-
-  // Fetch all documents in one batch operation
-  const docs = await db.getAll(...refs);
-
-  // Process the results
-  docs.forEach((doc, index) => {
-    if (doc.exists) {
-      const profileData = doc.data();
-      const userId = uniqueUserIds[index];
-      if (userId && profileData) {
-        profiles.set(userId, {
-          username: profileData.username || '',
-          name: profileData.name || '',
-          avatar: profileData.avatar || '',
-        });
-      }
-    }
-  });
-
-  return profiles;
-};
-
-/**
- * Enriches an object with profile data.
- *
- * @param item - The item to enrich with profile data
- * @param profile - The profile data to add
- * @returns The enriched item
- */
-export const enrichWithProfile = <T extends { username?: string; name?: string; avatar?: string }>(
-  item: T,
-  profile: { username: string; name: string; avatar: string } | null,
-): T => {
-  if (!profile) {
-    return item;
-  }
-
-  return {
-    ...item,
-    username: profile.username,
-    name: profile.name,
-    avatar: profile.avatar,
-  };
-};
-
-/**
  * Gets a profile document by user ID
  * @param userId The ID of the user whose profile to retrieve
  * @returns The profile document and data
@@ -153,46 +68,6 @@ export const getProfileDoc = async (userId: string): Promise<ProfileDocumentResu
   const result = await getProfileDocument(userId, true);
   // This should never be null because getProfileDocument will throw if not found
   return result as ProfileDocumentResult;
-};
-
-/**
- * Checks if a profile exists for a user
- * @param userId The ID of the user to check
- * @throws BadRequestError if the profile already exists
- */
-export const profileExists = async (userId: string): Promise<void> => {
-  const db = getFirestore();
-  const profileRef = db.collection(Collections.PROFILES).withConverter(profileConverter).doc(userId);
-  const profileDoc = await profileRef.get();
-
-  if (profileDoc.exists) {
-    logger.warn(`Profile already exists for user ${userId}`);
-    throw new BadRequestError(`Profile already exists for user ${userId}`);
-  }
-};
-
-/**
- * Gets insights data for a profile
- * @param profileRef The reference to the profile document
- * @returns The insights data
- */
-export const getProfileInsights = async (
-  profileRef: FirebaseFirestore.DocumentReference<ProfileDoc>,
-): Promise<Insights> => {
-  const insightsSnapshot = await profileRef
-    .collection(Collections.INSIGHTS)
-    .withConverter(insightsConverter)
-    .limit(1)
-    .get();
-  const insightsDoc = insightsSnapshot.docs[0];
-  const insightsData = insightsDoc?.data() || ({} as Partial<InsightsDoc>);
-
-  return {
-    emotional_overview: insightsData[insf('emotional_overview')] || '',
-    key_moments: insightsData[insf('key_moments')] || '',
-    recurring_themes: insightsData[insf('recurring_themes')] || '',
-    progress_and_growth: insightsData[insf('progress_and_growth')] || '',
-  };
 };
 
 /**
@@ -272,29 +147,6 @@ export const formatProfileResponse = (
 };
 
 /**
- * Formats a profile document into a FriendProfileResponse object
- * @param userId The ID of the user
- * @param profileData The profile data
- * @param summary Optional summary text
- * @param suggestions Optional suggestions text
- * @returns A formatted FriendProfileResponse object
- */
-export const formatFriendProfileResponse = (
-  userId: string,
-  profileData: ProfileDoc,
-  summary: string = '',
-  suggestions: string = '',
-): FriendProfileResponse => {
-  const commonFields = formatCommonProfileFields(userId, profileData);
-
-  return {
-    ...commonFields,
-    summary,
-    suggestions,
-  };
-};
-
-/**
  * Calculates a person's age based on their birthday string in yyyy-mm-dd format
  * @param birthdayString The birthday string in yyyy-mm-dd format (already validated)
  * @returns The calculated age as a string, or "unknown" if the birthday string is empty
@@ -324,19 +176,6 @@ export const calculateAge = (birthdayString: string): string => {
  */
 export const createSummaryId = (userId1: string, userId2: string): string => {
   return `${userId1}_${userId2}`;
-};
-
-/**
- * Checks if a user has a limit override
- * @param userId The ID of the user to check
- * @returns True if the user has a limit override, false otherwise
- */
-export const hasLimitOverride = async (userId: string): Promise<boolean> => {
-  const db = getFirestore();
-  const profileRef = db.collection(Collections.PROFILES).withConverter(profileConverter).doc(userId);
-  const profileDoc = await profileRef.get();
-  const profileData = profileDoc.data();
-  return !!profileData?.limit_override;
 };
 
 /**

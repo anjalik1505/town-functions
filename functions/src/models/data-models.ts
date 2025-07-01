@@ -238,6 +238,10 @@ export interface QuestionResponse {
   question: string;
 }
 
+export interface NudgeResponse {
+  message: string;
+}
+
 export interface CommentProfile {
   username: string;
   name: string;

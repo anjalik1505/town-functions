@@ -10,7 +10,7 @@ const logger = getLogger(path.basename(__filename));
 
 // Configuration
 const CONFIG = {
-  maxEventsPerBatch: 25,
+  maxEventsPerBatch: 20,
   maxPayloadSize: 16 * 1024, // 16KB in bytes
   serverClientId: 'server',
   endpoint: 'https://www.google-analytics.com/mp/collect',

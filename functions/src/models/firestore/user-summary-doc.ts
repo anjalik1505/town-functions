@@ -5,7 +5,7 @@ export interface UserSummaryDoc {
   target_id: string;
   summary: string;
   suggestions: string;
-  last_update_id?: string;
+  last_update_id: string;
   created_at: Timestamp;
   updated_at: Timestamp;
   update_count: number;

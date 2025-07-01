@@ -13,8 +13,7 @@ export interface FriendDoc {
   last_update_at: Timestamp;
   created_at: Timestamp;
   updated_at: Timestamp;
-  context?: FriendDocContext;
-  accepter_id?: string;
+  accepter_id: string;
 }
 
 export const friendConverter: FirebaseFirestore.FirestoreDataConverter<FriendDoc> = {

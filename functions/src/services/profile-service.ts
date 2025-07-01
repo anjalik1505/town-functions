@@ -1,27 +1,43 @@
-import { ProfileDAO } from '../dao/profile-dao.js';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { generateQuestionFlow } from '../ai/flows.js';
+import { DeviceDAO } from '../dao/device-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
+import { NudgeDAO } from '../dao/nudge-dao.js';
 import { PhoneDAO } from '../dao/phone-dao.js';
-import { ProfileDoc } from '../models/firestore/profile-doc.js';
+import { ProfileDAO } from '../dao/profile-dao.js';
+import { TimeBucketDAO } from '../dao/time-bucket-dao.js';
+import { UserSummaryDAO } from '../dao/user-summary-dao.js';
+import { ApiResponse, EventName } from '../models/analytics-events.js';
+import { NotificationTypes } from '../models/constants.js';
 import {
   BaseUser,
-  ProfileResponse,
+  CreateProfilePayload,
+  Friend,
   FriendProfileResponse,
-  QuestionResponse,
+  FriendsResponse,
+  Location,
+  NudgeResponse,
   PhoneLookupResponse,
+  ProfileResponse,
+  QuestionResponse,
+  Timezone,
+  UpdateProfilePayload,
 } from '../models/data-models.js';
-import { NotFoundError, ConflictError, ForbiddenError, BadRequestError } from '../utils/errors.js';
+import {
+  DayOfWeek,
+  NotificationSetting,
+  NudgingOccurrence,
+  NudgingOccurrenceType,
+  NudgingSettings,
+  Personality,
+  ProfileDoc,
+  Tone,
+} from '../models/firestore/profile-doc.js';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { trackApiEvent } from '../utils/analytics-utils.js';
-import { EventName } from '../models/analytics-events.js';
-import { formatTimestamp } from '../utils/timestamp-utils.js';
-import { generateQuestionFlow, generateFriendProfileFlow } from '../ai/flows.js';
-import { Collections, NotificationTypes } from '../models/constants.js';
 import { sendNotification } from '../utils/notification-utils.js';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { nudgeConverter, deviceConverter } from '../models/firestore/index.js';
-import { FieldValue } from 'firebase-admin/firestore';
-import { FriendDoc } from '../models/firestore/friend-doc.js';
-import { NotificationSetting, Personality, Tone, NudgingSettings } from '../models/firestore/profile-doc.js';
+import { calculateAge, formatProfileResponse } from '../utils/profile-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -39,37 +55,34 @@ export class ProfileService {
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
   private phoneDAO: PhoneDAO;
+  private timeBucketDAO: TimeBucketDAO;
+  private nudgeDAO: NudgeDAO;
+  private userSummaryDAO: UserSummaryDAO;
+  private deviceDAO: DeviceDAO;
   private db: FirebaseFirestore.Firestore;
 
   constructor() {
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
     this.phoneDAO = new PhoneDAO();
+    this.timeBucketDAO = new TimeBucketDAO();
+    this.nudgeDAO = new NudgeDAO();
+    this.userSummaryDAO = new UserSummaryDAO();
+    this.deviceDAO = new DeviceDAO();
     this.db = getFirestore();
   }
 
   /**
    * Creates a new user profile with phone validation and analytics tracking
    */
-  async createProfile(
-    userId: string,
-    data: {
-      username: string;
-      name?: string;
-      avatar?: string;
-      location?: string;
-      birthday?: string;
-      notification_settings?: NotificationSetting[];
-      nudging_settings?: NudgingSettings;
-      gender?: string;
-      goal?: string;
-      connect_to?: string;
-      personality?: Personality;
-      tone?: Tone;
-      phone_number?: string;
-    },
-  ): Promise<void> {
+  async createProfile(userId: string, data: CreateProfilePayload): Promise<ApiResponse<ProfileResponse>> {
     logger.info(`Creating profile for user ${userId}`, { data });
+
+    // Check if profile already exists
+    const existingProfile = await this.profileDAO.getById(userId);
+    if (existingProfile) {
+      throw new BadRequestError(`Profile already exists for user ${userId}`);
+    }
 
     // Validate phone uniqueness if provided
     if (data.phone_number) {
@@ -79,16 +92,31 @@ export class ProfileService {
       }
     }
 
+    let nudgingSettings: NudgingSettings;
+    if (data.nudging_settings) {
+      nudgingSettings = {
+        occurrence: data.nudging_settings.occurrence as NudgingOccurrenceType,
+        times_of_day: (data.nudging_settings.times_of_day || []) as string[],
+        days_of_week: (data.nudging_settings.days_of_week || []) as DayOfWeek[],
+      };
+    } else {
+      nudgingSettings = {
+        occurrence: NudgingOccurrence.NEVER,
+        times_of_day: [],
+        days_of_week: [],
+      };
+    }
+
     // Create profile with default values
     const profileData: Partial<ProfileDoc> = {
       user_id: userId,
       username: data.username,
       name: data.name || '',
       avatar: data.avatar || '',
-      location: data.location || '',
+      location: '',
       birthday: data.birthday || '',
       notification_settings: (data.notification_settings || []) as NotificationSetting[],
-      nudging_settings: data.nudging_settings || { occurrence: 'never' },
+      nudging_settings: nudgingSettings,
       gender: data.gender || '',
       goal: data.goal || '',
       connect_to: data.connect_to || '',
@@ -98,14 +126,14 @@ export class ProfileService {
       group_ids: [],
       summary: '',
       suggestions: '',
-      last_update_id: undefined,
-      timezone: 'UTC',
+      last_update_id: '',
+      timezone: '',
       friends_to_cleanup: [],
       friend_count: 0,
     };
 
-    // Create profile with insights in transaction
-    await this.profileDAO.create(userId, profileData);
+    // Create profile with insights in transaction and get the created profile
+    const createdProfile = await this.profileDAO.create(userId, profileData);
 
     // Create phone mapping if phone number provided
     if (data.phone_number) {
@@ -117,17 +145,34 @@ export class ProfileService {
       });
     }
 
-    // Track analytics
-    const analyticsData = this.profileDAO.extractAnalyticsData(profileData as ProfileDoc);
-    trackApiEvent(EventName.PROFILE_CREATED, userId, analyticsData);
+    // Extract analytics data from the created profile
+    const analyticsData = this.profileDAO.extractAnalyticsData(createdProfile);
+
+    // Format the response using the created profile
+    const response = formatProfileResponse(userId, createdProfile, {
+      emotional_overview: '',
+      key_moments: '',
+      recurring_themes: '',
+      progress_and_growth: '',
+    });
 
     logger.info(`Successfully created profile for user ${userId}`);
+
+    return {
+      data: response,
+      status: 201,
+      analytics: {
+        event: EventName.PROFILE_CREATED,
+        userId: userId,
+        params: analyticsData,
+      },
+    };
   }
 
   /**
    * Gets a user's profile with formatted timestamps
    */
-  async getProfile(userId: string): Promise<ProfileResponse> {
+  async getProfile(userId: string): Promise<ApiResponse<ProfileResponse>> {
     logger.info(`Getting profile for user ${userId}`);
 
     const profileData = await this.profileDAO.getById(userId);
@@ -161,30 +206,22 @@ export class ProfileService {
     };
 
     logger.info(`Successfully retrieved profile for user ${userId}`);
-    return response;
+
+    return {
+      data: response,
+      status: 200,
+      analytics: {
+        event: EventName.PROFILE_VIEWED,
+        userId: userId,
+        params: {},
+      },
+    };
   }
 
   /**
    * Updates a user's profile with phone conflict checking
    */
-  async updateProfile(
-    userId: string,
-    data: {
-      username?: string;
-      name?: string;
-      avatar?: string;
-      location?: string;
-      birthday?: string;
-      notification_settings?: NotificationSetting[];
-      nudging_settings?: NudgingSettings;
-      gender?: string;
-      goal?: string;
-      connect_to?: string;
-      personality?: Personality;
-      tone?: Tone;
-      phone_number?: string;
-    },
-  ): Promise<void> {
+  async updateProfile(userId: string, data: UpdateProfilePayload): Promise<ApiResponse<ProfileResponse>> {
     logger.info(`Updating profile for user ${userId}`, { data });
 
     const existingProfile = await this.profileDAO.getById(userId);
@@ -200,34 +237,83 @@ export class ProfileService {
       }
     }
 
-    // Update profile
-    const updateData: Partial<ProfileDoc> = {
-      ...data,
-      updated_at: FieldValue.serverTimestamp() as Timestamp,
-    } as Partial<ProfileDoc>;
-
-    await this.profileDAO.update(userId, updateData);
-
-    // Handle phone number changes
-    if (data.phone_number !== undefined && data.phone_number !== existingProfile.phone_number) {
-      await this.phoneDAO.updateForUser(existingProfile.phone_number || null, data.phone_number, userId, {
-        username: data.username || existingProfile.username,
-        name: data.name || existingProfile.name,
-        avatar: data.avatar || existingProfile.avatar,
-      });
+    let nudgingSettings: NudgingSettings;
+    if (data.nudging_settings) {
+      nudgingSettings = {
+        occurrence: data.nudging_settings.occurrence as NudgingOccurrenceType,
+        times_of_day: (data.nudging_settings.times_of_day || []) as string[],
+        days_of_week: (data.nudging_settings.days_of_week || []) as DayOfWeek[],
+      };
+    } else {
+      nudgingSettings = {
+        occurrence: NudgingOccurrence.NEVER,
+        times_of_day: [],
+        days_of_week: [],
+      };
     }
 
-    // Track analytics
-    const analyticsData = this.profileDAO.extractAnalyticsData({ ...existingProfile, ...data } as ProfileDoc);
-    trackApiEvent(EventName.PROFILE_UPDATED, userId, analyticsData);
+    // Check if nudging settings changed
+    const nudgingSettingsChanged =
+      data.nudging_settings && JSON.stringify(nudgingSettings) !== JSON.stringify(existingProfile.nudging_settings);
+
+    // Prepare update data
+    const updateData: Partial<ProfileDoc> = {
+      ...data,
+      updated_at: Timestamp.now(),
+    } as Partial<ProfileDoc>;
+
+    let updatedProfile: ProfileDoc;
+
+    // If nudging settings changed, update profile and time buckets in a batch
+    if (nudgingSettingsChanged) {
+      const batch = this.db.batch();
+
+      // Update profile in batch
+      updatedProfile = await this.profileDAO.updateProfileWithBatch(userId, updateData, batch);
+
+      // Update time buckets in same batch
+      const timezone = updatedProfile.timezone || existingProfile.timezone;
+      await this.timeBucketDAO.updateUserBuckets(userId, nudgingSettings, timezone, batch);
+
+      // Commit the batch
+      await batch.commit();
+    } else {
+      // Regular update without batch
+      updatedProfile = await this.profileDAO.updateProfile(userId, updateData);
+    }
+
+    // Extract analytics data from the updated profile
+    const analyticsData = this.profileDAO.extractAnalyticsData(updatedProfile);
+
+    // Format the response using the updated profile
+    const response = formatProfileResponse(
+      userId,
+      updatedProfile,
+      existingProfile.insights || {
+        emotional_overview: '',
+        key_moments: '',
+        recurring_themes: '',
+        progress_and_growth: '',
+      },
+    );
 
     logger.info(`Successfully updated profile for user ${userId}`);
+
+    return {
+      data: response,
+      status: 200,
+      analytics: {
+        event: EventName.PROFILE_UPDATED,
+        userId: userId,
+        params: analyticsData,
+      },
+    };
   }
 
   /**
    * Deletes a user's profile with cascade deletion
    */
-  async deleteProfile(userId: string): Promise<void> {
+  async deleteProfile(userId: string): Promise<ApiResponse<null>> {
     logger.info(`Deleting profile for user ${userId}`);
 
     const profile = await this.profileDAO.getById(userId);
@@ -240,16 +326,40 @@ export class ProfileService {
       await this.phoneDAO.delete(profile.phone_number);
     }
 
-    // Delete profile (includes subcollections via ProfileDAO)
-    await this.profileDAO.delete(userId);
+    // Extract friends list before deletion
+    const friendIds = await this.friendshipDAO.getFriendIds(userId);
+    logger.info(`Found ${friendIds.length} friends for user ${userId}`);
 
-    logger.info(`Successfully deleted profile for user ${userId}`);
+    // Store friends list in profile document for trigger to use
+    if (friendIds.length > 0) {
+      await this.profileDAO.updateProfile(userId, {
+        friends_to_cleanup: friendIds,
+      });
+      logger.info(`Stored ${friendIds.length} friend IDs in profile document for cleanup`);
+    }
+
+    // Use recursiveDelete to delete the profile document and all its subcollections
+    await this.profileDAO.delete(userId);
+    logger.info(`Profile document and all subcollections deleted for user ${userId}`);
+
+    // Extract analytics data
+    const analyticsData = this.profileDAO.extractAnalyticsData(profile);
+
+    return {
+      data: null,
+      status: 204,
+      analytics: {
+        event: EventName.PROFILE_DELETED,
+        userId: userId,
+        params: analyticsData,
+      },
+    };
   }
 
   /**
    * Gets a friend's profile with access validation
    */
-  async getFriendProfile(currentUserId: string, targetUserId: string): Promise<FriendProfileResponse> {
+  async getFriendProfile(currentUserId: string, targetUserId: string): Promise<ApiResponse<FriendProfileResponse>> {
     logger.info(`Getting friend profile: ${currentUserId} -> ${targetUserId}`);
 
     // Check if users are friends
@@ -263,33 +373,10 @@ export class ProfileService {
       throw new NotFoundError('Profile not found');
     }
 
-    // Generate friend summary if needed
-    let summary = profileData.summary;
-    let suggestions = profileData.suggestions;
-
-    if (!summary || !suggestions) {
-      try {
-        const friendProfile = await generateFriendProfileFlow({
-          existingSummary: summary,
-          existingSuggestions: suggestions,
-          updateContent: '',
-          sentiment: '',
-          friendName: profileData.name,
-          friendGender: profileData.gender,
-          friendLocation: profileData.location,
-          friendAge: '',
-          userName: '',
-          userGender: '',
-          userLocation: '',
-          userAge: '',
-        });
-        summary = friendProfile.summary || summary;
-        suggestions = friendProfile.suggestions || suggestions;
-      } catch (error) {
-        logger.error('Failed to generate friend profile', { error });
-        // Continue with existing data
-      }
-    }
+    // Get summary and suggestions from user summaries collection
+    const summaryData = await this.userSummaryDAO.getSummary(currentUserId, targetUserId);
+    const summary = summaryData?.summary || '';
+    const suggestions = summaryData?.suggestions || '';
 
     const response: FriendProfileResponse = {
       user_id: profileData.user_id,
@@ -306,45 +393,98 @@ export class ProfileService {
     };
 
     logger.info(`Successfully retrieved friend profile for ${targetUserId}`);
-    return response;
+
+    return {
+      data: response,
+      status: 200,
+      analytics: {
+        event: EventName.FRIEND_PROFILE_VIEWED,
+        userId: currentUserId,
+        params: { target_user_id: targetUserId },
+      },
+    };
   }
 
   /**
    * Updates user location
    */
-  async updateLocation(userId: string, data: { location: string }): Promise<void> {
+  async updateLocation(userId: string, data: { location: string }): Promise<ApiResponse<Location>> {
     logger.info(`Updating location for user ${userId}`, { data });
-    await this.profileDAO.updateLocation(userId, data.location);
+    const updatedProfile = await this.profileDAO.updateLocation(userId, data.location);
     logger.info(`Successfully updated location for user ${userId}`);
+
+    const location: Location = {
+      location: updatedProfile.location,
+      updated_at: formatTimestamp(updatedProfile.updated_at),
+    };
+
+    return {
+      data: location,
+      status: 200,
+      analytics: {
+        event: EventName.LOCATION_UPDATED,
+        userId: userId,
+        params: {},
+      },
+    };
   }
 
   /**
    * Updates user timezone
    */
-  async updateTimezone(userId: string, data: { timezone: string }): Promise<void> {
+  async updateTimezone(userId: string, data: { timezone: string }): Promise<ApiResponse<Timezone>> {
     logger.info(`Updating timezone for user ${userId}`, { data });
-    await this.profileDAO.updateTimezone(userId, data.timezone);
+
+    // Get existing profile to check for nudging settings and timezone change
+    const existingProfile = await this.profileDAO.getById(userId);
+    if (!existingProfile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    const currentTimezone = existingProfile.timezone;
+    const nudgingSettings = existingProfile.nudging_settings;
+
+    // Create batch for atomic updates
+    const batch = this.db.batch();
+
+    // Update timezone in profile using batch
+    const updatedProfile = await this.profileDAO.updateProfileWithBatch(userId, { timezone: data.timezone }, batch);
+
+    // Update time bucket membership if timezone changed and nudging is enabled
+    if (currentTimezone !== data.timezone && nudgingSettings && nudgingSettings.occurrence !== 'never') {
+      await this.timeBucketDAO.updateUserBuckets(userId, nudgingSettings, data.timezone, batch);
+    }
+
+    // Commit the batch
+    await batch.commit();
+
     logger.info(`Successfully updated timezone for user ${userId}`);
+
+    const timezone: Timezone = {
+      timezone: data.timezone,
+      updated_at: formatTimestamp(updatedProfile.updated_at),
+    };
+
+    return {
+      data: timezone,
+      status: 200,
+      analytics: {
+        event: EventName.TIMEZONE_UPDATED,
+        userId: userId,
+        params: {},
+      },
+    };
   }
 
   /**
    * Generates a personalized question for the user using AI
    */
-  async generateQuestion(userId: string): Promise<QuestionResponse> {
+  async generateQuestion(userId: string): Promise<ApiResponse<QuestionResponse>> {
     logger.info(`Generating question for user ${userId}`);
 
     const profileData = await this.profileDAO.getById(userId);
     if (!profileData) {
       throw new NotFoundError('Profile not found');
-    }
-
-    // Calculate age from birthday if available
-    let age = '';
-    if (profileData.birthday) {
-      const birthDate = new Date(profileData.birthday);
-      const today = new Date();
-      const ageNum = today.getFullYear() - birthDate.getFullYear();
-      age = ageNum.toString();
     }
 
     try {
@@ -357,13 +497,20 @@ export class ProfileService {
         existingProgressAndGrowth: profileData.insights?.progress_and_growth || '',
         gender: profileData.gender,
         location: profileData.location,
-        age,
+        age: calculateAge(profileData.birthday || ''),
       });
 
-      trackApiEvent(EventName.QUESTION_GENERATED, userId);
-
       logger.info(`Successfully generated question for user ${userId}`);
-      return { question: questionData.question };
+
+      return {
+        data: { question: questionData.question },
+        status: 200,
+        analytics: {
+          event: EventName.QUESTION_GENERATED,
+          userId: userId,
+          params: { question_length: questionData.question.length },
+        },
+      };
     } catch (error) {
       logger.error('Failed to generate question', { error });
       throw new BadRequestError('Failed to generate question. Please try again.');
@@ -373,7 +520,7 @@ export class ProfileService {
   /**
    * Nudges a user with rate limiting and friendship validation
    */
-  async nudgeUser(currentUserId: string, targetUserId: string): Promise<{ message: string }> {
+  async nudgeUser(currentUserId: string, targetUserId: string): Promise<ApiResponse<NudgeResponse>> {
     logger.info(`User ${currentUserId} nudging user ${targetUserId}`);
 
     if (currentUserId === targetUserId) {
@@ -387,25 +534,9 @@ export class ProfileService {
     }
 
     // Check rate limiting
-    const nudgeQuery = this.db
-      .collection(Collections.PROFILES)
-      .doc(targetUserId)
-      .collection(Collections.NUDGES)
-      .withConverter(nudgeConverter)
-      .where('sender_id', '==', currentUserId)
-      .orderBy('timestamp', 'desc')
-      .limit(1);
-
-    const nudgeSnapshot = await nudgeQuery.get();
-    if (!nudgeSnapshot.empty) {
-      const lastNudge = nudgeSnapshot.docs[0]?.data();
-      if (lastNudge) {
-        const lastNudgeTime = lastNudge.timestamp.toMillis();
-        const now = Date.now();
-        if (now - lastNudgeTime < NUDGE_COOLDOWN_MS) {
-          throw new ConflictError('You can only nudge this user once per hour');
-        }
-      }
+    const canNudge = await this.nudgeDAO.canSendNudge(targetUserId, currentUserId, NUDGE_COOLDOWN_MS);
+    if (!canNudge) {
+      throw new ConflictError('You can only nudge this user once per hour');
     }
 
     // Get profiles for notification
@@ -419,49 +550,48 @@ export class ProfileService {
     }
 
     // Check if target user has a device for notifications
-    const deviceQuery = this.db
-      .collection(Collections.DEVICES)
-      .withConverter(deviceConverter)
-      .where('user_id', '==', targetUserId)
-      .limit(1);
+    const hasDevice = await this.deviceDAO.deviceExists(targetUserId);
 
-    const deviceSnapshot = await deviceQuery.get();
-    if (deviceSnapshot.empty) {
-      throw new BadRequestError('User does not have push notifications enabled');
+    // Upsert nudge record
+    await this.nudgeDAO.upsertNudge(targetUserId, currentUserId);
+
+    // Send notification only if device exists
+    if (hasDevice) {
+      const currentUserName = currentProfile.name || currentProfile.username || 'A friend';
+      try {
+        await sendNotification(
+          targetUserId,
+          'You’ve been on someone’s mind',
+          `${currentUserName} is checking in and curious about how you're doing!`,
+          {
+            type: NotificationTypes.NUDGE,
+            nudger_id: currentUserId,
+          },
+        );
+        logger.info(`Successfully sent nudge notification to user ${targetUserId}`);
+      } catch (error) {
+        logger.error(`Error sending nudge notification to user ${targetUserId}: ${error}`);
+        // Continue execution even if notification fails
+      }
     }
 
-    // Create nudge record
-    const nudgeRef = this.db.collection(Collections.PROFILES).doc(targetUserId).collection(Collections.NUDGES).doc();
-
-    await nudgeRef.set({
-      sender_id: currentUserId,
-      receiver_id: targetUserId,
-      timestamp: Timestamp.now(),
-    });
-
-    // Send notification
-    await sendNotification(
-      targetUserId,
-      `${currentProfile.name || currentProfile.username} nudged you!`,
-      'Tap to share an update with your Village',
-      {
-        type: NotificationTypes.NUDGE,
-        nudger_id: currentUserId,
-      },
-    );
-
-    trackApiEvent(EventName.USER_NUDGED, currentUserId, {
-      target_user_id: targetUserId,
-    });
-
     logger.info(`Successfully nudged user ${targetUserId}`);
-    return { message: 'Nudge sent successfully' };
+
+    return {
+      data: { message: 'Nudge sent successfully' },
+      status: 200,
+      analytics: {
+        event: EventName.USER_NUDGED,
+        userId: currentUserId,
+        params: { target_user_id: targetUserId },
+      },
+    };
   }
 
   /**
    * Looks up users by phone numbers
    */
-  async lookupByPhones(phones: string[]): Promise<PhoneLookupResponse> {
+  async lookupByPhones(userId: string, phones: string[]): Promise<ApiResponse<PhoneLookupResponse>> {
     logger.info(`Looking up phones`, { count: phones.length });
 
     const matches = await this.phoneDAO.lookupMultiple(phones);
@@ -473,13 +603,20 @@ export class ProfileService {
       avatar: match.avatar,
     }));
 
-    trackApiEvent(EventName.PHONES_LOOKED_UP, 'system', {
-      requested_count: phones.length,
-      match_count: baseUsers.length,
-    });
-
     logger.info(`Phone lookup completed`, { requested: phones.length, found: baseUsers.length });
-    return { matches: baseUsers };
+
+    return {
+      data: { matches: baseUsers } as PhoneLookupResponse,
+      status: 200,
+      analytics: {
+        event: EventName.PHONES_LOOKED_UP,
+        userId: userId,
+        params: {
+          requested_count: phones.length,
+          match_count: baseUsers.length,
+        },
+      },
+    };
   }
 
   /**
@@ -488,63 +625,75 @@ export class ProfileService {
   async getFriends(
     userId: string,
     pagination?: { limit?: number; after_cursor?: string },
-  ): Promise<{ friends: FriendDoc[]; next_cursor: string | null }> {
+  ): Promise<ApiResponse<FriendsResponse>> {
     logger.info(`Getting friends for user ${userId}`, { pagination });
 
-    const limit = pagination?.limit || 25;
+    const limit = pagination?.limit || 20;
     const afterCursor = pagination?.after_cursor;
 
-    const result = await this.friendshipDAO.getFriends(userId, limit, afterCursor, true);
+    const result = await this.friendshipDAO.getFriends(userId, limit, afterCursor);
 
     logger.info(`Retrieved ${result.friends.length} friends for user ${userId}`);
+
     return {
-      friends: result.friends,
-      next_cursor: result.nextCursor,
+      data: {
+        friends: result.friends.map(
+          (friend) =>
+            ({
+              user_id: friend.userId,
+              username: friend.username,
+              name: friend.name,
+              avatar: friend.avatar,
+              last_update_emoji: friend.last_update_emoji,
+              last_update_time: formatTimestamp(friend.last_update_at),
+            }) as Friend,
+        ),
+        next_cursor: result.nextCursor,
+      } as FriendsResponse,
+      status: 200,
+      analytics: {
+        event: EventName.FRIENDS_VIEWED,
+        userId: userId,
+        params: { friend_count: result.friends.length },
+      },
     };
   }
 
   /**
    * Removes a friend (bidirectional)
    */
-  async removeFriend(userId: string, friendId: string): Promise<void> {
+  async removeFriend(userId: string, friendId: string): Promise<ApiResponse<null>> {
     logger.info(`Removing friendship: ${userId} <-> ${friendId}`);
 
-    // Check if friendship exists
     const areFriends = await this.friendshipDAO.areFriends(userId, friendId);
+
     if (!areFriends) {
       throw new NotFoundError('Friendship not found');
     }
 
-    // Remove friendship bidirectionally
+    // Create a batch for atomic operations
     const batch = this.db.batch();
 
-    const userFriendRef = this.db
-      .collection(Collections.PROFILES)
-      .doc(userId)
-      .collection(Collections.FRIENDS)
-      .doc(friendId);
+    // Remove friendship documents in the batch
+    await this.friendshipDAO.removeFriendship(userId, friendId, batch);
 
-    const friendUserRef = this.db
-      .collection(Collections.PROFILES)
-      .doc(friendId)
-      .collection(Collections.FRIENDS)
-      .doc(userId);
+    // Decrement friend counts for both users in the same batch
+    this.profileDAO.decrementFriendCount(userId, batch);
+    this.profileDAO.decrementFriendCount(friendId, batch);
 
-    batch.delete(userFriendRef);
-    batch.delete(friendUserRef);
-
+    // Commit all operations atomically
     await batch.commit();
 
-    // Update friend counts
-    await Promise.all([
-      this.profileDAO.update(userId, { friend_count: FieldValue.increment(-1) as unknown as number }),
-      this.profileDAO.update(friendId, { friend_count: FieldValue.increment(-1) as unknown as number }),
-    ]);
+    logger.info(`Successfully removed friendship and updated friend counts for ${userId} and ${friendId}`);
 
-    trackApiEvent(EventName.FRIENDSHIP_REMOVED, userId, {
-      friend_id: friendId,
-    });
-
-    logger.info(`Successfully removed friendship: ${userId} <-> ${friendId}`);
+    return {
+      data: null,
+      status: 200,
+      analytics: {
+        event: EventName.FRIENDSHIP_REMOVED,
+        userId: userId,
+        params: { friend_id: friendId },
+      },
+    };
   }
 }

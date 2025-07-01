@@ -728,6 +728,9 @@ def run_updates_tests():
     total_updates = len(all_updates["updates"])
     logger.info(f"User 1 has {total_updates} total updates")
 
+    logger.info("User 1's updates:")
+    logger.info(json.dumps(all_updates["updates"], indent=2))
+
     # Verify we have exactly 4 updates (initial_updates_count + 1 unshared update for share test)
     expected_updates = (
         TEST_CONFIG["initial_updates_count"] + 1
@@ -837,6 +840,8 @@ def run_updates_tests():
     all_feed = api.get_my_feed(users[0]["email"])
     total_feed_items = len(all_feed["updates"])
     logger.info(f"User 1 has {total_feed_items} total feed items")
+
+    logger.info(json.dumps(all_feed, indent=2))
 
     # Verify we have exactly 8 feed items (4 user1 + 3 user2 + 1 shared update)
     expected_feed_items = (
