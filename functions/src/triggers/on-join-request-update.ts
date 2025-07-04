@@ -118,10 +118,13 @@ const sendJoinRequestUpdateNotification = async (
  * @param event - The Firestore event object containing the document data
  */
 export const onJoinRequestUpdated = async (
-  event: FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, {
-    invitationId: string;
-    joinRequestId: string;
-  }>,
+  event: FirestoreEvent<
+    Change<QueryDocumentSnapshot> | undefined,
+    {
+      invitationId: string;
+      joinRequestId: string;
+    }
+  >,
 ): Promise<void> => {
   try {
     if (!event) {

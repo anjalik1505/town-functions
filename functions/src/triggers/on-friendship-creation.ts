@@ -2,8 +2,11 @@ import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { EventName } from '../models/analytics-events.js';
 import { FriendDoc } from '../models/firestore/friend-doc.js';
 import { FriendshipService } from '../services/friendship-service.js';
+import { NotificationService } from '../services/notification-service.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -51,9 +54,37 @@ export const onFriendshipCreated = async (
 
   // Use FriendshipService to handle the friendship creation
   const friendshipService = new FriendshipService();
+  const notificationService = new NotificationService();
 
   try {
-    await friendshipService.processFriendshipCreation(userId, friendId, accepterId);
+    // Process friendship creation and get notification data if accepterId exists
+    const notificationData = await friendshipService.processFriendshipCreation(userId, friendId, accepterId);
+
+    // Send notification using NotificationService
+    const notificationResult = await notificationService.sendNotification(
+      [notificationData.requesterNotification.userId],
+      notificationData.requesterNotification.title,
+      notificationData.requesterNotification.message,
+      notificationData.requesterNotification.data,
+    );
+
+    // Track both analytics events
+    trackApiEvents(
+      [
+        // 1. Notification sending result event
+        {
+          eventName: EventName.NOTIFICATION_SENT,
+          params: notificationResult,
+        },
+        // 2. Business logic event
+        notificationData.analyticsEvent,
+      ],
+      notificationData.requesterNotification.userId,
+    );
+
+    logger.info(
+      `Successfully processed friendship acceptance notification for ${notificationData.requesterNotification.userId}`,
+    );
   } catch (error) {
     logger.error(`Failed to process friendship creation ${userId}/${friendId}`, error);
   }

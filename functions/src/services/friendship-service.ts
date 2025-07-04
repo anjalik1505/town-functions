@@ -2,7 +2,6 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeImagesFlow } from '../ai/flows.js';
-import { DeviceDAO } from '../dao/device-dao.js';
 import { FeedDAO } from '../dao/feed-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
@@ -16,7 +15,6 @@ import { UpdateDoc, UserProfile } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
 import { calculateAge, createSummaryId } from '../utils/profile-utils.js';
 import { generateFriendSummary } from '../utils/summary-utils.js';
 
@@ -33,7 +31,6 @@ export class FriendshipService {
   private updateDAO: UpdateDAO;
   private feedDAO: FeedDAO;
   private userSummaryDAO: UserSummaryDAO;
-  private deviceDAO: DeviceDAO;
   private db = getFirestore();
 
   constructor() {
@@ -42,14 +39,29 @@ export class FriendshipService {
     this.updateDAO = new UpdateDAO();
     this.feedDAO = new FeedDAO();
     this.userSummaryDAO = new UserSummaryDAO();
-    this.deviceDAO = new DeviceDAO();
   }
 
   /**
    * Processes a new friendship creation
-   * Syncs updates between friends and sends notifications if needed
+   * Syncs updates between friends and returns notification data and analytics
    */
-  async processFriendshipCreation(userId: string, friendId: string, accepterId?: string): Promise<void> {
+  async processFriendshipCreation(
+    userId: string,
+    friendId: string,
+    accepterId: string,
+  ): Promise<{
+    requesterNotification: {
+      userId: string;
+      title: string;
+      message: string;
+      data: { type: string };
+    };
+    analyticsEvent: {
+      eventName: EventName;
+      params: FriendshipAcceptanceEventParams;
+      userId: string;
+    };
+  }> {
     logger.info(`Processing friendship creation between ${userId} and ${friendId}`);
 
     try {
@@ -61,7 +73,7 @@ export class FriendshipService {
 
       if (!userProfile || !friendProfile) {
         logger.error(`Missing profile data: user=${!!userProfile}, friend=${!!friendProfile}`);
-        return;
+        throw new Error('Missing profile data');
       }
 
       // Convert ProfileDoc to UserProfile for shareUpdate
@@ -124,11 +136,37 @@ export class FriendshipService {
         logger.info(`Updated friend documents with latest update info`);
       }
 
-      // Handle join request acceptance notifications
-      if (accepterId) {
-        const accepterProfile = accepterId === userId ? userProfile : friendProfile;
-        await this.sendAcceptanceNotification(userId, friendId, accepterId, accepterProfile);
-      }
+      // Prepare notification data and analytics event (accepterId is always present)
+      const accepterProfile = accepterId === userId ? userProfile : friendProfile;
+      const requesterId = accepterId === userId ? friendId : userId;
+
+      logger.info(`Preparing acceptance notification: requester=${requesterId}, accepter=${accepterId}`);
+
+      const accepterName = accepterProfile.name || accepterProfile.username || 'Friend';
+      const message = `${accepterName} accepted your request!`;
+
+      return {
+        requesterNotification: {
+          userId: requesterId,
+          title: 'New Friend!',
+          message: message,
+          data: {
+            type: NotificationTypes.FRIENDSHIP,
+          },
+        },
+        analyticsEvent: {
+          eventName: EventName.FRIENDSHIP_ACCEPTED,
+          params: {
+            sender_has_name: !!accepterProfile.name || !!accepterProfile.username,
+            sender_has_avatar: !!accepterProfile.avatar,
+            receiver_has_name:
+              !!userProfile.name || !!userProfile.username || !!friendProfile.name || !!friendProfile.username,
+            receiver_has_avatar: !!userProfile.avatar || !!friendProfile.avatar,
+            has_device: true, // Will be determined when actually sending
+          } as FriendshipAcceptanceEventParams,
+          userId: requesterId,
+        },
+      };
     } catch (error) {
       logger.error(`Failed to process friendship creation ${userId}/${friendId}`, error);
       throw error;
@@ -343,65 +381,5 @@ export class FriendshipService {
       creatorProfile,
       friendProfile,
     } as SummaryContext;
-  }
-
-  /**
-   * Sends friendship acceptance notification
-   */
-  private async sendAcceptanceNotification(
-    userId: string,
-    friendId: string,
-    accepterId: string,
-    accepterProfile: ProfileDoc,
-  ): Promise<void> {
-    const requesterId = accepterId === userId ? friendId : userId;
-
-    logger.info(`Handling join request acceptance: requester=${requesterId}, accepter=${accepterId}`);
-
-    try {
-      // Get device using DeviceDAO
-      const deviceData = await this.deviceDAO.findById(requesterId);
-
-      if (deviceData && deviceData.device_id) {
-        const accepterName = accepterProfile.name || accepterProfile.username || 'Friend';
-        const message = `${accepterName} accepted your request!`;
-
-        await sendNotification(deviceData.device_id, 'New Friend!', message, {
-          type: NotificationTypes.FRIENDSHIP,
-        });
-
-        logger.info(`Sent friendship acceptance notification to requester ${requesterId}`);
-        this.trackAcceptanceEvent(true, requesterId);
-      } else {
-        logger.info(`No device found for requester ${requesterId}, skipping notification`);
-        this.trackAcceptanceEvent(false, requesterId);
-      }
-    } catch (error) {
-      logger.error(`Error sending friendship acceptance notification to requester ${requesterId}: ${error}`);
-      // Continue execution even if notification fails
-    }
-  }
-
-  /**
-   * Tracks friendship acceptance analytics event
-   */
-  private trackAcceptanceEvent(hasDevice: boolean, senderId: string): void {
-    const friendshipEvent: FriendshipAcceptanceEventParams = {
-      sender_has_name: true, // We'll assume profiles exist at this point
-      sender_has_avatar: true,
-      receiver_has_name: true,
-      receiver_has_avatar: true,
-      has_device: hasDevice,
-    };
-
-    trackApiEvents(
-      [
-        {
-          eventName: EventName.FRIENDSHIP_ACCEPTED,
-          params: friendshipEvent,
-        },
-      ],
-      senderId,
-    );
   }
 }

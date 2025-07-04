@@ -293,7 +293,6 @@ export interface PhoneLookupResponse {
   matches: BaseUser[];
 }
 
-
 /**
  * Interface for profile data
  */
@@ -328,7 +327,6 @@ export interface SummaryResult {
   updateId: string;
   analytics: FriendSummaryEventParams;
 }
-
 
 // Inferred types from Zod validation schemas
 export type CreateProfilePayload = z.infer<typeof createProfileSchema>;

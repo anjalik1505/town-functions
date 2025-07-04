@@ -61,11 +61,7 @@ export const onCommentCreated = async (
     const notificationService = new NotificationService();
 
     // Prepare notification data using the orchestration pattern
-    const notificationData = await updateService.prepareCommentNotifications(
-      updateId,
-      commentData,
-      commenterId,
-    );
+    const notificationData = await updateService.prepareCommentNotifications(updateId, commentData, commenterId);
 
     let totalNotificationResult: NotificationEventParams = {
       notification_all: false,
@@ -83,17 +79,14 @@ export const onCommentCreated = async (
           [notificationData.updateCreatorNotification.userId],
           notificationData.updateCreatorNotification.title,
           notificationData.updateCreatorNotification.message,
-          notificationData.updateCreatorNotification.data
+          notificationData.updateCreatorNotification.data,
         );
 
         // Also send background notification
-        await notificationService.sendBackgroundNotification(
-          [notificationData.updateCreatorNotification.userId],
-          {
-            type: NotificationTypes.COMMENT_BACKGROUND,
-            update_id: updateId,
-          }
-        );
+        await notificationService.sendBackgroundNotification([notificationData.updateCreatorNotification.userId], {
+          type: NotificationTypes.COMMENT_BACKGROUND,
+          update_id: updateId,
+        });
 
         // Merge analytics results
         totalNotificationResult.notification_all ||= creatorResult.notification_all;
@@ -101,12 +94,15 @@ export const onCommentCreated = async (
         totalNotificationResult.no_device ||= creatorResult.no_device;
         totalNotificationResult.notification_length = Math.max(
           totalNotificationResult.notification_length,
-          creatorResult.notification_length
+          creatorResult.notification_length,
         );
 
         logger.info(`Sent notification to update creator ${notificationData.updateCreatorNotification.userId}`);
       } catch (error) {
-        logger.error(`Failed to send comment notification to update creator ${notificationData.updateCreatorNotification.userId}`, error);
+        logger.error(
+          `Failed to send comment notification to update creator ${notificationData.updateCreatorNotification.userId}`,
+          error,
+        );
         totalNotificationResult.no_device = true;
       }
     }
@@ -118,17 +114,14 @@ export const onCommentCreated = async (
           notificationData.participantNotifications.userIds,
           notificationData.participantNotifications.title,
           notificationData.participantNotifications.message,
-          notificationData.participantNotifications.data
+          notificationData.participantNotifications.data,
         );
 
         // Also send background notification
-        await notificationService.sendBackgroundNotification(
-          notificationData.participantNotifications.userIds,
-          {
-            type: NotificationTypes.COMMENT_BACKGROUND,
-            update_id: updateId,
-          }
-        );
+        await notificationService.sendBackgroundNotification(notificationData.participantNotifications.userIds, {
+          type: NotificationTypes.COMMENT_BACKGROUND,
+          update_id: updateId,
+        });
 
         // Merge analytics results
         totalNotificationResult.notification_all ||= participantResult.notification_all;
@@ -136,7 +129,7 @@ export const onCommentCreated = async (
         totalNotificationResult.no_device ||= participantResult.no_device;
         totalNotificationResult.notification_length = Math.max(
           totalNotificationResult.notification_length,
-          participantResult.notification_length
+          participantResult.notification_length,
         );
 
         logger.info(`Sent notification to ${notificationData.participantNotifications.userIds.length} participants`);

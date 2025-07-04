@@ -93,10 +93,7 @@ export class NotificationService {
    * @param userIds - Array of user IDs (even single user: [userId])
    * @param data - Data payload for background notification
    */
-  async sendBackgroundNotification(
-    userIds: string[],
-    data: Record<string, string>,
-  ): Promise<NotificationEventParams> {
+  async sendBackgroundNotification(userIds: string[], data: Record<string, string>): Promise<NotificationEventParams> {
     if (!userIds || !userIds.length || !data) {
       logger.warn('Invalid parameters for sendBackgroundNotification');
       return {

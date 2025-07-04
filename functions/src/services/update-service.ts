@@ -85,10 +85,10 @@ export class UpdateService {
 
     logger.info(
       `Update details - content length: ${content.length}, ` +
-      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-      `all_village: ${allVillage}, ` +
-      `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
-      `${images.length} images`,
+        `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+        `all_village: ${allVillage}, ` +
+        `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
+        `${images.length} images`,
     );
 
     // Get creator's profile for denormalization
@@ -1225,12 +1225,14 @@ export class UpdateService {
     const truncatedComment = commentContent.length > 50 ? `${commentContent.substring(0, 47)}...` : commentContent;
 
     // Prepare notification data
-    let updateCreatorNotification: {
-      userId: string;
-      title: string;
-      message: string;
-      data: { type: string; update_id: string };
-    } | undefined;
+    let updateCreatorNotification:
+      | {
+          userId: string;
+          title: string;
+          message: string;
+          data: { type: string; update_id: string };
+        }
+      | undefined;
 
     const otherParticipantIds: string[] = [];
 
@@ -1250,17 +1252,22 @@ export class UpdateService {
       }
     }
 
-    const participantNotifications = otherParticipantIds.length > 0 ? {
-      userIds: otherParticipantIds,
-      title: 'New Comment',
-      message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
-      data: {
-        type: NotificationTypes.COMMENT,
-        update_id: updateId,
-      },
-    } : undefined;
+    const participantNotifications =
+      otherParticipantIds.length > 0
+        ? {
+            userIds: otherParticipantIds,
+            title: 'New Comment',
+            message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
+            data: {
+              type: NotificationTypes.COMMENT,
+              update_id: updateId,
+            },
+          }
+        : undefined;
 
-    logger.info(`Prepared comment notifications: ${updateCreatorNotification ? 1 : 0} for creator, ${otherParticipantIds.length} for participants on update ${updateId}`);
+    logger.info(
+      `Prepared comment notifications: ${updateCreatorNotification ? 1 : 0} for creator, ${otherParticipantIds.length} for participants on update ${updateId}`,
+    );
 
     return {
       updateCreatorNotification,
