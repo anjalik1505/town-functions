@@ -1,6 +1,6 @@
 // Constants for query operations
 export const MAX_BATCH_SIZE = 10;
-export const MAX_BATCH_OPERATIONS = 500;
+export const MAX_BATCH_OPERATIONS = 400;
 export const SYSTEM_USER = 'system';
 
 // Collection names

@@ -1,12 +1,11 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Collections } from '../models/constants.js';
 import { userSummaryConverter, UserSummaryDoc } from '../models/firestore/user-summary-doc.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createSummaryId } from '../utils/profile-utils.js';
 import { BaseDAO } from './base-dao.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -63,6 +62,7 @@ export class UserSummaryDAO extends BaseDAO<UserSummaryDoc> {
    * @param creatorId The user who created the update
    * @param targetId The user who should see the summary
    * @param data The summary data to update
+   * @param batch Optional WriteBatch for batch operations
    */
   async createOrUpdateSummary(
     creatorId: string,
@@ -73,6 +73,7 @@ export class UserSummaryDAO extends BaseDAO<UserSummaryDoc> {
       lastUpdateId?: string;
       updateCount?: number;
     },
+    batch?: WriteBatch,
   ): Promise<void> {
     const summaryId = createSummaryId(creatorId, targetId);
     const summaryRef = this.db.collection(this.collection).withConverter(this.converter).doc(summaryId);
@@ -112,12 +113,23 @@ export class UserSummaryDAO extends BaseDAO<UserSummaryDoc> {
         updated_at: Timestamp.now(),
         update_count: data.updateCount || 0,
       };
-      await summaryRef.set(newDoc);
-      logger.info(`Created new user summary ${summaryId}`);
+
+      if (batch) {
+        batch.set(summaryRef, newDoc);
+        logger.info(`Batched creation of new user summary ${summaryId}`);
+      } else {
+        await summaryRef.set(newDoc);
+        logger.info(`Created new user summary ${summaryId}`);
+      }
     } else {
       // Update existing document
-      await summaryRef.update(updateData);
-      logger.info(`Updated user summary ${summaryId}`);
+      if (batch) {
+        batch.update(summaryRef, updateData);
+        logger.info(`Batched update of user summary ${summaryId}`);
+      } else {
+        await summaryRef.update(updateData);
+        logger.info(`Updated user summary ${summaryId}`);
+      }
     }
   }
 

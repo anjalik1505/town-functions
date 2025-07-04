@@ -1,4 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { InvitationDAO } from '../dao/invitation-dao.js';
 import { JoinRequestDAO } from '../dao/join-request-dao.js';
@@ -9,9 +11,6 @@ import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-requ
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -273,6 +272,7 @@ export class InvitationService {
     // Create batch for all operations
     const batch = getFirestore().batch();
     const timestamp = Timestamp.now();
+    const oneYearAgo = new Timestamp(timestamp.seconds - 365 * 24 * 60 * 60, timestamp.nanoseconds);
 
     // Get profiles for summaries
     const [requesterProfile, receiverProfile] = await this.profileDAO.fetchMultiple([joinRequest.requester_id, userId]);
@@ -292,7 +292,7 @@ export class InvitationService {
         name: requesterProfile.name,
         avatar: requesterProfile.avatar,
         last_update_emoji: '',
-        last_update_at: timestamp,
+        last_update_at: oneYearAgo,
         created_at: timestamp,
         updated_at: timestamp,
         accepter_id: userId,
@@ -308,7 +308,7 @@ export class InvitationService {
         name: receiverProfile.name,
         avatar: receiverProfile.avatar,
         last_update_emoji: '',
-        last_update_at: timestamp,
+        last_update_at: oneYearAgo,
         created_at: timestamp,
         updated_at: timestamp,
         accepter_id: userId,
@@ -334,7 +334,7 @@ export class InvitationService {
       name: joinRequest.requester_name,
       avatar: joinRequest.requester_avatar,
       last_update_emoji: '',
-      last_update_time: formatTimestamp(timestamp),
+      last_update_time: formatTimestamp(oneYearAgo),
     };
 
     return {

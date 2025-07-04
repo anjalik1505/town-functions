@@ -1,8 +1,14 @@
 import { DocumentReference, FieldValue, WriteBatch } from 'firebase-admin/firestore';
-import { Collections } from '../models/constants.js';
-import { CreatorProfile, GroupProfile, updateConverter, UpdateDoc, UserProfile } from '../models/firestore/index.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import {
+  CreatorProfile,
+  GroupProfile,
+  uf,
+  updateConverter,
+  UpdateDoc,
+  UserProfile,
+} from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
-import { areFriends } from '../utils/friendship-utils.js';
 import {
   createFriendVisibilityIdentifier,
   createFriendVisibilityIdentifiers,
@@ -126,34 +132,6 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
 
     // Check if user is in visible_to array
     if (updateData.visible_to.includes(friendIdentifier)) {
-      return;
-    }
-
-    throw new ForbiddenError("You don't have access to this update");
-  }
-
-  /**
-   * Checks if a user has access to view an update asynchronously (for when friendship check is needed)
-   * @param updateData The update data to check
-   * @param userId The user ID to check access for
-   * @throws ForbiddenError if user doesn't have access
-   */
-  async hasUpdateAccessAsync(updateData: UpdateDoc, userId: string): Promise<void> {
-    // Creator always has access
-    if (updateData.created_by === userId) {
-      return;
-    }
-
-    const friendIdentifier = createFriendVisibilityIdentifier(userId);
-
-    // Check if user is in visible_to array
-    if (updateData.visible_to.includes(friendIdentifier)) {
-      return;
-    }
-
-    // Additional check: are they friends with the creator?
-    const areUsersFriends = await areFriends(updateData.created_by, userId);
-    if (areUsersFriends) {
       return;
     }
 
@@ -303,5 +281,27 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
       reaction_count: FieldValue.increment(-1),
       [`reaction_types.${reactionType}`]: FieldValue.increment(-1),
     });
+  }
+
+  /**
+   * Gets all_village updates for a user with streaming support
+   * @param userId The creator user ID
+   * @returns AsyncIterable of UpdateDoc
+   */
+  async *streamAllVillageUpdatesByUser(userId: string): AsyncIterable<UpdateDoc> {
+    const query = this.db
+      .collection(this.collection)
+      .withConverter(this.converter)
+      .where(uf('created_by'), QueryOperators.EQUALS, userId)
+      .where(uf('all_village'), QueryOperators.EQUALS, true)
+      .orderBy(uf('created_at'), QueryOperators.DESC);
+
+    const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<UpdateDoc>>;
+    for await (const doc of stream) {
+      const data = doc.data();
+      if (data) {
+        yield data;
+      }
+    }
   }
 }

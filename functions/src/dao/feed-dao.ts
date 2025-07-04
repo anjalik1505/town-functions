@@ -1,12 +1,11 @@
 import { Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
 import { FeedDoc, fdf, feedConverter } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { BaseDAO } from './base-dao.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -47,7 +46,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
         .doc(item.userId)
         .collection(this.subcollection!)
         .withConverter(this.converter)
-        .doc();
+        .doc(item.updateId);
 
       const feedData: FeedDoc = {
         update_id: item.updateId,

@@ -1,5 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { Collections, NotificationTypes } from '../models/constants.js';
 import { DeviceDoc } from '../models/firestore/device-doc.js';
@@ -7,9 +9,6 @@ import { JoinRequestDoc } from '../models/firestore/join-request-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -110,7 +109,8 @@ export const onJoinRequestCreated = async (
   event: FirestoreEvent<
     QueryDocumentSnapshot | undefined,
     {
-      id: string;
+      invitationId: string;
+      joinRequestId: string;
     }
   >,
 ): Promise<void> => {
@@ -123,7 +123,7 @@ export const onJoinRequestCreated = async (
     }
 
     const requestData = requestSnapshot.data() as JoinRequestDoc;
-    const requestId = event.params.id;
+    const requestId = event.params.joinRequestId;
 
     const receiverId = requestData.receiver_id;
     if (!receiverId) {

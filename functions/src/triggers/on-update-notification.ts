@@ -1,5 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { generateNotificationMessageFlow } from '../ai/flows.js';
 import { EventName, NotificationEventParams, NotificationsEventParams } from '../models/analytics-events.js';
 import { Collections, NotificationTypes } from '../models/constants.js';
@@ -10,9 +12,6 @@ import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

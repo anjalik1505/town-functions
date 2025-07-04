@@ -1,8 +1,12 @@
-import { getFirestore, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { analyzeImagesFlow, generateCreatorProfileFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams, SummaryEventParams } from '../models/analytics-events.js';
 import { Collections, Documents } from '../models/constants.js';
+import { ProfileDoc, pf, profileConverter } from '../models/firestore/profile-doc.js';
+import { UpdateDoc, uf } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getFriendDoc, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
@@ -14,13 +18,6 @@ import {
   extractNudgingOccurrence,
 } from '../utils/profile-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
-
-// Import typed converters and field selectors
-import { ProfileDoc, profileConverter, pf } from '../models/firestore/profile-doc.js';
-import { UpdateDoc, uf } from '../models/firestore/update-doc.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

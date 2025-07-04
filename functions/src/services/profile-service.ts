@@ -1,4 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { generateQuestionFlow } from '../ai/flows.js';
 import { DeviceDAO } from '../dao/device-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
@@ -38,9 +40,6 @@ import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
 import { calculateAge, formatProfileResponse } from '../utils/profile-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

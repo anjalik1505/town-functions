@@ -1,16 +1,15 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { Collections, NotificationTypes } from '../models/constants.js';
 import { DeviceDoc } from '../models/firestore/device-doc.js';
 import { ReactionDoc } from '../models/firestore/reaction-doc.js';
+import { updateConverter } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
-import { updateConverter } from '../models/firestore/update-doc.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -160,7 +159,8 @@ export const onReactionCreated = async (
   event: FirestoreEvent<
     QueryDocumentSnapshot | undefined,
     {
-      id: string;
+      updateId: string;
+      reactionId: string;
     }
   >,
 ): Promise<void> => {
@@ -173,13 +173,8 @@ export const onReactionCreated = async (
     }
 
     const reactionData = reactionSnapshot.data() as ReactionDoc;
-    const reactorId = event.params.id; // Document ID is now the userId
-    const updateId = reactionSnapshot.ref.parent.parent?.id;
-
-    if (!updateId) {
-      logger.error(`Could not determine parent update ID for reaction by user ${reactorId}`);
-      return;
-    }
+    const reactorId = event.params.reactionId; // Document ID is now the userId
+    const updateId = event.params.updateId;
 
     // Get the reaction types array from the document
     const reactionTypes = reactionData.types || [];

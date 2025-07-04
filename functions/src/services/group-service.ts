@@ -1,4 +1,6 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ChatDAO } from '../dao/chat-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { GroupDAO } from '../dao/group-dao.js';
@@ -19,9 +21,6 @@ import { GroupDoc } from '../models/firestore/group-doc.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

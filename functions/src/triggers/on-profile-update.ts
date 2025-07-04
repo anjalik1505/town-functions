@@ -1,12 +1,6 @@
 import { QueryDocumentSnapshot, WhereFilterOp, getFirestore } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { Collections, QueryOperators } from '../models/constants.js';
-import { commitBatch, commitFinal } from '../utils/batch-utils.js';
-import { upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
-import { getUserInvitationLink } from '../utils/invitation-utils.js';
-import { getLogger } from '../utils/logging-utils.js';
-
-// Import typed converters and field selectors
 import { CommentDoc, cf, commentConverter } from '../models/firestore/comment-doc.js';
 import { FriendDoc, friendConverter } from '../models/firestore/friend-doc.js';
 import { GroupDoc, gf, groupConverter } from '../models/firestore/group-doc.js';
@@ -15,6 +9,10 @@ import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/j
 import { PhoneDoc, phf, phoneConverter } from '../models/firestore/phone-doc.js';
 import { ProfileDoc, pf } from '../models/firestore/profile-doc.js';
 import { CreatorProfile, UpdateDoc, UserProfile, uf, updateConverter } from '../models/firestore/update-doc.js';
+import { commitBatch, commitFinal } from '../utils/batch-utils.js';
+import { upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
+import { getUserInvitationLink } from '../utils/invitation-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 
 const logger = getLogger('on-profile-update');
 

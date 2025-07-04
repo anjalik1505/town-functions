@@ -1,4 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
 import { NudgingOccurrence, NudgingSettings, pf } from '../models/firestore/profile-doc.js';
 import {
@@ -9,9 +11,6 @@ import {
 } from '../models/firestore/time-bucket-doc.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { BaseDAO } from './base-dao.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

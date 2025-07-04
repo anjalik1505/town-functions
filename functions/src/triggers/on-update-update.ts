@@ -1,18 +1,16 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { analyzeImagesFlow } from '../ai/flows.js';
 import { EventName, FriendSummaryEventParams } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
+import { groupConverter, UpdateDoc } from '../models/firestore/index.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getFriendDoc, upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
 import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { processFriendSummary } from '../utils/summary-utils.js';
-import { createFeedItem } from '../utils/update-utils.js';
-import { groupConverter, UpdateDoc } from '../models/firestore/index.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -99,25 +97,6 @@ const processNewlyAddedFriendsAndGroups = async (
       // If not friends, just skip - no error needed
     });
     tasks.push(...friendshipUpdateTasks);
-  }
-
-  // Create feed items for all newly added users
-  for (const userId of allNewUsers) {
-    // Determine how this user can see the update
-    const isDirectFriend = newFriendIds.includes(userId);
-    const userGroups = newGroupIds.filter((groupId) => groupMembersMap.get(groupId)?.has(userId));
-
-    createFeedItem(
-      db,
-      batch,
-      userId,
-      updateId,
-      createdAt,
-      isDirectFriend,
-      isDirectFriend ? creatorId : null,
-      userGroups,
-      creatorId,
-    );
   }
 
   // Run all tasks in parallel

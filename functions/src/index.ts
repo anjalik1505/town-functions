@@ -101,7 +101,7 @@ export const process_friendship_creation = onDocumentCreated(
 // Export the Firestore trigger function for comment creation
 export const process_comment_notification = onDocumentCreated(
   {
-    document: `${Collections.UPDATES}/{id}/${Collections.COMMENTS}/{id}`,
+    document: `${Collections.UPDATES}/{updateId}/${Collections.COMMENTS}/{commentId}`,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onCommentCreated(event),
@@ -110,7 +110,7 @@ export const process_comment_notification = onDocumentCreated(
 // Export the Firestore trigger function for reaction creation
 export const process_reaction_notification = onDocumentCreated(
   {
-    document: `${Collections.UPDATES}/{id}/${Collections.REACTIONS}/{id}`,
+    document: `${Collections.UPDATES}/{updateId}/${Collections.REACTIONS}/{reactionId}`,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onReactionCreated(event),
@@ -119,7 +119,7 @@ export const process_reaction_notification = onDocumentCreated(
 // Export the Firestore trigger function for join request creation
 export const process_join_request_notification = onDocumentCreated(
   {
-    document: `${Collections.INVITATIONS}/{id}/${Collections.JOIN_REQUESTS}/{id}`,
+    document: `${Collections.INVITATIONS}/{invitationId}/${Collections.JOIN_REQUESTS}/{joinRequestId}`,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onJoinRequestCreated(event),
@@ -128,7 +128,7 @@ export const process_join_request_notification = onDocumentCreated(
 // Export the Firestore trigger function for join request update
 export const process_join_request_update_notification = onDocumentUpdated(
   {
-    document: `${Collections.INVITATIONS}/{id}/${Collections.JOIN_REQUESTS}/{id}`,
+    document: `${Collections.INVITATIONS}/{invitationId}/${Collections.JOIN_REQUESTS}/{joinRequestId}`,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onJoinRequestUpdated(event),

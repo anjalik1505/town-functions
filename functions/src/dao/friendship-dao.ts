@@ -1,7 +1,6 @@
 import { Query, Timestamp } from 'firebase-admin/firestore';
 import { Collections, QueryOperators } from '../models/constants.js';
 import { FriendDoc, ff, friendConverter } from '../models/firestore/friend-doc.js';
-import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { BaseDAO } from './base-dao.js';
 
@@ -149,59 +148,6 @@ export class FriendshipDAO extends BaseDAO<FriendDoc> {
       friendCount,
       hasReachedLimit: friendCount >= FRIEND_LIMIT,
     };
-  }
-
-  /**
-   * Synchronizes friendship data between two users
-   * This includes copying updates to feeds and generating friend summaries
-   */
-  async syncFriendshipData(
-    userId1: string,
-    userId2: string,
-  ): Promise<{
-    user1Data?: { emoji?: string; updatedAt?: Timestamp };
-    user2Data?: { emoji?: string; updatedAt?: Timestamp };
-  }> {
-    try {
-      // Run synchronization in both directions in parallel
-      const [user1Data, user2Data] = await Promise.all([
-        syncFriendshipDataForUser(userId2, userId1), // userId2's updates go to userId1's feed
-        syncFriendshipDataForUser(userId1, userId2), // userId1's updates go to userId2's feed
-      ]);
-
-      // Update friend documents with latest update info if available
-      const batch = this.db.batch();
-
-      if (user1Data) {
-        await this.upsertFriend(
-          userId1,
-          userId2,
-          {
-            last_update_emoji: user1Data.emoji || '',
-            last_update_at: user1Data.updatedAt || Timestamp.now(),
-          },
-          batch,
-        );
-      }
-
-      if (user2Data) {
-        await this.upsertFriend(
-          userId2,
-          userId1,
-          {
-            last_update_emoji: user2Data.emoji || '',
-            last_update_at: user2Data.updatedAt || Timestamp.now(),
-          },
-          batch,
-        );
-      }
-
-      await batch.commit();
-
-      return { user1Data, user2Data };
-    } catch (error) {
-      throw error;
-    }
   }
 
   /**

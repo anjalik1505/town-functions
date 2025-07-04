@@ -1,5 +1,7 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { Collections, NotificationTypes } from '../models/constants.js';
 import { DeviceDoc } from '../models/firestore/device-doc.js';
@@ -7,10 +9,6 @@ import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-requ
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
-
-import { ParamsOf } from 'firebase-functions';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -120,7 +118,10 @@ const sendJoinRequestUpdateNotification = async (
  * @param event - The Firestore event object containing the document data
  */
 export const onJoinRequestUpdated = async (
-  event: FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, ParamsOf<string>>,
+  event: FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, {
+    invitationId: string;
+    joinRequestId: string;
+  }>,
 ): Promise<void> => {
   try {
     if (!event) {
@@ -136,7 +137,7 @@ export const onJoinRequestUpdated = async (
     }
 
     const requestData = requestSnapshot.after.data() as JoinRequestDoc;
-    const requestId = event.params.id;
+    const requestId = event.params.joinRequestId;
     if (!requestId) {
       logger.error(`No request ID found for request ${requestId}`);
       return;

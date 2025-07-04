@@ -1,4 +1,6 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { generateDailyNotificationFlow } from '../ai/flows.js';
 import { DailyNotificationsEventParams, EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { Collections, NotificationTypes, QueryOperators, SYSTEM_USER } from '../models/constants.js';
@@ -7,17 +9,14 @@ import {
   DaysOfWeek,
   NotificationSettings,
   NudgingOccurrence,
-  ProfileDoc,
   profileConverter,
+  ProfileDoc,
 } from '../models/firestore/profile-doc.js';
-import { updateConverter, uf } from '../models/firestore/update-doc.js';
+import { uf, updateConverter } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
 import { calculateAge } from '../utils/profile-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

@@ -1,52 +1,17 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { generateFriendProfileFlow } from '../ai/flows.js';
 import { FriendSummaryEventParams } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
+import { ProfileData, SummaryContext, SummaryResult } from '../models/data-models.js';
 import { profileConverter, UpdateDoc } from '../models/firestore/index.js';
 import { UserSummaryDoc } from '../models/firestore/user-summary-doc.js';
 import { getLogger } from './logging-utils.js';
 import { calculateAge, createSummaryId } from './profile-utils.js';
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
-
-/**
- * Interface for profile data
- */
-export interface ProfileData {
-  name: string;
-  gender: string;
-  location: string;
-  age: string;
-}
-
-/**
- * Interface for summary context data
- */
-export interface SummaryContext {
-  summaryId: string;
-  summaryRef: FirebaseFirestore.DocumentReference;
-  existingSummary: string;
-  existingSuggestions: string;
-  updateCount: number;
-  isNewSummary: boolean;
-  existingCreatedAt?: Timestamp;
-  creatorProfile: ProfileData;
-  friendProfile: ProfileData;
-}
-
-/**
- * Interface for summary result data
- */
-export interface SummaryResult {
-  summary: string;
-  suggestions: string;
-  updateId: string;
-  analytics: FriendSummaryEventParams;
-}
 
 /**
  * Get the context data needed for summary generation

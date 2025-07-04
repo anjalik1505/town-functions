@@ -1,28 +1,27 @@
 import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { DeleteProfileEventParams, EventName } from '../models/analytics-events.js';
 import { Collections, MAX_BATCH_OPERATIONS, QueryOperators } from '../models/constants.js';
 import {
   fdf,
-  GroupDoc,
-  groupConverter,
   gf,
+  groupConverter,
+  GroupDoc,
   ProfileDoc,
-  updateConverter,
   uf,
+  updateConverter,
   userSummaryConverter,
   usf,
 } from '../models/firestore/index.js';
 import { trackApiEvent } from '../utils/analytics-utils.js';
+import { commitBatch } from '../utils/batch-utils.js';
 import { streamAndProcessCollection } from '../utils/deletion-utils.js';
+import { deleteInvitation } from '../utils/invitation-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateTimeBucket } from '../utils/timezone-utils.js';
-
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { commitBatch } from '../utils/batch-utils.js';
-import { deleteInvitation } from '../utils/invitation-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

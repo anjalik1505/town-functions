@@ -2,7 +2,6 @@ import { getFirestore, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { z } from 'zod';
 import { CommentDAO } from '../dao/comment-dao.js';
 import { FeedDAO } from '../dao/feed-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
@@ -11,6 +10,7 @@ import { ProfileDAO } from '../dao/profile-dao.js';
 import { ReactionDAO } from '../dao/reaction-dao.js';
 import { UpdateDAO } from '../dao/update-dao.js';
 import { ApiResponse, EventName, FeedViewEventParams, UpdateViewEventParams } from '../models/analytics-events.js';
+import { NotificationTypes } from '../models/constants.js';
 import {
   Comment,
   CommentsResponse,
@@ -20,6 +20,7 @@ import {
   FeedResponse,
   PaginationPayload,
   ReactionGroup,
+  ShareUpdatePayload,
   Update,
   UpdateCommentPayload,
   UpdatesResponse,
@@ -33,13 +34,10 @@ import {
   UpdateDoc,
   UserProfile,
 } from '../models/firestore/index.js';
-import { shareUpdateSchema } from '../models/validation-schemas.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
-
-// Define the payload types from validation schemas
-type ShareUpdatePayload = z.infer<typeof shareUpdateSchema>;
+import { createFriendVisibilityIdentifier } from '../utils/visibility-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -87,10 +85,10 @@ export class UpdateService {
 
     logger.info(
       `Update details - content length: ${content.length}, ` +
-        `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-        `all_village: ${allVillage}, ` +
-        `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
-        `${images.length} images`,
+      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+      `all_village: ${allVillage}, ` +
+      `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
+      `${images.length} images`,
     );
 
     // Get creator's profile for denormalization
@@ -395,7 +393,7 @@ export class UpdateService {
     }
 
     // Check access
-    await this.updateDAO.hasUpdateAccessAsync(result.data, userId);
+    await this.checkUpdateAccess(result.data, userId);
 
     // Get creator's profile for denormalization
     const creatorProfile = await this.profileDAO.findById(userId);
@@ -552,7 +550,7 @@ export class UpdateService {
     }
 
     // Check access
-    await this.updateDAO.hasUpdateAccessAsync(result.data, userId);
+    await this.checkUpdateAccess(result.data, userId);
 
     // Create batch for atomic operation
     const batch = getFirestore().batch();
@@ -602,7 +600,7 @@ export class UpdateService {
     }
 
     // Check access
-    await this.updateDAO.hasUpdateAccessAsync(result.data, userId);
+    await this.checkUpdateAccess(result.data, userId);
 
     // Create batch for atomic operation
     const batch = getFirestore().batch();
@@ -660,7 +658,7 @@ export class UpdateService {
     }
 
     // Check access
-    await this.updateDAO.hasUpdateAccessAsync(result.data, userId);
+    await this.checkUpdateAccess(result.data, userId);
 
     const { comments, nextCursor } = await this.commentDAO.getComments(result.ref, limit, afterCursor);
 
@@ -1150,5 +1148,150 @@ export class UpdateService {
     });
 
     return updates.filter((update): update is EnrichedUpdate => update !== null);
+  }
+
+  /**
+   * Prepares notification data for comment notifications
+   * @param updateId The ID of the update that was commented on
+   * @param commentData The comment document data
+   * @param commenterId The ID of the user who created the comment
+   * @returns Object containing notification data for different recipient types
+   */
+  async prepareCommentNotifications(
+    updateId: string,
+    commentData: CommentDoc,
+    commenterId: string,
+  ): Promise<{
+    updateCreatorNotification?: {
+      userId: string;
+      title: string;
+      message: string;
+      data: { type: string; update_id: string };
+    };
+    participantNotifications?: {
+      userIds: string[];
+      title: string;
+      message: string;
+      data: { type: string; update_id: string };
+    };
+  }> {
+    logger.info(`Preparing comment notifications for update ${updateId} by commenter ${commenterId}`);
+
+    // Fetch the update using UpdateDAO
+    const update = await this.updateDAO.getById(updateId);
+
+    if (!update || !update.data) {
+      logger.warn(`Update not found for ID ${updateId}`);
+      return {};
+    }
+
+    const updateCreatorId = update.data.created_by;
+
+    // Build a set of all participants: update creator + every previous commenter
+    const participantIds = new Set<string>();
+    if (updateCreatorId) {
+      participantIds.add(updateCreatorId);
+    }
+
+    // Get all comments using pagination to find all participants
+    try {
+      let cursor: string | null = null;
+
+      do {
+        const { comments, nextCursor } = await this.commentDAO.getComments(update.ref, 250, cursor || undefined);
+
+        for (const comment of comments) {
+          const createdBy = comment.created_by;
+          if (createdBy) {
+            participantIds.add(createdBy);
+          }
+        }
+
+        cursor = nextCursor;
+      } while (cursor);
+    } catch (error) {
+      logger.error(`Failed to fetch comments for update ${updateId}`, error);
+    }
+
+    // Exclude the author of the new comment
+    participantIds.delete(commenterId);
+
+    // Get commenter profile from denormalized data
+    const commenterProfile = commentData.commenter_profile;
+    const commenterName = commenterProfile.name || commenterProfile.username || 'Friend';
+
+    // Prepare comment snippet
+    const commentContent = commentData.content || '';
+    const truncatedComment = commentContent.length > 50 ? `${commentContent.substring(0, 47)}...` : commentContent;
+
+    // Prepare notification data
+    let updateCreatorNotification: {
+      userId: string;
+      title: string;
+      message: string;
+      data: { type: string; update_id: string };
+    } | undefined;
+
+    const otherParticipantIds: string[] = [];
+
+    for (const targetUserId of participantIds) {
+      if (targetUserId === updateCreatorId) {
+        updateCreatorNotification = {
+          userId: targetUserId,
+          title: 'New Comment',
+          message: `${commenterName} commented on your post: "${truncatedComment}"`,
+          data: {
+            type: NotificationTypes.COMMENT,
+            update_id: updateId,
+          },
+        };
+      } else {
+        otherParticipantIds.push(targetUserId);
+      }
+    }
+
+    const participantNotifications = otherParticipantIds.length > 0 ? {
+      userIds: otherParticipantIds,
+      title: 'New Comment',
+      message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
+      data: {
+        type: NotificationTypes.COMMENT,
+        update_id: updateId,
+      },
+    } : undefined;
+
+    logger.info(`Prepared comment notifications: ${updateCreatorNotification ? 1 : 0} for creator, ${otherParticipantIds.length} for participants on update ${updateId}`);
+
+    return {
+      updateCreatorNotification,
+      participantNotifications,
+    };
+  }
+
+  /**
+   * Checks if a user has access to view an update
+   * @param updateData The update data to check
+   * @param userId The user ID to check access for
+   * @throws ForbiddenError if user doesn't have access
+   */
+  private async checkUpdateAccess(updateData: UpdateDoc, userId: string): Promise<void> {
+    // Creator always has access
+    if (updateData.created_by === userId) {
+      return;
+    }
+
+    // Check if user is in visible_to array
+    const friendIdentifier = createFriendVisibilityIdentifier(userId);
+    if (updateData.visible_to.includes(friendIdentifier)) {
+      return;
+    }
+
+    // Check friendship using FriendshipDAO
+    const areFriends = await this.friendshipDAO.areFriends(updateData.created_by, userId);
+    if (areFriends) {
+      return;
+    }
+
+    throw new ForbiddenError("You don't have access to this update");
   }
 }
