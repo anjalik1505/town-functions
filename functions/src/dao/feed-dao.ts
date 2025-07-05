@@ -224,4 +224,43 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
       nextCursor,
     };
   }
+
+  /**
+   * Deletes all feed entries for a user
+   * @param userId The user whose feed to delete
+   */
+  async delete(userId: string) {
+    const userFeedRef = this.db.collection(Collections.USER_FEEDS).doc(userId);
+    await this.db.recursiveDelete(userFeedRef);
+  }
+
+  /**
+   * Streams all feed entries where the user appears as friend_id (across all users' feeds)
+   * Uses collection group query to find feed items where this user is referenced
+   * @param userId The user ID to find in feed items
+   * @returns AsyncIterable of feed document references for deletion
+   */
+  async *streamFeedEntriesByFriendId(userId: string): AsyncIterable<{ ref: FirebaseFirestore.DocumentReference }> {
+    logger.info(`Streaming feed entries where user ${userId} appears as friend_id`);
+
+    try {
+      // Use collection group query to search across all user feeds
+      const query = this.db
+        .collectionGroup(this.subcollection!)
+        .withConverter(this.converter)
+        .where(fdf('friend_id'), QueryOperators.EQUALS, userId);
+
+      // Stream the query results
+      const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<FeedDoc>>;
+
+      for await (const docSnapshot of stream) {
+        yield {
+          ref: docSnapshot.ref,
+        };
+      }
+    } catch (error) {
+      logger.error(`Error streaming feed entries by friend_id ${userId}:`, error);
+      throw error;
+    }
+  }
 }

@@ -224,10 +224,12 @@ export class FriendshipDAO extends BaseDAO<FriendDoc> {
     // If batch is provided, add operations to it
     if (batch) {
       this.delete(userId, friendId, batch);
+      this.delete(friendId, userId, batch);
     } else {
       // Create and commit a new batch
       const newBatch = this.db.batch();
       this.delete(userId, friendId, newBatch);
+      this.delete(friendId, userId, newBatch);
       await newBatch.commit();
     }
   }
@@ -238,10 +240,8 @@ export class FriendshipDAO extends BaseDAO<FriendDoc> {
    */
   delete(userId: string, friendId: string, batch: FirebaseFirestore.WriteBatch): void {
     // Delete friend documents
-    const userFriendRef = this.getFriendRef(userId, friendId);
-    const friendUserRef = this.getFriendRef(friendId, userId);
+    const ref = this.getFriendRef(userId, friendId);
 
-    batch.delete(userFriendRef);
-    batch.delete(friendUserRef);
+    batch.delete(ref);
   }
 }

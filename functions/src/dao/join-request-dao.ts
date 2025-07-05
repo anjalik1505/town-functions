@@ -222,6 +222,25 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
   }
 
   /**
+   * Deletes all join requests for an invitation using a batch
+   * @param invitationId The invitation ID
+   * @param batch The batch to add the delete operations to
+   * @returns The number of join requests deleted
+   */
+  async deleteAll(invitationId: string, batch: FirebaseFirestore.WriteBatch): Promise<number> {
+    let deletedCount = 0;
+
+    // Stream all join requests for this invitation and add them to the batch
+    for await (const { requestRef } of this.streamJoinRequestsByInvitation(invitationId)) {
+      batch.delete(requestRef);
+      deletedCount++;
+    }
+
+    logger.info(`Added ${deletedCount} join request deletions to batch for invitation ${invitationId}`);
+    return deletedCount;
+  }
+
+  /**
    * Checks if a join request exists for a specific user and invitation
    * Optionally filters by status
    * @param invitationId The invitation ID
@@ -263,38 +282,6 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
       request_id: doc.id,
       invitation_id: invitationId,
     } as JoinRequestDoc;
-  }
-
-  /**
-   * Deletes all join requests for a given invitation
-   * @param invitationId The invitation ID
-   * @param batch Optional batch to include this operation in
-   * @returns The number of deleted join requests
-   */
-  async deleteAll(invitationId: string, batch?: FirebaseFirestore.WriteBatch): Promise<number> {
-    const joinRequestsSnapshot = await this.db
-      .collection(this.collection)
-      .doc(invitationId)
-      .collection(this.subcollection!)
-      .withConverter(this.converter)
-      .get();
-
-    if (joinRequestsSnapshot.empty) {
-      return 0;
-    }
-
-    const shouldCommitBatch = !batch;
-    const workingBatch = batch || this.db.batch();
-
-    joinRequestsSnapshot.docs.forEach((doc) => {
-      workingBatch.delete(doc.ref);
-    });
-
-    if (shouldCommitBatch) {
-      await workingBatch.commit();
-    }
-
-    return joinRequestsSnapshot.size;
   }
 
   /**

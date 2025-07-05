@@ -59,14 +59,17 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
    * Gets a profile by ID including insights from subcollection
    */
   async get(userId: string): Promise<(ProfileDoc & { insights?: InsightsDoc }) | null> {
-    const profileDoc = await this.get(userId);
-    if (!profileDoc) {
+    const profileRef = this.getRef(userId);
+    const profileSnapshot = await profileRef.get();
+    if (!profileSnapshot.exists) {
       return null;
     }
 
+    const profileData = profileSnapshot.data() as ProfileDoc;
+
     // Get insights from subcollection
     try {
-      const insightsRef = this.getRef(userId)
+      const insightsRef = profileRef
         .collection(this.subcollection!)
         .withConverter(this.subconverter!)
         .doc(Documents.DEFAULT_INSIGHTS);
@@ -78,12 +81,12 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
       }
 
       return {
-        ...profileDoc,
+        ...profileData,
         insights,
       };
     } catch {
       // If insights retrieval fails, return profile without insights
-      return profileDoc;
+      return profileData;
     }
   }
 

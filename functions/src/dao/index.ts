@@ -12,6 +12,7 @@ export { NudgeDAO } from './nudge-dao.js';
 export { PhoneDAO } from './phone-dao.js';
 export { ProfileDAO } from './profile-dao.js';
 export { ReactionDAO } from './reaction-dao.js';
+export { StorageDAO } from './storage-dao.js';
 export { TimeBucketDAO } from './time-bucket-dao.js';
 export { UpdateDAO } from './update-dao.js';
 export { UserSummaryDAO } from './user-summary-dao.js';

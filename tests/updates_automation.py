@@ -148,6 +148,7 @@ def run_updates_tests():
             len(created_update["shared_with_groups"]) == 0
         ), "all_village update should have empty shared_with_groups"
         logger.info("✓ all_village update has empty shared_with arrays")
+        time.sleep(1)
 
     # Wait for create update triggers to process user 1's updates
     logger.info(
@@ -238,6 +239,7 @@ def run_updates_tests():
             len(created_update["shared_with_groups"]) == 0
         ), "all_village update should have empty shared_with_groups"
         logger.info("✓ User 2 all_village update has empty shared_with arrays")
+        time.sleep(1)
 
     # Wait for create update triggers to process user 2's updates
     logger.info(
@@ -293,9 +295,9 @@ def run_updates_tests():
         ),
         None,
     )
-    assert actual_emoji == last_emoji_user2, (
-        f"Friend emoji not updated after friendship creation; was: {actual_emoji}, expected: {last_emoji_user2}"
-    )
+    assert (
+        actual_emoji == last_emoji_user2
+    ), f"Friend emoji not updated after friendship creation; was: {actual_emoji}, expected: {last_emoji_user2}"
     logger.info("Users are now friends")
 
     # Step 6: Create updates for the second user that are shared with the first user
@@ -370,6 +372,7 @@ def run_updates_tests():
             "avatar" in created_update["shared_with_friends"][0]
         ), "Shared friend missing avatar"
         logger.info("✓ Created update contains correct shared_with_friends information")
+        time.sleep(1)
 
     # Wait for create update triggers to process shared updates
     logger.info(

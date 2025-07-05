@@ -61,7 +61,7 @@ export const onProfileDeleted = async (
         deviceService.deleteDevice(userId),
         profileService.deleteUserSummaries(userId),
         profileService.removeFromTimeBuckets(userId),
-        profileService.deleteStorageAssets(userId, profileData),
+        profileService.deleteStorageAssets(userId),
       ]);
 
     // Collect analytics data

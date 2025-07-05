@@ -1,4 +1,4 @@
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
 import { Collections, QueryOperators } from '../models/constants.js';
 import { BaseGroup } from '../models/data-models.js';
 import { GroupDoc, gf, groupConverter } from '../models/firestore/index.js';
@@ -114,6 +114,27 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
       throw new Error('Group not found after update');
     }
     return updatedDoc.data()!;
+  }
+
+  /**
+   * Removes a member from a group
+   * @param groupId The group ID to remove the member from
+   * @param userId The user ID to remove from the group
+   * @param batch Optional batch to add operations to
+   */
+  async removeMember(groupId: string, userId: string, batch?: WriteBatch): Promise<void> {
+    const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc(groupId);
+    if (batch) {
+      batch.update(groupRef, {
+        members: FieldValue.arrayRemove(userId),
+        [`member_profiles.${userId}`]: FieldValue.delete(),
+      });
+    } else {
+      await groupRef.update({
+        members: FieldValue.arrayRemove(userId),
+        [`member_profiles.${userId}`]: FieldValue.delete(),
+      });
+    }
   }
 
   /**

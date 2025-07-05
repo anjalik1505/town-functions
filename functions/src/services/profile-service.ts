@@ -1,5 +1,4 @@
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateCreatorProfileFlow, generateQuestionFlow } from '../ai/flows.js';
@@ -8,6 +7,7 @@ import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { NudgeDAO } from '../dao/nudge-dao.js';
 import { PhoneDAO } from '../dao/phone-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
+import { StorageDAO } from '../dao/storage-dao.js';
 import { TimeBucketDAO } from '../dao/time-bucket-dao.js';
 import { UserSummaryDAO } from '../dao/user-summary-dao.js';
 import { ApiResponse, EventName, SummaryEventParams } from '../models/analytics-events.js';
@@ -40,6 +40,7 @@ import {
   Tone,
 } from '../models/firestore/profile-doc.js';
 import { UpdateDoc } from '../models/firestore/update-doc.js';
+import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { sendNotification } from '../utils/notification-utils.js';
@@ -69,6 +70,7 @@ export class ProfileService {
   private nudgeDAO: NudgeDAO;
   private userSummaryDAO: UserSummaryDAO;
   private deviceDAO: DeviceDAO;
+  private storageDAO: StorageDAO;
   private db: FirebaseFirestore.Firestore;
 
   constructor() {
@@ -79,6 +81,7 @@ export class ProfileService {
     this.nudgeDAO = new NudgeDAO();
     this.userSummaryDAO = new UserSummaryDAO();
     this.deviceDAO = new DeviceDAO();
+    this.storageDAO = new StorageDAO();
     this.db = getFirestore();
   }
 
@@ -375,46 +378,34 @@ export class ProfileService {
     logger.info(`Deleting user summaries for user ${userId}`);
 
     let totalDeleted = 0;
-    let currentBatch = this.db.batch();
-    let batchOperations = 0;
-    const MAX_BATCH_OPERATIONS = 500;
+    let batch = this.db.batch();
+    let batchCount = 0;
 
     try {
       // Delete summaries where user is creator
       for await (const { ref } of this.userSummaryDAO.streamSummariesByCreator(userId)) {
-        currentBatch.delete(ref);
-        batchOperations++;
+        batch.delete(ref);
+        batchCount++;
         totalDeleted++;
 
-        // Commit batch when reaching limit
-        if (batchOperations >= MAX_BATCH_OPERATIONS) {
-          await currentBatch.commit();
-          logger.info(`Committed batch of ${batchOperations} user summary deletions (creator) for user ${userId}`);
-          currentBatch = this.db.batch();
-          batchOperations = 0;
-        }
+        const result = await commitBatch(this.db, batch, batchCount);
+        batch = result.batch;
+        batchCount = result.batchCount;
       }
 
       // Delete summaries where user is target
       for await (const { ref } of this.userSummaryDAO.streamSummariesByTarget(userId)) {
-        currentBatch.delete(ref);
-        batchOperations++;
+        batch.delete(ref);
+        batchCount++;
         totalDeleted++;
 
-        // Commit batch when reaching limit
-        if (batchOperations >= MAX_BATCH_OPERATIONS) {
-          await currentBatch.commit();
-          logger.info(`Committed batch of ${batchOperations} user summary deletions (target) for user ${userId}`);
-          currentBatch = this.db.batch();
-          batchOperations = 0;
-        }
+        const result = await commitBatch(this.db, batch, batchCount);
+        batch = result.batch;
+        batchCount = result.batchCount;
       }
 
       // Commit remaining operations
-      if (batchOperations > 0) {
-        await currentBatch.commit();
-        logger.info(`Committed final batch of ${batchOperations} user summary deletions for user ${userId}`);
-      }
+      await commitFinal(batch, batchCount);
 
       logger.info(`Deleted ${totalDeleted} user summaries for user ${userId}`);
       return totalDeleted;
@@ -443,68 +434,13 @@ export class ProfileService {
   }
 
   /**
-   * Deletes user's avatar from Firebase Storage if it exists
-   * Handles Google avatars (skips deletion) and Firebase Storage URLs (gs:// and HTTPS)
-   * @param userId The user ID whose avatar to delete
-   * @param profileData The user's profile data containing avatar URL
+   * Deletes user's profile images from Firebase Storage
+   * @param userId The user ID whose profile images should be deleted
    * @returns Boolean indicating success/failure
    */
-  async deleteStorageAssets(userId: string, profileData: ProfileDoc): Promise<boolean> {
-    logger.info(`Checking for avatar to delete for user ${userId}`);
-
-    const avatarUrl = profileData.avatar;
-    if (!avatarUrl) {
-      logger.info(`User ${userId} has no avatar, skipping avatar deletion`);
-      return true;
-    }
-
-    try {
-      if (avatarUrl.includes('googleusercontent.com')) {
-        logger.info(`Avatar for user ${userId} is from Google account, skipping deletion`);
-        return true;
-      }
-
-      if (!avatarUrl.includes('firebasestorage.googleapis.com') && !avatarUrl.startsWith('gs://')) {
-        logger.info(`Avatar URL for user ${userId} is not from Firebase Storage, skipping deletion`);
-        return true;
-      }
-
-      const storage = getStorage();
-
-      try {
-        if (avatarUrl.startsWith('gs://')) {
-          const gsPath = avatarUrl.substring(5);
-          const slashIndex = gsPath.indexOf('/');
-          if (slashIndex === -1) {
-            throw new Error(`Invalid gs:// URL format: ${avatarUrl}`);
-          }
-
-          const bucketName = gsPath.substring(0, slashIndex);
-          const filePath = gsPath.substring(slashIndex + 1);
-
-          await storage.bucket(bucketName).file(filePath).delete();
-        } else {
-          const match = avatarUrl.match(/firebasestorage\.googleapis\.com\/v0\/b\/([^\/]+)\/o\/([^?]+)/);
-          if (!match || match.length < 3) {
-            throw new Error(`Could not parse Firebase Storage URL: ${avatarUrl}`);
-          }
-
-          const bucketName = match[1];
-          const filePath = decodeURIComponent(match[2] || '');
-
-          await storage.bucket(bucketName).file(filePath).delete();
-        }
-
-        logger.info(`Deleted avatar for user ${userId}`);
-        return true;
-      } catch (storageError) {
-        logger.error(`Error deleting avatar file for user ${userId}: ${storageError}`);
-        return false;
-      }
-    } catch (error) {
-      logger.error(`Error deleting avatar for user ${userId}: ${error}`);
-      return false;
-    }
+  async deleteStorageAssets(userId: string): Promise<boolean> {
+    logger.info(`Deleting storage assets for user ${userId}`);
+    return await this.storageDAO.deleteProfile(userId);
   }
 
   /**

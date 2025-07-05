@@ -49,77 +49,6 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
   }
 
   /**
-   * Adds a user to time buckets based on their nudging settings
-   * @param userId The user to add to buckets
-   * @param nudgingSettings The user's nudging settings
-   * @param timezone The user's timezone
-   * @param batch Optional batch to add operations to (won't be committed if provided)
-   */
-  async add(
-    userId: string,
-    nudgingSettings: NudgingSettings,
-    timezone: string,
-    batch?: FirebaseFirestore.WriteBatch,
-  ): Promise<void> {
-    if (!nudgingSettings || nudgingSettings.occurrence === NudgingOccurrence.NEVER) {
-      logger.info(`User ${userId} has nudging disabled, skipping bucket assignment`);
-      return;
-    }
-
-    const { times_of_day, days_of_week } = nudgingSettings;
-    if (!times_of_day || !days_of_week) {
-      logger.warn(`User ${userId} has incomplete nudging settings`);
-      return;
-    }
-
-    const batchToUse = batch || this.db.batch();
-    const currentTime = Timestamp.now();
-
-    for (const time of times_of_day) {
-      for (const day of days_of_week) {
-        const bucketIdentifier = `${day}_${time}`;
-        const bucketRef = this.db.collection(this.collection).withConverter(this.converter).doc(bucketIdentifier);
-
-        // Check if the bucket document exists
-        const bucketDoc = await bucketRef.get();
-
-        if (!bucketDoc.exists) {
-          // Create the main bucket document if it doesn't exist
-          const bucketData: TimeBucketDoc = {
-            bucket_hour: bucketIdentifier,
-            updated_at: currentTime,
-          };
-          batchToUse.set(bucketRef, bucketData);
-        } else {
-          // Update the timestamp on the main bucket document
-          batchToUse.update(bucketRef, {
-            updated_at: currentTime,
-          });
-        }
-
-        // Add user to the bucket's users subcollection
-        const userBucketRef = bucketRef.collection(this.subcollection!).withConverter(this.subconverter!).doc(userId);
-
-        const userBucketData: TimeBucketUserDoc = {
-          user_id: userId,
-          timezone: timezone || '',
-          nudging_occurrence: nudgingSettings.occurrence,
-          created_at: currentTime,
-          last_update_at: currentTime,
-        };
-        batchToUse.set(userBucketRef, userBucketData);
-
-        logger.info(`Adding user ${userId} to time bucket ${bucketIdentifier}`);
-      }
-    }
-
-    // Only commit if we created our own batch
-    if (!batch) {
-      await batchToUse.commit();
-    }
-  }
-
-  /**
    * Adds a user to time buckets with a specific last_update_at timestamp
    * @param userId The user to add to buckets
    * @param nudgingSettings The user's nudging settings
@@ -127,7 +56,7 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
    * @param lastUpdateAt The last_update_at timestamp to preserve
    * @param batch Optional batch to add operations to (won't be committed if provided)
    */
-  async addWithLastUpdateAt(
+  async add(
     userId: string,
     nudgingSettings: NudgingSettings,
     timezone: string,
@@ -229,7 +158,7 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
     await this.remove(userId, batch);
 
     // Add to new buckets if nudging is enabled, preserving last_update_at
-    await this.addWithLastUpdateAt(userId, nudgingSettings, timezone, existingLastUpdateAt, batch);
+    await this.add(userId, nudgingSettings, timezone, existingLastUpdateAt, batch);
   }
 
   /**

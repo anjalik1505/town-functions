@@ -482,6 +482,21 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
   }
 
   /**
+   * Removes a user from the visible_to array of an update
+   * @param userId The user ID to remove from visible_to
+   * @param updateId The update ID to modify
+   * @param batch The batch to add the operation to
+   */
+  removeFromVisibleTo(userId: string, updateId: string, batch: WriteBatch): void {
+    const friendIdentifier = createFriendVisibilityIdentifier(userId);
+    const docRef = this.db.collection(this.collection).withConverter(this.converter).doc(updateId);
+
+    batch.update(docRef, {
+      visible_to: FieldValue.arrayRemove(friendIdentifier),
+    });
+  }
+
+  /**
    * Updates creator profile denormalization across all updates by a specific user
    * Uses streaming to handle large datasets efficiently with batch operations
    * @param userId The user ID whose updates need profile updates

@@ -52,4 +52,22 @@ export class DeviceDAO extends BaseDAO<DeviceDoc> {
 
     return doc.exists;
   }
+
+  /**
+   * Deletes the device document for a user if it exists.
+   * Used for internal cleanup operations.
+   *
+   * @param userId - The user ID
+   * @returns Count of devices deleted (0 or 1)
+   */
+  async delete(userId: string): Promise<number> {
+    const ref = this.db.collection(this.collection).withConverter(this.converter).doc(userId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return 0;
+    }
+
+    await ref.delete();
+    return 1;
+  }
 }

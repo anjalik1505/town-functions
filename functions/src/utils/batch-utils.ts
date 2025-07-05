@@ -21,11 +21,7 @@ export const commitBatch = async (
   return { batch, batchCount };
 };
 
-export const commitFinal = async (
-  db: FirebaseFirestore.Firestore,
-  batch: FirebaseFirestore.WriteBatch,
-  batchCount: number,
-): Promise<void> => {
+export const commitFinal = async (batch: FirebaseFirestore.WriteBatch, batchCount: number): Promise<void> => {
   if (batchCount > 0) {
     await batch.commit();
     logger.info(`Committed final batch with ${batchCount} operations`);

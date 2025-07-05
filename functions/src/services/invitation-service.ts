@@ -10,6 +10,7 @@ import { NotificationTypes } from '../models/constants.js';
 import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/data-models.js';
 import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-request-doc.js';
 import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -26,12 +27,14 @@ export class InvitationService {
   private joinRequestDAO: JoinRequestDAO;
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
+  private db: FirebaseFirestore.Firestore;
 
   constructor() {
     this.invitationDAO = new InvitationDAO();
     this.joinRequestDAO = new JoinRequestDAO();
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
+    this.db = getFirestore();
   }
 
   /**
@@ -87,23 +90,25 @@ export class InvitationService {
     }
 
     // Find existing invitation
-    const existing = await this.invitationDAO.get(userId);
+    const existing = await this.invitationDAO.getByUser(userId);
     let joinRequestsDeleted = 0;
 
     if (existing) {
-      // Create batch for atomic deletion
-      const batch = getFirestore().batch();
+      // Paginate through join requests to count how many will be deleted
+      let nextCursor: string | null | undefined = undefined;
+      do {
+        const { requests, nextCursor: cursor } = await this.joinRequestDAO.getByInvitation(existing.id, {
+          limit: 500,
+          afterCursor: nextCursor ?? undefined,
+        });
+        joinRequestsDeleted += requests.length;
+        nextCursor = cursor;
+      } while (nextCursor);
 
-      // Delete all join requests for this invitation
-      joinRequestsDeleted = await this.joinRequestDAO.deleteAll(existing.id, batch);
+      // Delete the invitation (recursive delete also removes join_requests subcollection)
+      await this.invitationDAO.delete(existing.id);
 
-      // Delete the invitation
-      await this.invitationDAO.delete(existing.id, batch);
-
-      // Commit the batch
-      await batch.commit();
-
-      logger.info(`Deleted ${joinRequestsDeleted} join requests and invitation ${existing.id}`);
+      logger.info(`Deleted invitation ${existing.id} and ${joinRequestsDeleted} associated join request(s)`);
     }
 
     // Create new invitation
@@ -145,12 +150,12 @@ export class InvitationService {
     logger.info(`User ${userId} requesting to join via invitation ${invitationId}`);
 
     // Get invitation details
-    const invitation = await this.invitationDAO.get(invitationId);
+    const invitation = await this.invitationDAO.getByInvitationId(invitationId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
 
-    const receiverId = invitation.data.sender_id;
+    const receiverId = invitation.sender_id;
 
     // Validate not self-invitation
     if (userId === receiverId) {
@@ -234,7 +239,7 @@ export class InvitationService {
     logger.info(`User ${userId} accepting join request ${requestId}`);
 
     // Get the user's invitation first (following the pattern from invitation-utils.ts)
-    const invitation = await this.invitationDAO.get(userId);
+    const invitation = await this.invitationDAO.getByUser(userId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
@@ -272,7 +277,7 @@ export class InvitationService {
     }
 
     // Create batch for all operations
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
     const timestamp = Timestamp.now();
     const oneYearAgo = new Timestamp(timestamp.seconds - 365 * 24 * 60 * 60, timestamp.nanoseconds);
 
@@ -359,7 +364,7 @@ export class InvitationService {
     logger.info(`User ${userId} rejecting join request ${requestId}`);
 
     // Get the user's invitation first (following the pattern from invitation-utils.ts)
-    const invitation = await this.invitationDAO.get(userId);
+    const invitation = await this.invitationDAO.getByUser(userId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
@@ -443,7 +448,7 @@ export class InvitationService {
   ): Promise<ApiResponse<JoinRequestResponse>> {
     logger.info(`Getting sent join requests for user ${userId}`, { pagination });
 
-    const invitation = await this.invitationDAO.get(userId);
+    const invitation = await this.invitationDAO.getByUser(userId);
     if (!invitation) {
       return { data: { join_requests: [], next_cursor: null }, status: 200 };
     }
@@ -480,7 +485,7 @@ export class InvitationService {
     logger.info(`Getting join request ${requestId} for user ${userId}`);
 
     // Get the user's invitation
-    const invitation = await this.invitationDAO.get(userId);
+    const invitation = await this.invitationDAO.getByUser(userId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
@@ -552,7 +557,7 @@ export class InvitationService {
    */
   async prepareNoFriendsNotifications(
     userId: string,
-    profileData: { created_at?: Timestamp; updated_at?: Timestamp;[key: string]: unknown },
+    profileData: { created_at?: Timestamp; updated_at?: Timestamp; [key: string]: unknown },
   ): Promise<{
     notification?: {
       userId: string;
@@ -651,6 +656,69 @@ export class InvitationService {
   }
 
   /**
+   * Deletes user's invitation document and all associated join requests
+   * Returns the total count of deleted invitations and join requests
+   */
+  async deleteUserInvitations(userId: string): Promise<number> {
+    logger.info(`Deleting user invitations for user ${userId}`);
+
+    let totalDeleted = 0;
+
+    try {
+      // Find existing invitation
+      const existing = await this.invitationDAO.getByUser(userId);
+      let joinRequestsDeleted = 0;
+
+      if (existing) {
+        // Paginate through join requests to count how many will be deleted
+        let nextCursor: string | null | undefined = undefined;
+        do {
+          const { requests, nextCursor: cursor } = await this.joinRequestDAO.getByInvitation(existing.id, {
+            limit: 500,
+            afterCursor: nextCursor ?? undefined,
+          });
+          joinRequestsDeleted += requests.length;
+          nextCursor = cursor;
+        } while (nextCursor);
+
+        // Delete the invitation (recursive delete also removes join_requests subcollection)
+        await this.invitationDAO.delete(existing.id);
+
+        logger.info(`Deleted invitation ${existing.id} and ${joinRequestsDeleted} associated join request(s)`);
+      }
+
+      // Delete all join requests where user is the requester (across all invitations)
+      let requesterJoinRequestsDeleted = 0;
+      let batch = this.db.batch();
+      let batchCount = 0;
+
+      for await (const { requestRef } of this.joinRequestDAO.streamJoinRequestsByRequester(userId)) {
+        batch.delete(requestRef);
+        batchCount++;
+        requesterJoinRequestsDeleted++;
+
+        const result = await commitBatch(this.db, batch, batchCount);
+        batch = result.batch;
+        batchCount = result.batchCount;
+      }
+
+      await commitFinal(batch, batchCount);
+
+      totalDeleted += requesterJoinRequestsDeleted;
+
+      if (requesterJoinRequestsDeleted > 0) {
+        logger.info(`Deleted ${requesterJoinRequestsDeleted} join requests where user ${userId} was the requester`);
+      }
+
+      logger.info(`Deleted ${totalDeleted} total invitations and join requests for user ${userId}`);
+      return totalDeleted;
+    } catch (error) {
+      logger.error(`Error deleting user invitations for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Updates profile denormalization across all invitation-related collections
    * Handles sender profiles in invitations, requester profiles in join requests, and receiver profiles in join requests
    * Uses efficient streaming methods and batch operations for scalability
@@ -662,7 +730,7 @@ export class InvitationService {
 
     try {
       // 1. Update sender profile in invitations where user is the sender
-      const userInvitation = await this.invitationDAO.get(userId);
+      const userInvitation = await this.invitationDAO.getByUser(userId);
       if (userInvitation) {
         await this.invitationDAO.updateSenderProfile(userInvitation.ref, newProfile);
         totalUpdates++;

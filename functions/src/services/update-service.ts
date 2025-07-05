@@ -1,5 +1,4 @@
-import { getFirestore, Timestamp, WriteBatch, FieldValue } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
+import { getFirestore, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateNotificationMessageFlow } from '../ai/flows.js';
@@ -9,9 +8,10 @@ import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { GroupDAO } from '../dao/group-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { ReactionDAO } from '../dao/reaction-dao.js';
+import { StorageDAO } from '../dao/storage-dao.js';
 import { UpdateDAO } from '../dao/update-dao.js';
 import { ApiResponse, EventName, FeedViewEventParams, UpdateViewEventParams } from '../models/analytics-events.js';
-import { Collections, MAX_BATCH_SIZE, NotificationTypes, QueryOperators } from '../models/constants.js';
+import { NotificationTypes } from '../models/constants.js';
 import {
   Comment,
   CommentsResponse,
@@ -30,7 +30,6 @@ import {
 import {
   CommentDoc,
   CreatorProfile,
-  fdf,
   FeedDoc,
   GroupProfile,
   ReactionDoc,
@@ -60,6 +59,7 @@ export class UpdateService {
   private profileDAO: ProfileDAO;
   private groupDAO: GroupDAO;
   private friendshipDAO: FriendshipDAO;
+  private storageDAO: StorageDAO;
   private db: FirebaseFirestore.Firestore;
 
   constructor() {
@@ -70,6 +70,7 @@ export class UpdateService {
     this.profileDAO = new ProfileDAO();
     this.groupDAO = new GroupDAO();
     this.friendshipDAO = new FriendshipDAO();
+    this.storageDAO = new StorageDAO();
     this.db = getFirestore();
   }
 
@@ -93,10 +94,10 @@ export class UpdateService {
 
     logger.info(
       `Update details - content length: ${content.length}, ` +
-      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-      `all_village: ${allVillage}, ` +
-      `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
-      `${images.length} images`,
+        `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+        `all_village: ${allVillage}, ` +
+        `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
+        `${images.length} images`,
     );
 
     // Get creator's profile for denormalization
@@ -132,7 +133,7 @@ export class UpdateService {
     const updateId = await this.updateDAO.createId();
 
     // Process images - move from staging to final location
-    const finalImagePaths = await this.copyImages(images, userId, updateId);
+    const finalImagePaths = await this.storageDAO.copyImages(images, userId, updateId);
 
     // Fetch profiles for friends and groups for denormalization
     let sharedWithFriendsProfiles: UserProfile[] = [];
@@ -927,56 +928,6 @@ export class UpdateService {
   }
 
   /**
-   * Processes staging images to final location
-   * @param stagingPaths Array of staging image paths
-   * @param userId The user ID for metadata
-   * @param updateId The update ID for final path
-   * @returns Array of final image paths
-   */
-  private async copyImages(stagingPaths: string[], userId: string, updateId: string): Promise<string[]> {
-    if (stagingPaths.length === 0) {
-      return [];
-    }
-
-    logger.info(`Processing ${stagingPaths.length} staging images`);
-
-    const bucket = getStorage().bucket();
-    const finalPaths: string[] = [];
-
-    for (const stagingPath of stagingPaths) {
-      try {
-        const fileName = stagingPath.split('/').pop();
-        if (!fileName) {
-          logger.warn(`Invalid staging path: ${stagingPath}`);
-          continue;
-        }
-
-        const srcFile = bucket.file(stagingPath);
-        const destPath = `updates/${updateId}/${fileName}`;
-        const destFile = bucket.file(destPath);
-
-        // Copy with metadata
-        await srcFile.copy(destFile);
-        await destFile.setMetadata({
-          metadata: {
-            created_by: userId,
-          },
-        });
-
-        // Delete staging file
-        await srcFile.delete();
-        finalPaths.push(destPath);
-
-        logger.info(`Moved image from ${stagingPath} to ${destPath}`);
-      } catch (error) {
-        logger.error(`Failed to process image ${stagingPath}:`, error);
-      }
-    }
-
-    return finalPaths;
-  }
-
-  /**
    * Creates feed fanout for an update
    * @param updateId The update ID
    * @param createdBy The creator user ID
@@ -1233,11 +1184,11 @@ export class UpdateService {
     // Prepare notification data
     let updateCreatorNotification:
       | {
-        userId: string;
-        title: string;
-        message: string;
-        data: { type: string; update_id: string };
-      }
+          userId: string;
+          title: string;
+          message: string;
+          data: { type: string; update_id: string };
+        }
       | undefined;
 
     const otherParticipantIds: string[] = [];
@@ -1261,14 +1212,14 @@ export class UpdateService {
     const participantNotifications =
       otherParticipantIds.length > 0
         ? {
-          userIds: otherParticipantIds,
-          title: 'New Comment',
-          message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
-          data: {
-            type: NotificationTypes.COMMENT,
-            update_id: updateId,
-          },
-        }
+            userIds: otherParticipantIds,
+            title: 'New Comment',
+            message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
+            data: {
+              type: NotificationTypes.COMMENT,
+              update_id: updateId,
+            },
+          }
         : undefined;
 
     logger.info(
@@ -1698,17 +1649,13 @@ export class UpdateService {
       }
 
       // Second pass: Delete all feed entries for the user (more efficient than per-update deletion)
-      const userFeedRef = this.db.collection(Collections.USER_FEEDS).doc(userId);
-      await this.db.recursiveDelete(userFeedRef);
+      await this.feedDAO.delete(userId);
       logger.info(`Deleted user feed document for user ${userId}`);
 
       // Third pass: Remove user from visible_to arrays in updates where they were shared
       // This handles cases where the user was shared with but didn't create the update
-      const friendIdentifier = createFriendVisibilityIdentifier(userId);
-      for await (const { ref: updateRef } of this.updateDAO.streamUpdatesSharedWithUser(userId)) {
-        batch.update(updateRef, {
-          visible_to: FieldValue.arrayRemove(friendIdentifier),
-        });
+      for await (const { doc: updateData } of this.updateDAO.streamUpdatesSharedWithUser(userId)) {
+        this.updateDAO.removeFromVisibleTo(userId, updateData.id, batch);
         batchCount++;
 
         // Commit batch if it gets too large
@@ -1717,34 +1664,20 @@ export class UpdateService {
         batchCount = result.batchCount;
       }
 
-      // Fourth pass: Delete feed entries for the user's updates from other users' feeds
-      // This is more efficient than the previous approach - we delete by update_id chunks
-      if (updateIds.length > 0) {
-        for (let i = 0; i < updateIds.length; i += MAX_BATCH_SIZE) {
-          const chunk = updateIds.slice(i, i + MAX_BATCH_SIZE);
+      // Fourth pass: Delete feed entries where the user appears as friend_id
+      // Use efficient collection group query by friend_id from FeedDAO
+      for await (const { ref } of this.feedDAO.streamFeedEntriesByFriendId(userId)) {
+        batch.delete(ref);
+        batchCount++;
+        feedCount++;
 
-          // Use collectionGroup to find all feed entries for these updates
-          const feedQuery = this.db
-            .collectionGroup(Collections.FEED)
-            .where(fdf('update_id'), QueryOperators.IN, chunk);
-
-          const feedSnapshot = await feedQuery.get();
-
-          // Delete feed entries in batches
-          for (const feedDoc of feedSnapshot.docs) {
-            batch.delete(feedDoc.ref);
-            batchCount++;
-            feedCount++;
-
-            const result = await commitBatch(this.db, batch, batchCount);
-            batch = result.batch;
-            batchCount = result.batchCount;
-          }
-        }
+        const result = await commitBatch(this.db, batch, batchCount);
+        batch = result.batch;
+        batchCount = result.batchCount;
       }
 
       // Commit remaining operations
-      await commitFinal(this.db, batch, batchCount);
+      await commitFinal(batch, batchCount);
 
       logger.info(`Successfully deleted ${updateCount} updates and ${feedCount} feed entries for user ${userId}`);
 

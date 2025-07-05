@@ -24,7 +24,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
    * @param userId The user ID to find the invitation for
    * @returns The invitation document with ID, or null if not found
    */
-  async get(userId: string): Promise<{ id: string; ref: DocumentReference; data: InvitationDoc } | null> {
+  async getByUser(userId: string): Promise<{ id: string; ref: DocumentReference; data: InvitationDoc } | null> {
     const query = this.db
       .collection(this.collection)
       .withConverter(this.converter)
@@ -46,6 +46,20 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
   }
 
   /**
+   * Gets an invitation by its ID
+   * @param invitationId The invitation ID to find
+   * @returns The invitation document, or null if not found
+   */
+  async getByInvitationId(invitationId: string): Promise<InvitationDoc | null> {
+    const ref = this.getRef(invitationId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return null;
+    }
+    return doc.data()!;
+  }
+
+  /**
    * Creates an invitation or returns the existing one
    * @param userId The user ID creating the invitation
    * @param profileData The user's profile data to denormalize
@@ -56,7 +70,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
     profileData: { username: string; name: string; avatar: string },
   ): Promise<{ id: string; data: InvitationDoc }> {
     // Check if invitation already exists
-    const existing = await this.get(userId);
+    const existing = await this.getByUser(userId);
     if (existing) {
       return existing;
     }
@@ -82,16 +96,10 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
   /**
    * Deletes an invitation by ID
    * @param invitationId The invitation ID to delete
-   * @param batch Optional batch to include this operation in
    */
-  async delete(invitationId: string, batch?: FirebaseFirestore.WriteBatch): Promise<void> {
+  async delete(invitationId: string): Promise<void> {
     const invitationRef = this.db.collection(this.collection).withConverter(this.converter).doc(invitationId);
-
-    if (batch) {
-      batch.delete(invitationRef);
-    } else {
-      await invitationRef.delete();
-    }
+    await this.db.recursiveDelete(invitationRef);
   }
 
   /**

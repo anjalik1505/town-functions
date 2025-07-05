@@ -79,4 +79,16 @@ export class DeviceService {
       },
     };
   }
+
+  /**
+   * Deletes the device document for a user if it exists.
+   * Used for internal cleanup operations.
+   *
+   * @param userId - The user ID
+   * @returns Count of devices deleted (0 or 1)
+   */
+  async deleteDevice(userId: string): Promise<number> {
+    logger.info(`Deleting device for user ${userId}`);
+    return await this.deviceDAO.delete(userId);
+  }
 }
