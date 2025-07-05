@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
-import { ReactionDoc } from '../models/firestore/reaction-doc.js';
+import { ReactionDoc } from '../models/firestore/index.js';
 import { NotificationService } from '../services/notification-service.js';
 import { UpdateService } from '../services/update-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';

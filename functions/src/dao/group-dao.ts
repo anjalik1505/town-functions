@@ -1,7 +1,7 @@
 import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
 import { Collections, QueryOperators } from '../models/constants.js';
 import { BaseGroup } from '../models/data-models.js';
-import { GroupDoc, gf, groupConverter } from '../models/firestore/index.js';
+import { GroupDoc, SimpleProfile, gf, groupConverter } from '../models/firestore/index.js';
 import { BaseDAO } from './base-dao.js';
 
 /**
@@ -90,7 +90,11 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
    * @param newProfiles Map of new member profiles
    * @returns The updated group document
    */
-  async addMembers(groupId: string, newMembers: string[], newProfiles: Record<string, any>): Promise<GroupDoc> {
+  async addMembers(
+    groupId: string,
+    newMembers: string[],
+    newProfiles: Record<string, SimpleProfile>,
+  ): Promise<GroupDoc> {
     const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc(groupId);
 
     // Update members array
@@ -99,7 +103,7 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
     });
 
     // Update member_profiles separately
-    const profileUpdates: Record<string, any> = {};
+    const profileUpdates: Record<string, SimpleProfile> = {};
     Object.entries(newProfiles).forEach(([userId, profile]) => {
       profileUpdates[`member_profiles.${userId}`] = profile;
     });
@@ -142,8 +146,8 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
    * @param groupId The group ID to update
    * @param profileUpdates Map of user IDs to updated profile data
    */
-  async updateMemberProfiles(groupId: string, profileUpdates: Record<string, any>): Promise<void> {
-    const updates: Record<string, any> = {};
+  async updateMemberProfiles(groupId: string, profileUpdates: Record<string, SimpleProfile>): Promise<void> {
+    const updates: Record<string, SimpleProfile> = {};
 
     // Build field paths for nested updates
     Object.entries(profileUpdates).forEach(([userId, profileData]) => {

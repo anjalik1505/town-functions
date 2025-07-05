@@ -1,23 +1,5 @@
 import { Timestamp } from 'firebase-admin/firestore';
-
-export interface CreatorProfile {
-  username: string;
-  name: string;
-  avatar: string;
-}
-
-export interface UserProfile {
-  user_id: string;
-  username: string;
-  name: string;
-  avatar: string;
-}
-
-export interface GroupProfile {
-  group_id: string;
-  name: string;
-  icon: string;
-}
+import { GroupProfile, SimpleProfile, UserProfile } from './common.js';
 
 export interface UpdateDoc {
   created_by: string;
@@ -36,7 +18,7 @@ export interface UpdateDoc {
   all_village: boolean;
   image_paths: string[];
   image_analysis?: string;
-  creator_profile: CreatorProfile;
+  creator_profile: SimpleProfile;
   shared_with_friends_profiles: UserProfile[];
   shared_with_groups_profiles: GroupProfile[];
 }

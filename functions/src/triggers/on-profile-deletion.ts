@@ -3,7 +3,7 @@ import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { DeleteProfileEventParams, EventName } from '../models/analytics-events.js';
-import { ProfileDoc } from '../models/firestore/profile-doc.js';
+import { ProfileDoc } from '../models/firestore/index.js';
 import {
   DeviceService,
   FriendshipService,
@@ -28,7 +28,7 @@ export const onProfileDeleted = async (
   event: FirestoreEvent<
     QueryDocumentSnapshot | undefined,
     {
-      id: string;
+      userId: string;
     }
   >,
 ): Promise<void> => {
@@ -38,7 +38,7 @@ export const onProfileDeleted = async (
       return;
     }
 
-    const userId = event.params.id;
+    const userId = event.params.userId;
     const profileData = event.data.data() as ProfileDoc;
 
     logger.info(`Processing profile deletion for user: ${userId}`);

@@ -1,5 +1,5 @@
 import { Collections } from '../models/constants.js';
-import { PhoneDoc, phoneConverter } from '../models/firestore/phone-doc.js';
+import { PhoneDoc, phoneConverter } from '../models/firestore/index.js';
 import { BaseDAO } from './base-dao.js';
 
 /**

@@ -1,6 +1,7 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { generateFriendProfileFlow } from '../ai/flows.js';
 import { FeedDAO } from '../dao/feed-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
@@ -9,13 +10,11 @@ import { UserSummaryDAO } from '../dao/user-summary-dao.js';
 import { EventName, FriendshipAcceptanceEventParams, FriendSummaryEventParams } from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
 import { ProfileData, SummaryContext, SummaryResult } from '../models/data-models.js';
-import { ProfileDoc } from '../models/firestore/profile-doc.js';
-import { CreatorProfile, uf, UpdateDoc, UserProfile } from '../models/firestore/update-doc.js';
+import { ProfileDoc, SimpleProfile, uf, UpdateDoc, UserProfile } from '../models/firestore/index.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, createSummaryId } from '../utils/profile-utils.js';
-import { generateFriendSummary } from '../utils/summary-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -193,8 +192,8 @@ export class FriendshipService {
     logger.info(`Processing friend summaries for update from ${creatorId} to ${friendIds.length} friends`);
 
     // Get creator profile
-    const creatorProfile = await this.profileDAO.get(creatorId);
-    if (!creatorProfile) {
+    const SimpleProfile = await this.profileDAO.get(creatorId);
+    if (!SimpleProfile) {
       logger.warn(`Creator profile not found: ${creatorId}`);
       return [];
     }
@@ -215,10 +214,10 @@ export class FriendshipService {
         }
 
         // Get summary context
-        const summaryContext = await this.getSummaryContext(creatorId, friendId, creatorProfile, friendProfile);
+        const summaryContext = await this.getSummaryContext(creatorId, friendId, SimpleProfile, friendProfile);
 
         // Generate friend summary
-        const summaryResult = await generateFriendSummary(summaryContext, updateData, imageAnalysis);
+        const summaryResult = await this.generateFriendSummary(summaryContext, updateData, imageAnalysis);
 
         // Write the summary to database using batch
         await this.userSummaryDAO.createOrUpdateSummary(
@@ -267,7 +266,7 @@ export class FriendshipService {
   /**
    * Updates friend profile denormalization in the friends subcollections
    */
-  async updateFriendProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateFriendProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Updating friend profile denormalization for user ${userId}`);
 
     let totalUpdates = 0;
@@ -466,7 +465,7 @@ export class FriendshipService {
       const imageAnalysis = updateData.image_analysis || '';
 
       // Generate the summary
-      const summaryResult = await generateFriendSummary(summaryContext, updateData, imageAnalysis);
+      const summaryResult = await this.generateFriendSummary(summaryContext, updateData, imageAnalysis);
 
       summaryContext.existingSummary = summaryResult.summary;
       summaryContext.existingSuggestions = summaryResult.suggestions;
@@ -512,7 +511,7 @@ export class FriendshipService {
   private async getSummaryContext(
     creatorId: string,
     friendId: string,
-    creatorProfileData: ProfileDoc,
+    SimpleProfileData: ProfileDoc,
     friendProfileData: ProfileDoc,
   ): Promise<SummaryContext> {
     const summaryId = createSummaryId(friendId, creatorId);
@@ -535,11 +534,11 @@ export class FriendshipService {
       existingCreatedAt = existingSummaryDoc.created_at;
     }
 
-    const creatorProfile: ProfileData = {
-      name: creatorProfileData.username || creatorProfileData.name || 'Friend',
-      gender: creatorProfileData.gender || 'unknown',
-      location: creatorProfileData.location || 'unknown',
-      age: calculateAge(creatorProfileData.birthday),
+    const SimpleProfile: ProfileData = {
+      name: SimpleProfileData.username || SimpleProfileData.name || 'Friend',
+      gender: SimpleProfileData.gender || 'unknown',
+      location: SimpleProfileData.location || 'unknown',
+      age: calculateAge(SimpleProfileData.birthday),
     };
 
     const friendProfile: ProfileData = {
@@ -557,8 +556,47 @@ export class FriendshipService {
       updateCount,
       isNewSummary,
       existingCreatedAt,
-      creatorProfile,
+      creatorProfile: SimpleProfile,
       friendProfile,
     } as SummaryContext;
+  }
+
+  private async generateFriendSummary(
+    context: SummaryContext,
+    updateData: UpdateDoc,
+    imageAnalysis: string,
+  ): Promise<SummaryResult> {
+    // Extract update content and sentiment
+    const updateContent = updateData.content || '';
+    const sentiment = updateData.sentiment || '';
+    const updateId = updateData.id;
+
+    // Use the friend profile flow to generate summary and suggestions
+    const result = await generateFriendProfileFlow({
+      existingSummary: context.existingSummary,
+      existingSuggestions: context.existingSuggestions,
+      updateContent: updateContent,
+      sentiment: sentiment,
+      friendName: context.friendProfile.name,
+      friendGender: context.friendProfile.gender,
+      friendLocation: context.friendProfile.location,
+      friendAge: context.friendProfile.age,
+      userName: context.creatorProfile.name,
+      userGender: context.creatorProfile.gender,
+      userLocation: context.creatorProfile.location,
+      userAge: context.creatorProfile.age,
+      imageAnalysis: imageAnalysis,
+    });
+
+    // Return the result with analytics data
+    return {
+      summary: result.summary || '',
+      suggestions: result.suggestions || '',
+      updateId,
+      analytics: {
+        summary_length: (result.summary || '').length,
+        suggestions_length: (result.suggestions || '').length,
+      },
+    };
   }
 }

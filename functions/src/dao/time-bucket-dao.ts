@@ -2,14 +2,22 @@ import { Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
-import { NudgingOccurrence, NudgingSettings, pf } from '../models/firestore/profile-doc.js';
 import {
+  NudgingOccurrence,
+  NudgingSettings,
+  pf,
   timeBucketConverter,
   TimeBucketDoc,
   timeBucketUserConverter,
   TimeBucketUserDoc,
-} from '../models/firestore/time-bucket-doc.js';
+} from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
+import {
+  calculateUtcDayAndHour,
+  createBucketIdentifier,
+  dayEnumToNumber,
+  dayNumberToEnum,
+} from '../utils/timezone-utils.js';
 import { BaseDAO } from './base-dao.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -79,7 +87,12 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
 
     for (const time of times_of_day) {
       for (const day of days_of_week) {
-        const bucketIdentifier = `${day}_${time}`;
+        // Convert user's preferred time to UTC day/hour using their timezone
+        const userHour = parseInt(time.split(':')[0]!, 10);
+        const dayNumber = dayEnumToNumber(day);
+        const { utcDay, utcHour } = calculateUtcDayAndHour(timezone, dayNumber, userHour);
+        const utcDayEnum = dayNumberToEnum(utcDay);
+        const bucketIdentifier = createBucketIdentifier(utcDayEnum, utcHour);
         const bucketRef = this.db.collection(this.collection).withConverter(this.converter).doc(bucketIdentifier);
 
         // Check if the bucket document exists

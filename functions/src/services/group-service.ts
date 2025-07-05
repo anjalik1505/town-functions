@@ -16,9 +16,7 @@ import {
   Update,
   UpdatesResponse,
 } from '../models/data-models.js';
-import { ChatDoc } from '../models/firestore/chat-doc.js';
-import { GroupDoc } from '../models/firestore/group-doc.js';
-import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { ChatDoc, GroupDoc, SimpleProfile } from '../models/firestore/index.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -88,7 +86,7 @@ export class GroupService {
     }
 
     // Create member profiles map for denormalization
-    const memberProfilesMap: Record<string, any> = {};
+    const memberProfilesMap: Record<string, SimpleProfile> = {};
     for (const profile of memberProfiles) {
       memberProfilesMap[profile.user_id] = {
         name: profile.name,
@@ -196,7 +194,7 @@ export class GroupService {
     }
 
     // Prepare new member profiles for denormalization
-    const newMemberProfilesMap: Record<string, any> = {};
+    const newMemberProfilesMap: Record<string, SimpleProfile> = {};
     for (const profile of newMemberProfiles) {
       newMemberProfilesMap[profile.user_id] = {
         name: profile.name,
@@ -517,7 +515,7 @@ export class GroupService {
   /**
    * Updates member profile denormalization across all groups where the user is a member
    */
-  async updateMemberProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateMemberProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Updating member profile denormalization in groups for user ${userId}`);
 
     let totalUpdates = 0;

@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
-import { JoinRequestDoc } from '../models/firestore/join-request-doc.js';
+import { JoinRequestDoc } from '../models/firestore/index.js';
 import { NotificationService } from '../services/notification-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';

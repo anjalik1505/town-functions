@@ -3,7 +3,7 @@ import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventName } from '../models/analytics-events.js';
-import { FriendDoc } from '../models/firestore/friend-doc.js';
+import { FriendDoc } from '../models/firestore/index.js';
 import { FriendshipService } from '../services/friendship-service.js';
 import { NotificationService } from '../services/notification-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';

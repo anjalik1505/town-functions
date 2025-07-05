@@ -1,15 +1,8 @@
 import { DocumentReference, FieldValue, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Collections, QueryOperators, MAX_BATCH_OPERATIONS } from '../models/constants.js';
-import {
-  CreatorProfile,
-  GroupProfile,
-  uf,
-  updateConverter,
-  UpdateDoc,
-  UserProfile,
-} from '../models/firestore/index.js';
+import { Collections, MAX_BATCH_OPERATIONS, QueryOperators } from '../models/constants.js';
+import { GroupProfile, SimpleProfile, uf, updateConverter, UpdateDoc, UserProfile } from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import {
@@ -52,7 +45,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
    * Creates a new update with full denormalization handling
    * @param updateId The ID of the update to create
    * @param updateData The update data to create
-   * @param creatorProfile The creator's profile for denormalization
+   * @param SimpleProfile The creator's profile for denormalization
    * @param friendIds Array of friend IDs to share with
    * @param groupIds Array of group IDs to share with
    * @param sharedWithFriendsProfiles Array of friend profiles for denormalization
@@ -66,7 +59,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
       UpdateDoc,
       'id' | 'creator_profile' | 'shared_with_friends_profiles' | 'shared_with_groups_profiles'
     >,
-    creatorProfile: CreatorProfile,
+    SimpleProfile: SimpleProfile,
     friendIds: string[] = [],
     groupIds: string[] = [],
     sharedWithFriendsProfiles: UserProfile[] = [],
@@ -85,7 +78,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
       ...updateData,
       id: updateId,
       visible_to: visibleTo,
-      creator_profile: creatorProfile,
+      creator_profile: SimpleProfile,
       shared_with_friends_profiles: sharedWithFriendsProfiles,
       shared_with_groups_profiles: sharedWithGroupsProfiles,
     };
@@ -342,7 +335,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
    * @param newProfile The new creator profile data
    * @param batch Optional WriteBatch to add the operation to
    */
-  async updateCreatorProfile(updateId: string, newProfile: CreatorProfile, batch?: WriteBatch): Promise<void> {
+  async updateSimpleProfile(updateId: string, newProfile: SimpleProfile, batch?: WriteBatch): Promise<void> {
     const shouldCommitBatch = !batch;
     const workingBatch = batch || this.db.batch();
 
@@ -503,7 +496,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
    * @param newProfile The new creator profile data
    * @returns The count of updated documents
    */
-  async updateCreatorProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateSimpleProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Starting creator profile denormalization update for user ${userId}`);
 
     let updatedCount = 0;

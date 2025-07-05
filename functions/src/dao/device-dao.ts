@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { Collections } from '../models/constants.js';
-import { DeviceDoc, deviceConverter } from '../models/firestore/device-doc.js';
+import { DeviceDoc, deviceConverter } from '../models/firestore/index.js';
 import { BaseDAO } from './base-dao.js';
 
 export class DeviceDAO extends BaseDAO<DeviceDoc> {

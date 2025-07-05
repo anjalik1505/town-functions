@@ -18,6 +18,7 @@ import {
   Friend,
   FriendProfileResponse,
   FriendsResponse,
+  Insights,
   Location,
   NudgeResponse,
   PhoneLookupResponse,
@@ -26,32 +27,26 @@ import {
   Timezone,
   UpdateProfilePayload,
 } from '../models/data-models.js';
-import { InsightsDoc } from '../models/firestore/insights-doc.js';
-import { PhoneDoc } from '../models/firestore/phone-doc.js';
 import {
   DayOfWeek,
-  DaysOfWeek,
+  InsightsDoc,
   NotificationSetting,
   NudgingOccurrence,
   NudgingOccurrenceType,
   NudgingSettings,
   Personality,
+  PhoneDoc,
   ProfileDoc,
   Tone,
-} from '../models/firestore/profile-doc.js';
-import { UpdateDoc } from '../models/firestore/update-doc.js';
+  UpdateDoc,
+} from '../models/firestore/index.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
-import {
-  calculateAge,
-  extractConnectToForAnalytics,
-  extractGoalForAnalytics,
-  extractNudgingOccurrence,
-  formatProfileResponse,
-} from '../utils/profile-utils.js';
+import { calculateAge } from '../utils/profile-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
+import { getCurrentTimeBucket } from '../utils/timezone-utils.js';
+import { NotificationService } from './notification-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
@@ -63,6 +58,7 @@ const NUDGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds;
  * Coordinates between ProfileDAO, FriendshipDAO, and PhoneDAO
  */
 export class ProfileService {
+  private notificationService: NotificationService;
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
   private phoneDAO: PhoneDAO;
@@ -74,6 +70,7 @@ export class ProfileService {
   private db: FirebaseFirestore.Firestore;
 
   constructor() {
+    this.notificationService = new NotificationService();
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
     this.phoneDAO = new PhoneDAO();
@@ -162,7 +159,7 @@ export class ProfileService {
     const analyticsData = this.profileDAO.extractAnalyticsData(createdProfile);
 
     // Format the response using the created profile
-    const response = formatProfileResponse(userId, createdProfile, {
+    const response = this.formatProfileResponse(userId, createdProfile, {
       emotional_overview: '',
       key_moments: '',
       recurring_themes: '',
@@ -299,7 +296,7 @@ export class ProfileService {
     const analyticsData = this.profileDAO.extractAnalyticsData(updatedProfile);
 
     // Format the response using the updated profile
-    const response = formatProfileResponse(
+    const response = this.formatProfileResponse(
       userId,
       updatedProfile,
       existingProfile.insights || {
@@ -646,8 +643,8 @@ export class ProfileService {
     if (hasDevice) {
       const currentUserName = currentProfile.name || currentProfile.username || 'A friend';
       try {
-        await sendNotification(
-          targetUserId,
+        this.notificationService.sendNotification(
+          [targetUserId],
           'You’ve been on someone’s mind',
           `${currentUserName} is checking in and curious about how you're doing!`,
           {
@@ -791,21 +788,8 @@ export class ProfileService {
   async getUsersForDailyNotifications(): Promise<ProfileDoc[]> {
     logger.info('Getting users for daily notifications');
 
-    // Calculate current time bucket using proper enums
-    const now = Timestamp.now().toDate();
-    const dayIndex = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const dayMapping = [
-      DaysOfWeek.SUNDAY,
-      DaysOfWeek.MONDAY,
-      DaysOfWeek.TUESDAY,
-      DaysOfWeek.WEDNESDAY,
-      DaysOfWeek.THURSDAY,
-      DaysOfWeek.FRIDAY,
-      DaysOfWeek.SATURDAY,
-    ];
-    const dayName = dayMapping[dayIndex];
-    const hour = now.getHours().toString().padStart(2, '0');
-    const currentBucket = `${dayName}_${hour}:00`;
+    // Calculate current time bucket using unified timezone utils
+    const currentBucket = getCurrentTimeBucket();
 
     logger.info(`Processing notifications for time bucket: ${currentBucket}`);
 
@@ -894,7 +878,7 @@ export class ProfileService {
    * @param imageAnalysis Already analyzed image description text
    * @returns Analytics data for the creator's profile update
    */
-  async processUpdateCreatorProfile(updateData: UpdateDoc, imageAnalysis: string): Promise<SummaryEventParams> {
+  async processUpdateSimpleProfile(updateData: UpdateDoc, imageAnalysis: string): Promise<SummaryEventParams> {
     const creatorId = updateData.created_by;
 
     if (!creatorId) {
@@ -1012,9 +996,9 @@ export class ProfileService {
       has_location: !!profileData.location,
       has_birthday: !!profileData.birthday,
       has_gender: !!profileData.gender,
-      nudging_occurrence: extractNudgingOccurrence(profileData),
-      goal: extractGoalForAnalytics(profileData),
-      connect_to: extractConnectToForAnalytics(profileData),
+      nudging_occurrence: profileData.nudging_settings?.occurrence || '',
+      goal: profileData.goal || '',
+      connect_to: profileData.connect_to || '',
       personality: profileData.personality || '',
       tone: profileData.tone || '',
       friend_summary_count: (updateData.friend_ids || []).length,
@@ -1055,5 +1039,50 @@ export class ProfileService {
 
     logger.info(`Updated phone mapping for user ${userId}`);
     return 1;
+  }
+
+  /**
+   * Formats a profile document into a ProfileResponse object
+   * @param userId The ID of the user
+   * @param profileData The profile data
+   * @param insightsData The insights data
+   * @returns A formatted ProfileResponse object
+   */
+  private formatProfileResponse(userId: string, profileData: ProfileDoc, insightsData: Insights): ProfileResponse {
+    const commonFields = this.formatCommonProfileFields(userId, profileData);
+
+    // Handle nudging_settings as a nested object
+    const nudgingSettings = profileData.nudging_settings;
+
+    return {
+      ...commonFields,
+      notification_settings: profileData.notification_settings || [],
+      nudging_settings: nudgingSettings,
+      summary: profileData.summary || '',
+      suggestions: profileData.suggestions || '',
+      insights: insightsData,
+      tone: profileData.tone || '',
+      phone_number: profileData.phone_number || '',
+    };
+  }
+
+  /**
+   * Formats the common profile fields from profile data
+   * @param userId The ID of the user
+   * @param profileData The profile data
+   * @returns Common profile fields
+   */
+  private formatCommonProfileFields(userId: string, profileData: ProfileDoc) {
+    return {
+      user_id: userId,
+      username: profileData.username || '',
+      name: profileData.name || '',
+      avatar: profileData.avatar || '',
+      location: profileData.location || '',
+      birthday: profileData.birthday || '',
+      gender: profileData.gender || '',
+      timezone: profileData.timezone || '',
+      updated_at: profileData.updated_at ? formatTimestamp(profileData.updated_at) : '',
+    };
   }
 }

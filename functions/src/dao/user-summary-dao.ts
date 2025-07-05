@@ -1,8 +1,8 @@
-import { Timestamp, WriteBatch, DocumentReference } from 'firebase-admin/firestore';
+import { DocumentReference, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
-import { userSummaryConverter, UserSummaryDoc, usf } from '../models/firestore/user-summary-doc.js';
+import { userSummaryConverter, UserSummaryDoc, usf } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createSummaryId } from '../utils/profile-utils.js';
 import { BaseDAO } from './base-dao.js';

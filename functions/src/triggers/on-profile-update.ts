@@ -3,8 +3,7 @@ import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventName } from '../models/analytics-events.js';
-import { ProfileDoc } from '../models/firestore/profile-doc.js';
-import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { ProfileDoc, SimpleProfile } from '../models/firestore/index.js';
 import { FriendshipService } from '../services/friendship-service.js';
 import { GroupService } from '../services/group-service.js';
 import { InvitationService } from '../services/invitation-service.js';
@@ -75,7 +74,7 @@ export const onProfileUpdate = async (
     const friendshipService = new FriendshipService();
 
     // Prepare profile data for denormalization
-    const newProfile: CreatorProfile = {
+    const newProfile: SimpleProfile = {
       username: afterData.username || '',
       name: afterData.name || '',
       avatar: afterData.avatar || '',

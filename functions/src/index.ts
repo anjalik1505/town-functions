@@ -12,7 +12,6 @@ import { onProfileDeleted } from './triggers/on-profile-deletion.js';
 import { onProfileUpdate } from './triggers/on-profile-update.js';
 import { onReactionCreated } from './triggers/on-reaction-creation.js';
 import { onUpdateCreated } from './triggers/on-update-creation.js';
-import { onUpdateNotification } from './triggers/on-update-notification.js';
 import { onUpdateUpdated } from './triggers/on-update-update.js';
 import { processDailyNotifications } from './triggers/process-daily-notifications.js';
 import { processInvitationNotifications } from './triggers/process-invitation-notifications.js';
@@ -31,22 +30,13 @@ export const api = onRequest(
   app,
 );
 
-// Export the Firestore trigger function for new updates
+// Export the Firestore trigger function for new updates (includes notifications)
 export const process_update_creation = onDocumentCreated(
   {
-    document: `${Collections.UPDATES}/{id}`,
+    document: `${Collections.UPDATES}/{updateId}`,
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onUpdateCreated(event),
-);
-
-// Export the Firestore trigger function for sending notifications on new updates
-export const process_update_notification = onDocumentCreated(
-  {
-    document: `${Collections.UPDATES}/{id}`,
-    secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
-  },
-  (event) => onUpdateNotification(event),
 );
 
 // Export the scheduled function for daily notifications
@@ -74,7 +64,7 @@ export const process_no_friends_notifications = onSchedule(
 // Export the Firestore trigger function for profile deletion
 export const process_profile_deletion = onDocumentDeleted(
   {
-    document: `${Collections.PROFILES}/{id}`,
+    document: `${Collections.PROFILES}/{userId}`,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onProfileDeleted(event),
@@ -137,7 +127,7 @@ export const process_join_request_update_notification = onDocumentUpdated(
 // Export the Firestore trigger function for update sharing
 export const process_update_share = onDocumentUpdated(
   {
-    document: `${Collections.UPDATES}/{id}`,
+    document: `${Collections.UPDATES}/{updateId}`,
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onUpdateUpdated(event),

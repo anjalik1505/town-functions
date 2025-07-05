@@ -8,8 +8,7 @@ import { ProfileDAO } from '../dao/profile-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
 import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/data-models.js';
-import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-request-doc.js';
-import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { JoinRequestDoc, JoinRequestStatus, SimpleProfile } from '../models/firestore/index.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -723,7 +722,7 @@ export class InvitationService {
    * Handles sender profiles in invitations, requester profiles in join requests, and receiver profiles in join requests
    * Uses efficient streaming methods and batch operations for scalability
    */
-  async updateProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Updating profile denormalization in invitations for user ${userId}`);
 
     let totalUpdates = 0;

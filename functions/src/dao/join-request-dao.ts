@@ -2,8 +2,7 @@ import { DocumentReference, Query, Timestamp, WriteBatch } from 'firebase-admin/
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Collections, MAX_BATCH_OPERATIONS, QueryOperators } from '../models/constants.js';
-import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/index.js';
-import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { JoinRequestDoc, SimpleProfile, joinRequestConverter, jrf } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { BaseDAO } from './base-dao.js';
@@ -294,7 +293,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
   async updateRequesterProfile(
     invitationId: string,
     requestId: string,
-    newProfile: CreatorProfile,
+    newProfile: SimpleProfile,
     batch?: WriteBatch,
   ): Promise<void> {
     const shouldCommitBatch = !batch;
@@ -330,7 +329,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
   async updateReceiverProfile(
     invitationId: string,
     requestId: string,
-    newProfile: CreatorProfile,
+    newProfile: SimpleProfile,
     batch?: WriteBatch,
   ): Promise<void> {
     const shouldCommitBatch = !batch;
@@ -441,7 +440,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param newProfile The new profile data to apply
    * @returns The number of join requests updated
    */
-  async updateRequesterProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateRequesterProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Updating requester profile denormalization for user: ${userId}`);
 
     let totalUpdates = 0;
@@ -492,7 +491,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param newProfile The new profile data to apply
    * @returns The number of join requests updated
    */
-  async updateReceiverProfileDenormalization(invitationId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateReceiverProfileDenormalization(invitationId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Updating receiver profile denormalization for invitation: ${invitationId}`);
 
     let totalUpdates = 0;

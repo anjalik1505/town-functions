@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { Collections } from '../models/constants.js';
-import { DeviceDoc } from '../models/firestore/device-doc.js';
 import { NotificationResponse, TestNotificationPayload } from '../models/data-models.js';
+import { DeviceDoc } from '../models/firestore/index.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 

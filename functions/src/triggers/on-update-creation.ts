@@ -2,10 +2,11 @@ import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { EventName } from '../models/analytics-events.js';
-import { UpdateDoc, uf } from '../models/firestore/update-doc.js';
+import { EventName, NotificationEventParams } from '../models/analytics-events.js';
+import { UpdateDoc, uf } from '../models/firestore/index.js';
 import { AiService } from '../services/ai-service.js';
 import { FriendshipService } from '../services/friendship-service.js';
+import { NotificationService } from '../services/notification-service.js';
 import { ProfileService } from '../services/profile-service.js';
 import { UpdateService } from '../services/update-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
@@ -24,7 +25,7 @@ export const onUpdateCreated = async (
   event: FirestoreEvent<
     QueryDocumentSnapshot | undefined,
     {
-      id: string;
+      updateId: string;
     }
   >,
 ): Promise<void> => {
@@ -60,6 +61,7 @@ export const onUpdateCreated = async (
     const updateService = new UpdateService();
     const profileService = new ProfileService();
     const friendshipService = new FriendshipService();
+    const notificationService = new NotificationService();
 
     // Update user's last update time in time buckets for notification eligibility
     await profileService.updateUserLastUpdateTime(creatorId, updateData[uf('created_at')]);
@@ -74,10 +76,63 @@ export const onUpdateCreated = async (
     }
 
     // Process creator profile updates using ProfileService
-    const mainSummary = await profileService.processUpdateCreatorProfile(updateData, imageAnalysis);
+    const mainSummary = await profileService.processUpdateSimpleProfile(updateData, imageAnalysis);
 
     // Process friend summaries using FriendshipService
     const friendSummaries = await friendshipService.processUpdateFriendSummaries(updateData, imageAnalysis);
+
+    // Prepare notification data using the orchestration pattern
+    const updateWithId = { ...updateData, id: updateSnapshot.id };
+    const notificationData = await updateService.prepareUpdateNotifications(updateWithId);
+
+    let totalNotificationResult: NotificationEventParams = {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: true,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false,
+    };
+
+    // Process all notifications
+    if (notificationData.notifications) {
+      try {
+        const result = await notificationService.sendNotification(
+          notificationData.notifications.userIds,
+          notificationData.notifications.title,
+          notificationData.notifications.message,
+          notificationData.notifications.data,
+        );
+
+        // Merge analytics results
+        totalNotificationResult.notification_all ||= result.notification_all;
+        totalNotificationResult.no_notification &&= result.no_notification;
+        totalNotificationResult.no_device ||= result.no_device;
+        totalNotificationResult.notification_length = Math.max(
+          totalNotificationResult.notification_length,
+          result.notification_length,
+        );
+
+        logger.info(`Sent notification to ${notificationData.notifications.userIds.length} users`);
+      } catch (error) {
+        logger.error(`Failed to send update notification to users`, error);
+        totalNotificationResult.no_device = true;
+      }
+    }
+
+    // Process all background notifications
+    if (notificationData.backgroundNotifications) {
+      try {
+        await notificationService.sendBackgroundNotification(
+          notificationData.backgroundNotifications.userIds,
+          notificationData.backgroundNotifications.data,
+        );
+
+        logger.info(`Sent background notification to ${notificationData.backgroundNotifications.userIds.length} users`);
+      } catch (error) {
+        logger.error(`Failed to send background notification to users`, error);
+      }
+    }
 
     // Track all analytics events
     const events = [
@@ -89,6 +144,10 @@ export const onUpdateCreated = async (
         eventName: EventName.FRIEND_SUMMARY_CREATED,
         params: summary,
       })),
+      {
+        eventName: EventName.NOTIFICATION_SENT,
+        params: totalNotificationResult,
+      },
     ];
 
     await trackApiEvents(events, creatorId);

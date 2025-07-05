@@ -1,7 +1,6 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { Collections, Documents } from '../models/constants.js';
-import { insightsConverter, InsightsDoc } from '../models/firestore/insights-doc.js';
-import { profileConverter, ProfileDoc } from '../models/firestore/profile-doc.js';
+import { InsightsDoc, ProfileDoc, insightsConverter, profileConverter } from '../models/firestore/index.js';
 import { NotFoundError } from '../utils/errors.js';
 import { BaseDAO } from './base-dao.js';
 

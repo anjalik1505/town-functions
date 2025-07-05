@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import { CreatorProfile } from './update-doc.js';
+import { SimpleProfile } from './common.js';
 
 export interface CommentDoc {
   id: string;
@@ -8,7 +8,7 @@ export interface CommentDoc {
   created_at: Timestamp;
   updated_at: Timestamp;
   parent_id: string | null;
-  commenter_profile: CreatorProfile;
+  commenter_profile: SimpleProfile;
 }
 
 export const commentConverter: FirebaseFirestore.FirestoreDataConverter<CommentDoc> = {

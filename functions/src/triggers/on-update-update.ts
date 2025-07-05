@@ -19,7 +19,7 @@ const logger = getLogger(path.basename(__filename));
  * @param event - The Firestore event object containing the document data
  */
 export const onUpdateUpdated = async (
-  event: FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, { id: string }>,
+  event: FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, { updateId: string }>,
 ): Promise<void> => {
   try {
     if (!event.data) {
@@ -45,7 +45,7 @@ export const onUpdateUpdated = async (
     }
 
     // Extract ID from parameter
-    const updateId = event.params.id;
+    const updateId = event.params.updateId;
 
     if (!updateId) {
       logger.error('No update ID found in event');

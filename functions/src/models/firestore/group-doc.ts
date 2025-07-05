@@ -1,11 +1,11 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import { CreatorProfile } from './update-doc.js';
+import { SimpleProfile } from './common.js';
 
 export interface GroupDoc {
   name: string;
   icon: string;
   members: string[];
-  member_profiles: Record<string, CreatorProfile>;
+  member_profiles: Record<string, SimpleProfile>;
   created_at: Timestamp;
 }
 

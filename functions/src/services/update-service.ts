@@ -29,14 +29,14 @@ import {
 } from '../models/data-models.js';
 import {
   CommentDoc,
-  CreatorProfile,
   FeedDoc,
   GroupProfile,
+  NotificationSettings,
   ReactionDoc,
+  SimpleProfile,
   UpdateDoc,
   UserProfile,
 } from '../models/firestore/index.js';
-import { NotificationSettings } from '../models/firestore/profile-doc.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -101,8 +101,8 @@ export class UpdateService {
     );
 
     // Get creator's profile for denormalization
-    const creatorProfile = await this.profileDAO.get(userId);
-    if (!creatorProfile) {
+    const SimpleProfile = await this.profileDAO.get(userId);
+    if (!SimpleProfile) {
       throw new NotFoundError('Creator profile not found');
     }
 
@@ -124,10 +124,10 @@ export class UpdateService {
       groupIds = [...new Set([...groupIds, ...tmpGroupIds])];
     }
 
-    const creatorProfileData: CreatorProfile = {
-      username: creatorProfile.username,
-      name: creatorProfile.name,
-      avatar: creatorProfile.avatar,
+    const SimpleProfileData: SimpleProfile = {
+      username: SimpleProfile.username,
+      name: SimpleProfile.name,
+      avatar: SimpleProfile.avatar,
     };
 
     const updateId = await this.updateDAO.createId();
@@ -187,7 +187,7 @@ export class UpdateService {
     const createResult = await this.updateDAO.create(
       updateId,
       updateData,
-      creatorProfileData,
+      SimpleProfileData,
       friendIds,
       groupIds,
       sharedWithFriendsProfiles,
@@ -405,10 +405,16 @@ export class UpdateService {
     await this.checkUpdateAccess(result.data, userId);
 
     // Get creator's profile for denormalization
-    const creatorProfile = await this.profileDAO.get(userId);
-    if (!creatorProfile) {
+    const SimpleProfile = await this.profileDAO.get(userId);
+    if (!SimpleProfile) {
       throw new NotFoundError('Creator profile not found');
     }
+
+    const commenterProfile: SimpleProfile = {
+      username: SimpleProfile.username,
+      name: SimpleProfile.name,
+      avatar: SimpleProfile.avatar,
+    };
 
     const commentData = {
       created_by: userId,
@@ -416,17 +422,13 @@ export class UpdateService {
       created_at: Timestamp.now(),
       updated_at: Timestamp.now(),
       parent_id: data.parent_id || null,
-      commenter_profile: {
-        username: creatorProfile.username,
-        name: creatorProfile.name,
-        avatar: creatorProfile.avatar,
-      },
+      commenter_profile: commenterProfile,
     };
 
     // Create batch for atomic operation
     const batch = this.db.batch();
 
-    const { data: createdComment } = await this.commentDAO.create(result.ref, commentData, userId, batch);
+    const { data: createdComment } = await this.commentDAO.create(result.ref, commentData, batch);
 
     // Update comment count on the update document
     this.updateDAO.incrementCommentCount(updateId, batch);
@@ -1024,13 +1026,13 @@ export class UpdateService {
    */
   private formatEnrichedUpdate(updateData: UpdateDoc): EnrichedUpdate {
     const update = this.formatUpdate(updateData);
-    const creatorProfile = updateData.creator_profile || { username: '', name: '', avatar: '' };
+    const SimpleProfile = updateData.creator_profile || { username: '', name: '', avatar: '' };
 
     return {
       ...update,
-      username: creatorProfile.username,
-      name: creatorProfile.name,
-      avatar: creatorProfile.avatar,
+      username: SimpleProfile.username,
+      name: SimpleProfile.name,
+      avatar: SimpleProfile.avatar,
     };
   }
 
@@ -1306,49 +1308,66 @@ export class UpdateService {
    * @returns Object containing notification data for all recipients
    */
   async prepareUpdateNotifications(updateData: UpdateDoc): Promise<{
-    notifications: {
+    notifications?: {
       userIds: string[];
       title: string;
       message: string;
       data: { type: string; update_id: string };
-    }[];
-    backgroundNotifications: {
+    };
+    backgroundNotifications?: {
       userIds: string[];
       data: { type: string; update_id: string };
-    }[];
+    };
   }> {
     const creatorId = updateData.created_by;
     const friendIds = updateData.friend_ids || [];
     const groupIds = updateData.group_ids || [];
     const updateId = updateData.id;
 
+    // Prepare notification data
+    let notifications:
+      | {
+          userIds: string[];
+          title: string;
+          message: string;
+          data: { type: string; update_id: string };
+        }
+      | undefined = undefined;
+
+    let backgroundNotifications:
+      | {
+          userIds: string[];
+          data: { type: string; update_id: string };
+        }
+      | undefined = undefined;
+
     if (!creatorId) {
       logger.warn('Update has no creator ID');
-      return { notifications: [], backgroundNotifications: [] };
+      return { notifications, backgroundNotifications };
     }
 
     // Get the creator's profile information
-    const creatorProfile = await this.profileDAO.get(creatorId);
+    const SimpleProfile = await this.profileDAO.get(creatorId);
     let creatorName = 'Friend';
     let creatorGender = 'They';
     let creatorLocation = '';
     let creatorBirthday = '';
 
-    if (creatorProfile) {
-      creatorName = creatorProfile.name || creatorProfile.username || 'Friend';
-      creatorGender = creatorProfile.gender || 'They';
-      creatorLocation = creatorProfile.location || '';
-      creatorBirthday = creatorProfile.birthday || '';
+    if (SimpleProfile) {
+      creatorName = SimpleProfile.name || SimpleProfile.username || 'Friend';
+      creatorGender = SimpleProfile.gender || 'They';
+      creatorLocation = SimpleProfile.location || '';
+      creatorBirthday = SimpleProfile.birthday || '';
     } else {
       logger.warn(`Creator profile not found: ${creatorId}`);
     }
 
     // Create a set of all users who should receive the update
-    const usersToNotify = new Set<string>();
+    const usersToCheck = new Set<string>();
     const groupUsers = new Set<string>();
 
     // Add all friends
-    friendIds.forEach((friendId: string) => usersToNotify.add(friendId));
+    friendIds.forEach((friendId: string) => usersToCheck.add(friendId));
 
     // Get all group members if there are groups
     if (groupIds.length > 0) {
@@ -1356,7 +1375,7 @@ export class UpdateService {
       groups.forEach((group) => {
         if (group.members) {
           group.members.forEach((memberId: string) => {
-            usersToNotify.add(memberId);
+            usersToCheck.add(memberId);
             groupUsers.add(memberId);
           });
         }
@@ -1364,54 +1383,20 @@ export class UpdateService {
     }
 
     // Remove the creator from notifications
-    usersToNotify.delete(creatorId);
+    usersToCheck.delete(creatorId);
 
     // Process notifications for all users
-    const userNotifications = new Map<
-      string,
-      {
-        shouldSendNotification: boolean;
-        shouldSendUrgent: boolean;
-        shouldSendAll: boolean;
-      }
-    >();
+    const usersToNotify: string[] = [];
 
-    for (const userId of usersToNotify) {
-      const notificationPrefs = await this.getUserNotificationPreferences(userId, updateData);
-      userNotifications.set(userId, notificationPrefs);
-    }
-
-    // Group users by notification type
-    const allNotificationUsers: string[] = [];
-    const urgentNotificationUsers: string[] = [];
-    const allUserIds = Array.from(usersToNotify);
-
-    for (const userId of allUserIds) {
-      const prefs = userNotifications.get(userId);
-      if (prefs?.shouldSendNotification) {
-        if (prefs.shouldSendAll) {
-          allNotificationUsers.push(userId);
-        } else if (prefs.shouldSendUrgent) {
-          urgentNotificationUsers.push(userId);
-        }
+    for (const userId of usersToCheck) {
+      const shouldSendNotification = await this.shouldSendNotification(userId, updateData.score);
+      if (shouldSendNotification) {
+        usersToNotify.push(userId);
       }
     }
-
-    // Prepare notification data
-    const notifications: {
-      userIds: string[];
-      title: string;
-      message: string;
-      data: { type: string; update_id: string };
-    }[] = [];
-
-    const backgroundNotifications: {
-      userIds: string[];
-      data: { type: string; update_id: string };
-    }[] = [];
 
     // Add notifications for users who want all updates
-    if (allNotificationUsers.length > 0) {
+    if (usersToNotify.length > 0) {
       const message = await this.generateUpdateNotificationMessage(
         updateData,
         creatorName,
@@ -1420,57 +1405,26 @@ export class UpdateService {
         creatorBirthday,
       );
 
-      notifications.push({
-        userIds: allNotificationUsers,
+      notifications = {
+        userIds: usersToNotify,
         title: 'New Update',
         message: message,
         data: {
           type: NotificationTypes.UPDATE,
           update_id: updateId,
         },
-      });
+      };
 
-      backgroundNotifications.push({
-        userIds: allNotificationUsers,
+      backgroundNotifications = {
+        userIds: usersToNotify,
         data: {
           type: NotificationTypes.UPDATE_BACKGROUND,
           update_id: updateId,
         },
-      });
+      };
     }
 
-    // Add notifications for users who want urgent updates
-    if (urgentNotificationUsers.length > 0) {
-      const message = await this.generateUpdateNotificationMessage(
-        updateData,
-        creatorName,
-        creatorGender,
-        creatorLocation,
-        creatorBirthday,
-      );
-
-      notifications.push({
-        userIds: urgentNotificationUsers,
-        title: 'New Update',
-        message: message,
-        data: {
-          type: NotificationTypes.UPDATE,
-          update_id: updateId,
-        },
-      });
-
-      backgroundNotifications.push({
-        userIds: urgentNotificationUsers,
-        data: {
-          type: NotificationTypes.UPDATE_BACKGROUND,
-          update_id: updateId,
-        },
-      });
-    }
-
-    logger.info(
-      `Prepared update notifications for ${allNotificationUsers.length + urgentNotificationUsers.length} users`,
-    );
+    logger.info(`Prepared update notifications for ${usersToNotify.length} users`);
 
     return {
       notifications,
@@ -1492,7 +1446,7 @@ export class UpdateService {
    * Updates profile denormalization across all update-related collections
    * Delegates to DAO layers for all database operations
    */
-  async updateProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Updating profile denormalization in updates for user ${userId}`);
 
     try {
@@ -1506,7 +1460,7 @@ export class UpdateService {
 
       // All database operations handled by DAOs
       const [creatorUpdates, commenterUpdates, sharedUpdates] = await Promise.all([
-        this.updateDAO.updateCreatorProfileDenormalization(userId, newProfile),
+        this.updateDAO.updateSimpleProfileDenormalization(userId, newProfile),
         this.commentDAO.updateCommenterProfileDenormalization(userId, newProfile),
         this.updateDAO.updateSharedFriendProfileDenormalization(userId, userProfile),
       ]);
@@ -1523,24 +1477,15 @@ export class UpdateService {
   /**
    * Gets user notification preferences for an update
    * @param userId The user ID to check preferences for
-   * @param updateData The update data
+   * @param score The update score
    * @returns User notification preferences
    */
-  private async getUserNotificationPreferences(
-    userId: string,
-    updateData: UpdateDoc,
-  ): Promise<{
-    shouldSendNotification: boolean;
-    shouldSendUrgent: boolean;
-    shouldSendAll: boolean;
-  }> {
-    const score = updateData.score || 3;
-
+  private async shouldSendNotification(userId: string, score: number): Promise<boolean> {
     // Get the user's profile to check notification settings
     const profile = await this.profileDAO.get(userId);
     if (!profile) {
       logger.warn(`Profile not found for user ${userId}`);
-      return { shouldSendNotification: false, shouldSendUrgent: false, shouldSendAll: false };
+      return false;
     }
 
     const notificationSettings = profile.notification_settings || [];
@@ -1548,23 +1493,19 @@ export class UpdateService {
     // If the user has no notification settings, skip
     if (!notificationSettings || notificationSettings.length === 0) {
       logger.info(`User ${userId} has no notification settings, skipping notification`);
-      return { shouldSendNotification: false, shouldSendUrgent: false, shouldSendAll: false };
+      return false;
     }
 
     // Determine if we should send a notification based on user settings
     let shouldSendNotification = false;
-    let shouldSendAll = false;
-    let shouldSendUrgent = false;
 
     if (notificationSettings.includes(NotificationSettings.ALL)) {
       // User wants all notifications
       shouldSendNotification = true;
-      shouldSendAll = true;
       logger.info(`User ${userId} has 'all' notification setting, will send notification`);
     } else if (notificationSettings.includes(NotificationSettings.URGENT) && (score === 5 || score === 1)) {
       // User only wants urgent notifications, check if this update is urgent
       shouldSendNotification = true;
-      shouldSendUrgent = true;
       logger.info(`User ${userId} has 'urgent' notification setting, will send notification`);
     } else {
       logger.info(
@@ -1572,11 +1513,7 @@ export class UpdateService {
       );
     }
 
-    return {
-      shouldSendNotification,
-      shouldSendUrgent,
-      shouldSendAll,
-    };
+    return shouldSendNotification;
   }
 
   /**

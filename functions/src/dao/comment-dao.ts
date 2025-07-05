@@ -1,12 +1,11 @@
 import { DocumentReference, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Collections, QueryOperators, MAX_BATCH_OPERATIONS } from '../models/constants.js';
-import { cf, commentConverter, CommentDoc, CreatorProfile } from '../models/firestore/index.js';
+import { Collections, MAX_BATCH_OPERATIONS, QueryOperators } from '../models/constants.js';
+import { cf, commentConverter, CommentDoc, SimpleProfile } from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
-import { getProfileDoc } from '../utils/profile-utils.js';
 import { BaseDAO } from './base-dao.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,35 +24,21 @@ export class CommentDAO extends BaseDAO<CommentDoc> {
    * Creates a new comment with profile denormalization and count management
    * @param updateRef The reference to the parent update document
    * @param commentData The comment data to create
-   * @param commenterId The ID of the user creating the comment
+   * @param commenterProfile The commenter's profile for denormalization
    * @param batch Optional batch to include this operation in
    * @returns The created comment with its ID
    */
   async create(
     updateRef: DocumentReference,
-    commentData: Omit<CommentDoc, 'id' | 'commenter_profile'>,
-    commenterId: string,
+    commentData: Omit<CommentDoc, 'id'>,
     batch?: WriteBatch,
   ): Promise<{ id: string; data: CommentDoc }> {
-    // Fetch commenter's profile for denormalization
-    const { data: profileData } = await getProfileDoc(commenterId);
-
-    const commenterProfile: CreatorProfile = {
-      username: profileData.username || '',
-      name: profileData.name || '',
-      avatar: profileData.avatar || '',
-    };
-
     const commentRef = updateRef.collection(this.collection).withConverter(this.converter).doc();
     const commentId = commentRef.id;
 
     const fullCommentData: CommentDoc = {
       ...commentData,
       id: commentId,
-      created_by: commenterId,
-      commenter_profile: commenterProfile,
-      created_at: Timestamp.now(),
-      updated_at: Timestamp.now(),
     };
 
     const shouldCommitBatch = !batch;
@@ -278,7 +263,7 @@ export class CommentDAO extends BaseDAO<CommentDoc> {
   async updateCommenterProfile(
     updateRef: DocumentReference,
     commentId: string,
-    newProfile: CreatorProfile,
+    newProfile: SimpleProfile,
     batch?: WriteBatch,
   ): Promise<void> {
     logger.info(`Updating commenter profile for comment ${commentId}`);
@@ -324,7 +309,7 @@ export class CommentDAO extends BaseDAO<CommentDoc> {
    * @param newProfile The new creator profile data
    * @returns The count of updated documents
    */
-  async updateCommenterProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+  async updateCommenterProfileDenormalization(userId: string, newProfile: SimpleProfile): Promise<number> {
     logger.info(`Starting commenter profile denormalization update for user ${userId}`);
 
     let updatedCount = 0;

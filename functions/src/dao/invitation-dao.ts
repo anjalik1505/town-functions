@@ -2,8 +2,7 @@ import { DocumentReference, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
-import { InvitationDoc, if_, invitationConverter } from '../models/firestore/index.js';
-import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { InvitationDoc, SimpleProfile, if_, invitationConverter } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { BaseDAO } from './base-dao.js';
 
@@ -107,7 +106,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
    * @param ref The invitation document reference to update
    * @param newProfile The new sender profile data
    */
-  async updateSenderProfile(ref: DocumentReference, newProfile: CreatorProfile): Promise<void> {
+  async updateSenderProfile(ref: DocumentReference, newProfile: SimpleProfile): Promise<void> {
     ref.update({
       username: newProfile.username,
       name: newProfile.name,

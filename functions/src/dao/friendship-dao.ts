@@ -2,8 +2,7 @@ import { Query, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
-import { FriendDoc, ff, friendConverter } from '../models/firestore/friend-doc.js';
-import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { FriendDoc, SimpleProfile, ff, friendConverter } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { BaseDAO } from './base-dao.js';
@@ -178,7 +177,7 @@ export class FriendshipDAO extends BaseDAO<FriendDoc> {
   async updateFriendProfile(
     friendId: string,
     userId: string,
-    newProfile: CreatorProfile,
+    newProfile: SimpleProfile,
     batch?: WriteBatch,
   ): Promise<void> {
     const friendRef = this.getFriendRef(friendId, userId);
