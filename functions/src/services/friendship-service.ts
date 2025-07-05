@@ -1,7 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { analyzeImagesFlow } from '../ai/flows.js';
 import { FeedDAO } from '../dao/feed-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
@@ -11,9 +10,8 @@ import { EventName, FriendshipAcceptanceEventParams, FriendSummaryEventParams } 
 import { MAX_BATCH_OPERATIONS, NotificationTypes } from '../models/constants.js';
 import { ProfileData, SummaryContext, SummaryResult } from '../models/data-models.js';
 import { ProfileDoc } from '../models/firestore/profile-doc.js';
-import { UpdateDoc, UserProfile } from '../models/firestore/update-doc.js';
+import { CreatorProfile, uf, UpdateDoc, UserProfile } from '../models/firestore/update-doc.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
-import { processImagesForPrompt } from '../utils/image-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, createSummaryId } from '../utils/profile-utils.js';
 import { generateFriendSummary } from '../utils/summary-utils.js';
@@ -66,10 +64,9 @@ export class FriendshipService {
 
     try {
       // Fetch both profiles once at the beginning
-      const [userProfile, friendProfile] = await Promise.all([
-        this.profileDAO.findById(userId),
-        this.profileDAO.findById(friendId),
-      ]);
+      const profiles = await this.profileDAO.getAll([userId, friendId]);
+      const userProfile = profiles.find((profile) => profile.user_id === userId);
+      const friendProfile = profiles.find((profile) => profile.user_id === friendId);
 
       if (!userProfile || !friendProfile) {
         logger.error(`Missing profile data: user=${!!userProfile}, friend=${!!friendProfile}`);
@@ -105,7 +102,7 @@ export class FriendshipService {
 
       // Update userId's friend document about friendId with friendId's latest update info
       if (friendUpdateInfo) {
-        await this.friendshipDAO.upsertFriend(
+        await this.friendshipDAO.upsert(
           userId,
           friendId,
           {
@@ -119,7 +116,7 @@ export class FriendshipService {
 
       // Update friendId's friend document about userId with userId's latest update info
       if (userUpdateInfo) {
-        await this.friendshipDAO.upsertFriend(
+        await this.friendshipDAO.upsert(
           friendId,
           userId,
           {
@@ -191,7 +188,7 @@ export class FriendshipService {
 
     try {
       // Stream all_village updates from source user
-      for await (const update of this.updateDAO.streamAllVillageUpdatesByUser(sourceUserId)) {
+      for await (const update of this.updateDAO.streamUpdates(sourceUserId)) {
         // Capture first (latest) update info
         if (!latestInfo) {
           latestInfo = { emoji: update.emoji || '', updatedAt: update.created_at };
@@ -203,7 +200,7 @@ export class FriendshipService {
         }
 
         // Create feed item
-        await this.feedDAO.createFeedItems(
+        await this.feedDAO.create(
           [
             {
               userId: targetUserId,
@@ -222,7 +219,7 @@ export class FriendshipService {
         // Use shareUpdate to properly update visible_to and friend_ids
         const currentFriendIds = update.friend_ids || [];
         if (!currentFriendIds.includes(targetUserId)) {
-          await this.updateDAO.shareUpdate(
+          await this.updateDAO.share(
             update.id,
             [targetUserId], // additionalFriendIds
             [], // additionalGroupIds
@@ -284,12 +281,8 @@ export class FriendshipService {
 
     // Process each update for friend summary
     for (const updateData of orderedUpdates) {
-      // Process images
-      const imagePaths = updateData.image_paths || [];
-      const processedImages = await processImagesForPrompt(imagePaths);
-
-      // Analyze images
-      const { analysis: imageAnalysis } = await analyzeImagesFlow({ images: processedImages });
+      // Use stored image analysis or fallback to processing images
+      const imageAnalysis = updateData.image_analysis || '';
 
       // Generate the summary
       const summaryResult = await generateFriendSummary(summaryContext, updateData, imageAnalysis);
@@ -339,7 +332,7 @@ export class FriendshipService {
     const summaryId = createSummaryId(friendId, creatorId);
 
     // Get existing summary using UserSummaryDAO
-    const existingSummaryDoc = await this.userSummaryDAO.getById(summaryId);
+    const existingSummaryDoc = await this.userSummaryDAO.get(summaryId);
 
     // Extract data from existing summary or initialize new data
     let existingSummary = '';
@@ -381,5 +374,128 @@ export class FriendshipService {
       creatorProfile,
       friendProfile,
     } as SummaryContext;
+  }
+
+  /**
+   * Processes friend summaries for update creation
+   * @param updateData The update document data
+   * @param imageAnalysis Already analyzed image description text
+   * @returns Analytics data for friend summaries
+   */
+  async processUpdateFriendSummaries(
+    updateData: UpdateDoc,
+    imageAnalysis: string,
+  ): Promise<FriendSummaryEventParams[]> {
+    const creatorId = updateData[uf('created_by')];
+    const friendIds = updateData[uf('friend_ids')] || [];
+    const emoji = updateData[uf('emoji')];
+
+    if (!creatorId || friendIds.length === 0) {
+      logger.info('No creator ID or friends found for update');
+      return [];
+    }
+
+    logger.info(`Processing friend summaries for update from ${creatorId} to ${friendIds.length} friends`);
+
+    // Get creator profile
+    const creatorProfile = await this.profileDAO.get(creatorId);
+    if (!creatorProfile) {
+      logger.warn(`Creator profile not found: ${creatorId}`);
+      return [];
+    }
+
+    // Create a batch for all friend summary updates
+    const batch = this.db.batch();
+    const friendSummaryEvents: FriendSummaryEventParams[] = [];
+
+    // Process each friend
+    for (const friendId of friendIds) {
+      try {
+        // Get friend profile
+        const friendProfile = await this.profileDAO.get(friendId);
+        if (!friendProfile) {
+          logger.warn(`Friend profile not found: ${friendId}`);
+          continue;
+        }
+
+        // Get summary context
+        const summaryContext = await this.getSummaryContext(creatorId, friendId, creatorProfile, friendProfile);
+
+        // Generate friend summary
+        const summaryResult = await generateFriendSummary(summaryContext, updateData, imageAnalysis);
+
+        // Write the summary to database using batch
+        await this.userSummaryDAO.createOrUpdateSummary(
+          creatorId,
+          friendId,
+          {
+            summary: summaryResult.summary,
+            suggestions: summaryResult.suggestions,
+            lastUpdateId: summaryResult.updateId,
+            updateCount: summaryContext.updateCount,
+          },
+          batch,
+        );
+
+        // Update friend document with emoji if provided
+        if (emoji) {
+          await this.friendshipDAO.upsert(
+            friendId,
+            creatorId,
+            {
+              last_update_emoji: emoji,
+              last_update_at: updateData[uf('created_at')],
+            },
+            batch,
+          );
+        }
+
+        friendSummaryEvents.push(summaryResult.analytics);
+      } catch (error) {
+        logger.error(`Failed to process friend summary for ${friendId}`, error);
+      }
+    }
+
+    // Commit all updates
+    if (friendSummaryEvents.length > 0) {
+      await batch.commit();
+      logger.info(`Successfully committed ${friendSummaryEvents.length} friend summary updates`);
+    }
+
+    return friendSummaryEvents;
+  }
+
+  /**
+   * Updates friend profile denormalization in the friends subcollections
+   */
+  async updateFriendProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Updating friend profile denormalization for user ${userId}`);
+
+    let totalUpdates = 0;
+
+    try {
+      // Get list of friends for this user
+      const friendIds = await this.friendshipDAO.getFriendIds(userId);
+
+      if (friendIds.length === 0) {
+        logger.info(`User ${userId} has no friends to update`);
+        return 0;
+      }
+
+      const batch = getFirestore().batch();
+
+      // Update this user's profile data in each friend's FRIENDS subcollection
+      for (const friendId of friendIds) {
+        await this.friendshipDAO.updateFriendProfile(friendId, userId, newProfile, batch);
+        totalUpdates++;
+      }
+
+      await batch.commit();
+      logger.info(`Updated ${totalUpdates} friend profile references for user ${userId}`);
+      return totalUpdates;
+    } catch (error) {
+      logger.error(`Error updating friend profile denormalization for user ${userId}:`, error);
+      throw error;
+    }
   }
 }

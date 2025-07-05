@@ -166,7 +166,7 @@ export class NotificationService {
    */
   private async getDeviceToken(userId: string): Promise<string | null> {
     try {
-      const deviceData = await this.deviceDAO.findById(userId);
+      const deviceData = await this.deviceDAO.get(userId);
       return deviceData?.device_id || null;
     } catch (error) {
       logger.error(`Error retrieving device token for user ${userId}: ${error}`);

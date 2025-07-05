@@ -22,7 +22,7 @@ export class ReactionDAO extends BaseDAO<ReactionDoc> {
    * @param batch Optional batch to include this operation in
    * @returns The complete reaction document
    */
-  async upsertReaction(
+  async upsert(
     updateRef: DocumentReference,
     userId: string,
     reactionType: string,
@@ -79,7 +79,7 @@ export class ReactionDAO extends BaseDAO<ReactionDoc> {
    * @param batch Optional batch to include this operation in
    * @returns The updated reaction types array
    */
-  async deleteReaction(
+  async delete(
     updateRef: DocumentReference,
     userId: string,
     reactionType: string,

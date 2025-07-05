@@ -74,6 +74,8 @@ export enum EventName {
   JOIN_REQUEST_ACCEPTED = 'join_request_accepted',
   JOIN_REQUEST_REJECTED = 'join_request_rejected',
   INVITATION_RESET = 'invitation_reset',
+  PROFILE_DENORMALIZATION_COMPLETED = 'profile_denormalization_completed',
+  PROFILE_DENORMALIZATION_SKIPPED = 'profile_denormalization_skipped',
 }
 
 // Base interface for all event parameters

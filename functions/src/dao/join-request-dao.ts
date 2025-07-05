@@ -1,8 +1,15 @@
-import { Query, Timestamp } from 'firebase-admin/firestore';
-import { Collections, QueryOperators } from '../models/constants.js';
+import { DocumentReference, Query, Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Collections, MAX_BATCH_OPERATIONS, QueryOperators } from '../models/constants.js';
 import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/index.js';
+import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { BaseDAO } from './base-dao.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Data Access Object for Join Request documents
@@ -204,7 +211,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param requestId The join request ID
    * @param batch The batch to add the delete operation to
    */
-  deleteRequestWithBatch(invitationId: string, requestId: string, batch: FirebaseFirestore.WriteBatch): void {
+  delete(invitationId: string, requestId: string, batch: FirebaseFirestore.WriteBatch): void {
     const requestRef = this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -222,11 +229,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param status Optional status filter
    * @returns The existing join request or null
    */
-  async findExistingRequest(
-    invitationId: string,
-    requesterId: string,
-    status?: string | string[],
-  ): Promise<JoinRequestDoc | null> {
+  async get(invitationId: string, requesterId: string, status?: string | string[]): Promise<JoinRequestDoc | null> {
     let query: Query = this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -268,7 +271,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param batch Optional batch to include this operation in
    * @returns The number of deleted join requests
    */
-  async deleteAllByInvitation(invitationId: string, batch?: FirebaseFirestore.WriteBatch): Promise<number> {
+  async deleteAll(invitationId: string, batch?: FirebaseFirestore.WriteBatch): Promise<number> {
     const joinRequestsSnapshot = await this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -292,5 +295,257 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
     }
 
     return joinRequestsSnapshot.size;
+  }
+
+  /**
+   * Updates the requester profile fields in a join request document
+   * @param invitationId The invitation ID containing the join request
+   * @param requestId The join request ID
+   * @param newProfile The new requester profile data
+   * @param batch Optional WriteBatch to add the operation to
+   */
+  async updateRequesterProfile(
+    invitationId: string,
+    requestId: string,
+    newProfile: CreatorProfile,
+    batch?: WriteBatch,
+  ): Promise<void> {
+    const shouldCommitBatch = !batch;
+    const workingBatch = batch || this.db.batch();
+
+    const requestRef = this.db
+      .collection(this.collection)
+      .doc(invitationId)
+      .collection(this.subcollection!)
+      .doc(requestId);
+
+    workingBatch.update(requestRef, {
+      requester_username: newProfile.username,
+      requester_name: newProfile.name,
+      requester_avatar: newProfile.avatar,
+      updated_at: Timestamp.now(),
+    });
+
+    if (shouldCommitBatch) {
+      await workingBatch.commit();
+    }
+
+    logger.info(`Updated requester profile for join request ${requestId} in invitation ${invitationId}`);
+  }
+
+  /**
+   * Updates the receiver profile fields in a join request document
+   * @param invitationId The invitation ID containing the join request
+   * @param requestId The join request ID
+   * @param newProfile The new receiver profile data
+   * @param batch Optional WriteBatch to add the operation to
+   */
+  async updateReceiverProfile(
+    invitationId: string,
+    requestId: string,
+    newProfile: CreatorProfile,
+    batch?: WriteBatch,
+  ): Promise<void> {
+    const shouldCommitBatch = !batch;
+    const workingBatch = batch || this.db.batch();
+
+    const requestRef = this.db
+      .collection(this.collection)
+      .doc(invitationId)
+      .collection(this.subcollection!)
+      .doc(requestId);
+
+    workingBatch.update(requestRef, {
+      receiver_username: newProfile.username,
+      receiver_name: newProfile.name,
+      receiver_avatar: newProfile.avatar,
+      updated_at: Timestamp.now(),
+    });
+
+    if (shouldCommitBatch) {
+      await workingBatch.commit();
+    }
+
+    logger.info(`Updated receiver profile for join request ${requestId} in invitation ${invitationId}`);
+  }
+
+  /**
+   * Streams all join requests made by a specific user (requester) with streaming support
+   * @param userId The user ID who made the join requests
+   * @returns AsyncIterable of { doc: JoinRequestDoc, invitationRef: DocumentReference, requestRef: DocumentReference }
+   */
+  async *streamJoinRequestsByRequester(
+    userId: string,
+  ): AsyncIterable<{ doc: JoinRequestDoc; invitationRef: DocumentReference; requestRef: DocumentReference }> {
+    logger.info(`Streaming join requests by requester: ${userId}`);
+
+    try {
+      // Use collection group query to search across all join request subcollections
+      const query = this.db
+        .collectionGroup(this.subcollection!)
+        .withConverter(this.converter)
+        .where(jrf('requester_id'), QueryOperators.EQUALS, userId)
+        .orderBy(jrf('created_at'), QueryOperators.DESC);
+
+      // Stream the query results
+      const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<JoinRequestDoc>>;
+
+      for await (const docSnapshot of stream) {
+        const joinRequestData = docSnapshot.data();
+        if (joinRequestData) {
+          // Extract the parent invitation reference from the document reference path
+          // Path structure: /invitations/{invitationId}/join_requests/{requestId}
+          const invitationRef = docSnapshot.ref.parent.parent;
+          if (invitationRef) {
+            yield {
+              doc: { ...joinRequestData, request_id: docSnapshot.id },
+              invitationRef,
+              requestRef: docSnapshot.ref,
+            };
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`Error streaming join requests by requester ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Streams all join requests for a specific invitation with streaming support
+   * @param invitationId The invitation ID to get join requests for
+   * @returns AsyncIterable of { doc: JoinRequestDoc, requestRef: DocumentReference }
+   */
+  async *streamJoinRequestsByInvitation(
+    invitationId: string,
+  ): AsyncIterable<{ doc: JoinRequestDoc; requestRef: DocumentReference }> {
+    logger.info(`Streaming join requests for invitation: ${invitationId}`);
+
+    try {
+      const query = this.db
+        .collection(this.collection)
+        .doc(invitationId)
+        .collection(this.subcollection!)
+        .withConverter(this.converter)
+        .orderBy(jrf('created_at'), QueryOperators.DESC);
+
+      // Stream the query results
+      const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<JoinRequestDoc>>;
+
+      for await (const docSnapshot of stream) {
+        const joinRequestData = docSnapshot.data();
+        if (joinRequestData) {
+          yield {
+            doc: { ...joinRequestData, request_id: docSnapshot.id },
+            requestRef: docSnapshot.ref,
+          };
+        }
+      }
+    } catch (error) {
+      logger.error(`Error streaming join requests for invitation ${invitationId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates requester profile denormalization for all join requests made by a user
+   * Uses streaming to handle large datasets efficiently with batch operations
+   * @param userId The user ID whose profile needs updating
+   * @param newProfile The new profile data to apply
+   * @returns The number of join requests updated
+   */
+  async updateRequesterProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Updating requester profile denormalization for user: ${userId}`);
+
+    let totalUpdates = 0;
+    let currentBatch = this.db.batch();
+    let currentBatchSize = 0;
+
+    try {
+      // Stream join requests by requester
+      for await (const { requestRef } of this.streamJoinRequestsByRequester(userId)) {
+        // Add update to batch
+        currentBatch.update(requestRef, {
+          requester_username: newProfile.username,
+          requester_name: newProfile.name,
+          requester_avatar: newProfile.avatar,
+          updated_at: Timestamp.now(),
+        });
+
+        currentBatchSize++;
+        totalUpdates++;
+
+        // Commit batch if it reaches the size limit
+        if (currentBatchSize >= MAX_BATCH_OPERATIONS) {
+          await currentBatch.commit();
+          logger.info(`Committed batch of ${currentBatchSize} requester profile updates`);
+          currentBatch = this.db.batch();
+          currentBatchSize = 0;
+        }
+      }
+
+      // Commit any remaining operations
+      if (currentBatchSize > 0) {
+        await currentBatch.commit();
+        logger.info(`Committed final batch of ${currentBatchSize} requester profile updates`);
+      }
+
+      logger.info(`Updated requester profile denormalization for ${totalUpdates} join requests`);
+      return totalUpdates;
+    } catch (error) {
+      logger.error(`Error updating requester profile denormalization for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates receiver profile denormalization for all join requests on a specific invitation
+   * Uses streaming to handle large datasets efficiently with batch operations
+   * @param invitationId The invitation ID whose join requests need profile updates
+   * @param newProfile The new profile data to apply
+   * @returns The number of join requests updated
+   */
+  async updateReceiverProfileDenormalization(invitationId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Updating receiver profile denormalization for invitation: ${invitationId}`);
+
+    let totalUpdates = 0;
+    let currentBatch = this.db.batch();
+    let currentBatchSize = 0;
+
+    try {
+      // Stream join requests by invitation
+      for await (const { requestRef } of this.streamJoinRequestsByInvitation(invitationId)) {
+        // Add update to batch
+        currentBatch.update(requestRef, {
+          receiver_username: newProfile.username,
+          receiver_name: newProfile.name,
+          receiver_avatar: newProfile.avatar,
+          updated_at: Timestamp.now(),
+        });
+
+        currentBatchSize++;
+        totalUpdates++;
+
+        // Commit batch if it reaches the size limit
+        if (currentBatchSize >= MAX_BATCH_OPERATIONS) {
+          await currentBatch.commit();
+          logger.info(`Committed batch of ${currentBatchSize} receiver profile updates`);
+          currentBatch = this.db.batch();
+          currentBatchSize = 0;
+        }
+      }
+
+      // Commit any remaining operations
+      if (currentBatchSize > 0) {
+        await currentBatch.commit();
+        logger.info(`Committed final batch of ${currentBatchSize} receiver profile updates`);
+      }
+
+      logger.info(`Updated receiver profile denormalization for ${totalUpdates} join requests`);
+      return totalUpdates;
+    } catch (error) {
+      logger.error(`Error updating receiver profile denormalization for invitation ${invitationId}:`, error);
+      throw error;
+    }
   }
 }

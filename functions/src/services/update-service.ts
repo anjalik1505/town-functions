@@ -1,7 +1,8 @@
-import { getFirestore, Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, WriteBatch, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { generateNotificationMessageFlow } from '../ai/flows.js';
 import { CommentDAO } from '../dao/comment-dao.js';
 import { FeedDAO } from '../dao/feed-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
@@ -10,7 +11,7 @@ import { ProfileDAO } from '../dao/profile-dao.js';
 import { ReactionDAO } from '../dao/reaction-dao.js';
 import { UpdateDAO } from '../dao/update-dao.js';
 import { ApiResponse, EventName, FeedViewEventParams, UpdateViewEventParams } from '../models/analytics-events.js';
-import { NotificationTypes } from '../models/constants.js';
+import { Collections, MAX_BATCH_SIZE, NotificationTypes, QueryOperators } from '../models/constants.js';
 import {
   Comment,
   CommentsResponse,
@@ -29,13 +30,18 @@ import {
 import {
   CommentDoc,
   CreatorProfile,
+  fdf,
   FeedDoc,
   GroupProfile,
+  ReactionDoc,
   UpdateDoc,
   UserProfile,
 } from '../models/firestore/index.js';
+import { NotificationSettings } from '../models/firestore/profile-doc.js';
+import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
+import { calculateAge } from '../utils/profile-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
 import { createFriendVisibilityIdentifier } from '../utils/visibility-utils.js';
 
@@ -54,6 +60,7 @@ export class UpdateService {
   private profileDAO: ProfileDAO;
   private groupDAO: GroupDAO;
   private friendshipDAO: FriendshipDAO;
+  private db: FirebaseFirestore.Firestore;
 
   constructor() {
     this.updateDAO = new UpdateDAO();
@@ -63,6 +70,7 @@ export class UpdateService {
     this.profileDAO = new ProfileDAO();
     this.groupDAO = new GroupDAO();
     this.friendshipDAO = new FriendshipDAO();
+    this.db = getFirestore();
   }
 
   /**
@@ -85,14 +93,14 @@ export class UpdateService {
 
     logger.info(
       `Update details - content length: ${content.length}, ` +
-        `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-        `all_village: ${allVillage}, ` +
-        `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
-        `${images.length} images`,
+      `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
+      `all_village: ${allVillage}, ` +
+      `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
+      `${images.length} images`,
     );
 
     // Get creator's profile for denormalization
-    const creatorProfile = await this.profileDAO.findById(userId);
+    const creatorProfile = await this.profileDAO.get(userId);
     if (!creatorProfile) {
       throw new NotFoundError('Creator profile not found');
     }
@@ -105,7 +113,7 @@ export class UpdateService {
       const tmpFriendIds = await this.friendshipDAO.getFriendIds(userId);
 
       // Get all groups where the user is a member
-      const userGroups = await this.groupDAO.getGroupsByUser(userId);
+      const userGroups = await this.groupDAO.getForUser(userId);
       const tmpGroupIds = userGroups.map((group) => group.group_id);
 
       logger.info(`All village mode: found ${tmpFriendIds.length} friends and ${tmpGroupIds.length} groups`);
@@ -131,7 +139,7 @@ export class UpdateService {
     let sharedWithGroupsProfiles: GroupProfile[] = [];
 
     if (friendIds.length > 0) {
-      const friendProfiles = await this.profileDAO.fetchMultiple(friendIds);
+      const friendProfiles = await this.profileDAO.getAll(friendIds);
       sharedWithFriendsProfiles = friendProfiles.map((profile) => ({
         user_id: profile.user_id,
         username: profile.username,
@@ -141,7 +149,7 @@ export class UpdateService {
     }
 
     if (groupIds.length > 0) {
-      const groups = await this.groupDAO.fetchMultiple(groupIds);
+      const groups = await this.groupDAO.getGroups(groupIds);
       sharedWithGroupsProfiles = groups.map((group) => ({
         group_id: group.id,
         name: group.name,
@@ -172,7 +180,7 @@ export class UpdateService {
     };
 
     // Create a batch for atomic operations
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
 
     // Create the update within the batch
     const createResult = await this.updateDAO.create(
@@ -229,7 +237,7 @@ export class UpdateService {
     const limit = pagination?.limit || 20;
     const afterCursor = pagination?.after_cursor;
 
-    const result = await this.updateDAO.getById(updateId, userId);
+    const result = await this.updateDAO.get(updateId, userId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
@@ -274,7 +282,7 @@ export class UpdateService {
   async shareUpdate(userId: string, updateId: string, shareData: ShareUpdatePayload): Promise<ApiResponse<Update>> {
     logger.info(`Sharing update ${updateId} by user ${userId}`);
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
@@ -316,7 +324,7 @@ export class UpdateService {
     let additionalGroupsProfiles: GroupProfile[] = [];
 
     if (additionalFriendIds.length > 0) {
-      const friendProfiles = await this.profileDAO.fetchMultiple(additionalFriendIds);
+      const friendProfiles = await this.profileDAO.getAll(additionalFriendIds);
       additionalFriendsProfiles = friendProfiles.map((profile) => ({
         user_id: profile.user_id,
         username: profile.username,
@@ -326,7 +334,7 @@ export class UpdateService {
     }
 
     if (additionalGroupIds.length > 0) {
-      const groups = await this.groupDAO.fetchMultiple(additionalGroupIds);
+      const groups = await this.groupDAO.getGroups(additionalGroupIds);
       additionalGroupsProfiles = groups.map((group) => ({
         group_id: group.id,
         name: group.name,
@@ -335,10 +343,10 @@ export class UpdateService {
     }
 
     // Create a batch for atomic operations
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
 
     // Update the update document within the batch
-    const updatedData = await this.updateDAO.shareUpdate(
+    const updatedData = await this.updateDAO.share(
       updateId,
       additionalFriendIds,
       additionalGroupIds,
@@ -387,7 +395,7 @@ export class UpdateService {
   async createComment(userId: string, updateId: string, data: CreateCommentPayload): Promise<ApiResponse<Comment>> {
     logger.info(`Creating comment on update ${updateId} by user ${userId}`);
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
@@ -396,7 +404,7 @@ export class UpdateService {
     await this.checkUpdateAccess(result.data, userId);
 
     // Get creator's profile for denormalization
-    const creatorProfile = await this.profileDAO.findById(userId);
+    const creatorProfile = await this.profileDAO.get(userId);
     if (!creatorProfile) {
       throw new NotFoundError('Creator profile not found');
     }
@@ -415,7 +423,7 @@ export class UpdateService {
     };
 
     // Create batch for atomic operation
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
 
     const { data: createdComment } = await this.commentDAO.create(result.ref, commentData, userId, batch);
 
@@ -464,12 +472,12 @@ export class UpdateService {
       throw new BadRequestError('Comment ID is required');
     }
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
 
-    const updatedComment = await this.commentDAO.updateComment(result.ref, commentId, data.content, userId);
+    const updatedComment = await this.commentDAO.update(result.ref, commentId, data.content, userId);
 
     return {
       data: this.formatComment(updatedComment),
@@ -503,15 +511,15 @@ export class UpdateService {
       throw new BadRequestError('Comment ID is required');
     }
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
 
     // Create batch for atomic operation
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
 
-    await this.commentDAO.deleteComment(result.ref, commentId, userId, batch);
+    await this.commentDAO.delete(result.ref, commentId, userId, batch);
 
     // Update comment count on the update document
     this.updateDAO.decrementCommentCount(updateId, batch);
@@ -544,7 +552,7 @@ export class UpdateService {
   async addReaction(userId: string, updateId: string, type: string): Promise<ApiResponse<ReactionGroup>> {
     logger.info(`Adding reaction ${type} to update ${updateId} by user ${userId}`);
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
@@ -553,9 +561,9 @@ export class UpdateService {
     await this.checkUpdateAccess(result.data, userId);
 
     // Create batch for atomic operation
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
 
-    await this.reactionDAO.upsertReaction(result.ref, userId, type, batch);
+    await this.reactionDAO.upsert(result.ref, userId, type, batch);
 
     // Update reaction counts on the update document
     this.updateDAO.incrementReactionCount(updateId, type, batch);
@@ -594,7 +602,7 @@ export class UpdateService {
   async removeReaction(userId: string, updateId: string, type: string): Promise<ApiResponse<ReactionGroup>> {
     logger.info(`Removing reaction type ${type} from update ${updateId} by user ${userId}`);
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
@@ -603,10 +611,10 @@ export class UpdateService {
     await this.checkUpdateAccess(result.data, userId);
 
     // Create batch for atomic operation
-    const batch = getFirestore().batch();
+    const batch = this.db.batch();
 
     // Remove only the specific reaction type
-    await this.reactionDAO.deleteReaction(result.ref, userId, type, batch);
+    await this.reactionDAO.delete(result.ref, userId, type, batch);
 
     // Update reaction counts on the update document
     this.updateDAO.decrementReactionCount(updateId, type, batch);
@@ -652,7 +660,7 @@ export class UpdateService {
     const limit = pagination?.limit || 20;
     const afterCursor = pagination?.after_cursor;
 
-    const result = await this.updateDAO.getById(updateId);
+    const result = await this.updateDAO.get(updateId);
     if (!result) {
       throw new NotFoundError('Update not found');
     }
@@ -696,13 +704,13 @@ export class UpdateService {
     logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
     // Get the user's profile first to verify existence
-    const profile = await this.profileDAO.getById(userId);
+    const profile = await this.profileDAO.get(userId);
     if (!profile) {
       throw new NotFoundError('Profile not found');
     }
 
     // Get the paginated feed results from DAO
-    const { feedItems: feedDocs, nextCursor } = await this.feedDAO.getUserOwnFeed(userId, afterCursor, limit);
+    const { feedItems: feedDocs, nextCursor } = await this.feedDAO.getOwnFeed(userId, afterCursor, limit);
 
     if (feedDocs.length === 0) {
       logger.info(`No updates found for user ${userId}`);
@@ -763,13 +771,13 @@ export class UpdateService {
     logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
     // Get the user's profile first to verify existence
-    const profile = await this.profileDAO.getById(userId);
+    const profile = await this.profileDAO.get(userId);
     if (!profile) {
       throw new NotFoundError('Profile not found');
     }
 
     // Get the paginated feed results from DAO
-    const { feedItems: feedDocs, nextCursor } = await this.feedDAO.getUserFullFeed(userId, afterCursor, limit);
+    const { feedItems: feedDocs, nextCursor } = await this.feedDAO.getFullFeed(userId, afterCursor, limit);
 
     if (feedDocs.length === 0) {
       logger.info(`No feed items found for user ${userId}`);
@@ -843,13 +851,13 @@ export class UpdateService {
     logger.info(`Pagination parameters - limit: ${limit}, after_cursor: ${afterCursor}`);
 
     // Get the target user's profile
-    const targetProfile = await this.profileDAO.getById(targetUserId);
+    const targetProfile = await this.profileDAO.get(targetUserId);
     if (!targetProfile) {
       throw new NotFoundError('Profile not found');
     }
 
     // Get the current user's profile
-    const currentProfile = await this.profileDAO.getById(currentUserId);
+    const currentProfile = await this.profileDAO.get(currentUserId);
     if (!currentProfile) {
       throw new NotFoundError('Profile not found');
     }
@@ -866,7 +874,7 @@ export class UpdateService {
     logger.info(`Friendship verified between ${currentUserId} and ${targetUserId}`);
 
     // Get the paginated feed results from DAO
-    const { feedItems: feedDocs, nextCursor } = await this.feedDAO.getUserFriendFeed(
+    const { feedItems: feedDocs, nextCursor } = await this.feedDAO.getFriendFeed(
       currentUserId,
       targetUserId,
       afterCursor,
@@ -998,18 +1006,16 @@ export class UpdateService {
     // Get group members
     const groupMembersMap = new Map<string, Set<string>>();
     if (groupIds.length > 0) {
-      for (const groupId of groupIds) {
-        const group = await this.groupDAO.findById(groupId);
-        if (group) {
-          const members = new Set(group.members);
-          groupMembersMap.set(groupId, members);
-          members.forEach((memberId) => usersToNotify.add(memberId));
-        }
+      const groups = await this.groupDAO.getGroups(groupIds);
+      for (const group of groups) {
+        const members = new Set(group.members);
+        groupMembersMap.set(group.id, members);
+        members.forEach((memberId) => usersToNotify.add(memberId));
       }
     }
 
     // Create feed items (batch will be passed through to FeedDAO)
-    await this.feedDAO.createFeedItemsForUpdate(
+    await this.feedDAO.createForUpdate(
       usersToNotify,
       updateId,
       createdAt,
@@ -1178,7 +1184,7 @@ export class UpdateService {
     logger.info(`Preparing comment notifications for update ${updateId} by commenter ${commenterId}`);
 
     // Fetch the update using UpdateDAO
-    const update = await this.updateDAO.getById(updateId);
+    const update = await this.updateDAO.get(updateId);
 
     if (!update || !update.data) {
       logger.warn(`Update not found for ID ${updateId}`);
@@ -1227,11 +1233,11 @@ export class UpdateService {
     // Prepare notification data
     let updateCreatorNotification:
       | {
-          userId: string;
-          title: string;
-          message: string;
-          data: { type: string; update_id: string };
-        }
+        userId: string;
+        title: string;
+        message: string;
+        data: { type: string; update_id: string };
+      }
       | undefined;
 
     const otherParticipantIds: string[] = [];
@@ -1255,14 +1261,14 @@ export class UpdateService {
     const participantNotifications =
       otherParticipantIds.length > 0
         ? {
-            userIds: otherParticipantIds,
-            title: 'New Comment',
-            message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
-            data: {
-              type: NotificationTypes.COMMENT,
-              update_id: updateId,
-            },
-          }
+          userIds: otherParticipantIds,
+          title: 'New Comment',
+          message: `${commenterName} also commented on a post you're following: "${truncatedComment}"`,
+          data: {
+            type: NotificationTypes.COMMENT,
+            update_id: updateId,
+          },
+        }
         : undefined;
 
     logger.info(
@@ -1273,6 +1279,480 @@ export class UpdateService {
       updateCreatorNotification,
       participantNotifications,
     };
+  }
+
+  /**
+   * Prepares notification data for reaction notifications
+   * @param updateId The ID of the update that was reacted to
+   * @param reactionData The reaction document data
+   * @param reactorId The ID of the user who created the reaction
+   * @returns Object containing notification data for the update creator
+   */
+  async prepareReactionNotifications(
+    updateId: string,
+    reactionData: ReactionDoc,
+    reactorId: string,
+  ): Promise<{
+    updateCreatorNotification?: {
+      userId: string;
+      title: string;
+      message: string;
+      data: { type: string; update_id: string };
+    };
+  }> {
+    logger.info(`Preparing reaction notifications for update ${updateId} by reactor ${reactorId}`);
+
+    // Fetch the update using UpdateDAO
+    const update = await this.updateDAO.get(updateId);
+
+    if (!update || !update.data) {
+      logger.warn(`Update not found for ID ${updateId}`);
+      return {};
+    }
+
+    const updateCreatorId = update.data.created_by;
+
+    // Skip if the reactor is the update creator (self-reaction)
+    if (reactorId === updateCreatorId) {
+      logger.info(`Skipping notification for update creator: ${updateCreatorId} (self-reaction)`);
+      return {};
+    }
+
+    // Get reactor profile info to build notification message
+    const reactorProfile = await this.profileDAO.get(reactorId);
+    if (!reactorProfile) {
+      logger.warn(`Reactor profile not found for ID ${reactorId}`);
+      return {};
+    }
+
+    const reactorName = reactorProfile.name || reactorProfile.username || 'Friend';
+
+    // Get the most recent reaction type (last in the array)
+    const reactionTypes = reactionData.types || [];
+    const reactionType = reactionTypes.length > 0 ? reactionTypes[reactionTypes.length - 1] : 'like';
+
+    // Prepare notification data for the update creator
+    const updateCreatorNotification = {
+      userId: updateCreatorId,
+      title: 'New Reaction',
+      message: `${reactorName} reacted to your update with ${reactionType}`,
+      data: {
+        type: NotificationTypes.REACTION,
+        update_id: updateId,
+      },
+    };
+
+    logger.info(`Prepared reaction notification for update creator ${updateCreatorId} on update ${updateId}`);
+
+    return {
+      updateCreatorNotification,
+    };
+  }
+
+  /**
+   * Prepares notification data for update notifications
+   * @param updateData The update document data
+   * @returns Object containing notification data for all recipients
+   */
+  async prepareUpdateNotifications(updateData: UpdateDoc): Promise<{
+    notifications: {
+      userIds: string[];
+      title: string;
+      message: string;
+      data: { type: string; update_id: string };
+    }[];
+    backgroundNotifications: {
+      userIds: string[];
+      data: { type: string; update_id: string };
+    }[];
+  }> {
+    const creatorId = updateData.created_by;
+    const friendIds = updateData.friend_ids || [];
+    const groupIds = updateData.group_ids || [];
+    const updateId = updateData.id;
+
+    if (!creatorId) {
+      logger.warn('Update has no creator ID');
+      return { notifications: [], backgroundNotifications: [] };
+    }
+
+    // Get the creator's profile information
+    const creatorProfile = await this.profileDAO.get(creatorId);
+    let creatorName = 'Friend';
+    let creatorGender = 'They';
+    let creatorLocation = '';
+    let creatorBirthday = '';
+
+    if (creatorProfile) {
+      creatorName = creatorProfile.name || creatorProfile.username || 'Friend';
+      creatorGender = creatorProfile.gender || 'They';
+      creatorLocation = creatorProfile.location || '';
+      creatorBirthday = creatorProfile.birthday || '';
+    } else {
+      logger.warn(`Creator profile not found: ${creatorId}`);
+    }
+
+    // Create a set of all users who should receive the update
+    const usersToNotify = new Set<string>();
+    const groupUsers = new Set<string>();
+
+    // Add all friends
+    friendIds.forEach((friendId: string) => usersToNotify.add(friendId));
+
+    // Get all group members if there are groups
+    if (groupIds.length > 0) {
+      const groups = await this.groupDAO.getGroups(groupIds);
+      groups.forEach((group) => {
+        if (group.members) {
+          group.members.forEach((memberId: string) => {
+            usersToNotify.add(memberId);
+            groupUsers.add(memberId);
+          });
+        }
+      });
+    }
+
+    // Remove the creator from notifications
+    usersToNotify.delete(creatorId);
+
+    // Process notifications for all users
+    const userNotifications = new Map<
+      string,
+      {
+        shouldSendNotification: boolean;
+        shouldSendUrgent: boolean;
+        shouldSendAll: boolean;
+      }
+    >();
+
+    for (const userId of usersToNotify) {
+      const notificationPrefs = await this.getUserNotificationPreferences(userId, updateData);
+      userNotifications.set(userId, notificationPrefs);
+    }
+
+    // Group users by notification type
+    const allNotificationUsers: string[] = [];
+    const urgentNotificationUsers: string[] = [];
+    const allUserIds = Array.from(usersToNotify);
+
+    for (const userId of allUserIds) {
+      const prefs = userNotifications.get(userId);
+      if (prefs?.shouldSendNotification) {
+        if (prefs.shouldSendAll) {
+          allNotificationUsers.push(userId);
+        } else if (prefs.shouldSendUrgent) {
+          urgentNotificationUsers.push(userId);
+        }
+      }
+    }
+
+    // Prepare notification data
+    const notifications: {
+      userIds: string[];
+      title: string;
+      message: string;
+      data: { type: string; update_id: string };
+    }[] = [];
+
+    const backgroundNotifications: {
+      userIds: string[];
+      data: { type: string; update_id: string };
+    }[] = [];
+
+    // Add notifications for users who want all updates
+    if (allNotificationUsers.length > 0) {
+      const message = await this.generateUpdateNotificationMessage(
+        updateData,
+        creatorName,
+        creatorGender,
+        creatorLocation,
+        creatorBirthday,
+      );
+
+      notifications.push({
+        userIds: allNotificationUsers,
+        title: 'New Update',
+        message: message,
+        data: {
+          type: NotificationTypes.UPDATE,
+          update_id: updateId,
+        },
+      });
+
+      backgroundNotifications.push({
+        userIds: allNotificationUsers,
+        data: {
+          type: NotificationTypes.UPDATE_BACKGROUND,
+          update_id: updateId,
+        },
+      });
+    }
+
+    // Add notifications for users who want urgent updates
+    if (urgentNotificationUsers.length > 0) {
+      const message = await this.generateUpdateNotificationMessage(
+        updateData,
+        creatorName,
+        creatorGender,
+        creatorLocation,
+        creatorBirthday,
+      );
+
+      notifications.push({
+        userIds: urgentNotificationUsers,
+        title: 'New Update',
+        message: message,
+        data: {
+          type: NotificationTypes.UPDATE,
+          update_id: updateId,
+        },
+      });
+
+      backgroundNotifications.push({
+        userIds: urgentNotificationUsers,
+        data: {
+          type: NotificationTypes.UPDATE_BACKGROUND,
+          update_id: updateId,
+        },
+      });
+    }
+
+    logger.info(
+      `Prepared update notifications for ${allNotificationUsers.length + urgentNotificationUsers.length} users`,
+    );
+
+    return {
+      notifications,
+      backgroundNotifications,
+    };
+  }
+
+  /**
+   * Updates the image analysis field for an update
+   * @param updateId The update ID to update
+   * @param imageAnalysis The image analysis text to store
+   */
+  async updateImageAnalysis(updateId: string, imageAnalysis: string): Promise<void> {
+    logger.info(`Updating image analysis for update ${updateId} (${imageAnalysis.length} characters)`);
+    await this.updateDAO.updateImageAnalysis(updateId, imageAnalysis);
+  }
+
+  /**
+   * Updates profile denormalization across all update-related collections
+   * Delegates to DAO layers for all database operations
+   */
+  async updateProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Updating profile denormalization in updates for user ${userId}`);
+
+    try {
+      // Convert to UserProfile for shared friend updates
+      const userProfile: UserProfile = {
+        user_id: userId,
+        username: newProfile.username,
+        name: newProfile.name,
+        avatar: newProfile.avatar,
+      };
+
+      // All database operations handled by DAOs
+      const [creatorUpdates, commenterUpdates, sharedUpdates] = await Promise.all([
+        this.updateDAO.updateCreatorProfileDenormalization(userId, newProfile),
+        this.commentDAO.updateCommenterProfileDenormalization(userId, newProfile),
+        this.updateDAO.updateSharedFriendProfileDenormalization(userId, userProfile),
+      ]);
+
+      const totalUpdates = creatorUpdates + commenterUpdates + sharedUpdates;
+      logger.info(`Updated ${totalUpdates} update-related profile references for user ${userId}`);
+      return totalUpdates;
+    } catch (error) {
+      logger.error(`Error updating profile denormalization in updates for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets user notification preferences for an update
+   * @param userId The user ID to check preferences for
+   * @param updateData The update data
+   * @returns User notification preferences
+   */
+  private async getUserNotificationPreferences(
+    userId: string,
+    updateData: UpdateDoc,
+  ): Promise<{
+    shouldSendNotification: boolean;
+    shouldSendUrgent: boolean;
+    shouldSendAll: boolean;
+  }> {
+    const score = updateData.score || 3;
+
+    // Get the user's profile to check notification settings
+    const profile = await this.profileDAO.get(userId);
+    if (!profile) {
+      logger.warn(`Profile not found for user ${userId}`);
+      return { shouldSendNotification: false, shouldSendUrgent: false, shouldSendAll: false };
+    }
+
+    const notificationSettings = profile.notification_settings || [];
+
+    // If the user has no notification settings, skip
+    if (!notificationSettings || notificationSettings.length === 0) {
+      logger.info(`User ${userId} has no notification settings, skipping notification`);
+      return { shouldSendNotification: false, shouldSendUrgent: false, shouldSendAll: false };
+    }
+
+    // Determine if we should send a notification based on user settings
+    let shouldSendNotification = false;
+    let shouldSendAll = false;
+    let shouldSendUrgent = false;
+
+    if (notificationSettings.includes(NotificationSettings.ALL)) {
+      // User wants all notifications
+      shouldSendNotification = true;
+      shouldSendAll = true;
+      logger.info(`User ${userId} has 'all' notification setting, will send notification`);
+    } else if (notificationSettings.includes(NotificationSettings.URGENT) && (score === 5 || score === 1)) {
+      // User only wants urgent notifications, check if this update is urgent
+      shouldSendNotification = true;
+      shouldSendUrgent = true;
+      logger.info(`User ${userId} has 'urgent' notification setting, will send notification`);
+    } else {
+      logger.info(
+        `User ${userId} has notification settings that don't include 'all' or 'urgent', skipping notification`,
+      );
+    }
+
+    return {
+      shouldSendNotification,
+      shouldSendUrgent,
+      shouldSendAll,
+    };
+  }
+
+  /**
+   * Generates a notification message for an update
+   * @param updateData The update data
+   * @param creatorName The creator's name
+   * @param creatorGender The creator's gender
+   * @param creatorLocation The creator's location
+   * @param creatorBirthday The creator's birthday
+   * @returns Generated notification message
+   */
+  private async generateUpdateNotificationMessage(
+    updateData: UpdateDoc,
+    creatorName: string,
+    creatorGender: string,
+    creatorLocation: string,
+    creatorBirthday: string,
+  ): Promise<string> {
+    const updateContent = updateData.content || '';
+    const sentiment = updateData.sentiment || '';
+    const score = updateData.score || 3;
+
+    // Calculate creator's age
+    const creatorAge = calculateAge(creatorBirthday);
+
+    try {
+      const result = await generateNotificationMessageFlow({
+        updateContent,
+        sentiment,
+        score: score.toString(),
+        friendName: creatorName,
+        friendGender: creatorGender,
+        friendLocation: creatorLocation,
+        friendAge: creatorAge,
+      });
+
+      return result.message;
+    } catch (error) {
+      logger.error(`Failed to generate notification message`, error);
+      return `${creatorName} shared a new update`;
+    }
+  }
+
+  /**
+   * Deletes all updates created by a user and their associated feed entries
+   * Uses DAO methods and batch processing for efficiency
+   * @param userId The ID of the user whose updates should be deleted
+   * @returns Object containing counts of deleted updates and feed entries
+   */
+  async deleteUserUpdatesAndFeeds(userId: string): Promise<{ updateCount: number; feedCount: number }> {
+    logger.info(`Starting deletion of updates and feeds for user: ${userId}`);
+
+    let updateCount = 0;
+    let feedCount = 0;
+    let batch = this.db.batch();
+    let batchCount = 0;
+
+    const updateIds: string[] = [];
+
+    try {
+      // First pass: Collect update IDs and delete user's own updates with their subcollections
+      for await (const { doc: updateData, ref: updateRef } of this.updateDAO.streamUpdatesByCreator(userId)) {
+        updateIds.push(updateData.id);
+
+        // Use recursiveDelete for each update to handle subcollections (comments, reactions)
+        await this.db.recursiveDelete(updateRef);
+        updateCount++;
+
+        logger.info(`Deleted update ${updateData.id} with all subcollections for user ${userId}`);
+      }
+
+      // Second pass: Delete all feed entries for the user (more efficient than per-update deletion)
+      const userFeedRef = this.db.collection(Collections.USER_FEEDS).doc(userId);
+      await this.db.recursiveDelete(userFeedRef);
+      logger.info(`Deleted user feed document for user ${userId}`);
+
+      // Third pass: Remove user from visible_to arrays in updates where they were shared
+      // This handles cases where the user was shared with but didn't create the update
+      const friendIdentifier = createFriendVisibilityIdentifier(userId);
+      for await (const { ref: updateRef } of this.updateDAO.streamUpdatesSharedWithUser(userId)) {
+        batch.update(updateRef, {
+          visible_to: FieldValue.arrayRemove(friendIdentifier),
+        });
+        batchCount++;
+
+        // Commit batch if it gets too large
+        const result = await commitBatch(this.db, batch, batchCount);
+        batch = result.batch;
+        batchCount = result.batchCount;
+      }
+
+      // Fourth pass: Delete feed entries for the user's updates from other users' feeds
+      // This is more efficient than the previous approach - we delete by update_id chunks
+      if (updateIds.length > 0) {
+        for (let i = 0; i < updateIds.length; i += MAX_BATCH_SIZE) {
+          const chunk = updateIds.slice(i, i + MAX_BATCH_SIZE);
+
+          // Use collectionGroup to find all feed entries for these updates
+          const feedQuery = this.db
+            .collectionGroup(Collections.FEED)
+            .where(fdf('update_id'), QueryOperators.IN, chunk);
+
+          const feedSnapshot = await feedQuery.get();
+
+          // Delete feed entries in batches
+          for (const feedDoc of feedSnapshot.docs) {
+            batch.delete(feedDoc.ref);
+            batchCount++;
+            feedCount++;
+
+            const result = await commitBatch(this.db, batch, batchCount);
+            batch = result.batch;
+            batchCount = result.batchCount;
+          }
+        }
+      }
+
+      // Commit remaining operations
+      await commitFinal(this.db, batch, batchCount);
+
+      logger.info(`Successfully deleted ${updateCount} updates and ${feedCount} feed entries for user ${userId}`);
+
+      return { updateCount, feedCount };
+    } catch (error) {
+      logger.error(`Failed to delete updates and feeds for user ${userId}`, error);
+      throw error;
+    }
   }
 
   /**

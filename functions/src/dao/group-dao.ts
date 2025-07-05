@@ -18,7 +18,7 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
    * @param userId The user ID to find groups for
    * @returns Array of BaseGroup objects
    */
-  async getGroupsByUser(userId: string): Promise<BaseGroup[]> {
+  async getForUser(userId: string): Promise<BaseGroup[]> {
     const query = this.db
       .collection(this.collection)
       .withConverter(this.converter)
@@ -37,16 +37,18 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
   }
 
   /**
-   * Creates a new group
-   * @param groupData The group data with denormalized member profiles
-   * @returns The created group with its ID
+   * Fetches multiple groups by their IDs
+   * @param groupId Group ID to fetch
+   * @returns GroupDoc object with id property
    */
-  async create(groupData: Partial<GroupDoc>): Promise<{ id: string; data: GroupDoc }> {
-    const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc();
-    const groupId = groupRef.id;
-    const fullGroupData = { ...groupData, id: groupId } as GroupDoc;
-    await groupRef.set(fullGroupData);
-    return { id: groupId, data: fullGroupData };
+  async get(groupId: string): Promise<GroupDoc & { id: string }> {
+    const docRefs = this.db.collection(this.collection).withConverter(this.converter).doc(groupId);
+    const doc = await docRefs.get();
+
+    return {
+      ...(doc.data()! as GroupDoc),
+      id: doc.id,
+    };
   }
 
   /**
@@ -54,7 +56,7 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
    * @param groupIds Array of group IDs to fetch
    * @returns Array of GroupDoc objects with id property
    */
-  async fetchMultiple(groupIds: string[]): Promise<Array<GroupDoc & { id: string }>> {
+  async getGroups(groupIds: string[]): Promise<Array<GroupDoc & { id: string }>> {
     if (groupIds.length === 0) return [];
 
     const docRefs = groupIds.map((id) => this.db.collection(this.collection).withConverter(this.converter).doc(id));
@@ -66,6 +68,19 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
         ...(doc.data()! as GroupDoc),
         id: doc.id,
       }));
+  }
+
+  /**
+   * Creates a new group
+   * @param groupData The group data with denormalized member profiles
+   * @returns The created group with its ID
+   */
+  async create(groupData: Partial<GroupDoc>): Promise<{ id: string; data: GroupDoc }> {
+    const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc();
+    const groupId = groupRef.id;
+    const fullGroupData = { ...groupData, id: groupId } as GroupDoc;
+    await groupRef.set(fullGroupData);
+    return { id: groupId, data: fullGroupData };
   }
 
   /**
@@ -115,16 +130,5 @@ export class GroupDAO extends BaseDAO<GroupDoc> {
     });
 
     await this.db.collection(this.collection).doc(groupId).withConverter(this.converter).update(updates);
-  }
-
-  /**
-   * Checks if a user is a member of a group
-   * @param groupId The group ID to check
-   * @param userId The user ID to check
-   * @returns True if the user is a member
-   */
-  async isMember(groupId: string, userId: string): Promise<boolean> {
-    const group = await this.findById(groupId);
-    return group ? group.members.includes(userId) : false;
   }
 }

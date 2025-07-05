@@ -21,7 +21,7 @@ export class NudgeDAO extends BaseDAO<NudgeDoc> {
   /**
    * Gets the nudge collection reference for a user
    */
-  private getNudgeCollectionRef(userId: string) {
+  private get(userId: string) {
     return this.db
       .collection(this.collection)
       .doc(userId)
@@ -33,9 +33,9 @@ export class NudgeDAO extends BaseDAO<NudgeDoc> {
    * Gets the nudge sent from a specific sender to a receiver
    * @returns The nudge document or null if no nudge exists
    */
-  async getLastNudgeFrom(receiverId: string, senderId: string): Promise<NudgeDoc | null> {
+  async getLastNudge(receiverId: string, senderId: string): Promise<NudgeDoc | null> {
     // Since we use sender ID as document ID, we can get it directly
-    const nudgeRef = this.getNudgeCollectionRef(receiverId).doc(senderId);
+    const nudgeRef = this.get(receiverId).doc(senderId);
     const nudgeDoc = await nudgeRef.get();
 
     if (!nudgeDoc.exists) {
@@ -49,9 +49,9 @@ export class NudgeDAO extends BaseDAO<NudgeDoc> {
    * Creates or updates a nudge record (upsert)
    * Uses sender ID as document ID for easy updates
    */
-  async upsertNudge(receiverId: string, senderId: string): Promise<void> {
+  async upsert(receiverId: string, senderId: string): Promise<void> {
     // Use sender ID as document ID for deterministic updates
-    const nudgeRef = this.getNudgeCollectionRef(receiverId).doc(senderId);
+    const nudgeRef = this.get(receiverId).doc(senderId);
 
     const nudgeData: NudgeDoc = {
       sender_id: senderId,
@@ -68,8 +68,8 @@ export class NudgeDAO extends BaseDAO<NudgeDoc> {
    * @param cooldownMs The cooldown period in milliseconds
    * @returns true if nudge can be sent, false if still in cooldown
    */
-  async canSendNudge(receiverId: string, senderId: string, cooldownMs: number): Promise<boolean> {
-    const lastNudge = await this.getLastNudgeFrom(receiverId, senderId);
+  async canSend(receiverId: string, senderId: string, cooldownMs: number): Promise<boolean> {
+    const lastNudge = await this.getLastNudge(receiverId, senderId);
 
     if (!lastNudge) {
       return true; // No previous nudge exists

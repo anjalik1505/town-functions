@@ -18,6 +18,7 @@ import {
 } from '../models/data-models.js';
 import { ChatDoc } from '../models/firestore/chat-doc.js';
 import { GroupDoc } from '../models/firestore/group-doc.js';
+import { CreatorProfile } from '../models/firestore/update-doc.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -65,7 +66,7 @@ export class GroupService {
     }
 
     // Validate all members exist
-    const memberProfiles = await this.profileDAO.fetchMultiple(allMembers);
+    const memberProfiles = await this.profileDAO.getAll(allMembers);
     const existingUserIds = new Set(memberProfiles.filter((p) => p && p.user_id).map((p) => p!.user_id));
 
     const missingMembers = allMembers.filter((id) => !existingUserIds.has(id));
@@ -158,7 +159,7 @@ export class GroupService {
     logger.info(`Adding members to group ${groupId}`, { userId, newMemberIds });
 
     // Get group and validate membership
-    const group = await this.groupDAO.findById(groupId);
+    const group = await this.groupDAO.get(groupId);
     if (!group) {
       throw new NotFoundError('Group not found');
     }
@@ -175,7 +176,7 @@ export class GroupService {
     }
 
     // Validate new members exist
-    const newMemberProfiles = await this.profileDAO.fetchMultiple(uniqueNewMembers);
+    const newMemberProfiles = await this.profileDAO.getAll(uniqueNewMembers);
     const existingUserIds = new Set(newMemberProfiles.map((p) => p.user_id));
 
     const missingMembers = uniqueNewMembers.filter((id) => !existingUserIds.has(id));
@@ -240,7 +241,7 @@ export class GroupService {
   async getGroupMembers(userId: string, groupId: string): Promise<ApiResponse<GroupMember[]>> {
     logger.info(`Getting members for group ${groupId}`, { userId });
 
-    const group = await this.groupDAO.findById(groupId);
+    const group = await this.groupDAO.get(groupId);
     if (!group) {
       throw new NotFoundError('Group not found');
     }
@@ -286,7 +287,7 @@ export class GroupService {
   ): Promise<ApiResponse<UpdatesResponse>> {
     logger.info(`Getting feed for group ${groupId}`, { userId, pagination });
 
-    const group = await this.groupDAO.findById(groupId);
+    const group = await this.groupDAO.get(groupId);
     if (!group) {
       throw new NotFoundError('Group not found');
     }
@@ -371,7 +372,7 @@ export class GroupService {
   ): Promise<ApiResponse<ChatMessage>> {
     logger.info(`Creating chat message in group ${groupId}`, { userId });
 
-    const group = await this.groupDAO.findById(groupId);
+    const group = await this.groupDAO.get(groupId);
     if (!group) {
       throw new NotFoundError('Group not found');
     }
@@ -387,7 +388,7 @@ export class GroupService {
       attachments: (data.attachments || []).map((url) => ({ type: 'image', url, thumbnail: url })),
     };
 
-    const chatId = await this.chatDAO.createMessage(groupId, chatData);
+    const chatId = await this.chatDAO.create(groupId, chatData);
 
     logger.info(`Successfully created chat message ${chatId} in group ${groupId}`);
 
@@ -425,7 +426,7 @@ export class GroupService {
   ): Promise<ApiResponse<ChatResponse>> {
     logger.info(`Getting chats for group ${groupId}`, { userId, pagination });
 
-    const group = await this.groupDAO.findById(groupId);
+    const group = await this.groupDAO.get(groupId);
     if (!group) {
       throw new NotFoundError('Group not found');
     }
@@ -434,7 +435,7 @@ export class GroupService {
       throw new ForbiddenError('You must be a member of the group to view messages');
     }
 
-    const result = await this.chatDAO.getChats(groupId, {
+    const result = await this.chatDAO.get(groupId, {
       limit: pagination?.limit,
       afterCursor: pagination?.after_cursor,
     });
@@ -469,11 +470,11 @@ export class GroupService {
 
     // For now, we don't support cursor-based pagination for user groups
     // This would require a different query structure
-    const baseGroups = await this.groupDAO.getGroupsByUser(userId);
+    const baseGroups = await this.groupDAO.getForUser(userId);
 
     // Fetch full group data for each group
     const groupIds = baseGroups.map((g) => g.group_id);
-    const fullGroups = await this.groupDAO.fetchMultiple(groupIds);
+    const fullGroups = await this.groupDAO.getGroups(groupIds);
 
     // Convert to Group format with denormalized member profiles
     const groups: Group[] = fullGroups.map((groupDoc) => {
@@ -510,5 +511,35 @@ export class GroupService {
         },
       },
     };
+  }
+
+  /**
+   * Updates member profile denormalization across all groups where the user is a member
+   */
+  async updateMemberProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Updating member profile denormalization in groups for user ${userId}`);
+
+    let totalUpdates = 0;
+
+    try {
+      // Get all groups where the user is a member
+      const userGroups = await this.groupDAO.getForUser(userId);
+
+      if (userGroups.length === 0) {
+        logger.info(`User ${userId} is not a member of any groups`);
+        return 0;
+      }
+
+      // Update each group individually since updateMemberProfiles doesn't support batching
+      for (const group of userGroups) {
+        await this.groupDAO.updateMemberProfiles(group.group_id, { [userId]: newProfile });
+        totalUpdates++;
+      }
+      logger.info(`Updated ${totalUpdates} group member profiles for user ${userId}`);
+      return totalUpdates;
+    } catch (error) {
+      logger.error(`Error updating member profile denormalization in groups for user ${userId}:`, error);
+      throw error;
+    }
   }
 }

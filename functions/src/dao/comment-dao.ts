@@ -1,10 +1,16 @@
 import { DocumentReference, Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import { Collections, QueryOperators } from '../models/constants.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Collections, QueryOperators, MAX_BATCH_OPERATIONS } from '../models/constants.js';
 import { cf, commentConverter, CommentDoc, CreatorProfile } from '../models/firestore/index.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { getLogger } from '../utils/logging-utils.js';
 import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
 import { getProfileDoc } from '../utils/profile-utils.js';
 import { BaseDAO } from './base-dao.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Data Access Object for Comment documents in updates subcollection
@@ -71,12 +77,7 @@ export class CommentDAO extends BaseDAO<CommentDoc> {
    * @param userId The ID of the user updating the comment
    * @returns The updated comment document
    */
-  async updateComment(
-    updateRef: DocumentReference,
-    commentId: string,
-    content: string,
-    userId: string,
-  ): Promise<CommentDoc> {
+  async update(updateRef: DocumentReference, commentId: string, content: string, userId: string): Promise<CommentDoc> {
     const commentRef = updateRef.collection(this.collection).withConverter(this.converter).doc(commentId);
     const commentDoc = await commentRef.get();
 
@@ -117,12 +118,7 @@ export class CommentDAO extends BaseDAO<CommentDoc> {
    * @param userId The ID of the user deleting the comment
    * @param batch Optional batch to include this operation in
    */
-  async deleteComment(
-    updateRef: DocumentReference,
-    commentId: string,
-    userId: string,
-    batch?: WriteBatch,
-  ): Promise<void> {
+  async delete(updateRef: DocumentReference, commentId: string, userId: string, batch?: WriteBatch): Promise<void> {
     const commentRef = updateRef.collection(this.collection).withConverter(this.converter).doc(commentId);
     const commentDoc = await commentRef.get();
 
@@ -180,5 +176,194 @@ export class CommentDAO extends BaseDAO<CommentDoc> {
       comments: items,
       nextCursor,
     };
+  }
+
+  /**
+   * Gets all comments created by a specific user across all updates
+   * @param userId The ID of the user whose comments to retrieve
+   * @returns Array of comments created by the user
+   */
+  async getByUser(userId: string): Promise<CommentDoc[]> {
+    logger.info(`Getting comments for user: ${userId}`);
+
+    try {
+      // First, get all updates collection
+      const updatesRef = this.db.collection(Collections.UPDATES);
+      const updatesSnapshot = await updatesRef.get();
+
+      const allComments: CommentDoc[] = [];
+
+      // For each update, query its comments subcollection for this user
+      for (const updateDoc of updatesSnapshot.docs) {
+        const commentsRef = updateDoc.ref
+          .collection(this.collection)
+          .withConverter(this.converter)
+          .where(cf('created_by'), QueryOperators.EQUALS, userId);
+
+        const commentsSnapshot = await commentsRef.get();
+
+        for (const commentDoc of commentsSnapshot.docs) {
+          const commentData = commentDoc.data();
+          if (commentData) {
+            allComments.push(commentData);
+          }
+        }
+      }
+
+      // Sort by creation date (newest first)
+      allComments.sort((a, b) => b.created_at.toMillis() - a.created_at.toMillis());
+
+      logger.info(`Found ${allComments.length} comments for user ${userId}`);
+      return allComments;
+    } catch (error) {
+      logger.error(`Failed to get comments for user ${userId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Streams all comments created by a specific user across all updates
+   * Uses collection group query for efficient searching across all comment subcollections
+   * @param userId The ID of the user whose comments to stream
+   * @returns AsyncIterable of { comment: CommentDoc, updateRef: DocumentReference, commentRef: DocumentReference }
+   */
+  async *streamCommentsByUser(
+    userId: string,
+  ): AsyncIterable<{ comment: CommentDoc; updateRef: DocumentReference; commentRef: DocumentReference }> {
+    logger.info(`Streaming comments for user: ${userId}`);
+
+    try {
+      // Use collection group query to search across all comment subcollections
+      const query = this.db
+        .collectionGroup(this.collection)
+        .withConverter(this.converter)
+        .where(cf('created_by'), QueryOperators.EQUALS, userId)
+        .orderBy(cf('created_at'), QueryOperators.DESC);
+
+      // Stream the query results
+      const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<CommentDoc>>;
+
+      for await (const docSnapshot of stream) {
+        const commentData = docSnapshot.data();
+        if (commentData) {
+          // Extract the parent update reference from the document reference path
+          // Path structure: /updates/{updateId}/comments/{commentId}
+          const updateRef = docSnapshot.ref.parent.parent;
+          if (updateRef) {
+            yield {
+              comment: commentData,
+              updateRef: updateRef,
+              commentRef: docSnapshot.ref,
+            };
+          } else {
+            logger.warn(`Could not extract update reference from comment document path: ${docSnapshot.ref.path}`);
+          }
+        }
+      }
+
+      logger.info(`Successfully streamed comments for user ${userId}`);
+    } catch (error) {
+      logger.error(`Failed to stream comments for user ${userId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates the commenter profile fields in a specific comment document
+   * @param updateRef The reference to the parent update document
+   * @param commentId The ID of the comment to update
+   * @param newProfile The new profile data to update
+   * @param batch Optional batch to include this operation in
+   */
+  async updateCommenterProfile(
+    updateRef: DocumentReference,
+    commentId: string,
+    newProfile: CreatorProfile,
+    batch?: WriteBatch,
+  ): Promise<void> {
+    logger.info(`Updating commenter profile for comment ${commentId}`);
+
+    try {
+      const commentRef = updateRef.collection(this.collection).withConverter(this.converter).doc(commentId);
+      const commentDoc = await commentRef.get();
+
+      if (!commentDoc.exists) {
+        throw new NotFoundError(`Comment ${commentId} not found`);
+      }
+
+      const commentData = commentDoc.data();
+      if (!commentData) {
+        throw new NotFoundError(`Comment ${commentId} not found`);
+      }
+
+      const shouldCommitBatch = !batch;
+      const workingBatch = batch || this.db.batch();
+
+      const updateData = {
+        commenter_profile: newProfile,
+        updated_at: Timestamp.now(),
+      };
+
+      workingBatch.update(commentRef, updateData);
+
+      if (shouldCommitBatch) {
+        await workingBatch.commit();
+      }
+
+      logger.info(`Successfully updated commenter profile for comment ${commentId}`);
+    } catch (error) {
+      logger.error(`Failed to update commenter profile for comment ${commentId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates commenter profile denormalization across all comments by a specific user
+   * Uses streaming to handle large datasets efficiently with batch operations
+   * @param userId The user ID whose comments need profile updates
+   * @param newProfile The new creator profile data
+   * @returns The count of updated documents
+   */
+  async updateCommenterProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Starting commenter profile denormalization update for user ${userId}`);
+
+    let updatedCount = 0;
+    let currentBatch = this.db.batch();
+    let batchOperations = 0;
+
+    try {
+      // Stream all comments by the user
+      for await (const { commentRef } of this.streamCommentsByUser(userId)) {
+        // Add update operation to batch
+        currentBatch.update(commentRef, {
+          commenter_profile: newProfile,
+          updated_at: Timestamp.now(),
+        });
+        batchOperations++;
+        updatedCount++;
+
+        // Commit batch when reaching limit
+        if (batchOperations >= MAX_BATCH_OPERATIONS) {
+          await currentBatch.commit();
+          logger.info(`Committed batch of ${batchOperations} comments for user ${userId}`);
+
+          // Start new batch
+          currentBatch = this.db.batch();
+          batchOperations = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (batchOperations > 0) {
+        await currentBatch.commit();
+        logger.info(`Committed final batch of ${batchOperations} comments for user ${userId}`);
+      }
+
+      logger.info(`Successfully updated commenter profile for ${updatedCount} comments for user ${userId}`);
+      return updatedCount;
+    } catch (error) {
+      logger.error(`Failed to update commenter profile denormalization for user ${userId}`, error);
+      throw error;
+    }
   }
 }

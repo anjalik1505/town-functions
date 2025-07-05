@@ -10,6 +10,7 @@ export interface TimeBucketUserDoc {
   timezone: string;
   nudging_occurrence: string;
   created_at: Timestamp;
+  last_update_at: Timestamp;
 }
 
 export const timeBucketConverter: FirebaseFirestore.FirestoreDataConverter<TimeBucketDoc> = {

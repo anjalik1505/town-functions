@@ -21,7 +21,7 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
     return await this.db.runTransaction(async (transaction) => {
       // Create the main profile document
       const now = Timestamp.now();
-      const profileRef = this.getDocRef(userId);
+      const profileRef = this.getRef(userId);
       const profileDoc = {
         ...profileData,
         created_at: now,
@@ -58,15 +58,15 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
   /**
    * Gets a profile by ID including insights from subcollection
    */
-  async getById(userId: string): Promise<(ProfileDoc & { insights?: InsightsDoc }) | null> {
-    const profileDoc = await this.findById(userId);
+  async get(userId: string): Promise<(ProfileDoc & { insights?: InsightsDoc }) | null> {
+    const profileDoc = await this.get(userId);
     if (!profileDoc) {
       return null;
     }
 
     // Get insights from subcollection
     try {
-      const insightsRef = this.getDocRef(userId)
+      const insightsRef = this.getRef(userId)
         .collection(this.subcollection!)
         .withConverter(this.subconverter!)
         .doc(Documents.DEFAULT_INSIGHTS);
@@ -91,7 +91,7 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
    * Deletes a profile and all its subcollections recursively
    */
   async delete(userId: string): Promise<void> {
-    const profileRef = this.getDocRef(userId);
+    const profileRef = this.getRef(userId);
 
     // Use Firestore's recursiveDelete to delete the document and all subcollections
     await this.db.recursiveDelete(profileRef);
@@ -100,7 +100,7 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
   /**
    * Fetches multiple profiles by their IDs
    */
-  async fetchMultiple(userIds: string[]): Promise<ProfileDoc[]> {
+  async getAll(userIds: string[]): Promise<ProfileDoc[]> {
     if (userIds.length === 0) return [];
 
     const docRefs = userIds.map((id) => this.db.collection(this.collection).withConverter(this.converter).doc(id));
@@ -110,41 +110,22 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
   }
 
   /**
-   * Updates a profile with the given data
-   * Returns the merged profile data without extra reads
-   */
-  async updateProfile(userId: string, updates: Partial<ProfileDoc>): Promise<ProfileDoc> {
-    // First get the existing profile to merge with updates
-    const existing = await this.findById(userId);
-    if (!existing) {
-      throw new NotFoundError('Profile not found');
-    }
-
-    // Prepare update data with timestamp
-    const updateData = {
-      ...updates,
-      updated_at: Timestamp.now(),
-    };
-
-    // Perform the update
-    await this.db.collection(this.collection).withConverter(this.converter).doc(userId).update(updateData);
-
-    // Return the merged data - no extra read!
-    return { ...existing, ...updateData } as ProfileDoc;
-  }
-
-  /**
    * Updates a profile with the given data using a batch
    * Returns the merged profile data without extra reads
-   * @param batch The batch to add the update operation to
+   * @param batch Optional batch to add the update operation to. If not provided, creates and commits its own batch
+   * @param insights Optional insights data to update in subcollection
    */
-  async updateProfileWithBatch(
+  async updateProfile(
     userId: string,
     updates: Partial<ProfileDoc>,
-    batch: FirebaseFirestore.WriteBatch,
+    batch?: FirebaseFirestore.WriteBatch,
+    insights?: InsightsDoc,
   ): Promise<ProfileDoc> {
+    const shouldCommitBatch = !batch;
+    const workingBatch = batch || this.db.batch();
+
     // First get the existing profile to merge with updates
-    const existing = await this.findById(userId);
+    const existing = await this.get(userId);
     if (!existing) {
       throw new NotFoundError('Profile not found');
     }
@@ -157,7 +138,21 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
 
     // Add update to batch
     const docRef = this.db.collection(this.collection).withConverter(this.converter).doc(userId);
-    batch.update(docRef, updateData);
+    workingBatch.update(docRef, updateData);
+
+    // Update insights if provided
+    if (insights) {
+      const insightsRef = docRef
+        .collection(this.subcollection!)
+        .withConverter(this.subconverter!)
+        .doc(Documents.DEFAULT_INSIGHTS);
+      workingBatch.set(insightsRef, insights, { merge: true });
+    }
+
+    // Commit batch if we created it
+    if (shouldCommitBatch) {
+      await workingBatch.commit();
+    }
 
     // Return the merged data - no extra read!
     return { ...existing, ...updateData } as ProfileDoc;
@@ -169,7 +164,7 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
    * @param batch The batch to add the update operation to
    */
   incrementFriendCount(userId: string, batch: FirebaseFirestore.WriteBatch): void {
-    const docRef = this.getDocRef(userId);
+    const docRef = this.getRef(userId);
     batch.update(docRef, {
       friend_count: FieldValue.increment(1),
       updated_at: Timestamp.now(),
@@ -182,20 +177,11 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
    * @param batch The batch to add the update operation to
    */
   decrementFriendCount(userId: string, batch: FirebaseFirestore.WriteBatch): void {
-    const docRef = this.getDocRef(userId);
+    const docRef = this.getRef(userId);
     batch.update(docRef, {
       friend_count: FieldValue.increment(-1),
       updated_at: Timestamp.now(),
     });
-  }
-
-  /**
-   * Updates the location for a profile
-   */
-  async updateLocation(userId: string, location: string): Promise<ProfileDoc> {
-    const updatedProfile = await this.updateProfile(userId, { location });
-
-    return updatedProfile;
   }
 
   /**

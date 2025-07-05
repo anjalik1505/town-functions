@@ -25,7 +25,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
    * @param batch Optional batch to include this operation in
    * @returns Array of created feed items with their IDs
    */
-  async createFeedItems(
+  async create(
     feedItems: Array<{
       userId: string;
       updateId: string;
@@ -79,7 +79,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
    * @param groupMembersMap Map of group IDs to their member sets
    * @param batch Optional batch to include this operation in
    */
-  async createFeedItemsForUpdate(
+  async createForUpdate(
     usersToNotify: Set<string>,
     updateId: string,
     createdAt: Timestamp,
@@ -116,7 +116,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
       });
     });
 
-    await this.createFeedItems(feedItems, batch);
+    await this.create(feedItems, batch);
   }
 
   /**
@@ -126,7 +126,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
    * @param limit Maximum number of items to return
    * @returns Paginated feed items and next cursor
    */
-  async getUserOwnFeed(
+  async getOwnFeed(
     userId: string,
     afterCursor?: string,
     limit: number = 20,
@@ -161,7 +161,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
    * @param limit Maximum number of items to return
    * @returns Paginated feed items and next cursor
    */
-  async getUserFullFeed(
+  async getFullFeed(
     userId: string,
     afterCursor?: string,
     limit: number = 20,
@@ -196,7 +196,7 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
    * @param limit Maximum number of items to return
    * @returns Paginated feed items and next cursor
    */
-  async getUserFriendFeed(
+  async getFriendFeed(
     userId: string,
     friendId: string,
     afterCursor?: string,

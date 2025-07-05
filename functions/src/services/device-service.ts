@@ -24,7 +24,7 @@ export class DeviceService {
   async getDevice(userId: string): Promise<ApiResponse<Device>> {
     logger.info(`Getting device for user ${userId}`);
 
-    const deviceDoc = await this.deviceDAO.findById(userId);
+    const deviceDoc = await this.deviceDAO.get(userId);
     if (!deviceDoc) {
       logger.warn(`Device not found for user ${userId}`);
       throw new NotFoundError('Device not found');
@@ -59,7 +59,7 @@ export class DeviceService {
   async updateDevice(userId: string, deviceId: string): Promise<ApiResponse<Device>> {
     logger.info(`Updating device for user ${userId}`);
 
-    const deviceDoc = await this.deviceDAO.upsertDevice(userId, deviceId);
+    const deviceDoc = await this.deviceDAO.upsert(userId, deviceId);
 
     logger.info(`Device updated for user ${userId}`);
 

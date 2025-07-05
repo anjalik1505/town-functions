@@ -35,6 +35,7 @@ export interface UpdateDoc {
   reaction_types: Record<string, number>;
   all_village: boolean;
   image_paths: string[];
+  image_analysis?: string;
   creator_profile: CreatorProfile;
   shared_with_friends_profiles: UserProfile[];
   shared_with_groups_profiles: GroupProfile[];

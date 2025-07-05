@@ -1,7 +1,14 @@
-import { Timestamp } from 'firebase-admin/firestore';
+import { DocumentReference, Timestamp } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Collections, QueryOperators } from '../models/constants.js';
 import { InvitationDoc, if_, invitationConverter } from '../models/firestore/index.js';
+import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { getLogger } from '../utils/logging-utils.js';
 import { BaseDAO } from './base-dao.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Data Access Object for Invitation documents
@@ -17,7 +24,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
    * @param userId The user ID to find the invitation for
    * @returns The invitation document with ID, or null if not found
    */
-  async getByUser(userId: string): Promise<{ id: string; data: InvitationDoc } | null> {
+  async get(userId: string): Promise<{ id: string; ref: DocumentReference; data: InvitationDoc } | null> {
     const query = this.db
       .collection(this.collection)
       .withConverter(this.converter)
@@ -33,6 +40,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
     const doc = snapshot.docs[0]!;
     return {
       id: doc.id,
+      ref: doc.ref,
       data: doc.data()!,
     };
   }
@@ -48,7 +56,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
     profileData: { username: string; name: string; avatar: string },
   ): Promise<{ id: string; data: InvitationDoc }> {
     // Check if invitation already exists
-    const existing = await this.getByUser(userId);
+    const existing = await this.get(userId);
     if (existing) {
       return existing;
     }
@@ -76,7 +84,7 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
    * @param invitationId The invitation ID to delete
    * @param batch Optional batch to include this operation in
    */
-  async deleteInvitation(invitationId: string, batch?: FirebaseFirestore.WriteBatch): Promise<void> {
+  async delete(invitationId: string, batch?: FirebaseFirestore.WriteBatch): Promise<void> {
     const invitationRef = this.db.collection(this.collection).withConverter(this.converter).doc(invitationId);
 
     if (batch) {
@@ -84,5 +92,20 @@ export class InvitationDAO extends BaseDAO<InvitationDoc> {
     } else {
       await invitationRef.delete();
     }
+  }
+
+  /**
+   * Updates the sender profile fields in an invitation document
+   * @param ref The invitation document reference to update
+   * @param newProfile The new sender profile data
+   */
+  async updateSenderProfile(ref: DocumentReference, newProfile: CreatorProfile): Promise<void> {
+    ref.update({
+      username: newProfile.username,
+      name: newProfile.name,
+      avatar: newProfile.avatar,
+    });
+
+    logger.info(`Updated sender profile for invitation ${ref.id}`);
   }
 }

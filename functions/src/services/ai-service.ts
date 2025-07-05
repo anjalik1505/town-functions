@@ -1,7 +1,8 @@
 import { fileTypeFromBuffer } from 'file-type';
+import { getStorage } from 'firebase-admin/storage';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { analyzeSentimentFlow, transcribeAudioFlow } from '../ai/flows.js';
+import { analyzeImagesFlow, analyzeSentimentFlow, transcribeAudioFlow } from '../ai/flows.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
 import { SentimentAnalysisResponse, TranscriptionResponse } from '../models/data-models.js';
 import { decompressData, isCompressedMimeType } from '../utils/compression.js';
@@ -13,8 +14,8 @@ const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Service layer for Update operations
- * Handles business logic, validation, and coordination between DAOs
+ * Service layer for AI operations
+ * Handles sentiment analysis, audio transcription, and image analysis
  */
 export class AiService {
   constructor() {}
@@ -117,5 +118,87 @@ export class AiService {
         },
       },
     };
+  }
+
+  /**
+   * Processes and analyzes images to generate image analysis text.
+   * This method handles the complete pipeline from image paths to AI analysis.
+   * @param imagePaths Array of image paths to process and analyze
+   * @returns Image analysis text from AI
+   */
+  async processAndAnalyzeImages(imagePaths: string[]): Promise<string> {
+    logger.info(`Processing and analyzing ${imagePaths.length} images`);
+
+    if (imagePaths.length === 0) {
+      logger.info('No images to process, returning empty analysis');
+      return '';
+    }
+
+    try {
+      // Process images for AI analysis
+      const processedImages = await this.processImagesForPrompt(imagePaths);
+
+      // Analyze images using AI flow
+      const { analysis: imageAnalysis } = await analyzeImagesFlow({ images: processedImages });
+
+      logger.info(`Completed image analysis for ${imagePaths.length} images`);
+      return imageAnalysis;
+    } catch (error) {
+      logger.error(`Failed to process and analyze images`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process image paths into objects with signed URLs and MIME types for use in prompts
+   * @param imagePaths Array of Firebase Storage paths to images
+   * @returns Array of objects with url and mimeType properties
+   */
+  private async processImagesForPrompt(imagePaths: string[]): Promise<Array<{ url: string; mimeType: string }>> {
+    if (!imagePaths || imagePaths.length === 0) {
+      return [];
+    }
+
+    const bucket = getStorage().bucket();
+    const images: Array<{ url: string; mimeType: string }> = [];
+
+    for (const imagePath of imagePaths) {
+      try {
+        const file = bucket.file(imagePath);
+
+        // 1. Get MIME type
+        const [metadata] = await file.getMetadata();
+        let mimeType = metadata.contentType || '';
+
+        // Fall back to detecting MIME type from file content if metadata is missing or generic
+        if (!mimeType || mimeType === 'application/octet-stream') {
+          try {
+            // Download the first 4 KB to inspect magic numbers
+            const [buffer] = await file.download({ start: 0, end: 4095 });
+            const detected = await fileTypeFromBuffer(buffer);
+            mimeType = detected?.mime || 'image/jpeg';
+          } catch (detectErr) {
+            logger.warn(`Could not detect MIME type for ${imagePath}, defaulting to image/jpeg: ${detectErr}`);
+            mimeType = 'image/jpeg';
+          }
+        }
+
+        // 2. Generate signed URL (valid for 1 minute)
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 60 * 1000,
+          // Ensure the response header advertises the correct content type
+          responseType: mimeType,
+        });
+
+        images.push({ url: signedUrl, mimeType });
+        logger.info(`Processed image: ${imagePath} -> ${mimeType}`);
+      } catch (error) {
+        logger.error(`Failed to process image ${imagePath}: ${error}`);
+        // Continue with other images
+      }
+    }
+
+    return images;
   }
 }

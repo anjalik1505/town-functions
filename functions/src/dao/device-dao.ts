@@ -1,11 +1,19 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import { BaseDAO } from './base-dao.js';
-import { DeviceDoc, deviceConverter } from '../models/firestore/device-doc.js';
 import { Collections } from '../models/constants.js';
+import { DeviceDoc, deviceConverter } from '../models/firestore/device-doc.js';
+import { BaseDAO } from './base-dao.js';
 
 export class DeviceDAO extends BaseDAO<DeviceDoc> {
   constructor() {
     super(Collections.DEVICES, deviceConverter);
+  }
+
+  /**
+   * Gets a device document by ID.
+   */
+  async get(id: string): Promise<DeviceDoc | null> {
+    const doc = await this.db.collection(this.collection).withConverter(this.converter).doc(id).get();
+    return doc.exists ? (doc.data() ?? null) : null;
   }
 
   /**
@@ -16,7 +24,7 @@ export class DeviceDAO extends BaseDAO<DeviceDoc> {
    * @param deviceId - The device ID to store
    * @returns The device document that was written
    */
-  async upsertDevice(userId: string, deviceId: string): Promise<DeviceDoc> {
+  async upsert(userId: string, deviceId: string): Promise<DeviceDoc> {
     const currentTime = Timestamp.now();
 
     const deviceData: DeviceDoc = {
@@ -39,7 +47,7 @@ export class DeviceDAO extends BaseDAO<DeviceDoc> {
    * @param userId - The user ID to check
    * @returns True if device exists, false otherwise
    */
-  async deviceExists(userId: string): Promise<boolean> {
+  async exists(userId: string): Promise<boolean> {
     const doc = await this.db.collection(this.collection).withConverter(this.converter).doc(userId).get();
 
     return doc.exists;

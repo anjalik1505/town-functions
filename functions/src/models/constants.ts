@@ -44,6 +44,7 @@ export const QueryOperators = {
   ARRAY_CONTAINS_ANY: 'array-contains-any',
   IN: 'in',
   EQUALS: '==',
+  GREATER_THAN: '>',
   DESC: 'desc',
   ASC: 'asc',
 } as const;

@@ -20,16 +20,7 @@ export abstract class BaseDAO<T, S = T> {
     this.subconverter = subconverter;
   }
 
-  async findById(id: string): Promise<T | null> {
-    const doc = await this.db.collection(this.collection).withConverter(this.converter).doc(id).get();
-    return doc.exists ? (doc.data() ?? null) : null;
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.db.collection(this.collection).doc(id).delete();
-  }
-
-  protected getDocRef(id: string): FirebaseFirestore.DocumentReference<T> {
+  protected getRef(id: string): FirebaseFirestore.DocumentReference<T> {
     return this.db.collection(this.collection).withConverter(this.converter).doc(id);
   }
 }

@@ -6,8 +6,10 @@ import { InvitationDAO } from '../dao/invitation-dao.js';
 import { JoinRequestDAO } from '../dao/join-request-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
+import { NotificationTypes } from '../models/constants.js';
 import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/data-models.js';
 import { JoinRequestDoc, JoinRequestStatus } from '../models/firestore/join-request-doc.js';
+import { CreatorProfile } from '../models/firestore/update-doc.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -38,7 +40,7 @@ export class InvitationService {
   async getInvitation(userId: string): Promise<ApiResponse<Invitation>> {
     logger.info(`Getting invitation for user ${userId}`);
 
-    const profile = await this.profileDAO.getById(userId);
+    const profile = await this.profileDAO.get(userId);
     if (!profile) {
       throw new NotFoundError('Profile not found');
     }
@@ -79,13 +81,13 @@ export class InvitationService {
   async resetInvitation(userId: string): Promise<ApiResponse<Invitation>> {
     logger.info(`Resetting invitation for user ${userId}`);
 
-    const profile = await this.profileDAO.getById(userId);
+    const profile = await this.profileDAO.get(userId);
     if (!profile) {
       throw new NotFoundError('Profile not found');
     }
 
     // Find existing invitation
-    const existing = await this.invitationDAO.getByUser(userId);
+    const existing = await this.invitationDAO.get(userId);
     let joinRequestsDeleted = 0;
 
     if (existing) {
@@ -93,10 +95,10 @@ export class InvitationService {
       const batch = getFirestore().batch();
 
       // Delete all join requests for this invitation
-      joinRequestsDeleted = await this.joinRequestDAO.deleteAllByInvitation(existing.id, batch);
+      joinRequestsDeleted = await this.joinRequestDAO.deleteAll(existing.id, batch);
 
       // Delete the invitation
-      await this.invitationDAO.deleteInvitation(existing.id, batch);
+      await this.invitationDAO.delete(existing.id, batch);
 
       // Commit the batch
       await batch.commit();
@@ -143,12 +145,12 @@ export class InvitationService {
     logger.info(`User ${userId} requesting to join via invitation ${invitationId}`);
 
     // Get invitation details
-    const invitation = await this.invitationDAO.findById(invitationId);
+    const invitation = await this.invitationDAO.get(invitationId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
 
-    const receiverId = invitation.sender_id;
+    const receiverId = invitation.data.sender_id;
 
     // Validate not self-invitation
     if (userId === receiverId) {
@@ -162,7 +164,7 @@ export class InvitationService {
     }
 
     // Check for existing request (both pending and rejected)
-    const existingRequest = await this.joinRequestDAO.findExistingRequest(invitationId, userId, [
+    const existingRequest = await this.joinRequestDAO.get(invitationId, userId, [
       JoinRequestStatus.PENDING,
       JoinRequestStatus.REJECTED,
     ]);
@@ -183,8 +185,8 @@ export class InvitationService {
 
     // Get profiles for denormalization
     const [requesterProfile, receiverProfile] = await Promise.all([
-      this.profileDAO.getById(userId),
-      this.profileDAO.getById(receiverId),
+      this.profileDAO.get(userId),
+      this.profileDAO.get(receiverId),
     ]);
 
     if (!requesterProfile || !receiverProfile) {
@@ -232,7 +234,7 @@ export class InvitationService {
     logger.info(`User ${userId} accepting join request ${requestId}`);
 
     // Get the user's invitation first (following the pattern from invitation-utils.ts)
-    const invitation = await this.invitationDAO.getByUser(userId);
+    const invitation = await this.invitationDAO.get(userId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
@@ -275,7 +277,7 @@ export class InvitationService {
     const oneYearAgo = new Timestamp(timestamp.seconds - 365 * 24 * 60 * 60, timestamp.nanoseconds);
 
     // Get profiles for summaries
-    const [requesterProfile, receiverProfile] = await this.profileDAO.fetchMultiple([joinRequest.requester_id, userId]);
+    const [requesterProfile, receiverProfile] = await this.profileDAO.getAll([joinRequest.requester_id, userId]);
 
     if (!requesterProfile || !receiverProfile) {
       throw new NotFoundError('Profile not found');
@@ -284,7 +286,7 @@ export class InvitationService {
     // Note: Friend summaries are generated asynchronously by the on-friendship-creation trigger
 
     // Create friendship documents
-    await this.friendshipDAO.upsertFriend(
+    await this.friendshipDAO.upsert(
       userId,
       joinRequest.requester_id,
       {
@@ -300,7 +302,7 @@ export class InvitationService {
       batch,
     );
 
-    await this.friendshipDAO.upsertFriend(
+    await this.friendshipDAO.upsert(
       joinRequest.requester_id,
       userId,
       {
@@ -321,7 +323,7 @@ export class InvitationService {
     this.profileDAO.incrementFriendCount(joinRequest.requester_id, batch);
 
     // Delete the join request in the same batch
-    this.joinRequestDAO.deleteRequestWithBatch(invitationId, requestId, batch);
+    this.joinRequestDAO.delete(invitationId, requestId, batch);
 
     // Commit all operations atomically
     await batch.commit();
@@ -357,7 +359,7 @@ export class InvitationService {
     logger.info(`User ${userId} rejecting join request ${requestId}`);
 
     // Get the user's invitation first (following the pattern from invitation-utils.ts)
-    const invitation = await this.invitationDAO.getByUser(userId);
+    const invitation = await this.invitationDAO.get(userId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
@@ -441,7 +443,7 @@ export class InvitationService {
   ): Promise<ApiResponse<JoinRequestResponse>> {
     logger.info(`Getting sent join requests for user ${userId}`, { pagination });
 
-    const invitation = await this.invitationDAO.getByUser(userId);
+    const invitation = await this.invitationDAO.get(userId);
     if (!invitation) {
       return { data: { join_requests: [], next_cursor: null }, status: 200 };
     }
@@ -478,7 +480,7 @@ export class InvitationService {
     logger.info(`Getting join request ${requestId} for user ${userId}`);
 
     // Get the user's invitation
-    const invitation = await this.invitationDAO.getByUser(userId);
+    const invitation = await this.invitationDAO.get(userId);
     if (!invitation) {
       throw new NotFoundError('Invitation not found');
     }
@@ -543,10 +545,151 @@ export class InvitationService {
   }
 
   /**
+   * Prepares no-friends notification data for users who have no friends
+   * @param userId The user ID to check
+   * @param profileData The user's profile data
+   * @returns Structured notification data or null if no notification should be sent
+   */
+  async prepareNoFriendsNotifications(
+    userId: string,
+    profileData: { created_at?: Timestamp; updated_at?: Timestamp;[key: string]: unknown },
+  ): Promise<{
+    notification?: {
+      userId: string;
+      title: string;
+      message: string;
+      data: { type: string };
+    };
+    analyticsResult: {
+      has_friends: boolean;
+      has_timestamp: boolean;
+      profile_too_new: boolean;
+      has_device: boolean;
+    };
+  }> {
+    const MIN_PROFILE_AGE_DAYS = 1;
+    const NOTIFICATION_TITLE = 'Your Village wants to hear from you!';
+    const NOTIFICATION_BODY =
+      'Invite your friends to your Village so they can get your private daily updates and stay connected effortlessly!';
+
+    logger.info(`Preparing no-friends notification for user ${userId}`);
+
+    // Check if the user has friends
+    const { friendCount } = await this.friendshipDAO.hasReachedLimit(userId);
+    if (friendCount > 0) {
+      logger.info(`User ${userId} has friends, skipping no-friends notification.`);
+      return {
+        analyticsResult: {
+          has_friends: true,
+          has_timestamp: true,
+          profile_too_new: false,
+          has_device: true,
+        },
+      };
+    }
+
+    // Check profile age
+    const profileTimestamp = profileData.created_at;
+    if (!profileTimestamp) {
+      logger.warn(`User ${userId} has no created_at or updated_at timestamp.`);
+      return {
+        analyticsResult: {
+          has_friends: false,
+          has_timestamp: false,
+          profile_too_new: false,
+          has_device: true,
+        },
+      };
+    }
+
+    const profileAgeMs = Date.now() - profileTimestamp.toDate().getTime();
+    const minProfileAgeMs = MIN_PROFILE_AGE_DAYS * 24 * 60 * 60 * 1000;
+
+    if (profileAgeMs < minProfileAgeMs) {
+      logger.info(
+        `User ${userId} profile is too new (age: ${Math.floor(profileAgeMs / (24 * 60 * 60 * 1000))} days), skipping.`,
+      );
+      return {
+        analyticsResult: {
+          has_friends: false,
+          has_timestamp: true,
+          profile_too_new: true,
+          has_device: true,
+        },
+      };
+    }
+
+    // Prepare notification data
+    const notification = {
+      userId,
+      title: NOTIFICATION_TITLE,
+      message: NOTIFICATION_BODY,
+      data: {
+        type: NotificationTypes.NO_FRIENDS_REMINDER,
+      },
+    };
+
+    logger.info(`Prepared no-friends notification for user ${userId}`);
+
+    return {
+      notification,
+      analyticsResult: {
+        has_friends: false,
+        has_timestamp: true,
+        profile_too_new: false,
+        has_device: true,
+      },
+    };
+  }
+
+  /**
    * Formats a list of join request documents into a list of join requests
    */
   private formatJoinRequests(docs: JoinRequestDoc[]): JoinRequest[] {
     const requests: JoinRequest[] = docs.map((doc) => this.formatJoinRequest(doc));
     return requests;
+  }
+
+  /**
+   * Updates profile denormalization across all invitation-related collections
+   * Handles sender profiles in invitations, requester profiles in join requests, and receiver profiles in join requests
+   * Uses efficient streaming methods and batch operations for scalability
+   */
+  async updateProfileDenormalization(userId: string, newProfile: CreatorProfile): Promise<number> {
+    logger.info(`Updating profile denormalization in invitations for user ${userId}`);
+
+    let totalUpdates = 0;
+
+    try {
+      // 1. Update sender profile in invitations where user is the sender
+      const userInvitation = await this.invitationDAO.get(userId);
+      if (userInvitation) {
+        await this.invitationDAO.updateSenderProfile(userInvitation.ref, newProfile);
+        totalUpdates++;
+        logger.info(`Updated sender profile in invitation for user ${userId}`);
+      }
+
+      // 2. Update requester profiles in join requests where user is the requester
+      // Use streaming method with built-in batch management
+      const requesterUpdates = await this.joinRequestDAO.updateRequesterProfileDenormalization(userId, newProfile);
+      totalUpdates += requesterUpdates;
+      logger.info(`Updated ${requesterUpdates} requester profile references for user ${userId}`);
+
+      // 3. Update receiver profiles in join requests where user is the receiver (invitation owner)
+      if (userInvitation) {
+        const receiverUpdates = await this.joinRequestDAO.updateReceiverProfileDenormalization(
+          userInvitation.id,
+          newProfile,
+        );
+        totalUpdates += receiverUpdates;
+        logger.info(`Updated ${receiverUpdates} receiver profile references for invitation ${userInvitation.id}`);
+      }
+
+      logger.info(`Updated ${totalUpdates} invitation-related profile references for user ${userId}`);
+      return totalUpdates;
+    } catch (error) {
+      logger.error(`Error updating profile denormalization in invitations for user ${userId}:`, error);
+      throw error;
+    }
   }
 }

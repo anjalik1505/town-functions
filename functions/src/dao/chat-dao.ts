@@ -19,7 +19,7 @@ export class ChatDAO extends BaseDAO<ChatDoc> {
    * @param messageData The chat message data
    * @returns The created chat document with ID
    */
-  async createMessage(groupId: string, messageData: ChatDoc): Promise<{ id: string; data: ChatDoc }> {
+  async create(groupId: string, messageData: ChatDoc): Promise<{ id: string; data: ChatDoc }> {
     const chatRef = this.db
       .collection(this.collection)
       .doc(groupId)
@@ -41,7 +41,7 @@ export class ChatDAO extends BaseDAO<ChatDoc> {
    * @param pagination Pagination options
    * @returns Paginated chat messages
    */
-  async getChats(groupId: string, pagination?: { limit?: number; afterCursor?: string }): Promise<ChatResponse> {
+  async get(groupId: string, pagination?: { limit?: number; afterCursor?: string }): Promise<ChatResponse> {
     const limit = pagination?.limit || 20;
 
     let query = this.db

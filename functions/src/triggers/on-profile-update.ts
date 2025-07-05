@@ -1,400 +1,157 @@
-import { QueryDocumentSnapshot, WhereFilterOp, getFirestore } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { Collections, QueryOperators } from '../models/constants.js';
-import { CommentDoc, cf, commentConverter } from '../models/firestore/comment-doc.js';
-import { FriendDoc, friendConverter } from '../models/firestore/friend-doc.js';
-import { GroupDoc, gf, groupConverter } from '../models/firestore/group-doc.js';
-import { InvitationDoc, if_, invitationConverter } from '../models/firestore/invitation-doc.js';
-import { JoinRequestDoc, joinRequestConverter, jrf } from '../models/firestore/join-request-doc.js';
-import { PhoneDoc, phf, phoneConverter } from '../models/firestore/phone-doc.js';
-import { ProfileDoc, pf } from '../models/firestore/profile-doc.js';
-import { CreatorProfile, UpdateDoc, UserProfile, uf, updateConverter } from '../models/firestore/update-doc.js';
-import { commitBatch, commitFinal } from '../utils/batch-utils.js';
-import { upsertFriendDoc, type FriendDocUpdate } from '../utils/friendship-utils.js';
-import { getUserInvitationLink } from '../utils/invitation-utils.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { EventName } from '../models/analytics-events.js';
+import { ProfileDoc } from '../models/firestore/profile-doc.js';
+import { CreatorProfile } from '../models/firestore/update-doc.js';
+import { FriendshipService } from '../services/friendship-service.js';
+import { GroupService } from '../services/group-service.js';
+import { InvitationService } from '../services/invitation-service.js';
+import { ProfileService } from '../services/profile-service.js';
+import { UpdateService } from '../services/update-service.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
-const logger = getLogger('on-profile-update');
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
- * Handles profile updates and denormalizes user data across related collections.
- * This trigger fires when a profile is updated and updates the user's information
- * in all related documents to maintain data consistency.
+ * Firestore trigger function that runs when a profile document is updated.
+ * Uses service orchestration pattern to update denormalized profile data across all collections.
  *
- * Note: Phone collection updates are handled in the update-my-profile endpoint
- * because phone number changes require validation to ensure uniqueness.
+ * @param event - The Firestore event object containing the document data
  */
 export const onProfileUpdate = async (
   event: FirestoreEvent<Change<QueryDocumentSnapshot> | undefined, { userId: string }>,
 ): Promise<void> => {
-  if (!event.data) {
-    logger.error('No data in profile update event');
-    return;
-  }
-
-  const { userId } = event.params;
-  const before = event.data.before;
-  const after = event.data.after;
-
-  if (!before || !after) {
-    logger.error('Missing before or after data in profile update');
-    return;
-  }
-
-  // Convert the snapshots to typed documents
-  const beforeData = before.data() as ProfileDoc;
-  const afterData = after.data() as ProfileDoc;
-
-  if (!beforeData || !afterData) {
-    logger.error('Missing data in profile documents');
-    return;
-  }
-
-  // Check if relevant fields changed
-  const usernameChanged = beforeData[pf('username')] !== afterData[pf('username')];
-  const nameChanged = beforeData[pf('name')] !== afterData[pf('name')];
-  const avatarChanged = beforeData[pf('avatar')] !== afterData[pf('avatar')];
-  const phoneChanged = beforeData[pf('phone_number')] !== afterData[pf('phone_number')];
-
-  if (!usernameChanged && !nameChanged && !avatarChanged && !phoneChanged) {
-    logger.info(`No relevant profile changes for user ${userId}`);
-    return;
-  }
-
-  logger.info(`Profile update detected for user ${userId}:`, {
-    usernameChanged,
-    nameChanged,
-    avatarChanged,
-    phoneChanged,
-  });
-
-  const db = getFirestore();
-
   try {
-    // Create a batch for all updates
-    let batch = db.batch();
-    let batchCount = 0;
-
-    // 1. Update phones collection mapping
-    if (phoneChanged) {
-      const oldPhone = beforeData[pf('phone_number')];
-      const newPhone = afterData[pf('phone_number')];
-
-      // Delete old mapping if it existed
-      if (oldPhone) {
-        const oldPhoneRef = db.collection(Collections.PHONES).doc(oldPhone).withConverter(phoneConverter);
-        batch.delete(oldPhoneRef);
-        batchCount++;
-
-        // Commit batch if approaching limit
-        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-      }
-
-      // Create new mapping if new phone exists
-      if (newPhone) {
-        const newPhoneRef = db.collection(Collections.PHONES).doc(newPhone).withConverter(phoneConverter);
-        const phoneData: PhoneDoc = {
-          [phf('user_id')]: userId,
-          [phf('username')]: afterData[pf('username')],
-          [phf('name')]: afterData[pf('name')],
-          [phf('avatar')]: afterData[pf('avatar')],
-        };
-        batch.set(newPhoneRef, phoneData);
-        batchCount++;
-
-        // Commit batch if approaching limit
-        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-      }
-    } else if ((usernameChanged || nameChanged || avatarChanged) && afterData[pf('phone_number')]) {
-      // Phone hasn't changed but user info did; update mapping doc
-      const phone = afterData[pf('phone_number')];
-      const phoneRef = db.collection(Collections.PHONES).doc(phone).withConverter(phoneConverter);
-      const updates: Partial<PhoneDoc> = {};
-      if (usernameChanged) updates[phf('username')] = afterData[pf('username')];
-      if (nameChanged) updates[phf('name')] = afterData[pf('name')];
-      if (avatarChanged) updates[phf('avatar')] = afterData[pf('avatar')];
-      batch.update(phoneRef, updates);
-      batchCount++;
-
-      // Commit batch if approaching limit
-      ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
+    if (!event.data) {
+      logger.error('No data in profile update event');
+      return;
     }
 
-    // Only proceed with other updates if username, name, or avatar changed
-    if (usernameChanged || nameChanged || avatarChanged) {
-      // 2. Update the user's invitation if it exists
-      const existingInvitation = await getUserInvitationLink(userId);
-      if (existingInvitation) {
-        const invitationRef = existingInvitation.ref.withConverter(invitationConverter);
-        const invitationUpdates: Partial<InvitationDoc> = {};
+    const { userId } = event.params;
+    const before = event.data.before;
+    const after = event.data.after;
 
-        if (usernameChanged) {
-          invitationUpdates[if_('username')] = afterData[pf('username')];
-        }
-        if (nameChanged) {
-          invitationUpdates[if_('name')] = afterData[pf('name')];
-        }
-        if (avatarChanged) {
-          invitationUpdates[if_('avatar')] = afterData[pf('avatar')];
-        }
-
-        if (Object.keys(invitationUpdates).length > 0) {
-          batch.update(invitationRef, invitationUpdates);
-          batchCount++;
-
-          // Commit batch if approaching limit
-          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-
-          // Update join requests where the user is the receiver (invitation owner)
-          const joinRequestsQuery = invitationRef
-            .collection(Collections.JOIN_REQUESTS)
-            .withConverter(joinRequestConverter)
-            .orderBy(jrf('created_at'), QueryOperators.DESC);
-
-          for await (const doc of joinRequestsQuery.stream()) {
-            const joinRequestDoc = doc as unknown as QueryDocumentSnapshot<JoinRequestDoc>;
-            const joinRequestUpdates: Partial<JoinRequestDoc> = {};
-
-            if (usernameChanged) {
-              joinRequestUpdates[jrf('receiver_username')] = afterData[pf('username')];
-            }
-            if (nameChanged) {
-              joinRequestUpdates[jrf('receiver_name')] = afterData[pf('name')];
-            }
-            if (avatarChanged) {
-              joinRequestUpdates[jrf('receiver_avatar')] = afterData[pf('avatar')];
-            }
-
-            if (Object.keys(joinRequestUpdates).length > 0) {
-              batch.update(joinRequestDoc.ref, joinRequestUpdates);
-              batchCount++;
-
-              // Commit batch if approaching limit
-              ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-            }
-          }
-        }
-      }
-
-      // 3. Update join requests where the user is the requester
-      const requesterJoinRequestsQuery = db
-        .collectionGroup(Collections.JOIN_REQUESTS)
-        .where(jrf('requester_id'), QueryOperators.EQUALS, userId)
-        .orderBy(jrf('created_at'), QueryOperators.DESC);
-
-      for await (const doc of requesterJoinRequestsQuery.stream()) {
-        const joinRequestDoc = doc as unknown as QueryDocumentSnapshot;
-        const joinRequestRef = joinRequestDoc.ref.withConverter(joinRequestConverter);
-        const joinRequestUpdates: Partial<JoinRequestDoc> = {};
-
-        if (usernameChanged) {
-          joinRequestUpdates[jrf('requester_username')] = afterData[pf('username')];
-        }
-        if (nameChanged) {
-          joinRequestUpdates[jrf('requester_name')] = afterData[pf('name')];
-        }
-        if (avatarChanged) {
-          joinRequestUpdates[jrf('requester_avatar')] = afterData[pf('avatar')];
-        }
-
-        if (Object.keys(joinRequestUpdates).length > 0) {
-          batch.update(joinRequestRef, joinRequestUpdates);
-          batchCount++;
-
-          // Commit batch if approaching limit
-          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-        }
-      }
-
-      // 4. Update friend documents in FRIENDS subcollections
-      logger.info('Updating friend documents in FRIENDS subcollections');
-
-      // Get list of friends from user's FRIENDS subcollection
-      const userFriendsQuery = db
-        .collection(Collections.PROFILES)
-        .doc(userId)
-        .collection(Collections.FRIENDS)
-        .withConverter(friendConverter);
-
-      const friendIds: string[] = [];
-      for await (const doc of userFriendsQuery.stream()) {
-        const friendDoc = doc as unknown as QueryDocumentSnapshot<FriendDoc>;
-        friendIds.push(friendDoc.id);
-      }
-
-      // Update this user's data in each friend's FRIENDS subcollection
-      for (const friendId of friendIds) {
-        const friendDocUpdate: FriendDocUpdate = {};
-
-        if (usernameChanged) {
-          friendDocUpdate.username = afterData[pf('username')];
-        }
-        if (nameChanged) {
-          friendDocUpdate.name = afterData[pf('name')];
-        }
-        if (avatarChanged) {
-          friendDocUpdate.avatar = afterData[pf('avatar')];
-        }
-
-        // Note: upsertFriendDoc performs a batch.set operation internally
-        await upsertFriendDoc(db, friendId, userId, friendDocUpdate, batch);
-        batchCount++;
-
-        // Commit batch if approaching limit
-        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-      }
-
-      // 5. Update groups where the user is a member
-      const groupsQuery = db
-        .collection(Collections.GROUPS)
-        .where(gf('members'), QueryOperators.ARRAY_CONTAINS as WhereFilterOp, userId);
-
-      for await (const doc of groupsQuery.stream()) {
-        const groupDoc = doc as unknown as QueryDocumentSnapshot;
-        const groupRef = groupDoc.ref.withConverter(groupConverter);
-        const groupData = groupDoc.data() as GroupDoc;
-        const memberProfiles = groupData[gf('member_profiles')] || {};
-
-        // Update the user's profile in the member_profiles map
-        if (memberProfiles[userId]) {
-          const memberProfileUpdate: Partial<GroupDoc> = {};
-          const updatedProfile: CreatorProfile = { ...memberProfiles[userId] };
-
-          if (usernameChanged) {
-            updatedProfile.username = afterData[pf('username')];
-          }
-          if (nameChanged) {
-            updatedProfile.name = afterData[pf('name')];
-          }
-          if (avatarChanged) {
-            updatedProfile.avatar = afterData[pf('avatar')];
-          }
-
-          // Use direct property access instead of computed property for type safety
-          const memberProfilesKey = gf('member_profiles');
-          memberProfileUpdate[memberProfilesKey] = {
-            ...memberProfiles,
-            [userId]: updatedProfile,
-          };
-
-          batch.update(groupRef, memberProfileUpdate);
-          batchCount++;
-
-          // Commit batch if approaching limit
-          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-        }
-      }
-
-      // 6. Update creator_profile in all updates created by the user
-      logger.info('Updating creator profiles in updates');
-      const creatorUpdatesQuery = db
-        .collection(Collections.UPDATES)
-        .where(uf('created_by'), QueryOperators.EQUALS, userId);
-
-      for await (const doc of creatorUpdatesQuery.stream()) {
-        const updateDoc = doc as unknown as QueryDocumentSnapshot;
-        const updateRef = updateDoc.ref.withConverter(updateConverter);
-        const creatorProfileUpdates: Partial<UpdateDoc> = {};
-
-        // Build the nested update path for creator_profile
-        const creatorProfile: CreatorProfile = {
-          username: afterData[pf('username')],
-          name: afterData[pf('name')],
-          avatar: afterData[pf('avatar')],
-        };
-
-        creatorProfileUpdates[uf('creator_profile')] = creatorProfile;
-
-        batch.update(updateRef, creatorProfileUpdates);
-        batchCount++;
-
-        // Commit batch if approaching limit
-        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-      }
-
-      // 7. Update shared_with_friends_profiles in updates where user appears
-      logger.info('Updating shared with friends profiles in updates');
-      const sharedUpdatesQuery = db
-        .collection(Collections.UPDATES)
-        .where(uf('friend_ids'), QueryOperators.ARRAY_CONTAINS as WhereFilterOp, userId);
-
-      for await (const doc of sharedUpdatesQuery.stream()) {
-        const updateDoc = doc as unknown as QueryDocumentSnapshot;
-        const updateRef = updateDoc.ref.withConverter(updateConverter);
-        const updateData = updateDoc.data() as UpdateDoc;
-        const sharedWithFriendsProfiles = updateData[uf('shared_with_friends_profiles')] || [];
-
-        // Find and update the user's profile in the shared_with_friends_profiles array
-        const userProfileIndex = sharedWithFriendsProfiles.findIndex((profile) => profile.user_id === userId);
-
-        if (userProfileIndex !== -1) {
-          const sharedProfileUpdate: Partial<UpdateDoc> = {};
-          const updatedProfiles = [...sharedWithFriendsProfiles];
-          const existingProfile = updatedProfiles[userProfileIndex]!;
-          const updatedProfile: UserProfile = {
-            user_id: existingProfile.user_id,
-            username: existingProfile.username,
-            name: existingProfile.name,
-            avatar: existingProfile.avatar,
-          };
-
-          if (usernameChanged) {
-            updatedProfile.username = afterData[pf('username')];
-          }
-          if (nameChanged) {
-            updatedProfile.name = afterData[pf('name')];
-          }
-          if (avatarChanged) {
-            updatedProfile.avatar = afterData[pf('avatar')];
-          }
-
-          updatedProfiles[userProfileIndex] = updatedProfile;
-
-          // Use direct property access instead of computed property for type safety
-          const sharedProfilesKey = uf('shared_with_friends_profiles');
-          sharedProfileUpdate[sharedProfilesKey] = updatedProfiles;
-
-          batch.update(updateRef, sharedProfileUpdate);
-          batchCount++;
-
-          // Commit batch if approaching limit
-          ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-        }
-      }
-
-      // 8. Update commenter_profile in all comments created by the user
-      logger.info('Updating commenter profiles in comments');
-      const commentsQuery = db
-        .collectionGroup(Collections.COMMENTS)
-        .where(cf('created_by'), QueryOperators.EQUALS, userId);
-
-      for await (const doc of commentsQuery.stream()) {
-        const commentDoc = doc as unknown as QueryDocumentSnapshot;
-        const commentRef = commentDoc.ref.withConverter(commentConverter);
-        const commenterProfileUpdates: Partial<CommentDoc> = {};
-
-        // Build the commenter profile
-        const commenterProfile: CreatorProfile = {
-          username: afterData[pf('username')],
-          name: afterData[pf('name')],
-          avatar: afterData[pf('avatar')],
-        };
-
-        commenterProfileUpdates[cf('commenter_profile')] = commenterProfile;
-
-        batch.update(commentRef, commenterProfileUpdates);
-        batchCount++;
-
-        // Commit batch if approaching limit
-        ({ batch, batchCount } = await commitBatch(db, batch, batchCount));
-      }
+    if (!before || !after) {
+      logger.error('Missing before or after data in profile update');
+      return;
     }
 
-    // Commit all remaining updates in a single atomic operation
-    await commitFinal(db, batch, batchCount);
-    logger.info(`Successfully updated denormalized data for user ${userId}`);
+    // Convert the snapshots to typed documents
+    const beforeData = before.data() as ProfileDoc;
+    const afterData = after.data() as ProfileDoc;
+
+    if (!beforeData || !afterData) {
+      logger.error('Missing data in profile documents');
+      return;
+    }
+
+    logger.info(`Processing profile update for user ${userId}`);
+
+    // Check if denormalizable fields have changed
+    const profileFieldsChanged =
+      beforeData.username !== afterData.username ||
+      beforeData.name !== afterData.name ||
+      beforeData.avatar !== afterData.avatar;
+
+    const phoneChanged = beforeData.phone_number !== afterData.phone_number;
+
+    // Phone mappings need to be updated if either phone changed OR profile fields changed
+    const phoneRelatedFieldsChanged = phoneChanged || profileFieldsChanged;
+
+    if (!phoneRelatedFieldsChanged) {
+      logger.info(`No denormalizable fields changed for user ${userId}, skipping denormalization`);
+      return;
+    }
+
+    // Initialize services
+    const profileService = new ProfileService();
+    const updateService = new UpdateService();
+    const groupService = new GroupService();
+    const invitationService = new InvitationService();
+    const friendshipService = new FriendshipService();
+
+    // Prepare profile data for denormalization
+    const newProfile: CreatorProfile = {
+      username: afterData.username || '',
+      name: afterData.name || '',
+      avatar: afterData.avatar || '',
+    };
+
+    // Track denormalization results
+    let totalUpdates = 0;
+    const analyticsResults = {
+      phone_mappings_updated: 0,
+      updates_updated: 0,
+      groups_updated: 0,
+      invitations_updated: 0,
+      friendships_updated: 0,
+    };
+
+    try {
+      // Process phone mapping changes (ProfileService domain)
+      // This handles both phone changes AND profile field changes
+      if (phoneRelatedFieldsChanged) {
+        const phoneUpdates = await profileService.updatePhoneMappingDenormalization(userId, beforeData, afterData);
+        analyticsResults.phone_mappings_updated = phoneUpdates;
+        totalUpdates += phoneUpdates;
+        logger.info(`Updated ${phoneUpdates} phone mappings for user ${userId}`);
+      }
+
+      // Process profile field changes for other collections
+      if (profileFieldsChanged) {
+        // Process updates denormalization (UpdateService domain)
+        const updateUpdates = await updateService.updateProfileDenormalization(userId, newProfile);
+        analyticsResults.updates_updated = updateUpdates;
+        totalUpdates += updateUpdates;
+        logger.info(`Updated ${updateUpdates} update profiles for user ${userId}`);
+
+        // Process groups denormalization (GroupService domain)
+        const groupUpdates = await groupService.updateMemberProfileDenormalization(userId, newProfile);
+        analyticsResults.groups_updated = groupUpdates;
+        totalUpdates += groupUpdates;
+        logger.info(`Updated ${groupUpdates} group member profiles for user ${userId}`);
+
+        // Process invitations denormalization (InvitationService domain)
+        const invitationUpdates = await invitationService.updateProfileDenormalization(userId, newProfile);
+        analyticsResults.invitations_updated = invitationUpdates;
+        totalUpdates += invitationUpdates;
+        logger.info(`Updated ${invitationUpdates} invitation profiles for user ${userId}`);
+
+        // Process friendships denormalization (FriendshipService domain)
+        const friendshipUpdates = await friendshipService.updateFriendProfileDenormalization(userId, newProfile);
+        analyticsResults.friendships_updated = friendshipUpdates;
+        totalUpdates += friendshipUpdates;
+        logger.info(`Updated ${friendshipUpdates} friendship profiles for user ${userId}`);
+      }
+
+      // Track aggregated analytics
+      await trackApiEvents(
+        [
+          {
+            eventName: EventName.PROFILE_UPDATED,
+            params: {
+              total_updates: totalUpdates,
+              phone_mappings_updated: analyticsResults.phone_mappings_updated,
+              updates_updated: analyticsResults.updates_updated,
+              groups_updated: analyticsResults.groups_updated,
+              invitations_updated: analyticsResults.invitations_updated,
+              friendships_updated: analyticsResults.friendships_updated,
+            },
+          },
+        ],
+        userId,
+      );
+
+      logger.info(`Successfully processed profile update for user ${userId} - total updates: ${totalUpdates}`);
+    } catch (error) {
+      logger.error(`Error during denormalization for user ${userId}:`, error);
+      throw error;
+    }
   } catch (error) {
-    logger.error(`Error updating denormalized data for user ${userId}:`, error);
-    throw error;
+    logger.error(`Error processing profile update:`, error);
   }
 };

@@ -1,107 +1,20 @@
-import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, NotificationTypes } from '../models/constants.js';
-import { DeviceDoc } from '../models/firestore/device-doc.js';
+import { NotificationTypes } from '../models/constants.js';
 import { JoinRequestDoc } from '../models/firestore/join-request-doc.js';
+import { NotificationService } from '../services/notification-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Sends a notification to the invitation owner when a new request is created.
- *
- * @param db - Firestore client
- * @param requestData - The request document data
- * @param requestId - The ID of the request
- * @param receiverId - The ID of the user who owns the invitation
- * @returns Analytics data for this notification
- */
-const sendJoinRequestNotification = async (
-  db: FirebaseFirestore.Firestore,
-  requestData: JoinRequestDoc,
-  requestId: string,
-  receiverId: string,
-): Promise<NotificationEventParams> => {
-  // Get the invitation owner's device
-  const deviceRef = db.collection(Collections.DEVICES).doc(receiverId);
-  const deviceDoc = await deviceRef.get();
-
-  if (!deviceDoc.exists) {
-    logger.info(`No device found for invitation owner ${receiverId}, skipping notification`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: true,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  const deviceData = deviceDoc.data() as DeviceDoc | undefined;
-  const deviceId = deviceData?.device_id;
-
-  if (!deviceId) {
-    logger.info(`No device ID found for invitation owner ${receiverId}, skipping notification`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: true,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  // Get requester's profile to include their name in the notification
-  const requesterName = requestData.requester_name || requestData.requester_username || 'Friend';
-
-  // Send the notification
-  try {
-    const notificationMessage = `${requesterName} wants to join your village!`;
-
-    await sendNotification(deviceId, 'New Request', notificationMessage, {
-      type: NotificationTypes.JOIN_REQUEST,
-      request_id: requestId,
-    });
-
-    // Send background notification
-    await sendBackgroundNotification(deviceId, {
-      type: NotificationTypes.JOIN_REQUEST_BACKGROUND,
-      request_id: requestId,
-    });
-
-    logger.info(`Sent join request notification to invitation owner ${receiverId} for request ${requestId}`);
-
-    return {
-      notification_all: true,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: false,
-      notification_length: notificationMessage.length,
-      is_urgent: false,
-    };
-  } catch (error) {
-    logger.error(`Failed to send join request notification to invitation owner ${receiverId}`, error);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: true,
-      no_device: false,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-};
-
-/**
  * Firestore trigger function that runs when a new join request is created.
+ * Prepares and sends notifications directly using NotificationService.
  *
  * @param event - The Firestore event object containing the document data
  */
@@ -122,26 +35,74 @@ export const onJoinRequestCreated = async (
       return;
     }
 
+    // Convert to typed document
     const requestData = requestSnapshot.data() as JoinRequestDoc;
-    const requestId = event.params.joinRequestId;
 
-    const receiverId = requestData.receiver_id;
-    if (!receiverId) {
-      logger.error(`No requester ID found for request ${requestId}`);
+    if (!requestData) {
+      logger.error('Request data is null');
       return;
     }
 
-    const db = getFirestore();
+    // Extract IDs from event parameters
+    const requestId = event.params.joinRequestId;
 
-    // Send notification to the invitation owner
-    const notificationResult = await sendJoinRequestNotification(db, requestData, requestId, receiverId);
+    logger.info(`Processing join request creation: ${requestId}`);
 
-    // Track analytics
+    const receiverId = requestData.receiver_id;
+    if (!receiverId) {
+      logger.error(`No receiver ID found for request ${requestId}`);
+      return;
+    }
+
+    // Initialize NotificationService
+    const notificationService = new NotificationService();
+
+    let totalNotificationResult: NotificationEventParams = {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: true,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false,
+    };
+
+    // Prepare notification data directly from the join request data
+    const requesterName = requestData.requester_name || requestData.requester_username || 'Friend';
+    const notificationTitle = 'New Request';
+    const notificationMessage = `${requesterName} wants to join your village!`;
+
+    try {
+      const notificationResult = await notificationService.sendNotification(
+        [receiverId],
+        notificationTitle,
+        notificationMessage,
+        {
+          type: NotificationTypes.JOIN_REQUEST,
+          request_id: requestId,
+        },
+      );
+
+      // Also send background notification
+      await notificationService.sendBackgroundNotification([receiverId], {
+        type: NotificationTypes.JOIN_REQUEST_BACKGROUND,
+        request_id: requestId,
+      });
+
+      // Set analytics results
+      totalNotificationResult = notificationResult;
+
+      logger.info(`Sent join request notification to invitation owner ${receiverId}`);
+    } catch (error) {
+      logger.error(`Failed to send join request notification to invitation owner ${receiverId}`, error);
+      totalNotificationResult.no_device = true;
+    }
+
+    // Track analytics using the notification results
     await trackApiEvents(
       [
         {
           eventName: EventName.JOIN_REQUEST_NOTIFICATION_SENT,
-          params: notificationResult,
+          params: totalNotificationResult,
         },
       ],
       receiverId,

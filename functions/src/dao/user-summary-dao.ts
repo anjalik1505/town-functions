@@ -1,8 +1,8 @@
-import { Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import { Timestamp, WriteBatch, DocumentReference } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Collections } from '../models/constants.js';
-import { userSummaryConverter, UserSummaryDoc } from '../models/firestore/user-summary-doc.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { userSummaryConverter, UserSummaryDoc, usf } from '../models/firestore/user-summary-doc.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { createSummaryId } from '../utils/profile-utils.js';
 import { BaseDAO } from './base-dao.js';
@@ -136,10 +136,56 @@ export class UserSummaryDAO extends BaseDAO<UserSummaryDoc> {
   /**
    * Gets a user summary document by ID (used internally)
    */
-  async getById(summaryId: string): Promise<UserSummaryDoc | null> {
+  async get(summaryId: string): Promise<UserSummaryDoc | null> {
     const summaryRef = this.db.collection(this.collection).withConverter(this.converter).doc(summaryId);
 
     const doc = await summaryRef.get();
     return doc.exists ? doc.data() || null : null;
+  }
+
+  /**
+   * Streams user summaries where the specified user is the creator
+   * @param userId The user ID who created the summaries
+   * @returns AsyncIterable of { doc: UserSummaryDoc, ref: DocumentReference }
+   */
+  async *streamSummariesByCreator(userId: string): AsyncIterable<{ doc: UserSummaryDoc; ref: DocumentReference }> {
+    const query = this.db
+      .collection(this.collection)
+      .withConverter(this.converter)
+      .where(usf('creator_id'), QueryOperators.EQUALS, userId);
+
+    const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<UserSummaryDoc>>;
+    for await (const docSnapshot of stream) {
+      const data = docSnapshot.data();
+      if (data) {
+        yield {
+          doc: data,
+          ref: docSnapshot.ref,
+        };
+      }
+    }
+  }
+
+  /**
+   * Streams user summaries where the specified user is the target
+   * @param userId The user ID who is the target of the summaries
+   * @returns AsyncIterable of { doc: UserSummaryDoc, ref: DocumentReference }
+   */
+  async *streamSummariesByTarget(userId: string): AsyncIterable<{ doc: UserSummaryDoc; ref: DocumentReference }> {
+    const query = this.db
+      .collection(this.collection)
+      .withConverter(this.converter)
+      .where(usf('target_id'), QueryOperators.EQUALS, userId);
+
+    const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<UserSummaryDoc>>;
+    for await (const docSnapshot of stream) {
+      const data = docSnapshot.data();
+      if (data) {
+        yield {
+          doc: data,
+          ref: docSnapshot.ref,
+        };
+      }
+    }
   }
 }

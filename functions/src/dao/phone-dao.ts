@@ -15,8 +15,8 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
    * Creates a phone-to-user mapping
    * @returns The created phone document
    */
-  async create(phoneNumber: string, userData: PhoneDoc): Promise<PhoneDoc> {
-    const phoneRef = this.getDocRef(phoneNumber);
+  async create(phone: string, userData: PhoneDoc): Promise<PhoneDoc> {
+    const phoneRef = this.getRef(phone);
     await phoneRef.set(userData);
 
     return userData;
@@ -25,8 +25,8 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
   /**
    * Checks if a phone number exists in the mapping
    */
-  async exists(phoneNumber: string): Promise<boolean> {
-    const phoneRef = this.getDocRef(phoneNumber);
+  async exists(phone: string): Promise<boolean> {
+    const phoneRef = this.getRef(phone);
     const phoneDoc = await phoneRef.get();
     return phoneDoc.exists;
   }
@@ -34,10 +34,10 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
   /**
    * Looks up multiple phone numbers in batch
    */
-  async lookupMultiple(phones: string[]): Promise<PhoneDoc[]> {
+  async getAll(phones: string[]): Promise<PhoneDoc[]> {
     if (phones.length === 0) return [];
 
-    const docRefs = phones.map((phone) => this.getDocRef(phone));
+    const docRefs = phones.map((phone) => this.getRef(phone));
     const docs = await this.db.getAll(...docRefs);
 
     return docs.filter((doc) => doc.exists).map((doc) => doc.data()! as PhoneDoc);
@@ -46,8 +46,8 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
   /**
    * Deletes a phone mapping
    */
-  async delete(phoneNumber: string): Promise<void> {
-    await super.delete(phoneNumber);
+  async delete(phone: string): Promise<void> {
+    await this.db.collection(this.collection).doc(phone).delete();
   }
 
   /**
@@ -55,17 +55,17 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
    * Handles old phone deletion and new phone creation atomically
    * @returns The new phone document
    */
-  async updateForUser(oldPhone: string | null, newPhone: string, userData: PhoneDoc): Promise<PhoneDoc> {
+  async update(oldPhone: string | null, newPhone: string, userData: PhoneDoc): Promise<PhoneDoc> {
     const batch = this.db.batch();
 
     // Delete old phone mapping if it exists
     if (oldPhone && oldPhone !== newPhone) {
-      const oldPhoneRef = this.getDocRef(oldPhone);
+      const oldPhoneRef = this.getRef(oldPhone);
       batch.delete(oldPhoneRef);
     }
 
     // Create new phone mapping
-    const newPhoneRef = this.getDocRef(newPhone);
+    const newPhoneRef = this.getRef(newPhone);
     batch.set(newPhoneRef, userData);
 
     await batch.commit();
