@@ -181,6 +181,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
     additionalFriendsProfiles: UserProfile[] = [],
     additionalGroupsProfiles: GroupProfile[] = [],
     batch?: WriteBatch,
+    incrementShareCount?: boolean,
   ): Promise<UpdateDoc> {
     const result = await this.get(updateId);
     if (!result) {
@@ -210,6 +211,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
       visible_to: [...new Set(newVisibleTo)], // Remove duplicates
       shared_with_friends_profiles: newSharedWithFriendsProfiles,
       shared_with_groups_profiles: newSharedWithGroupsProfiles,
+      ...(incrementShareCount && { share_count: FieldValue.increment(1) }),
     };
 
     if (batch) {
@@ -218,10 +220,13 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
       await updateRef.update(updateFields);
     }
 
-    // Return updated data
+    // Return updated data (calculate new share_count if incremented)
+    const newShareCount = incrementShareCount ? (updateData.share_count || 0) + 1 : updateData.share_count;
+
     return {
       ...updateData,
       ...updateFields,
+      share_count: newShareCount,
     };
   }
 

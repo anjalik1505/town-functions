@@ -21,6 +21,7 @@ export interface UpdateDoc {
   creator_profile: SimpleProfile;
   shared_with_friends_profiles: UserProfile[];
   shared_with_groups_profiles: GroupProfile[];
+  share_count: number;
 }
 
 export const updateConverter: FirebaseFirestore.FirestoreDataConverter<UpdateDoc> = {

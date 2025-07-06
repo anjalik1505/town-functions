@@ -165,6 +165,7 @@ export class UpdateService {
       comment_count: 0,
       reaction_count: 0,
       reaction_types: {},
+      share_count: 0,
     };
 
     // Create a batch for atomic operations
@@ -341,6 +342,7 @@ export class UpdateService {
       additionalFriendsProfiles,
       additionalGroupsProfiles,
       batch,
+      true, // incrementShareCount for trigger detection
     );
 
     // Create additional feed items for new recipients within the same batch

@@ -66,6 +66,20 @@ export const onUpdateUpdated = async (
       return;
     }
 
+    // Only process friend summaries for manual sharing operations
+    // Manual sharing increments share_count, friendship sync does not
+    const shareCountBefore = beforeData.share_count || 0;
+    const shareCountAfter = afterData.share_count || 0;
+
+    if (shareCountAfter <= shareCountBefore) {
+      logger.info(
+        `Share count unchanged (${shareCountBefore} -> ${shareCountAfter}) for update ${updateId} ` +
+          `(${addedFriends.length} friends, ${addedGroups.length} groups added). ` +
+          `Skipping friend summary processing - likely friendship sync.`,
+      );
+      return;
+    }
+
     logger.info(
       `Processing update sharing changes for update ${updateId}: ${addedFriends.length} new friends and ${addedGroups.length} new groups added`,
     );
