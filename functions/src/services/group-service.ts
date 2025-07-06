@@ -1,22 +1,13 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ChatDAO } from '../dao/chat-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { GroupDAO } from '../dao/group-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
 import { Collections } from '../models/constants.js';
-import {
-  ChatMessage,
-  ChatResponse,
-  Group,
-  GroupMember,
-  GroupsResponse,
-  Update,
-  UpdatesResponse,
-} from '../models/data-models.js';
-import { ChatDoc, GroupDoc, SimpleProfile } from '../models/firestore/index.js';
+import { Group, GroupMember, GroupsResponse } from '../models/data-models.js';
+import { GroupDoc, SimpleProfile } from '../models/firestore/index.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -30,14 +21,12 @@ const logger = getLogger(path.basename(__filename));
  */
 export class GroupService {
   private groupDAO: GroupDAO;
-  private chatDAO: ChatDAO;
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
   private db: FirebaseFirestore.Firestore;
 
   constructor() {
     this.groupDAO = new GroupDAO();
-    this.chatDAO = new ChatDAO();
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
     this.db = getFirestore();
@@ -270,188 +259,6 @@ export class GroupService {
         params: {
           group_id: groupId,
           member_count: members.length,
-        },
-      },
-    };
-  }
-
-  /**
-   * Gets updates visible to a group
-   */
-  async getGroupFeed(
-    userId: string,
-    groupId: string,
-    pagination?: { limit?: number; after_cursor?: string },
-  ): Promise<ApiResponse<UpdatesResponse>> {
-    logger.info(`Getting feed for group ${groupId}`, { userId, pagination });
-
-    const group = await this.groupDAO.get(groupId);
-    if (!group) {
-      throw new NotFoundError('Group not found');
-    }
-
-    if (!group.members.includes(userId)) {
-      throw new ForbiddenError('You must be a member of the group to view the feed');
-    }
-
-    // Query updates visible to this group
-    const limit = pagination?.limit || 20;
-    const visibilityFilter = `group:${groupId}`;
-
-    let query = this.db
-      .collection(Collections.UPDATES)
-      .where('visible_to', 'array-contains', visibilityFilter)
-      .orderBy('created_at', 'desc')
-      .limit(limit + 1);
-
-    if (pagination?.after_cursor) {
-      const cursorDoc = await this.db.collection(Collections.UPDATES).doc(pagination.after_cursor).get();
-      if (cursorDoc.exists) {
-        query = query.startAfter(cursorDoc);
-      }
-    }
-
-    const snapshot = await query.get();
-    const updates: Update[] = [];
-    let nextCursor: string | null = null;
-
-    snapshot.docs.slice(0, limit).forEach((doc) => {
-      const data = doc.data();
-      updates.push({
-        update_id: doc.id,
-        created_by: data.user_id || data.created_by,
-        content: data.text || data.content,
-        group_ids: data.group_ids || [],
-        friend_ids: data.friend_ids || [],
-        sentiment: data.sentiment || '',
-        score: data.score || 0,
-        emoji: data.emoji || '',
-        created_at: formatTimestamp(data.created_at),
-        comment_count: data.comment_count || 0,
-        reaction_count: data.reaction_count || 0,
-        reactions: data.reactions || [],
-        all_village: data.all_village || false,
-        images: data.image_urls || data.images || [],
-        shared_with_friends: data.shared_with_friends || [],
-        shared_with_groups: data.shared_with_groups || [],
-      });
-    });
-
-    if (snapshot.docs.length > limit) {
-      nextCursor = snapshot.docs[limit - 1]!.id;
-    }
-
-    logger.info(`Retrieved ${updates.length} updates for group ${groupId}`);
-
-    return {
-      data: { updates, next_cursor: nextCursor },
-      status: 200,
-      analytics: {
-        event: EventName.GROUP_FEED_VIEWED,
-        userId: userId,
-        params: {
-          group_id: groupId,
-          update_count: updates.length,
-        },
-      },
-    };
-  }
-
-  /**
-   * Creates a chat message in a group
-   */
-  async createChatMessage(
-    userId: string,
-    groupId: string,
-    data: {
-      text: string;
-      attachments?: string[];
-    },
-  ): Promise<ApiResponse<ChatMessage>> {
-    logger.info(`Creating chat message in group ${groupId}`, { userId });
-
-    const group = await this.groupDAO.get(groupId);
-    if (!group) {
-      throw new NotFoundError('Group not found');
-    }
-
-    if (!group.members.includes(userId)) {
-      throw new ForbiddenError('You must be a member of the group to send messages');
-    }
-
-    const chatData: ChatDoc = {
-      sender_id: userId,
-      text: data.text,
-      created_at: Timestamp.now(),
-      attachments: (data.attachments || []).map((url) => ({ type: 'image', url, thumbnail: url })),
-    };
-
-    const chatId = await this.chatDAO.create(groupId, chatData);
-
-    logger.info(`Successfully created chat message ${chatId} in group ${groupId}`);
-
-    // Convert to ChatMessage format (using message_id and string[] attachments)
-    const chatMessage: ChatMessage = {
-      message_id: chatId.id,
-      sender_id: chatData.sender_id,
-      text: chatData.text,
-      created_at: formatTimestamp(chatData.created_at),
-      ...(data.attachments && { attachments: data.attachments }),
-    };
-
-    return {
-      data: chatMessage,
-      status: 201,
-      analytics: {
-        event: EventName.GROUP_MESSAGE_SENT,
-        userId: userId,
-        params: {
-          group_id: groupId,
-          text_length: data.text.length,
-          attachment_count: (data.attachments || []).length,
-        },
-      },
-    };
-  }
-
-  /**
-   * Gets chat messages from a group
-   */
-  async getGroupChats(
-    userId: string,
-    groupId: string,
-    pagination?: { limit?: number; after_cursor?: string },
-  ): Promise<ApiResponse<ChatResponse>> {
-    logger.info(`Getting chats for group ${groupId}`, { userId, pagination });
-
-    const group = await this.groupDAO.get(groupId);
-    if (!group) {
-      throw new NotFoundError('Group not found');
-    }
-
-    if (!group.members.includes(userId)) {
-      throw new ForbiddenError('You must be a member of the group to view messages');
-    }
-
-    const result = await this.chatDAO.get(groupId, {
-      limit: pagination?.limit,
-      afterCursor: pagination?.after_cursor,
-    });
-
-    logger.info(`Retrieved ${result.messages.length} chats for group ${groupId}`);
-
-    return {
-      data: {
-        messages: result.messages,
-        next_cursor: result.next_cursor,
-      },
-      status: 200,
-      analytics: {
-        event: EventName.GROUP_CHATS_VIEWED,
-        userId: userId,
-        params: {
-          group_id: groupId,
-          chat_count: result.messages.length,
         },
       },
     };

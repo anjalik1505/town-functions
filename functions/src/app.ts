@@ -48,10 +48,9 @@ import {
   FeedbackService,
   FeedQueryService,
   FriendshipService,
-  GroupService,
   InvitationService,
   ProfileService,
-  UpdateService
+  UpdateService,
 } from './services/index.js';
 import { testNotification } from './test/test-notification.js';
 import { testPrompt } from './test/test-prompt.js';
@@ -154,7 +153,6 @@ const deviceService = new DeviceService();
 const feedbackService = new FeedbackService();
 const feedQueryService = new FeedQueryService();
 const friendshipService = new FriendshipService();
-const groupService = new GroupService();
 const invitationService = new InvitationService();
 const profileService = new ProfileService();
 const updateService = new UpdateService();
@@ -227,10 +225,10 @@ app.get('/me/requests/:request_id', async (req, res) => {
   sendResponse(res, result);
 });
 
-app.get('/me/groups', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await groupService.getUserGroups(req.userId, req.validated_params as PaginationPayload);
-  sendResponse(res, result);
-});
+// app.get('/me/groups', validateQueryParams(paginationSchema), async (req, res) => {
+//   const result = await groupService.getUserGroups(req.userId, req.validated_params as PaginationPayload);
+//   sendResponse(res, result);
+// });
 
 // User profile routes
 app.get('/users/:target_user_id/profile', async (req, res) => {

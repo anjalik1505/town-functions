@@ -1,4 +1,3 @@
-export * from './chat-doc.js';
 export * from './comment-doc.js';
 export * from './common.js';
 export * from './device-doc.js';

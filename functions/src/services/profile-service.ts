@@ -14,7 +14,7 @@ import {
   Location,
   ProfileResponse,
   Timezone,
-  UpdateProfilePayload
+  UpdateProfilePayload,
 } from '../models/data-models.js';
 import {
   DayOfWeek,

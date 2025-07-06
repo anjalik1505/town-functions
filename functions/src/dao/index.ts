@@ -1,5 +1,4 @@
 export { BaseDAO } from './base-dao.js';
-export { ChatDAO } from './chat-dao.js';
 export { CommentDAO } from './comment-dao.js';
 export { DeviceDAO } from './device-dao.js';
 export { FeedDAO } from './feed-dao.js';
