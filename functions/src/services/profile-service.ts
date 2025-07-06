@@ -1,35 +1,23 @@
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateCreatorProfileFlow, generateQuestionFlow } from '../ai/flows.js';
-import { DeviceDAO } from '../dao/device-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
-import { NudgeDAO } from '../dao/nudge-dao.js';
 import { PhoneDAO } from '../dao/phone-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
-import { StorageDAO } from '../dao/storage-dao.js';
 import { TimeBucketDAO } from '../dao/time-bucket-dao.js';
 import { UserSummaryDAO } from '../dao/user-summary-dao.js';
-import { ApiResponse, EventName, SummaryEventParams } from '../models/analytics-events.js';
-import { NotificationTypes } from '../models/constants.js';
+import { ApiResponse, EventName } from '../models/analytics-events.js';
 import {
-  BaseUser,
   CreateProfilePayload,
-  Friend,
   FriendProfileResponse,
-  FriendsResponse,
   Insights,
   Location,
-  NudgeResponse,
-  PhoneLookupResponse,
   ProfileResponse,
-  QuestionResponse,
   Timezone,
-  UpdateProfilePayload,
+  UpdateProfilePayload
 } from '../models/data-models.js';
 import {
   DayOfWeek,
-  InsightsDoc,
   NotificationSetting,
   NudgingOccurrence,
   NudgingOccurrenceType,
@@ -38,47 +26,32 @@ import {
   PhoneDoc,
   ProfileDoc,
   Tone,
-  UpdateDoc,
 } from '../models/firestore/index.js';
-import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { calculateAge } from '../utils/profile-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
-import { getCurrentTimeBucket } from '../utils/timezone-utils.js';
-import { NotificationService } from './notification-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
-
-const NUDGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds;
 
 /**
  * Service layer for Profile-related operations
  * Coordinates between ProfileDAO, FriendshipDAO, and PhoneDAO
  */
 export class ProfileService {
-  private notificationService: NotificationService;
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
   private phoneDAO: PhoneDAO;
   private timeBucketDAO: TimeBucketDAO;
-  private nudgeDAO: NudgeDAO;
   private userSummaryDAO: UserSummaryDAO;
-  private deviceDAO: DeviceDAO;
-  private storageDAO: StorageDAO;
   private db: FirebaseFirestore.Firestore;
 
   constructor() {
-    this.notificationService = new NotificationService();
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
     this.phoneDAO = new PhoneDAO();
     this.timeBucketDAO = new TimeBucketDAO();
-    this.nudgeDAO = new NudgeDAO();
     this.userSummaryDAO = new UserSummaryDAO();
-    this.deviceDAO = new DeviceDAO();
-    this.storageDAO = new StorageDAO();
     this.db = getFirestore();
   }
 
@@ -367,80 +340,6 @@ export class ProfileService {
   }
 
   /**
-   * Deletes user summaries where user is creator or target
-   * @param userId The user ID whose summaries to delete
-   * @returns Number of summaries deleted
-   */
-  async deleteUserSummaries(userId: string): Promise<number> {
-    logger.info(`Deleting user summaries for user ${userId}`);
-
-    let totalDeleted = 0;
-    let batch = this.db.batch();
-    let batchCount = 0;
-
-    try {
-      // Delete summaries where user is creator
-      for await (const { ref } of this.userSummaryDAO.streamSummariesByCreator(userId)) {
-        batch.delete(ref);
-        batchCount++;
-        totalDeleted++;
-
-        const result = await commitBatch(this.db, batch, batchCount);
-        batch = result.batch;
-        batchCount = result.batchCount;
-      }
-
-      // Delete summaries where user is target
-      for await (const { ref } of this.userSummaryDAO.streamSummariesByTarget(userId)) {
-        batch.delete(ref);
-        batchCount++;
-        totalDeleted++;
-
-        const result = await commitBatch(this.db, batch, batchCount);
-        batch = result.batch;
-        batchCount = result.batchCount;
-      }
-
-      // Commit remaining operations
-      await commitFinal(batch, batchCount);
-
-      logger.info(`Deleted ${totalDeleted} user summaries for user ${userId}`);
-      return totalDeleted;
-    } catch (error) {
-      logger.error(`Failed to delete user summaries for user ${userId}`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Removes user from time buckets
-   * @param userId The user ID to remove from time buckets
-   * @returns Boolean indicating success/failure
-   */
-  async removeFromTimeBuckets(userId: string): Promise<boolean> {
-    logger.info(`Removing user ${userId} from time buckets`);
-
-    try {
-      await this.timeBucketDAO.remove(userId);
-      logger.info(`Removed user ${userId} from time buckets`);
-      return true;
-    } catch (error) {
-      logger.error(`Error removing user ${userId} from time buckets: ${error}`);
-      return false;
-    }
-  }
-
-  /**
-   * Deletes user's profile images from Firebase Storage
-   * @param userId The user ID whose profile images should be deleted
-   * @returns Boolean indicating success/failure
-   */
-  async deleteStorageAssets(userId: string): Promise<boolean> {
-    logger.info(`Deleting storage assets for user ${userId}`);
-    return await this.storageDAO.deleteProfile(userId);
-  }
-
-  /**
    * Gets a friend's profile with access validation
    */
   async getFriendProfile(currentUserId: string, targetUserId: string): Promise<ApiResponse<FriendProfileResponse>> {
@@ -557,451 +456,6 @@ export class ProfileService {
         userId: userId,
         params: {},
       },
-    };
-  }
-
-  /**
-   * Generates a personalized question for the user using AI
-   */
-  async generateQuestion(userId: string): Promise<ApiResponse<QuestionResponse>> {
-    logger.info(`Generating question for user ${userId}`);
-
-    const profileData = await this.profileDAO.get(userId);
-    if (!profileData) {
-      throw new NotFoundError('Profile not found');
-    }
-
-    try {
-      const questionData = await generateQuestionFlow({
-        existingSummary: profileData.summary,
-        existingSuggestions: profileData.suggestions,
-        existingEmotionalOverview: profileData.insights?.emotional_overview || '',
-        existingKeyMoments: profileData.insights?.key_moments || '',
-        existingRecurringThemes: profileData.insights?.recurring_themes || '',
-        existingProgressAndGrowth: profileData.insights?.progress_and_growth || '',
-        gender: profileData.gender,
-        location: profileData.location,
-        age: calculateAge(profileData.birthday || ''),
-      });
-
-      logger.info(`Successfully generated question for user ${userId}`);
-
-      return {
-        data: { question: questionData.question },
-        status: 200,
-        analytics: {
-          event: EventName.QUESTION_GENERATED,
-          userId: userId,
-          params: { question_length: questionData.question.length },
-        },
-      };
-    } catch (error) {
-      logger.error('Failed to generate question', { error });
-      throw new BadRequestError('Failed to generate question. Please try again.');
-    }
-  }
-
-  /**
-   * Nudges a user with rate limiting and friendship validation
-   */
-  async nudgeUser(currentUserId: string, targetUserId: string): Promise<ApiResponse<NudgeResponse>> {
-    logger.info(`User ${currentUserId} nudging user ${targetUserId}`);
-
-    if (currentUserId === targetUserId) {
-      throw new BadRequestError('You cannot nudge yourself');
-    }
-
-    // Check friendship
-    const areFriends = await this.friendshipDAO.areFriends(currentUserId, targetUserId);
-    if (!areFriends) {
-      throw new ForbiddenError('You must be friends with this user to nudge them');
-    }
-
-    // Check rate limiting
-    const canNudge = await this.nudgeDAO.canSend(targetUserId, currentUserId, NUDGE_COOLDOWN_MS);
-    if (!canNudge) {
-      throw new ConflictError('You can only nudge this user once per hour');
-    }
-
-    // Get profiles for notification
-    const [currentProfile, targetProfile] = await Promise.all([
-      this.profileDAO.get(currentUserId),
-      this.profileDAO.get(targetUserId),
-    ]);
-
-    if (!currentProfile || !targetProfile) {
-      throw new NotFoundError('Profile not found');
-    }
-
-    // Check if target user has a device for notifications
-    const hasDevice = await this.deviceDAO.exists(targetUserId);
-
-    // Upsert nudge record
-    await this.nudgeDAO.upsert(targetUserId, currentUserId);
-
-    // Send notification only if device exists
-    if (hasDevice) {
-      const currentUserName = currentProfile.name || currentProfile.username || 'A friend';
-      try {
-        this.notificationService.sendNotification(
-          [targetUserId],
-          'You’ve been on someone’s mind',
-          `${currentUserName} is checking in and curious about how you're doing!`,
-          {
-            type: NotificationTypes.NUDGE,
-            nudger_id: currentUserId,
-          },
-        );
-        logger.info(`Successfully sent nudge notification to user ${targetUserId}`);
-      } catch (error) {
-        logger.error(`Error sending nudge notification to user ${targetUserId}: ${error}`);
-        // Continue execution even if notification fails
-      }
-    }
-
-    logger.info(`Successfully nudged user ${targetUserId}`);
-
-    return {
-      data: { message: 'Nudge sent successfully' },
-      status: 200,
-      analytics: {
-        event: EventName.USER_NUDGED,
-        userId: currentUserId,
-        params: { target_user_id: targetUserId },
-      },
-    };
-  }
-
-  /**
-   * Looks up users by phone numbers
-   */
-  async lookupByPhones(userId: string, phones: string[]): Promise<ApiResponse<PhoneLookupResponse>> {
-    logger.info(`Looking up phones`, { count: phones.length });
-
-    const matches = await this.phoneDAO.getAll(phones);
-
-    const baseUsers: BaseUser[] = matches.map((match) => ({
-      user_id: match.user_id,
-      username: match.username,
-      name: match.name,
-      avatar: match.avatar,
-    }));
-
-    logger.info(`Phone lookup completed`, { requested: phones.length, found: baseUsers.length });
-
-    return {
-      data: { matches: baseUsers } as PhoneLookupResponse,
-      status: 200,
-      analytics: {
-        event: EventName.PHONES_LOOKED_UP,
-        userId: userId,
-        params: {
-          requested_count: phones.length,
-          match_count: baseUsers.length,
-        },
-      },
-    };
-  }
-
-  /**
-   * Gets user's friends with pagination
-   */
-  async getFriends(
-    userId: string,
-    pagination?: { limit?: number; after_cursor?: string },
-  ): Promise<ApiResponse<FriendsResponse>> {
-    logger.info(`Getting friends for user ${userId}`, { pagination });
-
-    const limit = pagination?.limit || 20;
-    const afterCursor = pagination?.after_cursor;
-
-    const result = await this.friendshipDAO.getFriends(userId, limit, afterCursor);
-
-    logger.info(`Retrieved ${result.friends.length} friends for user ${userId}`);
-
-    return {
-      data: {
-        friends: result.friends.map(
-          (friend) =>
-            ({
-              user_id: friend.userId,
-              username: friend.username,
-              name: friend.name,
-              avatar: friend.avatar,
-              last_update_emoji: friend.last_update_emoji,
-              last_update_time: formatTimestamp(friend.last_update_at),
-            }) as Friend,
-        ),
-        next_cursor: result.nextCursor,
-      } as FriendsResponse,
-      status: 200,
-      analytics: {
-        event: EventName.FRIENDS_VIEWED,
-        userId: userId,
-        params: { friend_count: result.friends.length },
-      },
-    };
-  }
-
-  /**
-   * Removes a friend (bidirectional)
-   */
-  async removeFriend(userId: string, friendId: string): Promise<ApiResponse<null>> {
-    logger.info(`Removing friendship: ${userId} <-> ${friendId}`);
-
-    const areFriends = await this.friendshipDAO.areFriends(userId, friendId);
-
-    if (!areFriends) {
-      throw new NotFoundError('Friendship not found');
-    }
-
-    // Create a batch for atomic operations
-    const batch = this.db.batch();
-
-    // Remove friendship documents in the batch
-    await this.friendshipDAO.remove(userId, friendId, batch);
-
-    // Decrement friend counts for both users in the same batch
-    this.profileDAO.decrementFriendCount(userId, batch);
-    this.profileDAO.decrementFriendCount(friendId, batch);
-
-    // Commit all operations atomically
-    await batch.commit();
-
-    logger.info(`Successfully removed friendship and updated friend counts for ${userId} and ${friendId}`);
-
-    return {
-      data: null,
-      status: 200,
-      analytics: {
-        event: EventName.FRIENDSHIP_REMOVED,
-        userId: userId,
-        params: { friend_id: friendId },
-      },
-    };
-  }
-
-  /**
-   * Gets users eligible for daily notifications from current time bucket
-   * Filters out users who have posted in the last 24 hours
-   */
-  async getUsersForDailyNotifications(): Promise<ProfileDoc[]> {
-    logger.info('Getting users for daily notifications');
-
-    // Calculate current time bucket using unified timezone utils
-    const currentBucket = getCurrentTimeBucket();
-
-    logger.info(`Processing notifications for time bucket: ${currentBucket}`);
-
-    try {
-      // Get users in current time bucket using DAO
-      const bucketUsers = await this.timeBucketDAO.getAll(currentBucket);
-
-      if (bucketUsers.length === 0) {
-        logger.info(`No users found in bucket ${currentBucket}`);
-        return [];
-      }
-
-      logger.info(`Found ${bucketUsers.length} users in bucket ${currentBucket}`);
-
-      const eligibleUsers: ProfileDoc[] = [];
-
-      // Filter eligible user IDs using denormalized last_update_at field
-      const cutoffTime = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      const eligibleUserIds: string[] = [];
-
-      for (const bucketUser of bucketUsers) {
-        try {
-          // Check recent activity using denormalized last_update_at field
-          if (bucketUser.last_update_at.seconds > cutoffTime.seconds) {
-            logger.info(
-              `Skipping user ${bucketUser.user_id} due to recent update (${bucketUser.last_update_at.toDate()})`,
-            );
-            continue;
-          }
-
-          eligibleUserIds.push(bucketUser.user_id);
-        } catch (error) {
-          logger.error(`Failed to process user ${bucketUser.user_id} in bucket ${currentBucket}`, error);
-        }
-      }
-
-      if (eligibleUserIds.length === 0) {
-        logger.info(`No eligible users found in bucket ${currentBucket} after activity filtering`);
-        return [];
-      }
-
-      logger.info(`Found ${eligibleUserIds.length} eligible user IDs, fetching profiles in batch`);
-
-      // Batch fetch all eligible profiles in a single query
-      const profiles = await this.profileDAO.getAll(eligibleUserIds);
-
-      // ProfileDAO.getAll() filters out non-existent profiles, so we can use them directly
-      eligibleUsers.push(...profiles);
-
-      // Log any missing profiles for debugging
-      if (profiles.length < eligibleUserIds.length) {
-        const foundUserIds = new Set(profiles.map((p) => p.user_id));
-        const missingUserIds = eligibleUserIds.filter((id) => !foundUserIds.has(id));
-        logger.warn(`Missing profiles for users: ${missingUserIds.join(', ')} in bucket ${currentBucket}`);
-      }
-
-      logger.info(`Found ${eligibleUsers.length} eligible users in bucket ${currentBucket}`);
-      return eligibleUsers;
-    } catch (error) {
-      logger.error(`Failed to process time bucket ${currentBucket}`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Updates the last_update_at timestamp for a user across all their time buckets
-   * Called when a user creates an update to track their posting activity
-   * @param userId The user who created an update
-   * @param updateTime The timestamp of the update creation
-   */
-  async updateUserLastUpdateTime(userId: string, updateTime: Timestamp): Promise<void> {
-    logger.info(`Updating last update time for user ${userId}`);
-
-    try {
-      await this.timeBucketDAO.updateUserLastUpdateTime(userId, updateTime);
-      logger.info(`Successfully updated last update time for user ${userId}`);
-    } catch (error) {
-      logger.error(`Failed to update last update time for user ${userId}`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Processes creator profile updates with AI-generated insights after an update is created
-   * @param updateData The update document data
-   * @param imageAnalysis Already analyzed image description text
-   * @returns Analytics data for the creator's profile update
-   */
-  async processUpdateSimpleProfile(updateData: UpdateDoc, imageAnalysis: string): Promise<SummaryEventParams> {
-    const creatorId = updateData.created_by;
-
-    if (!creatorId) {
-      logger.error('Update has no creator ID');
-      return {
-        update_length: 0,
-        update_sentiment: '',
-        summary_length: 0,
-        suggestions_length: 0,
-        emotional_overview_length: 0,
-        key_moments_length: 0,
-        recurring_themes_length: 0,
-        progress_and_growth_length: 0,
-        has_name: false,
-        has_avatar: false,
-        has_location: false,
-        has_birthday: false,
-        has_gender: false,
-        nudging_occurrence: '',
-        goal: '',
-        connect_to: '',
-        personality: '',
-        tone: '',
-        friend_summary_count: 0,
-      };
-    }
-
-    logger.info(`Processing creator profile update for user ${creatorId}`);
-
-    // Get the profile document
-    const profileData = await this.profileDAO.get(creatorId);
-
-    if (!profileData) {
-      logger.warn(`Profile not found for user ${creatorId}`);
-      return {
-        update_length: 0,
-        update_sentiment: '',
-        summary_length: 0,
-        suggestions_length: 0,
-        emotional_overview_length: 0,
-        key_moments_length: 0,
-        recurring_themes_length: 0,
-        progress_and_growth_length: 0,
-        has_name: false,
-        has_avatar: false,
-        has_location: false,
-        has_birthday: false,
-        has_gender: false,
-        nudging_occurrence: '',
-        goal: '',
-        connect_to: '',
-        personality: '',
-        tone: '',
-        friend_summary_count: 0,
-      };
-    }
-
-    const existingSummary = profileData.summary;
-    const existingSuggestions = profileData.suggestions;
-
-    // Extract update content and sentiment
-    const updateContent = updateData.content;
-    const sentiment = updateData.sentiment;
-    const updateId = updateData.id;
-
-    // Calculate age from the birthday
-    const age = calculateAge(profileData.birthday || '');
-
-    // Use the creator profile flow to generate insights
-    const result = await generateCreatorProfileFlow({
-      existingSummary: existingSummary || '',
-      existingSuggestions: existingSuggestions || '',
-      existingEmotionalOverview: profileData.insights?.emotional_overview || '',
-      existingKeyMoments: profileData.insights?.key_moments || '',
-      existingRecurringThemes: profileData.insights?.recurring_themes || '',
-      existingProgressAndGrowth: profileData.insights?.progress_and_growth || '',
-      updateContent: updateContent || '',
-      sentiment: sentiment || '',
-      gender: profileData.gender || 'unknown',
-      location: profileData.location || 'unknown',
-      age: age,
-      imageAnalysis: imageAnalysis,
-    });
-
-    // Prepare profile and insights updates
-    const profileUpdate: Partial<ProfileDoc> = {
-      summary: result.summary || '',
-      suggestions: result.suggestions || '',
-      last_update_id: updateId,
-    };
-
-    const insightsData: InsightsDoc = {
-      emotional_overview: result.emotional_overview || '',
-      key_moments: result.key_moments || '',
-      recurring_themes: result.recurring_themes || '',
-      progress_and_growth: result.progress_and_growth || '',
-    };
-
-    // Use ProfileDAO to update both profile and insights atomically
-    await this.profileDAO.updateProfile(creatorId, profileUpdate, undefined, insightsData);
-    logger.info(`Successfully updated creator profile and insights for user ${creatorId}`);
-
-    // Return analytics data
-    return {
-      update_length: (updateData.content || '').length,
-      update_sentiment: updateData.sentiment || '',
-      summary_length: (result.summary || '').length,
-      suggestions_length: (result.suggestions || '').length,
-      emotional_overview_length: (result.emotional_overview || '').length,
-      key_moments_length: (result.key_moments || '').length,
-      recurring_themes_length: (result.recurring_themes || '').length,
-      progress_and_growth_length: (result.progress_and_growth || '').length,
-      has_name: !!profileData.name,
-      has_avatar: !!profileData.avatar,
-      has_location: !!profileData.location,
-      has_birthday: !!profileData.birthday,
-      has_gender: !!profileData.gender,
-      nudging_occurrence: profileData.nudging_settings?.occurrence || '',
-      goal: profileData.goal || '',
-      connect_to: profileData.connect_to || '',
-      personality: profileData.personality || '',
-      tone: profileData.tone || '',
-      friend_summary_count: (updateData.friend_ids || []).length,
     };
   }
 

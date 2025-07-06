@@ -9,7 +9,6 @@ import { ApiResponse, EventName } from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
 import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/data-models.js';
 import { JoinRequestDoc, JoinRequestStatus, SimpleProfile } from '../models/firestore/index.js';
-import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -652,69 +651,6 @@ export class InvitationService {
   private formatJoinRequests(docs: JoinRequestDoc[]): JoinRequest[] {
     const requests: JoinRequest[] = docs.map((doc) => this.formatJoinRequest(doc));
     return requests;
-  }
-
-  /**
-   * Deletes user's invitation document and all associated join requests
-   * Returns the total count of deleted invitations and join requests
-   */
-  async deleteUserInvitations(userId: string): Promise<number> {
-    logger.info(`Deleting user invitations for user ${userId}`);
-
-    let totalDeleted = 0;
-
-    try {
-      // Find existing invitation
-      const existing = await this.invitationDAO.getByUser(userId);
-      let joinRequestsDeleted = 0;
-
-      if (existing) {
-        // Paginate through join requests to count how many will be deleted
-        let nextCursor: string | null | undefined = undefined;
-        do {
-          const { requests, nextCursor: cursor } = await this.joinRequestDAO.getByInvitation(existing.id, {
-            limit: 500,
-            afterCursor: nextCursor ?? undefined,
-          });
-          joinRequestsDeleted += requests.length;
-          nextCursor = cursor;
-        } while (nextCursor);
-
-        // Delete the invitation (recursive delete also removes join_requests subcollection)
-        await this.invitationDAO.delete(existing.id);
-
-        logger.info(`Deleted invitation ${existing.id} and ${joinRequestsDeleted} associated join request(s)`);
-      }
-
-      // Delete all join requests where user is the requester (across all invitations)
-      let requesterJoinRequestsDeleted = 0;
-      let batch = this.db.batch();
-      let batchCount = 0;
-
-      for await (const { requestRef } of this.joinRequestDAO.streamJoinRequestsByRequester(userId)) {
-        batch.delete(requestRef);
-        batchCount++;
-        requesterJoinRequestsDeleted++;
-
-        const result = await commitBatch(this.db, batch, batchCount);
-        batch = result.batch;
-        batchCount = result.batchCount;
-      }
-
-      await commitFinal(batch, batchCount);
-
-      totalDeleted += requesterJoinRequestsDeleted;
-
-      if (requesterJoinRequestsDeleted > 0) {
-        logger.info(`Deleted ${requesterJoinRequestsDeleted} join requests where user ${userId} was the requester`);
-      }
-
-      logger.info(`Deleted ${totalDeleted} total invitations and join requests for user ${userId}`);
-      return totalDeleted;
-    } catch (error) {
-      logger.error(`Error deleting user invitations for user ${userId}:`, error);
-      throw error;
-    }
   }
 
   /**

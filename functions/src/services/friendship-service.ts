@@ -2,22 +2,41 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateFriendProfileFlow } from '../ai/flows.js';
+import { DeviceDAO } from '../dao/device-dao.js';
 import { FeedDAO } from '../dao/feed-dao.js';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
+import { NudgeDAO } from '../dao/nudge-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { UpdateDAO } from '../dao/update-dao.js';
 import { UserSummaryDAO } from '../dao/user-summary-dao.js';
-import { EventName, FriendshipAcceptanceEventParams, FriendSummaryEventParams } from '../models/analytics-events.js';
+import {
+  ApiResponse,
+  EventName,
+  FriendshipAcceptanceEventParams,
+  FriendSummaryEventParams,
+} from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
-import { ProfileData, SummaryContext, SummaryResult } from '../models/data-models.js';
+import {
+  Friend,
+  FriendsResponse,
+  NudgeResponse,
+  ProfileData,
+  SummaryContext,
+  SummaryResult,
+} from '../models/data-models.js';
 import { ProfileDoc, SimpleProfile, uf, UpdateDoc, UserProfile } from '../models/firestore/index.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { calculateAge, createSummaryId } from '../utils/profile-utils.js';
+import { formatTimestamp } from '../utils/timestamp-utils.js';
+import { NotificationService } from './notification-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
+
+const NUDGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 
 /**
  * Service layer for Friendship operations
@@ -29,6 +48,9 @@ export class FriendshipService {
   private updateDAO: UpdateDAO;
   private feedDAO: FeedDAO;
   private userSummaryDAO: UserSummaryDAO;
+  private nudgeDAO: NudgeDAO;
+  private deviceDAO: DeviceDAO;
+  private notificationService: NotificationService;
   private db = getFirestore();
 
   constructor() {
@@ -37,6 +59,9 @@ export class FriendshipService {
     this.updateDAO = new UpdateDAO();
     this.feedDAO = new FeedDAO();
     this.userSummaryDAO = new UserSummaryDAO();
+    this.nudgeDAO = new NudgeDAO();
+    this.deviceDAO = new DeviceDAO();
+    this.notificationService = new NotificationService();
   }
 
   /**
@@ -305,49 +330,6 @@ export class FriendshipService {
   }
 
   /**
-   * Remove user from all friend subcollections
-   * @param userId The user ID to remove from friend subcollections
-   * @param friendIds Array of friend IDs to remove the user from
-   * @returns Number of friendships cleaned up
-   */
-  async removeUserFromAllFriendships(userId: string, friendIds: string[]): Promise<number> {
-    logger.info(`Removing user ${userId} from ${friendIds.length} friend subcollections`);
-
-    if (friendIds.length === 0) {
-      logger.info(`No friendships to clean up for user ${userId}`);
-      return 0;
-    }
-
-    let totalCleanups = 0;
-    let batch = this.db.batch();
-    let batchCount = 0;
-
-    try {
-      // Remove user from each friend's FRIENDS subcollection
-      for (const friendId of friendIds) {
-        // Use the FriendshipDAO delete method to remove bidirectional friendship
-        this.friendshipDAO.delete(friendId, userId, batch);
-        batchCount++;
-        totalCleanups++;
-
-        // Commit batch if approaching limit
-        const result = await commitBatch(this.db, batch, batchCount);
-        batch = result.batch;
-        batchCount = result.batchCount;
-      }
-
-      // Commit any remaining operations
-      await commitFinal(batch, batchCount);
-
-      logger.info(`Successfully cleaned up ${totalCleanups} friendships for user ${userId}`);
-      return totalCleanups;
-    } catch (error) {
-      logger.error(`Error removing user ${userId} from friendships:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Syncs all_village updates from one user to another's feed
    * and generates friend summaries
    */
@@ -596,6 +578,155 @@ export class FriendshipService {
       analytics: {
         summary_length: (result.summary || '').length,
         suggestions_length: (result.suggestions || '').length,
+      },
+    };
+  }
+
+  /**
+   * Gets user's friends with pagination
+   */
+  async getFriends(
+    userId: string,
+    pagination?: { limit?: number; after_cursor?: string },
+  ): Promise<ApiResponse<FriendsResponse>> {
+    logger.info(`Getting friends for user ${userId}`, { pagination });
+
+    const limit = pagination?.limit || 20;
+    const afterCursor = pagination?.after_cursor;
+
+    const result = await this.friendshipDAO.getFriends(userId, limit, afterCursor);
+
+    logger.info(`Retrieved ${result.friends.length} friends for user ${userId}`);
+
+    return {
+      data: {
+        friends: result.friends.map(
+          (friend) =>
+            ({
+              user_id: friend.userId,
+              username: friend.username,
+              name: friend.name,
+              avatar: friend.avatar,
+              last_update_emoji: friend.last_update_emoji,
+              last_update_time: formatTimestamp(friend.last_update_at),
+            }) as Friend,
+        ),
+        next_cursor: result.nextCursor,
+      } as FriendsResponse,
+      status: 200,
+      analytics: {
+        event: EventName.FRIENDS_VIEWED,
+        userId: userId,
+        params: { friend_count: result.friends.length },
+      },
+    };
+  }
+
+  /**
+   * Removes a friend (bidirectional)
+   */
+  async removeFriend(userId: string, friendId: string): Promise<ApiResponse<null>> {
+    logger.info(`Removing friendship: ${userId} <-> ${friendId}`);
+
+    const areFriends = await this.friendshipDAO.areFriends(userId, friendId);
+
+    if (!areFriends) {
+      throw new NotFoundError('Friendship not found');
+    }
+
+    // Create a batch for atomic operations
+    const batch = this.db.batch();
+
+    // Remove friendship documents in the batch
+    await this.friendshipDAO.remove(userId, friendId, batch);
+
+    // Decrement friend counts for both users in the same batch
+    this.profileDAO.decrementFriendCount(userId, batch);
+    this.profileDAO.decrementFriendCount(friendId, batch);
+
+    // Commit all operations atomically
+    await batch.commit();
+
+    logger.info(`Successfully removed friendship and updated friend counts for ${userId} and ${friendId}`);
+
+    return {
+      data: null,
+      status: 200,
+      analytics: {
+        event: EventName.FRIENDSHIP_REMOVED,
+        userId: userId,
+        params: { friend_id: friendId },
+      },
+    };
+  }
+
+  /**
+   * Nudges a user with rate limiting and friendship validation
+   */
+  async nudgeUser(currentUserId: string, targetUserId: string): Promise<ApiResponse<NudgeResponse>> {
+    logger.info(`User ${currentUserId} nudging user ${targetUserId}`);
+
+    if (currentUserId === targetUserId) {
+      throw new BadRequestError('You cannot nudge yourself');
+    }
+
+    // Check friendship
+    const areFriends = await this.friendshipDAO.areFriends(currentUserId, targetUserId);
+    if (!areFriends) {
+      throw new ForbiddenError('You must be friends with this user to nudge them');
+    }
+
+    // Check rate limiting
+    const canNudge = await this.nudgeDAO.canSend(targetUserId, currentUserId, NUDGE_COOLDOWN_MS);
+    if (!canNudge) {
+      throw new ConflictError('You can only nudge this user once per hour');
+    }
+
+    // Get profiles for notification
+    const [currentProfile, targetProfile] = await Promise.all([
+      this.profileDAO.get(currentUserId),
+      this.profileDAO.get(targetUserId),
+    ]);
+
+    if (!currentProfile || !targetProfile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    // Check if target user has a device for notifications
+    const hasDevice = await this.deviceDAO.exists(targetUserId);
+
+    // Upsert nudge record
+    await this.nudgeDAO.upsert(targetUserId, currentUserId);
+
+    // Send notification only if device exists
+    if (hasDevice) {
+      const currentUserName = currentProfile.name || currentProfile.username || 'A friend';
+      try {
+        this.notificationService.sendNotification(
+          [targetUserId],
+          'You’ve been on someone’s mind',
+          `${currentUserName} is checking in and curious about how you're doing!`,
+          {
+            type: NotificationTypes.NUDGE,
+            nudger_id: currentUserId,
+          },
+        );
+        logger.info(`Successfully sent nudge notification to user ${targetUserId}`);
+      } catch (error) {
+        logger.error(`Error sending nudge notification to user ${targetUserId}: ${error}`);
+        // Continue execution even if notification fails
+      }
+    }
+
+    logger.info(`Successfully nudged user ${targetUserId}`);
+
+    return {
+      data: { message: 'Nudge sent successfully' },
+      status: 200,
+      analytics: {
+        event: EventName.USER_NUDGED,
+        userId: currentUserId,
+        params: { target_user_id: targetUserId },
       },
     };
   }

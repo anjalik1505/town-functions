@@ -76,6 +76,7 @@ export enum EventName {
   INVITATION_RESET = 'invitation_reset',
   PROFILE_DENORMALIZATION_COMPLETED = 'profile_denormalization_completed',
   PROFILE_DENORMALIZATION_SKIPPED = 'profile_denormalization_skipped',
+  USER_CLEANUP_COMPLETED = 'user_cleanup_completed',
 }
 
 // Base interface for all event parameters
@@ -316,6 +317,24 @@ export interface ShareUpdateEventParams extends BaseEventParams {
 export interface FriendshipRemovalEventParams extends BaseEventParams {
   friend_count_before: number;
   friend_count_after: number;
+}
+
+// User cleanup event parameters
+export interface UserCleanupEventParams extends BaseEventParams {
+  total_operations: number;
+  failure_count: number;
+  phone_cleanup_count: number;
+  device_cleanup_count: number;
+  friendship_cleanup_count: number;
+  invitation_cleanup_count: number;
+  nudge_cleanup_count: number;
+  summary_cleanup_count: number;
+  update_cleanup_count: number;
+  feed_cleanup_count: number;
+  group_cleanup_count: number;
+  time_bucket_cleanup_success: boolean;
+  feedback_cleanup_count: number;
+  storage_cleanup_success: boolean;
 }
 
 // Response Types

@@ -43,12 +43,15 @@ import {
 } from './models/validation-schemas.js';
 import {
   AiService,
+  ContactService,
   DeviceService,
   FeedbackService,
+  FeedQueryService,
+  FriendshipService,
   GroupService,
   InvitationService,
   ProfileService,
-  UpdateService,
+  UpdateService
 } from './services/index.js';
 import { testNotification } from './test/test-notification.js';
 import { testPrompt } from './test/test-prompt.js';
@@ -146,12 +149,15 @@ app.use(authenticate_request);
 
 // Service instances
 const aiService = new AiService();
+const contactService = new ContactService();
 const deviceService = new DeviceService();
-const profileService = new ProfileService();
-const updateService = new UpdateService();
+const feedbackService = new FeedbackService();
+const feedQueryService = new FeedQueryService();
+const friendshipService = new FriendshipService();
 const groupService = new GroupService();
 const invitationService = new InvitationService();
-const feedbackService = new FeedbackService();
+const profileService = new ProfileService();
+const updateService = new UpdateService();
 
 // Routes - leveraging Express 5+'s automatic error handling for async handlers
 
@@ -162,7 +168,7 @@ app.get('/me/profile', async (req, res) => {
 });
 
 app.get('/me/question', async (req, res) => {
-  const result = await profileService.generateQuestion(req.userId);
+  const result = await aiService.generateQuestion(req.userId);
   sendResponse(res, result);
 });
 
@@ -192,22 +198,22 @@ app.delete('/me/profile', async (req, res) => {
 });
 
 app.get('/me/updates', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await updateService.getMyUpdates(req.userId, req.validated_params as PaginationPayload);
+  const result = await feedQueryService.getMyUpdates(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.get('/me/feed', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await updateService.getUserFeed(req.userId, req.validated_params as PaginationPayload);
+  const result = await feedQueryService.getUserFeed(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.get('/me/friends', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await profileService.getFriends(req.userId, req.validated_params as PaginationPayload);
+  const result = await friendshipService.getFriends(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.delete('/me/friends/:friend_user_id', async (req, res) => {
-  const result = await profileService.removeFriend(req.userId, req.params.friend_user_id);
+  const result = await friendshipService.removeFriend(req.userId, req.params.friend_user_id);
   sendResponse(res, result);
 });
 
@@ -235,12 +241,12 @@ app.get('/users/:target_user_id/profile', async (req, res) => {
 // Lookup users by phone numbers
 app.post('/phones/lookup', validateRequest(phoneLookupSchema), async (req, res) => {
   const { phones } = req.validated_params as PhoneLookupPayload;
-  const result = await profileService.lookupByPhones(req.userId, phones);
+  const result = await contactService.lookupByPhones(req.userId, phones);
   sendResponse(res, result);
 });
 
 app.get('/users/:target_user_id/updates', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await updateService.getUserUpdates(
+  const result = await feedQueryService.getUserUpdates(
     req.userId,
     req.params.target_user_id!,
     req.validated_params as PaginationPayload,
@@ -249,7 +255,7 @@ app.get('/users/:target_user_id/updates', validateQueryParams(paginationSchema),
 });
 
 app.post('/users/:target_user_id/nudge', async (req, res) => {
-  const result = await profileService.nudgeUser(req.userId, req.params.target_user_id);
+  const result = await friendshipService.nudgeUser(req.userId, req.params.target_user_id);
   sendResponse(res, result);
 });
 

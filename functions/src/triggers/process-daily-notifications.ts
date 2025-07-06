@@ -1,9 +1,9 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateDailyNotificationFlow } from '../ai/flows.js';
-import { EventName, DailyNotificationsEventParams, NotificationEventParams } from '../models/analytics-events.js';
-import { SYSTEM_USER, NotificationTypes } from '../models/constants.js';
-import { ProfileService } from '../services/profile-service.js';
+import { DailyNotificationsEventParams, EventName, NotificationEventParams } from '../models/analytics-events.js';
+import { NotificationTypes, SYSTEM_USER } from '../models/constants.js';
+import { ProfileActivityService } from '../services/index.js';
 import { NotificationService } from '../services/notification-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -21,11 +21,11 @@ export const processDailyNotifications = async (): Promise<void> => {
     logger.info('Starting daily notification processing');
 
     // Initialize services
-    const profileService = new ProfileService();
+    const profileActivityService = new ProfileActivityService();
     const notificationService = new NotificationService();
 
     // Get all eligible users from current time bucket
-    const eligibleUsers = await profileService.getUsersForDailyNotifications();
+    const eligibleUsers = await profileActivityService.getUsersForDailyNotifications();
 
     if (eligibleUsers.length === 0) {
       logger.info('No eligible users found for daily notifications');

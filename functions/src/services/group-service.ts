@@ -17,7 +17,6 @@ import {
   UpdatesResponse,
 } from '../models/data-models.js';
 import { ChatDoc, GroupDoc, SimpleProfile } from '../models/firestore/index.js';
-import { commitBatch, commitFinal } from '../utils/batch-utils.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';
@@ -538,47 +537,6 @@ export class GroupService {
       return totalUpdates;
     } catch (error) {
       logger.error(`Error updating member profile denormalization in groups for user ${userId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Removes a user from all groups they are a member of
-   * Updates both the members array and member_profiles object
-   */
-  async removeUserFromAllGroups(userId: string): Promise<number> {
-    logger.info(`Removing user ${userId} from all groups`);
-
-    let totalUpdates = 0;
-
-    try {
-      // Get all groups where the user is a member
-      const userGroups = await this.groupDAO.getForUser(userId);
-
-      if (userGroups.length === 0) {
-        logger.info(`User ${userId} is not a member of any groups`);
-        return 0;
-      }
-
-      let batch = this.db.batch();
-      let batchCount = 0;
-
-      for (const group of userGroups) {
-        await this.groupDAO.removeMember(group.group_id, userId, batch);
-
-        const result = await commitBatch(this.db, batch, batchCount);
-        batch = result.batch;
-        batchCount = result.batchCount;
-
-        totalUpdates++;
-      }
-
-      await commitFinal(batch, batchCount);
-
-      logger.info(`Removed user ${userId} from ${totalUpdates} groups`);
-      return totalUpdates;
-    } catch (error) {
-      logger.error(`Error removing user ${userId} from groups:`, error);
       throw error;
     }
   }

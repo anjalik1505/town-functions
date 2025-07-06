@@ -4,14 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { DeleteProfileEventParams, EventName } from '../models/analytics-events.js';
 import { ProfileDoc } from '../models/firestore/index.js';
-import {
-  DeviceService,
-  FriendshipService,
-  GroupService,
-  InvitationService,
-  ProfileService,
-  UpdateService,
-} from '../services/index.js';
+import { UserCleanupService } from '../services/index.js';
 import { trackApiEvent } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
@@ -44,24 +37,19 @@ export const onProfileDeleted = async (
     logger.info(`Processing profile deletion for user: ${userId}`);
 
     // Initialize all services
-    const friendshipService = new FriendshipService();
-    const groupService = new GroupService();
-    const updateService = new UpdateService();
-    const invitationService = new InvitationService();
-    const deviceService = new DeviceService();
-    const profileService = new ProfileService();
+    const userCleanupService = new UserCleanupService();
 
     // Execute all cleanup operations in parallel
     const [friendshipResult, groupResult, updateResult, invitationResult, deviceResult, summaryResult] =
       await Promise.all([
-        friendshipService.removeUserFromAllFriendships(userId, profileData.friends_to_cleanup || []),
-        groupService.removeUserFromAllGroups(userId),
-        updateService.deleteUserUpdatesAndFeeds(userId),
-        invitationService.deleteUserInvitations(userId),
-        deviceService.deleteDevice(userId),
-        profileService.deleteUserSummaries(userId),
-        profileService.removeFromTimeBuckets(userId),
-        profileService.deleteStorageAssets(userId),
+        userCleanupService.removeUserFromAllFriendships(userId, profileData.friends_to_cleanup || []),
+        userCleanupService.removeUserFromAllGroups(userId),
+        userCleanupService.deleteUserUpdatesAndFeeds(userId),
+        userCleanupService.deleteUserInvitations(userId),
+        userCleanupService.deleteDevice(userId),
+        userCleanupService.deleteUserSummaries(userId),
+        userCleanupService.removeFromTimeBuckets(userId),
+        userCleanupService.deleteStorageAssets(userId),
       ]);
 
     // Collect analytics data

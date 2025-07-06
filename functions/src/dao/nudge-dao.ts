@@ -80,4 +80,34 @@ export class NudgeDAO extends BaseDAO<NudgeDoc> {
 
     return now - lastNudgeTime >= cooldownMs;
   }
+
+  /**
+   * Streams all nudges where the user is the sender
+   * Uses collection group query to find nudges across all receiver profiles
+   */
+  async *streamNudgesBySender(senderId: string): AsyncGenerator<{ nudgeRef: FirebaseFirestore.DocumentReference }> {
+    logger.info(`Streaming nudges by sender: ${senderId}`);
+
+    const query = this.db.collectionGroup(this.subcollection!).where('sender_id', '==', senderId);
+
+    const snapshot = await query.get();
+    for (const doc of snapshot.docs) {
+      yield { nudgeRef: doc.ref };
+    }
+  }
+
+  /**
+   * Streams all nudges where the user is the receiver
+   * Queries the specific user's nudges subcollection
+   */
+  async *streamNudgesByReceiver(receiverId: string): AsyncGenerator<{ nudgeRef: FirebaseFirestore.DocumentReference }> {
+    logger.info(`Streaming nudges by receiver: ${receiverId}`);
+
+    const query = this.get(receiverId);
+    const snapshot = await query.get();
+
+    for (const doc of snapshot.docs) {
+      yield { nudgeRef: doc.ref };
+    }
+  }
 }

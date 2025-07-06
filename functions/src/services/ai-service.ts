@@ -2,23 +2,36 @@ import { fileTypeFromBuffer } from 'file-type';
 import { getStorage } from 'firebase-admin/storage';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { analyzeImagesFlow, analyzeSentimentFlow, transcribeAudioFlow } from '../ai/flows.js';
-import { ApiResponse, EventName } from '../models/analytics-events.js';
-import { SentimentAnalysisResponse, TranscriptionResponse } from '../models/data-models.js';
+import {
+  analyzeImagesFlow,
+  analyzeSentimentFlow,
+  generateCreatorProfileFlow,
+  generateQuestionFlow,
+  transcribeAudioFlow,
+} from '../ai/flows.js';
+import { ProfileDAO } from '../dao/profile-dao.js';
+import { ApiResponse, EventName, SummaryEventParams } from '../models/analytics-events.js';
+import { QuestionResponse, SentimentAnalysisResponse, TranscriptionResponse } from '../models/data-models.js';
+import { InsightsDoc, ProfileDoc, UpdateDoc } from '../models/firestore/index.js';
 import { decompressData, isCompressedMimeType } from '../utils/compression.js';
-import { BadRequestError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError } from '../utils/errors.js';
 import { detectAndValidateAudioMimeType } from '../utils/file-validation.js';
 import { getLogger } from '../utils/logging-utils.js';
+import { calculateAge } from '../utils/profile-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
  * Service layer for AI operations
- * Handles sentiment analysis, audio transcription, and image analysis
+ * Handles sentiment analysis, audio transcription, image analysis, and AI profile operations
  */
 export class AiService {
-  constructor() {}
+  private profileDAO: ProfileDAO;
+
+  constructor() {
+    this.profileDAO = new ProfileDAO();
+  }
 
   /**
    * Analyzes sentiment of text content
@@ -200,5 +213,181 @@ export class AiService {
     }
 
     return images;
+  }
+
+  /**
+   * Generates a personalized question for the user using AI
+   * @param userId The ID of the user requesting the question
+   * @returns AI-generated personalized question
+   */
+  async generateQuestion(userId: string): Promise<ApiResponse<QuestionResponse>> {
+    logger.info(`Generating question for user ${userId}`);
+
+    const profileData = await this.profileDAO.get(userId);
+    if (!profileData) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    try {
+      const questionData = await generateQuestionFlow({
+        existingSummary: profileData.summary,
+        existingSuggestions: profileData.suggestions,
+        existingEmotionalOverview: profileData.insights?.emotional_overview || '',
+        existingKeyMoments: profileData.insights?.key_moments || '',
+        existingRecurringThemes: profileData.insights?.recurring_themes || '',
+        existingProgressAndGrowth: profileData.insights?.progress_and_growth || '',
+        gender: profileData.gender,
+        location: profileData.location,
+        age: calculateAge(profileData.birthday || ''),
+      });
+
+      logger.info(`Successfully generated question for user ${userId}`);
+
+      return {
+        data: { question: questionData.question },
+        status: 200,
+        analytics: {
+          event: EventName.QUESTION_GENERATED,
+          userId: userId,
+          params: { question_length: questionData.question.length },
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to generate question', { error });
+      throw new BadRequestError('Failed to generate question. Please try again.');
+    }
+  }
+
+  /**
+   * Processes creator profile updates with AI-generated insights after an update is created
+   * @param updateData The update document data
+   * @param imageAnalysis Already analyzed image description text
+   * @returns Analytics data for the creator's profile update
+   */
+  async processUpdateSimpleProfile(updateData: UpdateDoc, imageAnalysis: string): Promise<SummaryEventParams> {
+    const creatorId = updateData.created_by;
+
+    if (!creatorId) {
+      logger.error('Update has no creator ID');
+      return {
+        update_length: 0,
+        update_sentiment: '',
+        summary_length: 0,
+        suggestions_length: 0,
+        emotional_overview_length: 0,
+        key_moments_length: 0,
+        recurring_themes_length: 0,
+        progress_and_growth_length: 0,
+        has_name: false,
+        has_avatar: false,
+        has_location: false,
+        has_birthday: false,
+        has_gender: false,
+        nudging_occurrence: '',
+        goal: '',
+        connect_to: '',
+        personality: '',
+        tone: '',
+        friend_summary_count: 0,
+      };
+    }
+
+    logger.info(`Processing creator profile update for user ${creatorId}`);
+
+    // Get the profile document
+    const profileData = await this.profileDAO.get(creatorId);
+
+    if (!profileData) {
+      logger.warn(`Profile not found for user ${creatorId}`);
+      return {
+        update_length: 0,
+        update_sentiment: '',
+        summary_length: 0,
+        suggestions_length: 0,
+        emotional_overview_length: 0,
+        key_moments_length: 0,
+        recurring_themes_length: 0,
+        progress_and_growth_length: 0,
+        has_name: false,
+        has_avatar: false,
+        has_location: false,
+        has_birthday: false,
+        has_gender: false,
+        nudging_occurrence: '',
+        goal: '',
+        connect_to: '',
+        personality: '',
+        tone: '',
+        friend_summary_count: 0,
+      };
+    }
+
+    const existingSummary = profileData.summary;
+    const existingSuggestions = profileData.suggestions;
+
+    // Extract update content and sentiment
+    const updateContent = updateData.content;
+    const sentiment = updateData.sentiment;
+    const updateId = updateData.id;
+
+    // Calculate age from the birthday
+    const age = calculateAge(profileData.birthday || '');
+
+    // Use the creator profile flow to generate insights
+    const result = await generateCreatorProfileFlow({
+      existingSummary: existingSummary || '',
+      existingSuggestions: existingSuggestions || '',
+      existingEmotionalOverview: profileData.insights?.emotional_overview || '',
+      existingKeyMoments: profileData.insights?.key_moments || '',
+      existingRecurringThemes: profileData.insights?.recurring_themes || '',
+      existingProgressAndGrowth: profileData.insights?.progress_and_growth || '',
+      updateContent: updateContent || '',
+      sentiment: sentiment || '',
+      gender: profileData.gender || 'unknown',
+      location: profileData.location || 'unknown',
+      age: age,
+      imageAnalysis: imageAnalysis,
+    });
+
+    // Prepare profile and insights updates
+    const profileUpdate: Partial<ProfileDoc> = {
+      summary: result.summary || '',
+      suggestions: result.suggestions || '',
+      last_update_id: updateId,
+    };
+
+    const insightsData: InsightsDoc = {
+      emotional_overview: result.emotional_overview || '',
+      key_moments: result.key_moments || '',
+      recurring_themes: result.recurring_themes || '',
+      progress_and_growth: result.progress_and_growth || '',
+    };
+
+    // Use ProfileDAO to update both profile and insights atomically
+    await this.profileDAO.updateProfile(creatorId, profileUpdate, undefined, insightsData);
+    logger.info(`Successfully updated creator profile and insights for user ${creatorId}`);
+
+    // Return analytics data
+    return {
+      update_length: (updateData.content || '').length,
+      update_sentiment: updateData.sentiment || '',
+      summary_length: (result.summary || '').length,
+      suggestions_length: (result.suggestions || '').length,
+      emotional_overview_length: (result.emotional_overview || '').length,
+      key_moments_length: (result.key_moments || '').length,
+      recurring_themes_length: (result.recurring_themes || '').length,
+      progress_and_growth_length: (result.progress_and_growth || '').length,
+      has_name: !!profileData.name,
+      has_avatar: !!profileData.avatar,
+      has_location: !!profileData.location,
+      has_birthday: !!profileData.birthday,
+      has_gender: !!profileData.gender,
+      nudging_occurrence: profileData.nudging_settings?.occurrence || '',
+      goal: profileData.goal || '',
+      connect_to: profileData.connect_to || '',
+      personality: profileData.personality || '',
+      tone: profileData.tone || '',
+      friend_summary_count: (updateData.friend_ids || []).length,
+    };
   }
 }

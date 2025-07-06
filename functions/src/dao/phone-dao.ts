@@ -1,6 +1,12 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Collections } from '../models/constants.js';
 import { PhoneDoc, phoneConverter } from '../models/firestore/index.js';
 import { BaseDAO } from './base-dao.js';
+import { getLogger } from '../utils/logging-utils.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
 
 /**
  * Data Access Object for Phone documents with Firestore operations
@@ -71,5 +77,29 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
     await batch.commit();
 
     return userData;
+  }
+
+  /**
+   * Streams all phone mappings for a specific user ID
+   * Used for cleanup operations to find orphaned mappings
+   */
+  async *streamPhonesByUserId(userId: string): AsyncGenerator<{ phoneRef: FirebaseFirestore.DocumentReference }> {
+    logger.info(`Streaming phone mappings by user: ${userId}`);
+
+    const query = this.db.collection(this.collection).where('user_id', '==', userId);
+
+    const snapshot = await query.get();
+    for (const doc of snapshot.docs) {
+      yield { phoneRef: doc.ref };
+    }
+  }
+
+  /**
+   * Deletes a phone mapping by document reference
+   * Used for cleanup operations
+   */
+  async deleteByRef(phoneRef: FirebaseFirestore.DocumentReference): Promise<void> {
+    await phoneRef.delete();
+    logger.info(`Deleted phone mapping by reference: ${phoneRef.id}`);
   }
 }

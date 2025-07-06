@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 import { EventName, NotificationEventParams } from '../models/analytics-events.js';
 import { NotificationTypes } from '../models/constants.js';
 import { CommentDoc, cf } from '../models/firestore/index.js';
+import { UpdateNotificationService } from '../services/index.js';
 import { NotificationService } from '../services/notification-service.js';
-import { UpdateService } from '../services/update-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
 
@@ -57,11 +57,15 @@ export const onCommentCreated = async (
     }
 
     // Initialize UpdateService and NotificationService
-    const updateService = new UpdateService();
     const notificationService = new NotificationService();
+    const updateNotificationService = new UpdateNotificationService();
 
     // Prepare notification data using the orchestration pattern
-    const notificationData = await updateService.prepareCommentNotifications(updateId, commentData, commenterId);
+    const notificationData = await updateNotificationService.prepareCommentNotifications(
+      updateId,
+      commentData,
+      commenterId,
+    );
 
     let totalNotificationResult: NotificationEventParams = {
       notification_all: false,

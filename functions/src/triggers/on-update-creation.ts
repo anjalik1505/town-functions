@@ -6,8 +6,8 @@ import { EventName, NotificationEventParams } from '../models/analytics-events.j
 import { UpdateDoc, uf } from '../models/firestore/index.js';
 import { AiService } from '../services/ai-service.js';
 import { FriendshipService } from '../services/friendship-service.js';
+import { ProfileActivityService, UpdateNotificationService } from '../services/index.js';
 import { NotificationService } from '../services/notification-service.js';
-import { ProfileService } from '../services/profile-service.js';
 import { UpdateService } from '../services/update-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -58,13 +58,14 @@ export const onUpdateCreated = async (
 
     // Initialize services
     const aiService = new AiService();
-    const updateService = new UpdateService();
-    const profileService = new ProfileService();
     const friendshipService = new FriendshipService();
     const notificationService = new NotificationService();
+    const profileActivityService = new ProfileActivityService();
+    const updateNotificationService = new UpdateNotificationService();
+    const updateService = new UpdateService();
 
     // Update user's last update time in time buckets for notification eligibility
-    await profileService.updateUserLastUpdateTime(creatorId, updateData[uf('created_at')]);
+    await profileActivityService.updateUserLastUpdateTime(creatorId, updateData[uf('created_at')]);
 
     // Process images once and store in update document
     const imagePaths = updateData[uf('image_paths')] || [];
@@ -76,14 +77,14 @@ export const onUpdateCreated = async (
     }
 
     // Process creator profile updates using ProfileService
-    const mainSummary = await profileService.processUpdateSimpleProfile(updateData, imageAnalysis);
+    const mainSummary = await aiService.processUpdateSimpleProfile(updateData, imageAnalysis);
 
     // Process friend summaries using FriendshipService
     const friendSummaries = await friendshipService.processUpdateFriendSummaries(updateData, imageAnalysis);
 
     // Prepare notification data using the orchestration pattern
     const updateWithId = { ...updateData, id: updateSnapshot.id };
-    const notificationData = await updateService.prepareUpdateNotifications(updateWithId);
+    const notificationData = await updateNotificationService.prepareUpdateNotifications(updateWithId);
 
     let totalNotificationResult: NotificationEventParams = {
       notification_all: false,
