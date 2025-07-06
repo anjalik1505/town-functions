@@ -321,13 +321,13 @@ def run_comments_tests():
     reactions = []
 
     # User 1 reactions
-    reaction1 = api.create_reaction(users[0]["email"], update_id, "like")
+    reaction1 = api.add_reaction(users[0]["email"], update_id, "like")
     reactions.append(reaction1)
     logger.info(f"Created reaction from user 1: {json.dumps(reaction1, indent=2)}")
     time.sleep(TEST_CONFIG["wait_time"])
 
     # User 2 reactions
-    reaction2 = api.create_reaction(users[1]["email"], update_id, "love")
+    reaction2 = api.add_reaction(users[1]["email"], update_id, "love")
     reactions.append(reaction2)
     logger.info(f"Created reaction from user 2: {json.dumps(reaction2, indent=2)}")
     time.sleep(TEST_CONFIG["wait_time"])
@@ -346,7 +346,7 @@ def run_comments_tests():
     logger.info("Test 1: Attempting to create an empty reaction type")
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/updates/{update_id}/reactions",
+        f"{API_BASE_URL}/updates/{update_id}/reactions/add",
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
@@ -357,24 +357,26 @@ def run_comments_tests():
     )
     logger.info("✓ Empty reaction type test passed")
 
-    # Test 2: Try to delete another user's reaction
-    logger.info("Test 2: Attempting to delete another user's reaction")
-    # Use the reaction ID from when user2 created their reaction
-    user2_reaction_id = reaction2["reaction_id"]
+    # Test 2: Try to remove another user's reaction
+    logger.info("Test 2: Attempting to remove another user's reaction")
     api.make_request_expecting_error(
-        "delete",
-        f"{API_BASE_URL}/updates/{update_id}/reactions/{user2_reaction_id}",
-        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
-        expected_status_code=403,
-        expected_error_message="You can only delete your own reactions",
+        "post",
+        f"{API_BASE_URL}/updates/{update_id}/reactions/remove",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={"type": "love"},  # User 2's reaction type
+        expected_status_code=400,
+        expected_error_message="Reaction not found",
     )
-    logger.info("✓ Delete other user's reaction test passed")
+    logger.info("✓ Remove other user's reaction test passed")
 
     # Test 3: Try to create a reaction without authentication
     logger.info("Test 3: Attempting to create a reaction without authentication")
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/updates/{update_id}/reactions",
+        f"{API_BASE_URL}/updates/{update_id}/reactions/add",
         headers={},
         json_data={"type": "like"},
         expected_status_code=401,
@@ -385,16 +387,55 @@ def run_comments_tests():
     logger.info("Test 4: Attempting to create a duplicate reaction")
     api.make_request_expecting_error(
         "post",
-        f"{API_BASE_URL}/updates/{update_id}/reactions",
+        f"{API_BASE_URL}/updates/{update_id}/reactions/add",
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
         },
         json_data={"type": "like"},
         expected_status_code=400,
-        expected_error_message="You have already reacted to this update",
+        expected_error_message="You have already reacted with this type",
     )
     logger.info("✓ Duplicate reaction test passed")
+
+    # ============ REACTION POSITIVE REMOVAL TEST ============
+    logger.info("========== TESTING REACTION REMOVAL ==========")
+    
+    # Test successful reaction removal
+    logger.info("Testing successful reaction removal")
+    
+    # User 1 removes their "like" reaction
+    removed_reaction = api.remove_reaction(users[0]["email"], update_id, "like")
+    logger.info(f"Removed reaction: {json.dumps(removed_reaction, indent=2)}")
+    
+    # Verify reaction was removed
+    update_response = api.get_my_updates(users[0]["email"])
+    update = next(u for u in update_response["updates"] if u["update_id"] == update_id)
+    
+    # Should only have 1 reaction left (user 2's "love" reaction)
+    assert len(update["reactions"]) == 1, "Incorrect number of reactions after removal"
+    assert update["reaction_count"] == 1, "Incorrect reaction count after removal"
+    
+    # Verify the remaining reaction is the "love" reaction
+    assert update["reactions"][0]["type"] == "love", "Wrong reaction type remaining"
+    assert update["reactions"][0]["count"] == 1, "Wrong reaction count"
+    
+    logger.info("✓ Reaction removal test passed")
+    
+    # Test removing a reaction that doesn't exist
+    logger.info("Testing removal of non-existent reaction")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/updates/{update_id}/reactions/remove",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+        },
+        json_data={"type": "like"},  # Already removed
+        expected_status_code=400,
+        expected_error_message="Reaction not found",
+    )
+    logger.info("✓ Non-existent reaction removal test passed")
 
     logger.info("========== ALL TESTS COMPLETED ==========")
 

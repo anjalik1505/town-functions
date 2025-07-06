@@ -1,0 +1,246 @@
+import { Query, Timestamp, WriteBatch } from 'firebase-admin/firestore';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { FriendDoc, SimpleProfile, ff, friendConverter } from '../models/firestore/index.js';
+import { getLogger } from '../utils/logging-utils.js';
+import { applyPagination, generateNextCursor, processQueryStream } from '../utils/pagination-utils.js';
+import { BaseDAO } from './base-dao.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const logger = getLogger(path.basename(__filename));
+
+const FRIEND_LIMIT = 20;
+
+/**
+ * Data Access Object for managing friends subcollection under profiles
+ * Handles friendship operations and synchronization
+ */
+export class FriendshipDAO extends BaseDAO<FriendDoc> {
+  constructor() {
+    super(Collections.PROFILES, friendConverter, Collections.FRIENDS);
+  }
+
+  /**
+   * Gets a friend document reference with converter
+   */
+  private getFriendRef(userId: string, friendId: string): FirebaseFirestore.DocumentReference<FriendDoc> {
+    return this.db
+      .collection(this.collection)
+      .doc(userId)
+      .collection(this.subcollection!)
+      .withConverter(this.converter)
+      .doc(friendId);
+  }
+
+  /**
+   * Gets a specific friend document
+   */
+  async get(userId: string, friendId: string): Promise<FriendDoc | null> {
+    const friendRef = this.getFriendRef(userId, friendId);
+    const friendDoc = await friendRef.get();
+
+    return friendDoc.exists ? (friendDoc.data() ?? null) : null;
+  }
+
+  /**
+   * Checks if two users are friends
+   */
+  async areFriends(userId: string, friendId: string): Promise<boolean> {
+    const friend = await this.get(userId, friendId);
+    return friend !== null;
+  }
+
+  /**
+   * Upserts a friend document with the given data
+   * @returns The complete friend document
+   */
+  async upsert(
+    userId: string,
+    friendId: string,
+    friendData: Partial<FriendDoc>,
+    batch?: FirebaseFirestore.WriteBatch,
+  ): Promise<FriendDoc> {
+    const friendRef = this.getFriendRef(userId, friendId);
+    const now = Timestamp.now();
+
+    // Get existing document to merge data
+    const existingDoc = await friendRef.get();
+    const existingData = existingDoc.exists ? existingDoc.data() : null;
+
+    const payload: Partial<FriendDoc> = {
+      ...friendData,
+      updated_at: now,
+    };
+
+    // Set created_at only if this is a new document
+    if (!existingDoc.exists) {
+      payload.created_at = now;
+    }
+
+    const write = (b: FirebaseFirestore.WriteBatch) => {
+      b.set(friendRef, payload as FriendDoc, { merge: true });
+    };
+
+    if (batch) {
+      write(batch);
+    } else {
+      const b = this.db.batch();
+      write(b);
+      await b.commit();
+    }
+
+    // Return the merged document
+    const mergedData: FriendDoc = {
+      username: friendData.username ?? existingData?.username ?? '',
+      name: friendData.name ?? existingData?.name ?? '',
+      avatar: friendData.avatar ?? existingData?.avatar ?? '',
+      last_update_emoji: friendData.last_update_emoji ?? existingData?.last_update_emoji ?? '',
+      last_update_at: friendData.last_update_at ?? existingData?.last_update_at ?? now,
+      created_at: existingData?.created_at ?? now,
+      updated_at: now,
+      accepter_id: existingData?.accepter_id ?? friendData.accepter_id ?? '',
+    };
+
+    return mergedData;
+  }
+
+  /**
+   * Gets friends with pagination and streaming support
+   */
+  async getFriends(
+    userId: string,
+    limit: number = 20,
+    afterCursor?: string,
+  ): Promise<{ friends: (FriendDoc & { userId: string })[]; nextCursor: string | null }> {
+    let query: Query = this.db
+      .collection(this.collection)
+      .doc(userId)
+      .collection(this.subcollection!)
+      .withConverter(this.converter)
+      .orderBy(ff('created_at'), QueryOperators.DESC);
+
+    // Apply pagination
+    query = await applyPagination(query, afterCursor, limit);
+
+    // Use streaming for memory efficiency with large datasets
+    const { items, lastDoc } = await processQueryStream(
+      query,
+      (doc) => ({ ...(doc.data()! as FriendDoc), userId: doc.id }),
+      limit,
+    );
+
+    const nextCursor = generateNextCursor(lastDoc, items.length, limit);
+    return { friends: items, nextCursor };
+  }
+
+  /**
+   * Gets all friend IDs for a user (useful for bulk operations)
+   */
+  async getFriendIds(userId: string): Promise<string[]> {
+    const friendsQuery = this.db
+      .collection(this.collection)
+      .doc(userId)
+      .collection(this.subcollection!)
+      .withConverter(this.converter);
+
+    const snapshot = await friendsQuery.get();
+    return snapshot.docs.map((doc) => doc.id);
+  }
+
+  /**
+   * Checks if a user has reached the friend limit
+   */
+  async hasReachedLimit(userId: string): Promise<{
+    friendCount: number;
+    hasReachedLimit: boolean;
+  }> {
+    const friendsQuery = this.db
+      .collection(this.collection)
+      .doc(userId)
+      .collection(this.subcollection!)
+      .withConverter(this.converter);
+
+    const snapshot = await friendsQuery.get();
+    const friendCount = snapshot.size;
+
+    return {
+      friendCount,
+      hasReachedLimit: friendCount >= FRIEND_LIMIT,
+    };
+  }
+
+  /**
+   * Updates the profile data for a user in a friend's FRIENDS subcollection
+   * Used for profile denormalization when a user's profile changes
+   */
+  async updateFriendProfile(
+    friendId: string,
+    userId: string,
+    newProfile: SimpleProfile,
+    batch?: WriteBatch,
+  ): Promise<void> {
+    const friendRef = this.getFriendRef(friendId, userId);
+
+    try {
+      // Get existing document to preserve non-profile fields
+      const existingDoc = await friendRef.get();
+
+      if (!existingDoc.exists) {
+        logger.warn(`Friend document not found for user ${userId} in friend ${friendId}'s collection`);
+        return;
+      }
+
+      const now = Timestamp.now();
+
+      // Update only the profile fields, preserving other data
+      const updateData: Partial<FriendDoc> = {
+        username: newProfile.username,
+        name: newProfile.name,
+        avatar: newProfile.avatar,
+        updated_at: now,
+      };
+
+      if (batch) {
+        batch.set(friendRef, updateData, { merge: true });
+      } else {
+        const batch = this.db.batch();
+        batch.set(friendRef, updateData, { merge: true });
+        await batch.commit();
+      }
+
+      logger.info(`Updated friend profile for user ${userId} in friend ${friendId}'s collection`);
+    } catch (error) {
+      logger.error(`Failed to update friend profile for user ${userId} in friend ${friendId}'s collection`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Removes a bidirectional friendship between two users
+   */
+  async remove(userId: string, friendId: string, batch?: FirebaseFirestore.WriteBatch): Promise<void> {
+    // If batch is provided, add operations to it
+    if (batch) {
+      this.delete(userId, friendId, batch);
+      this.delete(friendId, userId, batch);
+    } else {
+      // Create and commit a new batch
+      const newBatch = this.db.batch();
+      this.delete(userId, friendId, newBatch);
+      this.delete(friendId, userId, newBatch);
+      await newBatch.commit();
+    }
+  }
+
+  /**
+   * Deletes friend documents bidirectionally
+   * Only handles friend document deletion, no profile updates
+   */
+  delete(userId: string, friendId: string, batch: FirebaseFirestore.WriteBatch): void {
+    // Delete friend documents
+    const ref = this.getFriendRef(userId, friendId);
+
+    batch.delete(ref);
+  }
+}

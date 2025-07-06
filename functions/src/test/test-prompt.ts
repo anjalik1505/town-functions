@@ -1,7 +1,7 @@
 import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
 import { Request, Response } from 'express';
 import { genkit } from 'genkit';
-import { TestPromptPayload } from '../models/data-models.js';
+import { TestPromptPayload } from '../models/api-payloads.js';
 import { friendProfileSchema, ownProfileSchema } from '../models/validation-schemas.js';
 import { InternalServerError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';

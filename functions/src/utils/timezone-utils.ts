@@ -1,131 +1,100 @@
-import { Timestamp, WriteBatch } from 'firebase-admin/firestore';
-import { Collections, NudgingFields, ProfileFields, QueryOperators, TimeBucketFields } from '../models/constants.js';
-import { getLogger } from './logging-utils.js';
-
+import { fromZonedTime } from 'date-fns-tz';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { NudgingSettings } from '../models/data-models.js';
+import { DaysOfWeek } from '../models/firestore/index.js';
+import { getLogger } from './logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Calculates the appropriate time bucket for a given timezone.
- * The bucket is calculated to represent 9AM in the user's local time.
- * This function properly handles daylight saving time changes by using
- * the Intl.DateTimeFormat API which automatically accounts for DST.
- *
- * @param timezone - The timezone in Region/City format (e.g., Asia/Dubai)
- * @returns The bucket hour (0-23)
+ * Unified day mapping using DaysOfWeek enum
  */
-export function calculateTimeBucket(timezone: string): number {
-  try {
-    // Create a date object for the current time
-    const now = new Date();
+const DAY_NUMBER_TO_ENUM = [
+  DaysOfWeek.SUNDAY, // 0
+  DaysOfWeek.MONDAY, // 1
+  DaysOfWeek.TUESDAY, // 2
+  DaysOfWeek.WEDNESDAY, // 3
+  DaysOfWeek.THURSDAY, // 4
+  DaysOfWeek.FRIDAY, // 5
+  DaysOfWeek.SATURDAY, // 6
+];
 
-    // Get the current UTC hour
-    const utcHour = now.getUTCHours();
+const DAY_ENUM_TO_NUMBER: Record<string, number> = {
+  [DaysOfWeek.SUNDAY]: 0,
+  [DaysOfWeek.MONDAY]: 1,
+  [DaysOfWeek.TUESDAY]: 2,
+  [DaysOfWeek.WEDNESDAY]: 3,
+  [DaysOfWeek.THURSDAY]: 4,
+  [DaysOfWeek.FRIDAY]: 5,
+  [DaysOfWeek.SATURDAY]: 6,
+};
 
-    // Format the date to get the current hour in the specified timezone
-    // This automatically handles daylight saving time
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: timezone,
-      hour: 'numeric',
-      hour12: false,
-    };
-
-    // Get the current hour in the specified timezone
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    const currentHour = parseInt(formatter.format(now), 10);
-
-    // Calculate the timezone offset from UTC (in hours)
-    // This includes any daylight saving time adjustments
-    const timezoneOffset = (currentHour - utcHour + 24) % 24;
-
-    // Calculate the bucket that corresponds to 9AM in the user's timezone
-    // 9AM in their timezone corresponds to (9 - timezoneOffset) UTC
-    // We add 24 and take modulo 24 to ensure we get a positive number between 0-23
-    const bucket = (24 + (9 - timezoneOffset)) % 24;
-
-    logger.info(
-      `Timezone: ${timezone}, Current hour: ${currentHour}, UTC hour: ${utcHour}, Offset: ${timezoneOffset}, Bucket: ${bucket}`,
-    );
-
-    return bucket;
-  } catch (error) {
-    // If there's an error (e.g., invalid timezone), default to bucket 0
-    logger.error(`Error calculating time bucket for timezone ${timezone}:`, error);
-    return 0;
-  }
+/**
+ * Converts day enum string to number (0=Sunday, 1=Monday, etc.)
+ */
+export function dayEnumToNumber(dayEnum: string): number {
+  return DAY_ENUM_TO_NUMBER[dayEnum] ?? 0;
 }
 
 /**
- * Updates time bucket membership for a user based on their nudging settings.
- * This function removes the user from all existing buckets and adds them to
- * new buckets based on their nudging settings (if not "never").
- *
- * @param userId - The user's ID
- * @param nudgingSettings - The user's nudging settings (or null/undefined)
- * @param batch - The Firestore batch to add operations to
- * @param db - The Firestore database instance (optional, will use getFirestore() if not provided)
+ * Converts day number to enum string (0=sunday, 1=monday, etc.)
  */
-export async function updateTimeBucketMembership(
-  userId: string,
-  nudgingSettings: NudgingSettings,
-  batch: WriteBatch,
-  db: FirebaseFirestore.Firestore,
-): Promise<void> {
-  logger.info(`Updating time buckets for user ${userId}`);
+export function dayNumberToEnum(dayNumber: number): string {
+  return DAY_NUMBER_TO_ENUM[dayNumber] ?? DaysOfWeek.SUNDAY;
+}
 
-  // Remove user from all existing buckets
-  const existingBucketsQuery = await db
-    .collectionGroup(Collections.TIME_BUCKET_USERS)
-    .where(ProfileFields.USER_ID, QueryOperators.EQUALS, userId)
-    .get();
+/**
+ * Creates a time bucket identifier from day enum and hour
+ */
+export function createBucketIdentifier(dayEnum: string, hour: number): string {
+  const hourString = hour.toString().padStart(2, '0');
+  return `${dayEnum}_${hourString}:00`;
+}
 
-  existingBucketsQuery.docs.forEach((doc) => {
-    batch.delete(doc.ref);
-    logger.info(`Removing user ${userId} from existing bucket ${doc.ref.parent.parent?.id}`);
-  });
+/**
+ * Gets current time bucket for notification processing
+ */
+export function getCurrentTimeBucket(): string {
+  const now = new Date();
+  const dayIndex = now.getDay();
+  const dayEnum = dayNumberToEnum(dayIndex);
+  const hour = now.getHours();
+  return createBucketIdentifier(dayEnum, hour);
+}
 
-  // Add user to new buckets if nudging is not "never"
-  if (nudgingSettings && nudgingSettings.occurrence !== NudgingFields.NEVER) {
-    const { times_of_day, days_of_week } = nudgingSettings;
+/**
+ * Calculates the UTC day and hour for a given local day and hour in a specific timezone.
+ * Properly handles day boundary crossing when converting between timezones.
+ *
+ * @param timezone - The timezone in Region/City format (e.g., Asia/Dubai)
+ * @param localDay - The day in user's local time (0=Sunday, 1=Monday, etc.)
+ * @param localHour - The hour in user's local time (0-23)
+ * @returns Object with utcDay and utcHour
+ */
+export function calculateUtcDayAndHour(
+  timezone: string,
+  localDay: number,
+  localHour: number,
+): { utcDay: number; utcHour: number } {
+  try {
+    // Create a date in a known week (2024-01-07 is a Sunday)
+    const baseSunday = new Date('2024-01-07T00:00:00');
+    const localDate = new Date(baseSunday);
+    localDate.setDate(baseSunday.getDate() + localDay);
+    localDate.setHours(localHour, 0, 0, 0);
 
-    if (times_of_day && days_of_week) {
-      const currentTime = Timestamp.now();
+    // Convert local time in timezone to UTC
+    const utcDate = fromZonedTime(localDate, timezone);
 
-      for (const time of times_of_day) {
-        for (const day of days_of_week) {
-          const bucketIdentifier = `${day}_${time}`;
-          const bucketRef = db.collection(Collections.TIME_BUCKETS).doc(bucketIdentifier);
+    const utcDay = utcDate.getUTCDay();
+    const utcHour = utcDate.getUTCHours();
 
-          // Check if the bucket document exists
-          const bucketDoc = await bucketRef.get();
+    logger.info(`Timezone: ${timezone}, Local: Day ${localDay} Hour ${localHour}, UTC: Day ${utcDay} Hour ${utcHour}`);
 
-          if (!bucketDoc.exists) {
-            // Create the main bucket document if it doesn't exist
-            batch.set(bucketRef, {
-              [TimeBucketFields.UPDATED_AT]: currentTime,
-            });
-          } else {
-            // Update the timestamp on the main bucket document
-            batch.update(bucketRef, {
-              [TimeBucketFields.UPDATED_AT]: currentTime,
-            });
-          }
-
-          // Add user to the bucket's users subcollection
-          const userBucketRef = bucketRef.collection(Collections.TIME_BUCKET_USERS).doc(userId);
-
-          batch.set(userBucketRef, {
-            [ProfileFields.USER_ID]: userId,
-            [ProfileFields.UPDATED_AT]: currentTime,
-          });
-
-          logger.info(`Adding user ${userId} to time bucket ${bucketIdentifier}`);
-        }
-      }
-    }
+    return { utcDay, utcHour };
+  } catch (error) {
+    logger.error(`Error calculating UTC day/hour for timezone ${timezone}:`, error);
+    return { utcDay: localDay, utcHour: localHour };
   }
 }

@@ -22,6 +22,7 @@ export enum EventName {
   JOIN_REJECTED = 'join_rejected',
   JOIN_REQUESTS_VIEWED = 'join_requests_viewed',
   JOIN_REQUEST_VIEWED = 'join_request_viewed',
+  MY_JOIN_REQUESTS_VIEWED = 'my_join_requests_viewed',
   QUESTION_GENERATED = 'question_generated',
   FRIENDS_VIEWED = 'friends_viewed',
   COMMENT_CREATED = 'comment_created',
@@ -42,12 +43,40 @@ export enum EventName {
   USER_NUDGED = 'user_nudged',
   AUDIO_TRANSCRIBED = 'audio_transcribed',
   PHONES_LOOKED_UP = 'phones_looked_up',
+  PHONE_MAPPING_CREATED = 'phone_mapping_created',
+  PHONE_MAPPING_UPDATED = 'phone_mapping_updated',
+  PHONE_MAPPING_DELETED = 'phone_mapping_deleted',
   INVITATION_NOTIFICATION_SENT = 'invitation_notification_sent',
   INVITATION_NOTIFICATIONS_SENT = 'invitation_notifications_sent',
   COMMENT_NOTIFICATION_SENT = 'comment_notification_sent',
   REACTION_NOTIFICATION_SENT = 'reaction_notification_sent',
   JOIN_REQUEST_NOTIFICATION_SENT = 'join_request_notification_sent',
   JOIN_REQUEST_UPDATE_NOTIFICATION_SENT = 'join_request_update_notifications_sent',
+  LOCATION_UPDATED = 'location_updated',
+  TIMEZONE_UPDATED = 'timezone_updated',
+  DEVICE_RETRIEVED = 'device_retrieved',
+  DEVICE_UPDATED = 'device_updated',
+  DEVICE_REMOVED = 'device_removed',
+  FRIENDSHIP_UPDATED = 'friendship_updated',
+  FRIENDSHIP_DELETED = 'friendship_deleted',
+  FRIENDSHIP_SYNCED = 'friendship_synced',
+  FRIENDSHIP_SYNC_FAILED = 'friendship_sync_failed',
+  FRIENDS_BATCH_DELETED = 'friends_batch_deleted',
+  GROUP_CREATED = 'group_created',
+  GROUP_MEMBERS_ADDED = 'group_members_added',
+  GROUP_MESSAGE_SENT = 'group_message_sent',
+  GROUP_MEMBERS_VIEWED = 'group_members_viewed',
+  GROUP_FEED_VIEWED = 'group_feed_viewed',
+  GROUP_CHATS_VIEWED = 'group_chats_viewed',
+  USER_GROUPS_VIEWED = 'user_groups_viewed',
+  UPDATE_VIEWED = 'update_viewed',
+  JOIN_REQUEST_SENT = 'join_request_sent',
+  JOIN_REQUEST_ACCEPTED = 'join_request_accepted',
+  JOIN_REQUEST_REJECTED = 'join_request_rejected',
+  INVITATION_RESET = 'invitation_reset',
+  PROFILE_DENORMALIZATION_COMPLETED = 'profile_denormalization_completed',
+  PROFILE_DENORMALIZATION_SKIPPED = 'profile_denormalization_skipped',
+  USER_CLEANUP_COMPLETED = 'user_cleanup_completed',
 }
 
 // Base interface for all event parameters
@@ -288,6 +317,24 @@ export interface ShareUpdateEventParams extends BaseEventParams {
 export interface FriendshipRemovalEventParams extends BaseEventParams {
   friend_count_before: number;
   friend_count_after: number;
+}
+
+// User cleanup event parameters
+export interface UserCleanupEventParams extends BaseEventParams {
+  total_operations: number;
+  failure_count: number;
+  phone_cleanup_count: number;
+  device_cleanup_count: number;
+  friendship_cleanup_count: number;
+  invitation_cleanup_count: number;
+  nudge_cleanup_count: number;
+  summary_cleanup_count: number;
+  update_cleanup_count: number;
+  feed_cleanup_count: number;
+  group_cleanup_count: number;
+  time_bucket_cleanup_success: boolean;
+  feedback_cleanup_count: number;
+  storage_cleanup_success: boolean;
 }
 
 // Response Types

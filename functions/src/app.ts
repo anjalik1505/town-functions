@@ -3,28 +3,36 @@ import express, { ErrorRequestHandler, RequestHandler, Response } from 'express'
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ZodError } from 'zod';
-import { getDevice } from './device/get-device.js';
-import { updateDevice } from './device/update-device.js';
-import { createFeedback } from './feedback/create-feedback.js';
-import { acceptJoinRequest } from './invitations/accept-join-request.js';
-import { getInvitation } from './invitations/get-invitation.js';
-import { getJoinRequests } from './invitations/get-join-requests.js';
-import { rejectJoinRequest } from './invitations/reject-join-request.js';
-import { requestToJoin } from './invitations/request-to-join.js';
-import { resetInvitation } from './invitations/reset-invitation.js';
 import { validateQueryParams, validateRequest } from './middleware/validation.js';
 import { ApiResponse, ErrorResponse, EventName } from './models/analytics-events.js';
+import {
+  AnalyzeSentimentPayload,
+  CreateCommentPayload,
+  CreateFeedbackPayload,
+  CreateProfilePayload,
+  CreateReactionPayload,
+  CreateUpdatePayload,
+  DevicePayload,
+  LocationPayload,
+  PaginationPayload,
+  PhoneLookupPayload,
+  ShareUpdatePayload,
+  TimezonePayload,
+  TranscribeAudioPayload,
+  UpdateCommentPayload,
+  UpdateProfilePayload,
+} from './models/api-payloads.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,
   createFeedbackSchema,
   createProfileSchema,
-  createReactionSchema,
   createUpdateSchema,
   deviceSchema,
   locationSchema,
   paginationSchema,
   phoneLookupSchema,
+  reactionSchema,
   shareUpdateSchema,
   testNotificationSchema,
   testPromptSchema,
@@ -33,36 +41,19 @@ import {
   updateCommentSchema,
   updateProfileSchema,
 } from './models/validation-schemas.js';
-import { createProfile } from './own_profile/create-my-profile.js';
-import { deleteProfile } from './own_profile/delete-my-profile.js';
-import { getJoinRequest } from './own_profile/get-join-request.js';
-import { getFeeds } from './own_profile/get-my-feeds.js';
-import { getMyFriends } from './own_profile/get-my-friends.js';
-import { getMyJoinRequests } from './own_profile/get-my-join-requests.js';
-import { getProfile } from './own_profile/get-my-profile.js';
-import { getUpdates } from './own_profile/get-my-updates.js';
-import { getQuestion } from './own_profile/get-question.js';
-import { removeFriend } from './own_profile/remove-friend.js';
-import { updateLocation } from './own_profile/update-location.js';
-import { updateProfile } from './own_profile/update-my-profile.js';
-import { updateTimezone } from './own_profile/update-timezone.js';
+import {
+  AiService,
+  ContactService,
+  DeviceService,
+  FeedbackService,
+  FeedQueryService,
+  FriendshipService,
+  InvitationService,
+  ProfileService,
+  UpdateService,
+} from './services/index.js';
 import { testNotification } from './test/test-notification.js';
 import { testPrompt } from './test/test-prompt.js';
-import { analyzeSentiment } from './updates/analyze-sentiment.js';
-import { createComment } from './updates/create-comment.js';
-import { createReaction } from './updates/create-reaction.js';
-import { createUpdate } from './updates/create-update.js';
-import { deleteComment } from './updates/delete-comment.js';
-import { deleteReaction } from './updates/delete-reaction.js';
-import { getComments } from './updates/get-comments.js';
-import { getUpdate } from './updates/get-update.js';
-import { shareUpdate } from './updates/share-update.js';
-import { transcribeAudio } from './updates/transcribe-audio.js';
-import { updateComment } from './updates/update-comment.js';
-import { getUserProfile } from './user_profile/get-user-profile.js';
-import { getUserUpdates } from './user_profile/get-user-updates.js';
-import { lookupPhones } from './user_profile/lookup-phones.js';
-import { nudgeUser } from './user_profile/nudge-user.js';
 import { trackApiEvent } from './utils/analytics-utils.js';
 import {
   BadRequestError,
@@ -155,219 +146,287 @@ const authenticate_request: RequestHandler = async (req, res, next) => {
 // Apply authentication to all routes
 app.use(authenticate_request);
 
+// Service instances
+const aiService = new AiService();
+const contactService = new ContactService();
+const deviceService = new DeviceService();
+const feedbackService = new FeedbackService();
+const feedQueryService = new FeedQueryService();
+const friendshipService = new FriendshipService();
+const invitationService = new InvitationService();
+const profileService = new ProfileService();
+const updateService = new UpdateService();
+
 // Routes - leveraging Express 5+'s automatic error handling for async handlers
+
+// Profile routes
 app.get('/me/profile', async (req, res) => {
-  const result = await getProfile(req);
+  const result = await profileService.getProfile(req.userId);
   sendResponse(res, result);
 });
 
 app.get('/me/question', async (req, res) => {
-  const result = await getQuestion(req);
+  const result = await aiService.generateQuestion(req.userId);
   sendResponse(res, result);
 });
 
 app.post('/me/profile', validateRequest(createProfileSchema), async (req, res) => {
-  const result = await createProfile(req);
+  const result = await profileService.createProfile(req.userId, req.validated_params as CreateProfilePayload);
   sendResponse(res, result);
 });
 
 app.put('/me/profile', validateRequest(updateProfileSchema), async (req, res) => {
-  const result = await updateProfile(req);
+  const result = await profileService.updateProfile(req.userId, req.validated_params as UpdateProfilePayload);
   sendResponse(res, result);
 });
 
-app.put('/me/timezone', validateRequest(timezoneSchema), async (req, res: Response) => {
-  await updateTimezone(req, res);
+app.put('/me/timezone', validateRequest(timezoneSchema), async (req, res) => {
+  const result = await profileService.updateTimezone(req.userId, req.validated_params as TimezonePayload);
+  sendResponse(res, result);
 });
 
-app.put('/me/location', validateRequest(locationSchema), async (req, res: Response) => {
-  await updateLocation(req, res);
+app.put('/me/location', validateRequest(locationSchema), async (req, res) => {
+  const result = await profileService.updateLocation(req.userId, req.validated_params as LocationPayload);
+  sendResponse(res, result);
 });
 
 app.delete('/me/profile', async (req, res) => {
-  const result = await deleteProfile(req);
+  const result = await profileService.deleteProfile(req.userId);
   sendResponse(res, result);
 });
 
 app.get('/me/updates', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getUpdates(req);
+  const result = await feedQueryService.getMyUpdates(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.get('/me/feed', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getFeeds(req);
+  const result = await feedQueryService.getUserFeed(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.get('/me/friends', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getMyFriends(req);
+  const result = await friendshipService.getFriends(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.delete('/me/friends/:friend_user_id', async (req, res) => {
-  const result = await removeFriend(req);
+  const result = await friendshipService.removeFriend(req.userId, req.params.friend_user_id);
   sendResponse(res, result);
 });
 
 app.get('/me/requests', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getMyJoinRequests(req);
+  const result = await invitationService.getMyJoinRequests(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 app.get('/me/requests/:request_id', async (req, res) => {
-  const result = await getJoinRequest(req);
+  const result = await invitationService.getJoinRequest(req.userId, req.params.request_id!);
   sendResponse(res, result);
 });
 
+// app.get('/me/groups', validateQueryParams(paginationSchema), async (req, res) => {
+//   const result = await groupService.getUserGroups(req.userId, req.validated_params as PaginationPayload);
+//   sendResponse(res, result);
+// });
+
 // User profile routes
 app.get('/users/:target_user_id/profile', async (req, res) => {
-  const result = await getUserProfile(req);
+  const result = await profileService.getFriendProfile(req.userId, req.params.target_user_id);
   sendResponse(res, result);
 });
 
 // Lookup users by phone numbers
 app.post('/phones/lookup', validateRequest(phoneLookupSchema), async (req, res) => {
-  const result = await lookupPhones(req);
+  const { phones } = req.validated_params as PhoneLookupPayload;
+  const result = await contactService.lookupByPhones(req.userId, phones);
   sendResponse(res, result);
 });
 
 app.get('/users/:target_user_id/updates', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getUserUpdates(req);
+  const result = await feedQueryService.getUserUpdates(
+    req.userId,
+    req.params.target_user_id!,
+    req.validated_params as PaginationPayload,
+  );
   sendResponse(res, result);
 });
 
 app.post('/users/:target_user_id/nudge', async (req, res) => {
-  const result = await nudgeUser(req);
+  const result = await friendshipService.nudgeUser(req.userId, req.params.target_user_id);
   sendResponse(res, result);
 });
 
 // Invitation routes
 app.get('/invitation', async (req, res) => {
-  const result = await getInvitation(req);
+  const result = await invitationService.getInvitation(req.userId);
   sendResponse(res, result);
 });
 
 app.post('/invitation/reset', async (req, res) => {
-  const result = await resetInvitation(req);
+  const result = await invitationService.resetInvitation(req.userId);
   sendResponse(res, result);
 });
 
 app.post('/invitation/:invitation_id/join', async (req, res) => {
-  const result = await requestToJoin(req);
+  const result = await invitationService.requestToJoin(req.userId, req.params.invitation_id);
   sendResponse(res, result);
 });
 
 app.post('/invitation/:request_id/accept', async (req, res) => {
-  const result = await acceptJoinRequest(req);
+  const result = await invitationService.acceptJoinRequest(req.userId, req.params.request_id);
   sendResponse(res, result);
 });
 
 app.post('/invitation/:request_id/reject', async (req, res) => {
-  const result = await rejectJoinRequest(req);
+  const result = await invitationService.rejectJoinRequest(req.userId, req.params.request_id);
   sendResponse(res, result);
 });
 
 app.get('/invitation/requests', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getJoinRequests(req);
+  const result = await invitationService.getJoinRequests(req.userId, req.validated_params as PaginationPayload);
   sendResponse(res, result);
 });
 
 // Device routes
 app.get('/device', async (req, res) => {
-  await getDevice(req, res);
-});
-
-app.put('/device', validateRequest(deviceSchema), async (req, res) => {
-  await updateDevice(req, res);
-});
-
-// Update routes
-app.post('/updates/transcribe', validateRequest(transcribeAudioSchema), async (req, res) => {
-  const result = await transcribeAudio(req);
+  const result = await deviceService.getDevice(req.userId);
   sendResponse(res, result);
 });
 
+app.put('/device', validateRequest(deviceSchema), async (req, res) => {
+  const { device_id } = req.validated_params as DevicePayload;
+  const result = await deviceService.updateDevice(req.userId, device_id);
+  sendResponse(res, result);
+});
+
+// Update routes
 app.post('/updates', validateRequest(createUpdateSchema), async (req, res) => {
-  const result = await createUpdate(req);
+  const result = await updateService.createUpdate(req.userId, req.validated_params as CreateUpdatePayload);
   sendResponse(res, result);
 });
 
 app.get('/updates/:update_id', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getUpdate(req);
+  const result = await updateService.getUpdate(
+    req.userId,
+    req.params.update_id!,
+    req.validated_params as PaginationPayload,
+  );
   sendResponse(res, result);
 });
 
 // Share update with additional friends
 app.put('/updates/:update_id/share', validateRequest(shareUpdateSchema), async (req, res) => {
-  const result = await shareUpdate(req);
+  const result = await updateService.shareUpdate(
+    req.userId,
+    req.params.update_id!,
+    req.validated_params as ShareUpdatePayload,
+  );
   sendResponse(res, result);
 });
 
 // Comment routes
 app.get('/updates/:update_id/comments', validateQueryParams(paginationSchema), async (req, res) => {
-  const result = await getComments(req);
+  const result = await updateService.getComments(
+    req.userId,
+    req.params.update_id!,
+    req.validated_params as PaginationPayload,
+  );
   sendResponse(res, result);
 });
 
 app.post('/updates/:update_id/comments', validateRequest(createCommentSchema), async (req, res) => {
-  const result = await createComment(req);
+  const result = await updateService.createComment(
+    req.userId,
+    req.params.update_id!,
+    req.validated_params as CreateCommentPayload,
+  );
   sendResponse(res, result);
 });
 
 app.put('/updates/:update_id/comments/:comment_id', validateRequest(updateCommentSchema), async (req, res) => {
-  const result = await updateComment(req);
+  const result = await updateService.updateComment(
+    req.userId,
+    req.params.update_id!,
+    req.params.comment_id!,
+    req.validated_params as UpdateCommentPayload,
+  );
   sendResponse(res, result);
 });
 
 app.delete('/updates/:update_id/comments/:comment_id', async (req, res) => {
-  const result = await deleteComment(req);
+  const result = await updateService.deleteComment(req.userId, req.params.update_id!, req.params.comment_id!);
   sendResponse(res, result);
 });
 
 // Reaction routes
-app.post('/updates/:update_id/reactions', validateRequest(createReactionSchema), async (req, res) => {
-  const result = await createReaction(req);
+app.post('/updates/:update_id/reactions/add', validateRequest(reactionSchema), async (req, res) => {
+  const { type } = req.validated_params as CreateReactionPayload;
+  const result = await updateService.addReaction(req.userId, req.params.update_id!, type);
   sendResponse(res, result);
 });
 
-app.delete('/updates/:update_id/reactions/:reaction_id', async (req, res) => {
-  const result = await deleteReaction(req);
+app.post('/updates/:update_id/reactions/remove', validateRequest(reactionSchema), async (req, res) => {
+  const { type } = req.validated_params as CreateReactionPayload;
+  const result = await updateService.removeReaction(req.userId, req.params.update_id!, type);
   sendResponse(res, result);
 });
 
 // Sentiment analysis endpoint
 app.post('/updates/sentiment', validateRequest(analyzeSentimentSchema), async (req, res) => {
-  const result = await analyzeSentiment(req);
+  const { content } = req.validated_params as AnalyzeSentimentPayload;
+  const result = await aiService.analyzeSentiment(req.userId, content);
+  sendResponse(res, result);
+});
+
+app.post('/updates/transcribe', validateRequest(transcribeAudioSchema), async (req, res) => {
+  const { audio_data } = req.validated_params as TranscribeAudioPayload;
+  const result = await aiService.transcribeAudio(req.userId, audio_data);
   sendResponse(res, result);
 });
 
 // // Group routes
-// app.get("/me/groups", handle_errors(false), async (req, res) => {
-//     await getMyGroups(req, res);
+// app.post('/groups', validateRequest(createGroupSchema), async (req, res) => {
+//   const result = await groupService.createGroup(req.userId, req.validated_params as CreateGroupPayload);
+//   sendResponse(res, result);
 // });
 
-// app.post("/groups", handle_errors(true), validateRequest(createGroupSchema), async (req, res) => {
-//     await createGroup(req, res);
+// app.get('/groups/:group_id/members', async (req, res) => {
+//   const result = await groupService.getGroupMembers(req.userId, req.params.group_id!);
+//   sendResponse(res, result);
 // });
 
-// app.get("/groups/:group_id/members", handle_errors(false), async (req, res) => {
-//     await getGroupMembers(req, res, req.params.group_id);
+// app.post('/groups/:group_id/members', validateRequest(addGroupMembersSchema), async (req, res) => {
+//   const { members } = req.validated_params as AddGroupMembersPayload;
+//   const result = await groupService.addMembers(req.userId, req.params.group_id!, members);
+//   sendResponse(res, result);
 // });
 
-// app.post("/groups/:group_id/members", handle_errors(true), validateRequest(addGroupMembersSchema), async (req, res) => {
-//     await addMembersToGroup(req, res, req.params.group_id);
+// app.get('/groups/:group_id/feed', validateQueryParams(paginationSchema), async (req, res) => {
+//   const result = await groupService.getGroupFeed(
+//     req.userId,
+//     req.params.group_id!,
+//     req.validated_params as PaginationPayload,
+//   );
+//   sendResponse(res, result);
 // });
 
-// app.get("/groups/:group_id/feed", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-//     await getGroupFeed(req, res, req.params.group_id);
+// app.get('/groups/:group_id/chats', validateQueryParams(paginationSchema), async (req, res) => {
+//   const result = await groupService.getGroupChats(
+//     req.userId,
+//     req.params.group_id!,
+//     req.validated_params as PaginationPayload,
+//   );
+//   sendResponse(res, result);
 // });
 
-// app.get("/groups/:group_id/chats", handle_errors(true), validateQueryParams(paginationSchema), async (req, res) => {
-//     await getGroupChats(req, res, req.params.group_id);
-// });
-
-// app.post("/groups/:group_id/chats", handle_errors(true), validateRequest(createChatMessageSchema), async (req, res) => {
-//     await createGroupChatMessage(req, res, req.params.group_id);
+// app.post('/groups/:group_id/chats', validateRequest(createChatMessageSchema), async (req, res) => {
+//   const result = await groupService.createChatMessage(
+//     req.userId,
+//     req.params.group_id!,
+//     req.validated_params as CreateChatMessagePayload,
+//   );
+//   sendResponse(res, result);
 // });
 
 // Test prompt endpoint
@@ -382,7 +441,8 @@ app.post('/test/notification', validateRequest(testNotificationSchema), async (r
 
 // Feedback endpoint
 app.post('/feedback', validateRequest(createFeedbackSchema), async (req, res) => {
-  const result = await createFeedback(req);
+  const { content } = req.validated_params as CreateFeedbackPayload;
+  const result = await feedbackService.createFeedback(req.userId, content);
   sendResponse(res, result);
 });
 

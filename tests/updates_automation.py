@@ -33,6 +33,19 @@ SENTIMENTS = ["happy", "sad", "neutral", "angry", "surprised"]
 SCORES = [1, 2, 3, 4, 5]
 EMOJIS = ["😢", "😕", "😐", "🙂", "😊"]
 
+
+def get_deterministic_emoji(user_index, update_index):
+    """Get deterministic emoji based on user and update index for consistent debugging"""
+    # User 1: starts at index 0, User 2: starts at index 2 (different patterns)
+    base_index = user_index * 2
+    emoji_index = (base_index + update_index) % len(EMOJIS)
+    return {
+        "emoji": EMOJIS[emoji_index],
+        "score": SCORES[emoji_index],
+        "sentiment": SENTIMENTS[emoji_index % len(SENTIMENTS)],
+    }
+
+
 # Test configuration
 TEST_CONFIG = {
     "initial_updates_count": 3,  # Number of initial updates per user
@@ -86,14 +99,13 @@ def run_updates_tests():
     logger.info("Step 1: Creating updates for the first user")
     user1_updates = []
     for i in range(TEST_CONFIG["initial_updates_count"]):
-        sentiment = random.choice(SENTIMENTS)
-        score = random.choice(SCORES)
-        emoji = random.choice(EMOJIS)
+        # Use deterministic emoji for User 1 (user_index=0)
+        emoji_data = get_deterministic_emoji(0, i)
         update_data = {
-            "content": f"This is update #{i + 1} from user 1 with {sentiment} sentiment",
-            "sentiment": sentiment,
-            "score": score,
-            "emoji": emoji,
+            "content": f"This is update #{i + 1} from user 1 with {emoji_data['sentiment']} sentiment",
+            "sentiment": emoji_data["sentiment"],
+            "score": emoji_data["score"],
+            "emoji": emoji_data["emoji"],
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
             "all_village": True,
@@ -136,6 +148,7 @@ def run_updates_tests():
             len(created_update["shared_with_groups"]) == 0
         ), "all_village update should have empty shared_with_groups"
         logger.info("✓ all_village update has empty shared_with arrays")
+        time.sleep(1)
 
     # Wait for create update triggers to process user 1's updates
     logger.info(
@@ -187,14 +200,13 @@ def run_updates_tests():
     user2_updates = []
     last_emoji_user2 = ""
     for i in range(TEST_CONFIG["initial_updates_count"]):
-        sentiment = random.choice(SENTIMENTS)
-        score = random.choice(SCORES)
-        emoji = random.choice(EMOJIS)
+        # Use deterministic emoji for User 2 (user_index=1)
+        emoji_data = get_deterministic_emoji(1, i)
         update_data = {
-            "content": f"This is update #{i + 1} from user 2 with {sentiment} sentiment",
-            "sentiment": sentiment,
-            "score": score,
-            "emoji": emoji,
+            "content": f"This is update #{i + 1} from user 2 with {emoji_data['sentiment']} sentiment",
+            "sentiment": emoji_data["sentiment"],
+            "score": emoji_data["score"],
+            "emoji": emoji_data["emoji"],
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
             "all_village": True,
@@ -227,6 +239,7 @@ def run_updates_tests():
             len(created_update["shared_with_groups"]) == 0
         ), "all_village update should have empty shared_with_groups"
         logger.info("✓ User 2 all_village update has empty shared_with arrays")
+        time.sleep(1)
 
     # Wait for create update triggers to process user 2's updates
     logger.info(
@@ -273,11 +286,18 @@ def run_updates_tests():
     friends_user1 = api.get_friends(users[0]["email"])
     logger.info(f"First user's friends: {json.dumps(friends_user1, indent=2)}")
     assert len(friends_user1["friends"]) > 0, "No friends found for user 1"
-    assert any(
-        friend["user_id"] == api.user_ids[users[1]["email"]]
-        and friend["last_update_emoji"] == last_emoji_user2
-        for friend in friends_user1["friends"]
-    ), "Friend emoji not updated after friendship creation"
+    # Find the emoji stored for User 2 in User 1's friends list
+    actual_emoji = next(
+        (
+            f["last_update_emoji"]
+            for f in friends_user1["friends"]
+            if f["user_id"] == api.user_ids[users[1]["email"]]
+        ),
+        None,
+    )
+    assert (
+        actual_emoji == last_emoji_user2
+    ), f"Friend emoji not updated after friendship creation; was: {actual_emoji}, expected: {last_emoji_user2}"
     logger.info("Users are now friends")
 
     # Step 6: Create updates for the second user that are shared with the first user
@@ -286,19 +306,19 @@ def run_updates_tests():
     )
     user2_shared_updates = []
     for i in range(TEST_CONFIG["shared_updates_count"]):
-        sentiment = random.choice(SENTIMENTS)
-        score = random.choice(SCORES)
-        emoji = random.choice(EMOJIS)
+        # Use deterministic emoji for User 2's next update (continuing from initial_updates_count)
+        update_index = TEST_CONFIG["initial_updates_count"] + i
+        emoji_data = get_deterministic_emoji(1, update_index)
 
         # Upload image to staging
         staging_path = api.upload_image_to_staging(users[1]["email"], TEST_IMAGE_PATH)
         logger.info(f"Uploaded image to staging: {staging_path}")
 
         update_data = {
-            "content": f"This is update #{i + 1} from user 2 shared with user 1, with {sentiment} sentiment and an image",
-            "sentiment": sentiment,
-            "score": score,
-            "emoji": emoji,
+            "content": f"This is update #{i + 1} from user 2 shared with user 1, with {emoji_data['sentiment']} sentiment and an image",
+            "sentiment": emoji_data["sentiment"],
+            "score": emoji_data["score"],
+            "emoji": emoji_data["emoji"],
             "friend_ids": [api.user_ids[users[0]["email"]]],  # Share with user 1
             "group_ids": [],  # No groups yet
             "images": [staging_path],  # Include the staging image path
@@ -352,6 +372,7 @@ def run_updates_tests():
             "avatar" in created_update["shared_with_friends"][0]
         ), "Shared friend missing avatar"
         logger.info("✓ Created update contains correct shared_with_friends information")
+        time.sleep(1)
 
     # Wait for create update triggers to process shared updates
     logger.info(
@@ -539,14 +560,14 @@ def run_updates_tests():
     logger.info("Step 8.5: Testing sharing existing updates with the share API")
 
     # Create a new update for user 1 that is NOT initially shared with user 2
-    sentiment = random.choice(SENTIMENTS)
-    score = random.choice(SCORES)
-    emoji = random.choice(EMOJIS)
+    # Use deterministic emoji for User 1's next update (continuing from initial_updates_count)
+    update_index = TEST_CONFIG["initial_updates_count"]
+    emoji_data = get_deterministic_emoji(0, update_index)
     unshared_update_data = {
-        "content": f"This is an unshared update from user 1 with {sentiment} sentiment - to be shared later",
-        "sentiment": sentiment,
-        "score": score,
-        "emoji": emoji,
+        "content": f"This is an unshared update from user 1 with {emoji_data['sentiment']} sentiment - to be shared later",
+        "sentiment": emoji_data["sentiment"],
+        "score": emoji_data["score"],
+        "emoji": emoji_data["emoji"],
         "friend_ids": [],  # Not shared initially
         "group_ids": [],  # No groups
         "all_village": False,  # Only visible to user 1 initially
@@ -728,6 +749,9 @@ def run_updates_tests():
     total_updates = len(all_updates["updates"])
     logger.info(f"User 1 has {total_updates} total updates")
 
+    logger.info("User 1's updates:")
+    logger.info(json.dumps(all_updates["updates"], indent=2))
+
     # Verify we have exactly 4 updates (initial_updates_count + 1 unshared update for share test)
     expected_updates = (
         TEST_CONFIG["initial_updates_count"] + 1
@@ -837,6 +861,8 @@ def run_updates_tests():
     all_feed = api.get_my_feed(users[0]["email"])
     total_feed_items = len(all_feed["updates"])
     logger.info(f"User 1 has {total_feed_items} total feed items")
+
+    logger.info(json.dumps(all_feed, indent=2))
 
     # Verify we have exactly 8 feed items (4 user1 + 3 user2 + 1 shared update)
     expected_feed_items = (

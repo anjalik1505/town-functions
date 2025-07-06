@@ -1,144 +1,21 @@
-import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { EventName, NotificationEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, NotificationTypes, ReactionFields, UpdateFields } from '../models/constants.js';
-import { trackApiEvents } from '../utils/analytics-utils.js';
-import { getLogger } from '../utils/logging-utils.js';
-import { sendBackgroundNotification, sendNotification } from '../utils/notification-utils.js';
-
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { EventName, NotificationEventParams } from '../models/analytics-events.js';
+import { NotificationTypes } from '../models/constants.js';
+import { ReactionDoc } from '../models/firestore/index.js';
+import { UpdateNotificationService } from '../services/index.js';
+import { NotificationService } from '../services/notification-service.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Sends a notification to the update creator when a new reaction is added.
- *
- * @param db - Firestore client
- * @param reactionData - The reaction document data
- * @param updateId - The ID of the update that received the reaction
- * @param reactorId - The ID of the user who created the reaction
- * @returns Analytics data for this notification
- */
-const sendReactionNotification = async (
-  db: FirebaseFirestore.Firestore,
-  reactionData: Record<string, unknown>,
-  updateId: string,
-  reactorId: string,
-): Promise<NotificationEventParams> => {
-  // Get the update document to find the creator
-  const updateRef = db.collection(Collections.UPDATES).doc(updateId);
-  const updateDoc = await updateRef.get();
-
-  if (!updateDoc.exists) {
-    logger.warn(`Update not found for ID ${updateId}`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: true,
-      no_device: false,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  const updateData = updateDoc.data() || {};
-  const updateCreatorId = updateData[UpdateFields.CREATED_BY] as string;
-
-  // Skip if the reactor is the update creator (reacting to their own update)
-  if (reactorId === updateCreatorId) {
-    logger.info(`Skipping notification for update creator: ${updateCreatorId} (self-reaction)`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: true,
-      no_device: false,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  // Get the update creator's device
-  const deviceRef = db.collection(Collections.DEVICES).doc(updateCreatorId);
-  const deviceDoc = await deviceRef.get();
-
-  if (!deviceDoc.exists) {
-    logger.info(`No device found for update creator ${updateCreatorId}, skipping notification`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: true,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
-
-  if (!deviceId) {
-    logger.info(`No device ID found for update creator ${updateCreatorId}, skipping notification`);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: true,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-
-  // Get reactor's profile to include their name in the notification
-  const reactorProfileRef = db.collection(Collections.PROFILES).doc(reactorId);
-  const reactorProfileDoc = await reactorProfileRef.get();
-  const reactorProfileData = reactorProfileDoc.exists ? reactorProfileDoc.data() || {} : {};
-  const reactorName = reactorProfileData.name || reactorProfileData.username || 'Friend';
-
-  // Get reaction type
-  const reactionType = (reactionData[ReactionFields.TYPE] as string) || 'like';
-
-  // Send the notification
-  try {
-    const notificationMessage = `${reactorName} reacted to your update with ${reactionType}`;
-
-    await sendNotification(deviceId, 'New Reaction', notificationMessage, {
-      type: NotificationTypes.REACTION,
-      update_id: updateId,
-    });
-
-    // Send background notification
-    await sendBackgroundNotification(deviceId, {
-      type: NotificationTypes.REACTION_BACKGROUND,
-      update_id: updateId,
-    });
-
-    logger.info(`Sent reaction notification to update creator ${updateCreatorId} for update ${updateId}`);
-
-    return {
-      notification_all: true,
-      notification_urgent: false,
-      no_notification: false,
-      no_device: false,
-      notification_length: notificationMessage.length,
-      is_urgent: false,
-    };
-  } catch (error) {
-    logger.error(`Failed to send reaction notification to update creator ${updateCreatorId}`, error);
-    return {
-      notification_all: false,
-      notification_urgent: false,
-      no_notification: true,
-      no_device: false,
-      notification_length: 0,
-      is_urgent: false,
-    };
-  }
-};
-
-/**
  * Firestore trigger function that runs when a new reaction is created.
+ * Uses the orchestration pattern with UpdateService for notification preparation.
  *
  * @param event - The Firestore event object containing the document data
  */
@@ -146,7 +23,8 @@ export const onReactionCreated = async (
   event: FirestoreEvent<
     QueryDocumentSnapshot | undefined,
     {
-      id: string;
+      updateId: string;
+      reactionId: string;
     }
   >,
 ): Promise<void> => {
@@ -158,29 +36,79 @@ export const onReactionCreated = async (
       return;
     }
 
-    const reactionData = reactionSnapshot.data() || {};
-    const reactionId = event.params.id;
-    const updateId = reactionSnapshot.ref.parent.parent?.id;
+    // Convert to typed document
+    const reactionData = reactionSnapshot.data() as ReactionDoc;
 
-    if (!updateId) {
-      logger.error(`Could not determine parent update ID for reaction ${reactionId}`);
+    if (!reactionData) {
+      logger.error('Reaction data is null');
       return;
     }
 
-    logger.info(`Processing reaction creation: ${reactionId} on update ${updateId}`);
+    // Extract IDs from parameter names
+    const updateId = event.params.updateId;
+    const reactorId = event.params.reactionId; // Document ID is the userId
 
-    const reactorId = reactionData[ReactionFields.CREATED_BY] as string;
-    if (!reactorId) {
-      logger.error(`No creator ID found for reaction ${reactionId}`);
+    // Get the reaction types array from the document
+    const reactionTypes = reactionData.types || [];
+    if (reactionTypes.length === 0) {
+      logger.warn(`No reaction types found in reaction document for user ${reactorId}`);
       return;
     }
 
-    const db = getFirestore();
+    logger.info(
+      `Processing reaction creation: user ${reactorId} on update ${updateId} with types ${reactionTypes.join(', ')}`,
+    );
 
-    // Send notification to the update creator
-    const notificationResult = await sendReactionNotification(db, reactionData, updateId, reactorId);
+    // Initialize UpdateService and NotificationService
+    const notificationService = new NotificationService();
+    const updateNotificationService = new UpdateNotificationService();
 
-    // Track analytics
+    // Prepare notification data using the orchestration pattern
+    const notificationData = await updateNotificationService.prepareReactionNotifications(
+      updateId,
+      reactionData,
+      reactorId,
+    );
+
+    let notificationResult: NotificationEventParams = {
+      notification_all: false,
+      notification_urgent: false,
+      no_notification: true,
+      no_device: false,
+      notification_length: 0,
+      is_urgent: false,
+    };
+
+    // Process update creator notification if it exists
+    if (notificationData.updateCreatorNotification) {
+      try {
+        const creatorResult = await notificationService.sendNotification(
+          [notificationData.updateCreatorNotification.userId],
+          notificationData.updateCreatorNotification.title,
+          notificationData.updateCreatorNotification.message,
+          notificationData.updateCreatorNotification.data,
+        );
+
+        // Also send background notification
+        await notificationService.sendBackgroundNotification([notificationData.updateCreatorNotification.userId], {
+          type: NotificationTypes.REACTION_BACKGROUND,
+          update_id: updateId,
+        });
+
+        // Use the creator result as our notification result
+        notificationResult = creatorResult;
+
+        logger.info(`Sent notification to update creator ${notificationData.updateCreatorNotification.userId}`);
+      } catch (error) {
+        logger.error(
+          `Failed to send reaction notification to update creator ${notificationData.updateCreatorNotification.userId}`,
+          error,
+        );
+        notificationResult.no_device = true;
+      }
+    }
+
+    // Track analytics using the notification results
     await trackApiEvents(
       [
         {
@@ -191,7 +119,7 @@ export const onReactionCreated = async (
       reactorId,
     );
 
-    logger.info(`Successfully processed reaction notification for reaction ${reactionId}`);
+    logger.info(`Successfully processed reaction notification for user ${reactorId} on update ${updateId}`);
   } catch (error) {
     logger.error(`Error processing reaction notification:`, error);
   }

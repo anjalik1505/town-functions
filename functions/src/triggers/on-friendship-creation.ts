@@ -1,56 +1,24 @@
-import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FirestoreEvent } from 'firebase-functions/v2/firestore';
-import { EventName, FriendshipAcceptanceEventParams } from '../models/analytics-events.js';
-import { Collections, DeviceFields, FriendshipFields, NotificationTypes } from '../models/constants.js';
-import { trackApiEvents } from '../utils/analytics-utils.js';
-import { syncFriendshipDataForUser } from '../utils/friendship-utils.js';
-import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
-
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { EventName } from '../models/analytics-events.js';
+import { FriendDoc } from '../models/firestore/index.js';
+import { FriendshipService } from '../services/friendship-service.js';
+import { NotificationService } from '../services/notification-service.js';
+import { trackApiEvents } from '../utils/analytics-utils.js';
+import { getLogger } from '../utils/logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
 /**
- * Creates a friendship acceptance event for analytics tracking
+ * Firestore trigger function that runs when a new friend document is created.
+ * This function uses context detection to determine how to handle the friend document:
  *
- * @param friendshipData - The friendship document data
- * @param hasDevice - Whether the user has a device for notifications
- * @param senderId - The ID of the sender
- * @returns FriendshipAcceptanceEventParams object for analytics
- */
-const createFriendshipAcceptanceEvent = (
-  friendshipData: Record<string, unknown>,
-  hasDevice: boolean,
-  senderId: string,
-): void => {
-  const friendshipEvent: FriendshipAcceptanceEventParams = {
-    sender_has_name: !!friendshipData[FriendshipFields.SENDER_NAME],
-    sender_has_avatar: !!friendshipData[FriendshipFields.SENDER_AVATAR],
-    receiver_has_name: !!friendshipData[FriendshipFields.RECEIVER_NAME],
-    receiver_has_avatar: !!friendshipData[FriendshipFields.RECEIVER_AVATAR],
-    has_device: hasDevice,
-  };
-
-  trackApiEvents(
-    [
-      {
-        eventName: EventName.FRIENDSHIP_ACCEPTED,
-        params: friendshipEvent,
-      },
-    ],
-    senderId,
-  );
-};
-
-/**
- * Firestore trigger function that runs when a new friendship is created.
- * This function:
- * 1. Queries all updates of the friendship sender that have all_village=true
- * 2. Creates feed items for the receiver for each of these updates
- * 3. Gets the last 10 shared items and triggers the friend summary AI flow
+ * - context: 'migration' -> Skip processing (migration from old system)
+ * - context: 'join_request_accepted' -> Handle join request acceptance with notifications
+ * - no context -> Handle as generic friendship creation
  *
  * @param event - The Firestore event object containing the document data
  */
@@ -58,111 +26,66 @@ export const onFriendshipCreated = async (
   event: FirestoreEvent<
     QueryDocumentSnapshot | undefined,
     {
-      id: string;
+      userId: string;
+      friendId: string;
     }
   >,
 ): Promise<void> => {
   if (!event.data) {
-    logger.error('No data in friendship event');
+    logger.error('No data in friend event');
     return;
   }
 
-  logger.info(`Processing new friendship: ${event.data.id}`);
+  const userId = event.params.userId; // Owner of the subcollection
+  const friendId = event.params.friendId; // Document ID in subcollection
+  const friendDocData = event.data.data() as FriendDoc;
+  const accepterId = friendDocData.accepter_id;
 
-  // Get the friendship data directly from the event
-  const friendshipData = event.data.data() || {};
+  logger.info(`Processing friend document creation: ${userId}/${friendId}`);
 
-  // Check if the friendship has the required fields and is in ACCEPTED status
-  if (!friendshipData || !friendshipData[FriendshipFields.SENDER_ID] || !friendshipData[FriendshipFields.RECEIVER_ID]) {
-    logger.error(`Friendship ${event.data.id} has invalid data or is not in ACCEPTED status`);
+  // Only process from the "primary" user (lexicographically smaller ID) to avoid duplicate work
+  const primaryUserId = [userId, friendId].sort()[0];
+  if (userId !== primaryUserId) {
+    logger.info(`Skipping friendship processing - not primary user (${userId} vs ${primaryUserId})`);
     return;
   }
 
-  // Get the sender and receiver IDs
-  const senderId = friendshipData[FriendshipFields.SENDER_ID];
-  const receiverId = friendshipData[FriendshipFields.RECEIVER_ID];
-  const db = getFirestore();
+  logger.info(`Processing friendship creation from primary user ${userId} with friend ${friendId}`);
 
-  // Run both sync directions in parallel
+  // Use FriendshipService to handle the friendship creation
+  const friendshipService = new FriendshipService();
+  const notificationService = new NotificationService();
+
   try {
-    const [senderEmoji, receiverEmoji] = await Promise.all([
-      syncFriendshipDataForUser(senderId, receiverId, {
-        ...friendshipData,
-        id: event.data.id,
-      }),
-      syncFriendshipDataForUser(receiverId, senderId, {
-        ...friendshipData,
-        id: event.data.id,
-      }),
-    ]);
+    // Process friendship creation and get notification data if accepterId exists
+    const notificationData = await friendshipService.processFriendshipCreation(userId, friendId, accepterId);
 
-    const emojiUpdate: { [key: string]: string } = {};
-    if (senderEmoji) {
-      emojiUpdate[FriendshipFields.SENDER_LAST_UPDATE_EMOJI] = senderEmoji;
-    }
-    if (receiverEmoji) {
-      emojiUpdate[FriendshipFields.RECEIVER_LAST_UPDATE_EMOJI] = receiverEmoji;
-    }
+    // Send notification using NotificationService
+    const notificationResult = await notificationService.sendNotification(
+      [notificationData.requesterNotification.userId],
+      notificationData.requesterNotification.title,
+      notificationData.requesterNotification.message,
+      notificationData.requesterNotification.data,
+    );
 
-    if (Object.keys(emojiUpdate).length > 0) {
-      const friendshipRef = db.collection(Collections.FRIENDSHIPS).doc(event.data.id);
-      await friendshipRef.update(emojiUpdate);
-      logger.info(`Updated friendship ${event.data.id} with latest emojis`);
-    }
+    // Track both analytics events
+    trackApiEvents(
+      [
+        // 1. Notification sending result event
+        {
+          eventName: EventName.NOTIFICATION_SENT,
+          params: notificationResult,
+        },
+        // 2. Business logic event
+        notificationData.analyticsEvent,
+      ],
+      notificationData.requesterNotification.userId,
+    );
+
+    logger.info(
+      `Successfully processed friendship acceptance notification for ${notificationData.requesterNotification.userId}`,
+    );
   } catch (error) {
-    logger.error(`Failed to sync friendship data for event ${event.data.id}`, error);
-  }
-
-  // Send notification to the sender that their invitation was accepted
-  try {
-    // Get the sender's device ID
-    const deviceRef = db.collection(Collections.DEVICES).doc(senderId);
-    const deviceDoc = await deviceRef.get();
-
-    if (deviceDoc.exists) {
-      const deviceData = deviceDoc.data() || {};
-      const deviceId = deviceData[DeviceFields.DEVICE_ID];
-
-      if (deviceId) {
-        // Get the receiver's name from the friendship data
-        const receiverName =
-          friendshipData[FriendshipFields.RECEIVER_NAME] ||
-          friendshipData[FriendshipFields.RECEIVER_USERNAME] ||
-          'Friend';
-
-        // Create the notification message
-        const message = `${receiverName} accepted your request!`;
-
-        // Send the notification
-        await sendNotification(deviceId, 'New Friend!', message, {
-          type: NotificationTypes.FRIENDSHIP,
-          friendship_id: event.data.id,
-        });
-
-        logger.info(`Sent friendship acceptance notification to user ${senderId}`);
-
-        // Track friendship acceptance event for analytics
-        createFriendshipAcceptanceEvent(friendshipData, true, senderId);
-
-        logger.info(`Tracked friendship acceptance event`);
-      } else {
-        logger.info(`No device ID found for user ${senderId}, skipping notification`);
-
-        // Track event for skipped notification due to missing device ID
-        createFriendshipAcceptanceEvent(friendshipData, false, senderId);
-
-        logger.info(`Tracked no-device event for friendship acceptance`);
-      }
-    } else {
-      logger.info(`No device found for user ${senderId}, skipping notification`);
-
-      // Track event for skipped notification due to a missing device
-      createFriendshipAcceptanceEvent(friendshipData, false, senderId);
-
-      logger.info(`Tracked no-device event for friendship acceptance`);
-    }
-  } catch (error) {
-    logger.error(`Error sending friendship acceptance notification to user ${senderId}: ${error}`);
-    // Continue execution even if notification fails
+    logger.error(`Failed to process friendship creation ${userId}/${friendId}`, error);
   }
 };

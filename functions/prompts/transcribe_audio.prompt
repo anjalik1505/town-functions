@@ -44,5 +44,5 @@ Audio file: {{media url=audioUri contentType=mimeType}}
    - For "I'm a bit nervous about tomorrow": sentiment="anxious", score=2, emoji="😰"
    - For "I'm so excited for the weekend!": sentiment="excited", score=4, emoji="🎉"
    - For "I'm grateful for my friends": sentiment="grateful", score=3, emoji="🙏"
-   - For "The weather is nice today": sentiment="neutral", score=3, emoji="😐"
-   - For "": sentiment="unknown", score=3, emoji="😐"
+   - For "The weather is nice today": sentiment="neutral", score=3, emoji="😊"
+   - For "": sentiment="unknown", score=3, emoji="😊"

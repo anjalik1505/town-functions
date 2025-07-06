@@ -12,6 +12,7 @@ Flow:
 
 import json
 import logging
+import time
 
 from utils.village_api import VillageAPI
 
@@ -20,6 +21,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Test configuration
+TEST_CONFIG = {
+    "wait_time": 5,  # Time to wait between operations
+}
 
 def run_phone_lookup_tests():
     api = VillageAPI()
@@ -61,6 +66,12 @@ def run_phone_lookup_tests():
         "avatar": "https://example.com/avatar_new.jpg",
     }
     api.update_profile(user["email"], updated_info)
+
+    # Wait for update triggers to process
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for profile update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
 
     # Lookup again
     lookup2 = api.lookup_phones(user["email"], [phone1])

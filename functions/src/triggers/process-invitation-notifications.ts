@@ -1,4 +1,3 @@
-import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -6,192 +5,127 @@ import {
   InvitationNotificationEventParams,
   InvitationNotificationsEventParams,
 } from '../models/analytics-events.js';
-import {
-  Collections,
-  DeviceFields,
-  FriendshipFields,
-  NotificationTypes,
-  ProfileFields,
-  QueryOperators,
-  SYSTEM_USER,
-} from '../models/constants.js';
+import { SYSTEM_USER } from '../models/constants.js';
+import { InvitationService } from '../services/invitation-service.js';
+import { NotificationService } from '../services/notification-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { getLogger } from '../utils/logging-utils.js';
-import { sendNotification } from '../utils/notification-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
 
-// Configuration constants
-const MIN_PROFILE_AGE_DAYS = 1;
-const NOTIFICATION_TITLE = 'Your Village wants to hear from you!';
-const NOTIFICATION_BODY =
-  'Invite your friends to your Village so they can get your private daily updates and stay connected effortlessly!';
-
-/**
- * Process notification for a single user with no friends
- */
-const processUserNoFriendsNotification = async (
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-  profileData: FirebaseFirestore.DocumentData,
-): Promise<InvitationNotificationEventParams> => {
-  // Get the user's device
-  const deviceDoc = await db.collection(Collections.DEVICES).doc(userId).get();
-  if (!deviceDoc.exists) {
-    logger.info(`No device found for user ${userId}`);
-    return {
-      has_friends: false,
-      has_timestamp: true,
-      profile_too_new: false,
-      has_device: false,
-    };
-  }
-
-  const deviceData = deviceDoc.data() || {};
-  const deviceId = deviceData[DeviceFields.DEVICE_ID];
-  if (!deviceId) {
-    logger.info(`No device ID found for user ${userId}`);
-    return {
-      has_friends: false,
-      has_timestamp: true,
-      profile_too_new: false,
-      has_device: false,
-    };
-  }
-
-  // Check if the user has friends
-  const friendsQuery = await db
-    .collection(Collections.FRIENDSHIPS)
-    .where(FriendshipFields.MEMBERS, QueryOperators.ARRAY_CONTAINS, userId)
-    .limit(1)
-    .get();
-
-  if (!friendsQuery.empty) {
-    logger.info(`User ${userId} has friends, skipping no-friends notification.`);
-    return {
-      has_friends: true,
-      has_timestamp: true,
-      profile_too_new: false,
-      has_device: true,
-    };
-  }
-
-  // Check profile age
-  const profileTimestamp = profileData[ProfileFields.CREATED_AT] || profileData[ProfileFields.UPDATED_AT];
-  if (!profileTimestamp) {
-    logger.warn(`User ${userId} has no created_at or updated_at timestamp.`);
-    return {
-      has_friends: false,
-      has_timestamp: false,
-      profile_too_new: false,
-      has_device: true,
-    };
-  }
-
-  const profileAgeMs = Date.now() - profileTimestamp.toDate().getTime();
-  const minProfileAgeMs = MIN_PROFILE_AGE_DAYS * 24 * 60 * 60 * 1000;
-
-  if (profileAgeMs < minProfileAgeMs) {
-    logger.info(
-      `User ${userId} profile is too new (age: ${Math.floor(profileAgeMs / (24 * 60 * 60 * 1000))} days), skipping.`,
-    );
-    return {
-      has_friends: false,
-      has_timestamp: true,
-      profile_too_new: true,
-      has_device: true,
-    };
-  }
-
-  // Send notification
-  try {
-    await sendNotification(deviceId, NOTIFICATION_TITLE, NOTIFICATION_BODY, {
-      type: NotificationTypes.NO_FRIENDS_REMINDER,
-    });
-
-    logger.info(`Successfully sent no-friends notification to user ${userId}.`);
-    return {
-      has_friends: false,
-      has_timestamp: true,
-      profile_too_new: false,
-      has_device: true,
-    };
-  } catch (error) {
-    logger.error(`Failed to send notification for user ${userId}`, error);
-    return {
-      has_friends: false,
-      has_timestamp: true,
-      profile_too_new: false,
-      has_device: true,
-    };
-  }
-};
-
 /**
  * Process no-friends notifications for all eligible users.
  * This function is scheduled to run every three days.
+ * Uses service orchestration pattern for better maintainability.
  */
 export const processInvitationNotifications = async (): Promise<void> => {
-  const db = getFirestore();
   logger.info('Starting no-friends notification processing');
 
-  // Stream all profiles
-  const profilesStream = db.collection(Collections.PROFILES).stream() as AsyncIterable<QueryDocumentSnapshot>;
+  try {
+    // Initialize services
+    const invitationService = new InvitationService();
+    const notificationService = new NotificationService();
 
-  // Process all users and collect results
-  const results: InvitationNotificationEventParams[] = [];
-  for await (const profileDoc of profilesStream) {
-    const profileData = profileDoc.data();
-    let result: InvitationNotificationEventParams;
-    try {
-      result = await processUserNoFriendsNotification(db, profileDoc.id, profileData);
-    } catch (error) {
-      logger.error(`Failed to process no-friends notification for user ${profileDoc.id}`, error);
-      result = {
-        has_friends: false,
-        has_timestamp: false,
-        profile_too_new: false,
-        has_device: false,
-      };
+    // Get all notification data from InvitationService
+    const { notifications, analyticsResults } = await invitationService.prepareNoFriendsNotifications();
+
+    logger.info(`Processing ${notifications.length} notifications for ${analyticsResults.length} users`);
+
+    // Send notifications and update analytics results with device status
+    const updatedResults: InvitationNotificationEventParams[] = analyticsResults.map(({ ...result }) => ({
+      has_friends: result.has_friends,
+      has_timestamp: result.has_timestamp,
+      profile_too_new: result.profile_too_new,
+      has_device: result.has_device,
+    }));
+
+    // Send notifications for eligible users
+    for (const notification of notifications) {
+      try {
+        // Send notification using NotificationService
+        const notificationResult = await notificationService.sendNotification(
+          [notification.userId],
+          notification.title,
+          notification.message,
+          notification.data,
+        );
+
+        // Find the corresponding analytics result and update device status
+        const resultIndex = analyticsResults.findIndex((result) => result.userId === notification.userId);
+        if (resultIndex !== -1) {
+          const currentResult = updatedResults[resultIndex]!;
+          updatedResults[resultIndex] = {
+            has_friends: currentResult.has_friends,
+            has_timestamp: currentResult.has_timestamp,
+            profile_too_new: currentResult.profile_too_new,
+            has_device: !notificationResult.no_device,
+          };
+        }
+
+        if (notificationResult.notification_all) {
+          logger.info(`Successfully sent no-friends notification to user ${notification.userId}`);
+        } else {
+          logger.warn(
+            `Failed to send no-friends notification to user ${notification.userId} - no device or notification failed`,
+          );
+        }
+      } catch (error) {
+        logger.error(`Failed to send notification to user ${notification.userId}`, error);
+        // Update corresponding analytics result to mark as no device
+        const resultIndex = analyticsResults.findIndex((result) => result.userId === notification.userId);
+        if (resultIndex !== -1) {
+          const currentResult = updatedResults[resultIndex]!;
+          updatedResults[resultIndex] = {
+            has_friends: currentResult.has_friends,
+            has_timestamp: currentResult.has_timestamp,
+            profile_too_new: currentResult.profile_too_new,
+            has_device: false,
+          };
+        }
+      }
     }
-    results.push(result);
+
+    // Aggregate analytics data
+    const totalUsers = updatedResults.length;
+    const notifiedCount = updatedResults.filter(
+      (r) => !r.has_friends && r.has_timestamp && !r.profile_too_new && r.has_device,
+    ).length;
+    const hasFriendsCount = updatedResults.filter((r) => r.has_friends).length;
+    const noTimestampCount = updatedResults.filter((r) => !r.has_timestamp).length;
+    const profileTooNewCount = updatedResults.filter((r) => r.profile_too_new).length;
+    const noDeviceCount = updatedResults.filter((r) => !r.has_device).length;
+
+    // Create aggregate event
+    const noFriendsNotifications: InvitationNotificationsEventParams = {
+      total_users_count: totalUsers,
+      notified_count: notifiedCount,
+      has_friends_count: hasFriendsCount,
+      no_timestamp_count: noTimestampCount,
+      profile_too_new_count: profileTooNewCount,
+      no_device_count: noDeviceCount,
+    };
+
+    // Track all events at once using the new pattern
+    const events = [
+      {
+        eventName: EventName.INVITATION_NOTIFICATIONS_SENT,
+        params: noFriendsNotifications,
+      },
+      ...updatedResults.map((result) => ({
+        eventName: EventName.INVITATION_NOTIFICATION_SENT,
+        params: result,
+      })),
+    ];
+
+    await trackApiEvents(events, SYSTEM_USER);
+    logger.info(`Tracked ${events.length} analytics events`);
+
+    logger.info(
+      `Completed no-friends notification processing: ${notifications.length} notifications sent to eligible users out of ${totalUsers} total users`,
+    );
+  } catch (error) {
+    logger.error('Error in processInvitationNotifications:', error);
+    throw error;
   }
-
-  // Aggregate analytics data
-  const totalUsers = results.length;
-  const notifiedCount = results.filter(
-    (r) => !r.has_friends && r.has_timestamp && !r.profile_too_new && r.has_device,
-  ).length;
-  const hasFriendsCount = results.filter((r) => r.has_friends).length;
-  const noTimestampCount = results.filter((r) => !r.has_timestamp).length;
-  const profileTooNewCount = results.filter((r) => r.profile_too_new).length;
-  const noDeviceCount = results.filter((r) => !r.has_device).length;
-
-  // Create aggregate event
-  const noFriendsNotifications: InvitationNotificationsEventParams = {
-    total_users_count: totalUsers,
-    notified_count: notifiedCount,
-    has_friends_count: hasFriendsCount,
-    no_timestamp_count: noTimestampCount,
-    profile_too_new_count: profileTooNewCount,
-    no_device_count: noDeviceCount,
-  };
-
-  // Track all events at once
-  const events = [
-    {
-      eventName: EventName.INVITATION_NOTIFICATIONS_SENT,
-      params: noFriendsNotifications,
-    },
-    ...results.map((result) => ({
-      eventName: EventName.INVITATION_NOTIFICATION_SENT,
-      params: result,
-    })),
-  ];
-
-  trackApiEvents(events, SYSTEM_USER);
-  logger.info(`Tracked ${events.length} analytics events`);
-
-  logger.info('Completed no-friends notification processing');
 };

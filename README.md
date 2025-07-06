@@ -489,8 +489,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "reactions": [
         {
           "type": "like",
-          "count": 1,
-          "reaction_id": "1234"
+          "count": 1
         }
       ],
       "all_village": false,
@@ -598,8 +597,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "reactions": [
         {
           "type": "like",
-          "count": 1,
-          "reaction_id": "1234"
+          "count": 1
         }
       ],
       "all_village": false,
@@ -668,7 +666,8 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "username": "janedoe",
       "name": "Jane Doe",
       "avatar": "https://example.com/avatar.jpg",
-      "last_update_emoji": "😊"
+      "last_update_emoji": "😊",
+      "last_update_time": "2025-01-01T00:00:00.000+00:00"
     }
   ],
   "next_cursor": "aW52aXRhdGlvbnMvSHpKM0ZqUmprWjRqbHJPandhUFk="
@@ -870,8 +869,7 @@ _Note: group_ids, friend_ids, all_village, and images are optional. score and em
   "reactions": [
     {
       "type": "like",
-      "count": 1,
-      "reaction_id": "1234"
+      "count": 1
     }
   ],
   "all_village": false,
@@ -1053,8 +1051,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
     "reactions": [
       {
         "type": "like",
-        "count": 1,
-        "reaction_id": "1234"
+        "count": 1
       }
     ],
     "all_village": false,
@@ -1152,8 +1149,7 @@ _Note: Both friend_ids and group_ids are optional, but at least one friend ID or
   "reactions": [
     {
       "type": "like",
-      "count": 1,
-      "reaction_id": "1234"
+      "count": 1
     }
   ],
   "all_village": false,
@@ -1385,9 +1381,9 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
 
 ### Reactions
 
-#### POST /updates/{update_id}/reactions
+#### POST /updates/{update_id}/reactions/add
 
-**Purpose**: Create a new reaction on an update.
+**Purpose**: Add a new reaction to an update.
 
 **Analytics Events**:
 
@@ -1417,8 +1413,7 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 ```json
 {
   "type": "like",
-  "count": 1,
-  "reaction_id": "reaction123"
+  "count": 1
 }
 ```
 
@@ -1433,9 +1428,9 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 - 404: Update not found
 - 500: Internal server error
 
-#### DELETE /updates/{update_id}/reactions/{reaction_id}
+#### POST /updates/{update_id}/reactions/remove
 
-**Purpose**: Delete a reaction from an update. The authenticated user must be the creator of the reaction.
+**Purpose**: Remove a reaction from an update. The authenticated user must be the creator of the reaction.
 
 **Analytics Events**:
 
@@ -1450,15 +1445,22 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
   }
   ```
 
-**Input**: (None, uses auth token)
+**Input**:
+
+```json
+{
+  "type": "like"
+}
+```
+
+_Note: type is required and should match the reaction type you want to remove._
 
 **Output**:
 
 ```json
 {
   "type": "like",
-  "count": 0,
-  "reaction_id": "reaction123"
+  "count": 0
 }
 ```
 
@@ -1467,11 +1469,10 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
 **Errors**:
 
 - 400: Update ID is required
-- 400: Reaction ID is required
+- 400: Invalid request parameters
+- 400: Reaction type not found
 - 403: You don't have access to this update
-- 403: You can only delete your own reactions
 - 404: Update not found
-- 404: Reaction not found
 - 500: Internal server error
 
 ### Invitations
@@ -1625,7 +1626,8 @@ _Note: type is required and should be a valid reaction type (e.g., "like", "love
   "username": "janedoe",
   "name": "Jane Doe",
   "avatar": "https://example.com/avatar2.jpg",
-  "last_update_emoji": "😊"
+  "last_update_emoji": "😊",
+  "last_update_time": ""
 }
 ```
 
@@ -1987,8 +1989,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
       "reactions": [
         {
           "type": "like",
-          "count": 1,
-          "reaction_id": "1234"
+          "count": 1
         }
       ],
       "all_village": false,

@@ -138,6 +138,12 @@ def run_deletion_test():
         f"User 2's feed contains {len(user1_updates_in_feed)} updates from User 1 before deletion"
     )
 
+    wait_time = 10  # seconds
+    logger.info(
+        f"Waiting {wait_time} seconds for Firestore triggers to process updates..."
+    )
+    time.sleep(wait_time)
+
     # First user gets deleted
     logger.info("Deleting first user's profile")
     api.delete_profile(users[0]["email"])

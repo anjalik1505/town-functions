@@ -14,6 +14,7 @@ It creates users, authenticates them, and performs various profile operations:
 
 import json
 import logging
+import time
 
 import requests
 from utils.village_api import API_BASE_URL, VillageAPI
@@ -23,6 +24,11 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Test configuration
+TEST_CONFIG = {
+    "wait_time": 5,  # Time to wait between operations
+}
 
 
 def run_profile_tests():
@@ -535,6 +541,12 @@ def run_profile_tests():
         f"Updated User 1 profile: {json.dumps(updated_user1_profile, indent=2)}"
     )
 
+    # Wait for update triggers to process
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for profile update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
+
     # Get the invitation again to verify updates
     updated_invitation = api.get_invitation(users[0]["email"])
     logger.info(f"Updated invitation: {json.dumps(updated_invitation, indent=2)}")
@@ -589,6 +601,12 @@ def run_profile_tests():
     logger.info(
         f"Updated User 2 profile: {json.dumps(updated_user2_profile, indent=2)}"
     )
+
+    # Wait for update triggers to process
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for profile update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
 
     # Get join requests made by User 2 to verify requester info was updated
     user2_join_requests = api.get_join_requests(users[1]["email"])
@@ -685,6 +703,12 @@ def run_profile_tests():
     logger.info(
         f"Updated User 2 profile again: {json.dumps(updated_user2_profile_2, indent=2)}"
     )
+
+    # Wait for update triggers to process
+    logger.info(
+        f"Waiting {TEST_CONFIG['wait_time']} seconds for profile update triggers to process..."
+    )
+    time.sleep(TEST_CONFIG["wait_time"])
 
     # Get friends again to verify updates
     friends_user1_updated = api.get_friends(users[0]["email"])

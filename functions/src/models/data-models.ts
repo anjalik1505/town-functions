@@ -1,317 +1,37 @@
-import { z } from 'zod';
-import {
-  addGroupMembersSchema,
-  analyzeSentimentSchema,
-  createChatMessageSchema,
-  createCommentSchema,
-  createFeedbackSchema,
-  createGroupSchema,
-  createProfileSchema,
-  createReactionSchema,
-  createUpdateSchema,
-  deviceSchema,
-  friendProfileSchema,
-  locationSchema,
-  ownProfileSchema,
-  paginationSchema,
-  phoneLookupSchema,
-  shareUpdateSchema,
-  testNotificationSchema,
-  testPromptSchema,
-  timezoneSchema,
-  transcribeAudioSchema,
-  updateCommentSchema,
-  updateProfileSchema,
-} from './validation-schemas.js';
+import { Timestamp } from 'firebase-admin/firestore';
+import { FriendSummaryEventParams } from './analytics-events.js';
 
-export interface Insights {
-  emotional_overview: string;
-  key_moments: string;
-  recurring_themes: string;
-  progress_and_growth: string;
-}
-
-export interface NudgingSettings {
-  occurrence: string;
-  times_of_day?: string[];
-  days_of_week?: string[];
-}
-
-export interface BaseUser {
-  user_id: string;
-  username: string;
+/**
+ * Interface for profile data
+ */
+export interface ProfileData {
   name: string;
-  avatar: string;
-}
-
-export interface BaseGroup {
-  group_id: string;
-  name: string;
-  icon: string;
-}
-
-export interface ProfileResponse extends BaseUser {
-  location: string;
-  birthday: string; // Format: yyyy-mm-dd
-  notification_settings: string[];
-  nudging_settings: NudgingSettings | null;
   gender: string;
-  summary: string;
-  insights: Insights;
-  suggestions: string;
-  updated_at: string;
-  timezone: string;
-  tone: string;
-  phone_number: string;
-}
-
-export interface FriendProfileResponse {
-  user_id: string;
-  username: string;
-  name: string;
-  avatar: string;
   location: string;
-  birthday: string; // Format: yyyy-mm-dd
-  gender: string;
+  age: string;
+}
+
+/**
+ * Interface for summary context data
+ */
+export interface SummaryContext {
+  summaryId: string;
+  summaryRef: FirebaseFirestore.DocumentReference;
+  existingSummary: string;
+  existingSuggestions: string;
+  updateCount: number;
+  isNewSummary: boolean;
+  existingCreatedAt?: Timestamp;
+  creatorProfile: ProfileData;
+  friendProfile: ProfileData;
+}
+
+/**
+ * Interface for summary result data
+ */
+export interface SummaryResult {
   summary: string;
   suggestions: string;
-  updated_at: string;
-  timezone: string;
+  updateId: string;
+  analytics: FriendSummaryEventParams;
 }
-
-export interface ReactionGroup {
-  type: string;
-  count: number;
-  reaction_id: string;
-}
-
-export interface Update {
-  update_id: string;
-  created_by: string;
-  content: string;
-  group_ids: string[];
-  friend_ids: string[];
-  sentiment: string;
-  score: string;
-  emoji: string;
-  created_at: string;
-  comment_count: number;
-  reaction_count: number;
-  reactions: ReactionGroup[];
-  all_village: boolean;
-  images: string[];
-  shared_with_friends: BaseUser[];
-  shared_with_groups: BaseGroup[];
-}
-
-export interface EnrichedUpdate extends Update {
-  username: string;
-  name: string;
-  avatar: string;
-}
-
-export interface UpdatesResponse {
-  updates: Update[];
-  next_cursor: string | null;
-}
-
-export interface FeedItem {
-  update_id: string;
-  created_at: string;
-  direct_visible: boolean;
-  friend_id: string;
-  group_ids: string[];
-}
-
-export interface FeedResponse {
-  updates: EnrichedUpdate[];
-  next_cursor: string | null;
-}
-
-export interface Invitation {
-  invitation_id: string;
-  created_at: string;
-  sender_id: string;
-  username: string;
-  name: string;
-  avatar: string;
-}
-
-export interface JoinRequest {
-  request_id: string;
-  invitation_id: string;
-  requester_id: string;
-  receiver_id: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  requester_username: string;
-  requester_name: string;
-  requester_avatar: string;
-  receiver_username: string;
-  receiver_name: string;
-  receiver_avatar: string;
-}
-
-export interface JoinRequestResponse {
-  join_requests: JoinRequest[];
-  next_cursor: string | null;
-}
-
-export interface Friend {
-  user_id: string;
-  username: string;
-  name: string;
-  avatar: string;
-  last_update_emoji: string;
-}
-
-export interface FriendsResponse {
-  friends: Friend[];
-  next_cursor: string | null;
-}
-
-export interface InvitationsResponse {
-  invitations: Invitation[];
-  next_cursor: string | null;
-}
-
-export interface Device {
-  device_id: string;
-  updated_at: string;
-}
-
-export interface Location {
-  location: string;
-  updated_at: string;
-}
-
-export interface Timezone {
-  timezone: string;
-  updated_at: string;
-}
-
-export interface Group extends BaseGroup {
-  created_at: string;
-  members: string[];
-  member_profiles: Record<string, string>[];
-}
-
-export interface GroupsResponse {
-  groups: Group[];
-}
-
-// Group member with basic profile information
-export type GroupMember = BaseUser;
-
-export interface GroupMembersResponse {
-  members: GroupMember[];
-}
-
-export interface ChatMessage {
-  message_id: string;
-  sender_id: string;
-  text: string;
-  created_at: string;
-  attachments?: string[];
-}
-
-export interface ChatResponse {
-  messages: ChatMessage[];
-  next_cursor: string | null;
-}
-
-// Define types for AI generation results
-export interface FriendProfileResult {
-  summary: string;
-  suggestions: string;
-}
-
-export interface CreatorProfileResult {
-  summary: string;
-  suggestions: string;
-  emotional_overview: string;
-  key_moments: string;
-  recurring_themes: string;
-  progress_and_growth: string;
-}
-
-export interface NotificationResponse {
-  success: boolean;
-  message: string;
-  messageId: string;
-}
-
-export interface QuestionResponse {
-  question: string;
-}
-
-export interface Comment {
-  comment_id: string;
-  created_by: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  username: string;
-  name: string;
-  avatar: string;
-}
-
-export interface CommentsResponse {
-  comments: Comment[];
-  next_cursor: string | null;
-}
-
-export interface UpdateWithCommentsResponse {
-  update: EnrichedUpdate;
-  comments: Comment[];
-  next_cursor: string | null;
-}
-
-export interface Feedback {
-  feedback_id: string;
-  created_by: string;
-  content: string;
-  created_at: string;
-}
-
-export interface SentimentAnalysisResponse {
-  sentiment: string;
-  score: number;
-  emoji: string;
-}
-
-export interface TranscriptionResponse {
-  transcription: string;
-  sentiment: string;
-  score: number;
-  emoji: string;
-}
-
-export interface PhoneLookupResponse {
-  matches: BaseUser[];
-}
-
-// Inferred types from Zod validation schemas
-export type CreateProfilePayload = z.infer<typeof createProfileSchema>;
-export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
-export type PaginationPayload = z.infer<typeof paginationSchema>;
-export type DevicePayload = z.infer<typeof deviceSchema>;
-export type CreateUpdatePayload = z.infer<typeof createUpdateSchema>;
-export type CreateChatMessagePayload = z.infer<typeof createChatMessageSchema>;
-export type CreateGroupPayload = z.infer<typeof createGroupSchema>;
-export type AddGroupMembersPayload = z.infer<typeof addGroupMembersSchema>;
-export type OwnProfilePayload = z.infer<typeof ownProfileSchema>;
-export type FriendProfilePayload = z.infer<typeof friendProfileSchema>;
-export type TestPromptPayload = z.infer<typeof testPromptSchema>;
-export type TestNotificationPayload = z.infer<typeof testNotificationSchema>;
-export type CreateCommentPayload = z.infer<typeof createCommentSchema>;
-export type UpdateCommentPayload = z.infer<typeof updateCommentSchema>;
-export type CreateReactionPayload = z.infer<typeof createReactionSchema>;
-export type CreateFeedbackPayload = z.infer<typeof createFeedbackSchema>;
-export type AnalyzeSentimentPayload = z.infer<typeof analyzeSentimentSchema>;
-export type TranscribeAudioPayload = z.infer<typeof transcribeAudioSchema>;
-export type TimezonePayload = z.infer<typeof timezoneSchema>;
-export type LocationPayload = z.infer<typeof locationSchema>;
-export type ShareUpdatePayload = z.infer<typeof shareUpdateSchema>;
-export type PhoneLookupPayload = z.infer<typeof phoneLookupSchema>;
