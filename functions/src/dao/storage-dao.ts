@@ -90,4 +90,44 @@ export class StorageDAO {
       return false;
     }
   }
+
+  /**
+   * Deletes all images for specific updates
+   * Uses Firebase Admin SDK deleteFiles with prefix to efficiently delete each update folder
+   * @param updateIds Array of update IDs whose images should be deleted
+   * @returns Boolean indicating success/failure
+   */
+  async deleteUpdateImages(updateIds: string[]): Promise<boolean> {
+    if (updateIds.length === 0) {
+      logger.info('No update IDs provided for image deletion');
+      return true;
+    }
+
+    logger.info(`Deleting images for ${updateIds.length} updates`);
+
+    try {
+      const bucket = this.storage.bucket();
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Delete images for each update
+      for (const updateId of updateIds) {
+        try {
+          const prefix = `updates/${updateId}/`;
+          await bucket.deleteFiles({ prefix });
+          successCount++;
+          logger.info(`Successfully deleted images for update ${updateId}`);
+        } catch (error) {
+          errorCount++;
+          logger.error(`Error deleting images for update ${updateId}:`, error);
+        }
+      }
+
+      logger.info(`Completed update image deletion: ${successCount} successful, ${errorCount} errors`);
+      return errorCount === 0;
+    } catch (error) {
+      logger.error(`Error deleting update images:`, error);
+      return false;
+    }
+  }
 }

@@ -40,17 +40,33 @@ export const onProfileDeleted = async (
     const userCleanupService = new UserCleanupService();
 
     // Execute all cleanup operations in parallel
-    const [friendshipResult, groupResult, updateResult, invitationResult, deviceResult, summaryResult] =
-      await Promise.all([
-        userCleanupService.removeUserFromAllFriendships(userId, profileData.friends_to_cleanup || []),
-        userCleanupService.removeUserFromAllGroups(userId),
-        userCleanupService.deleteUserUpdatesAndFeeds(userId),
-        userCleanupService.deleteUserInvitations(userId),
-        userCleanupService.deleteDevice(userId),
-        userCleanupService.deleteUserSummaries(userId),
-        userCleanupService.removeFromTimeBuckets(userId),
-        userCleanupService.deleteStorageAssets(userId),
-      ]);
+    const [
+      friendshipResult,
+      groupResult,
+      updateResult,
+      invitationResult,
+      deviceResult,
+      summaryResult,
+      timeBucketResult,
+      profileStorageResult,
+    ] = await Promise.all([
+      userCleanupService.removeUserFromAllFriendships(userId, profileData.friends_to_cleanup || []),
+      userCleanupService.removeUserFromAllGroups(userId),
+      userCleanupService.deleteUserUpdatesAndFeeds(userId),
+      userCleanupService.deleteUserInvitations(userId),
+      userCleanupService.deleteDevice(userId),
+      userCleanupService.deleteUserSummaries(userId),
+      userCleanupService.removeFromTimeBuckets(userId),
+      userCleanupService.deleteStorageAssets(userId),
+    ]);
+
+    // Delete update images after getting the update IDs from deleteUserUpdatesAndFeeds
+    const updateStorageResult = await userCleanupService.deleteUpdateStorageAssets(updateResult.updateIds);
+
+    // Log storage cleanup results
+    logger.info(
+      `Storage cleanup results - Profile: ${profileStorageResult}, Time buckets: ${timeBucketResult}, Updates: ${updateStorageResult}`,
+    );
 
     // Collect analytics data
     const analyticsData: DeleteProfileEventParams = {

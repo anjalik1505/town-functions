@@ -151,9 +151,11 @@ export class UserCleanupService {
    * Called by on-profile-deletion.ts trigger.
    *
    * @param userId The ID of the user whose updates should be deleted
-   * @returns Object containing counts of deleted updates and feed entries
+   * @returns Object containing counts of deleted updates and feed entries, plus update IDs for storage cleanup
    */
-  async deleteUserUpdatesAndFeeds(userId: string): Promise<{ updateCount: number; feedCount: number }> {
+  async deleteUserUpdatesAndFeeds(
+    userId: string,
+  ): Promise<{ updateCount: number; feedCount: number; updateIds: string[] }> {
     logger.info(`Starting deletion of updates and feeds for user: ${userId}`);
 
     let updateCount = 0;
@@ -208,7 +210,7 @@ export class UserCleanupService {
 
       logger.info(`Successfully deleted ${updateCount} updates and ${feedCount} feed entries for user ${userId}`);
 
-      return { updateCount, feedCount };
+      return { updateCount, feedCount, updateIds };
     } catch (error) {
       logger.error(`Failed to delete updates and feeds for user ${userId}`, error);
       throw error;
@@ -371,5 +373,17 @@ export class UserCleanupService {
   async deleteStorageAssets(userId: string): Promise<boolean> {
     logger.info(`Deleting storage assets for user ${userId}`);
     return await this.storageDAO.deleteProfile(userId);
+  }
+
+  /**
+   * Deletes images for specific updates from Firebase Storage.
+   * Called by on-profile-deletion.ts trigger after getting update IDs from deleteUserUpdatesAndFeeds.
+   *
+   * @param updateIds Array of update IDs whose images should be deleted
+   * @returns Boolean indicating success/failure
+   */
+  async deleteUpdateStorageAssets(updateIds: string[]): Promise<boolean> {
+    logger.info(`Deleting update storage assets for ${updateIds.length} updates`);
+    return await this.storageDAO.deleteUpdateImages(updateIds);
   }
 }
