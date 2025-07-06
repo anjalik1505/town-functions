@@ -1,4 +1,5 @@
 import { defineSecret } from 'firebase-functions/params';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -15,6 +16,15 @@ import { onUpdateCreated } from './triggers/on-update-creation.js';
 import { onUpdateUpdated } from './triggers/on-update-update.js';
 import { processDailyNotifications } from './triggers/process-daily-notifications.js';
 import { processInvitationNotifications } from './triggers/process-invitation-notifications.js';
+
+// Set global options for all functions
+setGlobalOptions({
+  region: 'europe-west1',
+  memory: '256MiB',
+  timeoutSeconds: 60,
+  maxInstances: 20,
+  minInstances: 0
+});
 
 // Define secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -43,6 +53,8 @@ export const process_update_creation = onDocumentCreated(
 export const process_daily_notifications = onSchedule(
   {
     schedule: 'every hour',
+    memory: '512MiB',
+    timeoutSeconds: 540,
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   async () => {
@@ -54,6 +66,8 @@ export const process_daily_notifications = onSchedule(
 export const process_no_friends_notifications = onSchedule(
   {
     schedule: '0 12 */3 * *',
+    memory: '512MiB',
+    timeoutSeconds: 540,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   async () => {
@@ -65,6 +79,8 @@ export const process_no_friends_notifications = onSchedule(
 export const process_profile_deletion = onDocumentDeleted(
   {
     document: `${Collections.PROFILES}/{userId}`,
+    memory: '512MiB',
+    timeoutSeconds: 540,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onProfileDeleted(event),
@@ -74,6 +90,8 @@ export const process_profile_deletion = onDocumentDeleted(
 export const process_profile_update = onDocumentUpdated(
   {
     document: `${Collections.PROFILES}/{userId}`,
+    memory: '512MiB',
+    timeoutSeconds: 540,
     secrets: [ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onProfileUpdate(event),
@@ -83,6 +101,8 @@ export const process_profile_update = onDocumentUpdated(
 export const process_friendship_creation = onDocumentCreated(
   {
     document: `${Collections.PROFILES}/{userId}/${Collections.FRIENDS}/{friendId}`,
+    memory: '512MiB',
+    timeoutSeconds: 540,
     secrets: [geminiApiKey, ga4MeasurementId, ga4ApiSecret, g4ClientId],
   },
   (event) => onFriendshipCreated(event),
