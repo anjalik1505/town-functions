@@ -64,7 +64,6 @@ export class ReactionDAO extends BaseDAO<ReactionDoc> {
     // Return the complete reaction document
     const updatedTypes = [...existingTypes, reactionType];
     return {
-      created_by: existingData?.created_by || userId,
       created_at: existingData?.created_at || now,
       updated_at: now,
       types: updatedTypes,

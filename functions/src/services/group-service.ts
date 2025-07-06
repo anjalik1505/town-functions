@@ -1,12 +1,11 @@
-import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { GroupDAO } from '../dao/group-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
-import { Collections } from '../models/constants.js';
-import { Group, GroupMember, GroupsResponse } from '../models/data-models.js';
+import { Group, GroupMember, GroupsResponse } from '../models/api-responses.js';
 import { GroupDoc, SimpleProfile } from '../models/firestore/index.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -23,13 +22,11 @@ export class GroupService {
   private groupDAO: GroupDAO;
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
-  private db: FirebaseFirestore.Firestore;
 
   constructor() {
     this.groupDAO = new GroupDAO();
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
-    this.db = getFirestore();
   }
 
   /**
@@ -95,15 +92,7 @@ export class GroupService {
     const { id: groupId } = await this.groupDAO.create(groupData);
 
     // Update member profiles with the new group ID
-    const batch = this.db.batch();
-    for (const memberId of allMembers) {
-      const profileRef = this.db.collection(Collections.PROFILES).doc(memberId);
-      batch.update(profileRef, {
-        group_ids: FieldValue.arrayUnion(groupId),
-        updated_at: Timestamp.now(),
-      });
-    }
-    await batch.commit();
+    await this.profileDAO.addGroupIds(allMembers, groupId);
 
     logger.info(`Successfully created group ${groupId}`);
 
@@ -195,15 +184,7 @@ export class GroupService {
     await this.groupDAO.addMembers(groupId, uniqueNewMembers, newMemberProfilesMap);
 
     // Update new member profiles with the group ID
-    const batch = this.db.batch();
-    for (const memberId of uniqueNewMembers) {
-      const profileRef = this.db.collection(Collections.PROFILES).doc(memberId);
-      batch.update(profileRef, {
-        group_ids: FieldValue.arrayUnion(groupId),
-        updated_at: Timestamp.now(),
-      });
-    }
-    await batch.commit();
+    await this.profileDAO.addGroupIds(uniqueNewMembers, groupId);
 
     logger.info(`Successfully added ${uniqueNewMembers.length} members to group ${groupId}`);
 

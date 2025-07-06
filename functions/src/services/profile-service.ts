@@ -7,15 +7,8 @@ import { ProfileDAO } from '../dao/profile-dao.js';
 import { TimeBucketDAO } from '../dao/time-bucket-dao.js';
 import { UserSummaryDAO } from '../dao/user-summary-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
-import {
-  CreateProfilePayload,
-  FriendProfileResponse,
-  Insights,
-  Location,
-  ProfileResponse,
-  Timezone,
-  UpdateProfilePayload,
-} from '../models/data-models.js';
+import { CreateProfilePayload, UpdateProfilePayload } from '../models/api-payloads.js';
+import { FriendProfileResponse, Insights, Location, ProfileResponse, Timezone } from '../models/api-responses.js';
 import {
   DayOfWeek,
   NotificationSetting,

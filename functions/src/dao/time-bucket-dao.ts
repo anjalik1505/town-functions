@@ -5,7 +5,7 @@ import { Collections, QueryOperators } from '../models/constants.js';
 import {
   NudgingOccurrence,
   NudgingSettings,
-  pf,
+  tbuf,
   timeBucketConverter,
   TimeBucketDoc,
   timeBucketUserConverter,
@@ -41,7 +41,7 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
     const existingBucketsQuery = await this.db
       .collectionGroup(this.subcollection!)
       .withConverter(this.subconverter!)
-      .where(pf('user_id'), QueryOperators.EQUALS, userId)
+      .where(tbuf('user_id'), QueryOperators.EQUALS, userId)
       .get();
 
     const batchToUse = batch || this.db.batch();
@@ -155,7 +155,7 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
     const existingBucketsQuery = await this.db
       .collectionGroup(this.subcollection!)
       .withConverter(this.subconverter!)
-      .where(pf('user_id'), QueryOperators.EQUALS, userId)
+      .where(tbuf('user_id'), QueryOperators.EQUALS, userId)
       .limit(1)
       .get();
 
@@ -203,7 +203,7 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
     const existingBucketsQuery = await this.db
       .collectionGroup(this.subcollection!)
       .withConverter(this.subconverter!)
-      .where(pf('user_id'), QueryOperators.EQUALS, userId)
+      .where(tbuf('user_id'), QueryOperators.EQUALS, userId)
       .get();
 
     if (existingBucketsQuery.docs.length === 0) {

@@ -5,9 +5,9 @@ import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { InvitationDAO } from '../dao/invitation-dao.js';
 import { JoinRequestDAO } from '../dao/join-request-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
-import { ApiResponse, EventName } from '../models/analytics-events.js';
+import { ApiResponse, EventName, InvitationNotificationEventParams } from '../models/analytics-events.js';
+import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/api-responses.js';
 import { NotificationTypes } from '../models/constants.js';
-import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/data-models.js';
 import { JoinRequestDoc, JoinRequestStatus, SimpleProfile } from '../models/firestore/index.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
@@ -217,7 +217,7 @@ export class InvitationService {
     logger.info(`Created join request ${joinRequest.request_id} for user ${userId}`);
 
     return {
-      data: this.formatJoinRequest(joinRequest),
+      data: this.formatJoinRequest(joinRequest, joinRequest.request_id),
       status: 201,
       analytics: {
         event: EventName.JOIN_REQUESTED,
@@ -391,7 +391,7 @@ export class InvitationService {
     logger.info(`Rejected join request ${requestId}`);
 
     return {
-      data: this.formatJoinRequest(joinRequest),
+      data: this.formatJoinRequest(joinRequest, requestId),
       status: 200,
       analytics: {
         event: EventName.JOIN_REQUEST_REJECTED,
@@ -529,9 +529,9 @@ export class InvitationService {
     };
   }
 
-  private formatJoinRequest(doc: JoinRequestDoc): JoinRequest {
+  private formatJoinRequest(doc: JoinRequestDoc, requestId: string): JoinRequest {
     return {
-      request_id: doc.request_id,
+      request_id: requestId,
       invitation_id: doc.invitation_id,
       requester_id: doc.requester_id,
       receiver_id: doc.receiver_id,
@@ -548,108 +548,146 @@ export class InvitationService {
   }
 
   /**
-   * Prepares no-friends notification data for users who have no friends
-   * @param userId The user ID to check
-   * @param profileData The user's profile data
-   * @returns Structured notification data or null if no notification should be sent
+   * Prepares no-friends notifications for all users who have no friends
+   * Streams all profiles and processes eligibility for each user
+   * @returns Array of notifications to send and analytics results with user IDs for mapping
    */
-  async prepareNoFriendsNotifications(
-    userId: string,
-    profileData: { created_at?: Timestamp; updated_at?: Timestamp; [key: string]: unknown },
-  ): Promise<{
-    notification?: {
+  async prepareNoFriendsNotifications(): Promise<{
+    notifications: Array<{
       userId: string;
       title: string;
       message: string;
       data: { type: string };
-    };
-    analyticsResult: {
-      has_friends: boolean;
-      has_timestamp: boolean;
-      profile_too_new: boolean;
-      has_device: boolean;
-    };
+    }>;
+    analyticsResults: Array<InvitationNotificationEventParams & { userId: string }>;
   }> {
     const MIN_PROFILE_AGE_DAYS = 1;
     const NOTIFICATION_TITLE = 'Your Village wants to hear from you!';
     const NOTIFICATION_BODY =
       'Invite your friends to your Village so they can get your private daily updates and stay connected effortlessly!';
 
-    logger.info(`Preparing no-friends notification for user ${userId}`);
+    logger.info('Starting no-friends notification preparation for all users');
 
-    // Check if the user has friends
-    const { friendCount } = await this.friendshipDAO.hasReachedLimit(userId);
-    if (friendCount > 0) {
-      logger.info(`User ${userId} has friends, skipping no-friends notification.`);
-      return {
-        analyticsResult: {
-          has_friends: true,
-          has_timestamp: true,
-          profile_too_new: false,
-          has_device: true,
-        },
-      };
-    }
+    const notifications: Array<{
+      userId: string;
+      title: string;
+      message: string;
+      data: { type: string };
+    }> = [];
 
-    // Check profile age
-    const profileTimestamp = profileData.created_at;
-    if (!profileTimestamp) {
-      logger.warn(`User ${userId} has no created_at or updated_at timestamp.`);
-      return {
-        analyticsResult: {
-          has_friends: false,
-          has_timestamp: false,
-          profile_too_new: false,
-          has_device: true,
-        },
-      };
-    }
+    const analyticsResults: Array<InvitationNotificationEventParams & { userId: string }> = [];
 
-    const profileAgeMs = Date.now() - profileTimestamp.toDate().getTime();
-    const minProfileAgeMs = MIN_PROFILE_AGE_DAYS * 24 * 60 * 60 * 1000;
+    try {
+      // Stream all profiles using ProfileDAO
+      for await (const { id: userId, data: profileData } of this.profileDAO.streamAll()) {
+        if (!profileData) {
+          logger.warn(`No profile data found for user ${userId}`);
+          analyticsResults.push({
+            userId,
+            has_friends: false,
+            has_timestamp: false,
+            profile_too_new: false,
+            has_device: false,
+          });
+          continue;
+        }
 
-    if (profileAgeMs < minProfileAgeMs) {
+        try {
+          // Check if the user has friends
+          const { friendCount } = await this.friendshipDAO.hasReachedLimit(userId);
+          if (friendCount > 0) {
+            logger.info(`User ${userId} has friends, skipping no-friends notification.`);
+            analyticsResults.push({
+              userId,
+              has_friends: true,
+              has_timestamp: true,
+              profile_too_new: false,
+              has_device: true,
+            });
+            continue;
+          }
+
+          // Check profile age
+          const profileTimestamp = profileData.created_at;
+          if (!profileTimestamp) {
+            logger.warn(`User ${userId} has no created_at timestamp.`);
+            analyticsResults.push({
+              userId,
+              has_friends: false,
+              has_timestamp: false,
+              profile_too_new: false,
+              has_device: true,
+            });
+            continue;
+          }
+
+          const profileAgeMs = Date.now() - profileTimestamp.toDate().getTime();
+          const minProfileAgeMs = MIN_PROFILE_AGE_DAYS * 24 * 60 * 60 * 1000;
+
+          if (profileAgeMs < minProfileAgeMs) {
+            logger.info(
+              `User ${userId} profile is too new (age: ${Math.floor(profileAgeMs / (24 * 60 * 60 * 1000))} days), skipping.`,
+            );
+            analyticsResults.push({
+              userId,
+              has_friends: false,
+              has_timestamp: true,
+              profile_too_new: true,
+              has_device: true,
+            });
+            continue;
+          }
+
+          // User is eligible for notification
+          notifications.push({
+            userId,
+            title: NOTIFICATION_TITLE,
+            message: NOTIFICATION_BODY,
+            data: {
+              type: NotificationTypes.NO_FRIENDS_REMINDER,
+            },
+          });
+
+          analyticsResults.push({
+            userId,
+            has_friends: false,
+            has_timestamp: true,
+            profile_too_new: false,
+            has_device: true,
+          });
+
+          logger.info(`Prepared no-friends notification for user ${userId}`);
+        } catch (error) {
+          logger.error(`Failed to process user ${userId} for no-friends notification`, error);
+          analyticsResults.push({
+            userId,
+            has_friends: false,
+            has_timestamp: false,
+            profile_too_new: false,
+            has_device: false,
+          });
+        }
+      }
+
       logger.info(
-        `User ${userId} profile is too new (age: ${Math.floor(profileAgeMs / (24 * 60 * 60 * 1000))} days), skipping.`,
+        `Completed no-friends notification preparation: ${notifications.length} notifications prepared, ${analyticsResults.length} users processed`,
       );
+
       return {
-        analyticsResult: {
-          has_friends: false,
-          has_timestamp: true,
-          profile_too_new: true,
-          has_device: true,
-        },
+        notifications,
+        analyticsResults,
       };
+    } catch (error) {
+      logger.error('Error streaming profiles for no-friends notifications:', error);
+      throw error;
     }
-
-    // Prepare notification data
-    const notification = {
-      userId,
-      title: NOTIFICATION_TITLE,
-      message: NOTIFICATION_BODY,
-      data: {
-        type: NotificationTypes.NO_FRIENDS_REMINDER,
-      },
-    };
-
-    logger.info(`Prepared no-friends notification for user ${userId}`);
-
-    return {
-      notification,
-      analyticsResult: {
-        has_friends: false,
-        has_timestamp: true,
-        profile_too_new: false,
-        has_device: true,
-      },
-    };
   }
 
   /**
    * Formats a list of join request documents into a list of join requests
    */
-  private formatJoinRequests(docs: JoinRequestDoc[]): JoinRequest[] {
-    const requests: JoinRequest[] = docs.map((doc) => this.formatJoinRequest(doc));
+  private formatJoinRequests(docs: (JoinRequestDoc & { request_id: string })[]): JoinRequest[] {
+    const requests: JoinRequest[] = docs.map((doc) => this.formatJoinRequest(doc, doc.request_id));
     return requests;
   }
 

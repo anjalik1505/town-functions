@@ -11,17 +11,19 @@ import { StorageDAO } from '../dao/storage-dao.js';
 import { UpdateDAO } from '../dao/update-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
 import {
-  Comment,
-  CommentsResponse,
   CreateCommentPayload,
   CreateUpdatePayload,
   PaginationPayload,
-  ReactionGroup,
   ShareUpdatePayload,
-  Update,
   UpdateCommentPayload,
+} from '../models/api-payloads.js';
+import {
+  Comment,
+  CommentsResponse,
+  ReactionGroup,
+  Update,
   UpdateWithCommentsResponse,
-} from '../models/data-models.js';
+} from '../models/api-responses.js';
 import { CommentDoc, GroupProfile, SimpleProfile, UpdateDoc, UserProfile } from '../models/firestore/index.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';

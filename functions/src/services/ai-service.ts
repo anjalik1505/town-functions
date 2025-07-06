@@ -11,7 +11,7 @@ import {
 } from '../ai/flows.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { ApiResponse, EventName, SummaryEventParams } from '../models/analytics-events.js';
-import { QuestionResponse, SentimentAnalysisResponse, TranscriptionResponse } from '../models/data-models.js';
+import { QuestionResponse, SentimentAnalysisResponse, TranscriptionResponse } from '../models/api-responses.js';
 import { InsightsDoc, ProfileDoc, UpdateDoc } from '../models/firestore/index.js';
 import { decompressData, isCompressedMimeType } from '../utils/compression.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';

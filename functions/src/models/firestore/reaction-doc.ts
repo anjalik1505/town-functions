@@ -1,7 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
 
 export interface ReactionDoc {
-  created_by: string;
   types: string[];
   created_at: Timestamp;
   updated_at: Timestamp;

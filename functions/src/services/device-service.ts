@@ -1,6 +1,6 @@
 import { DeviceDAO } from '../dao/device-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
-import { Device } from '../models/data-models.js';
+import { Device } from '../models/api-responses.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';

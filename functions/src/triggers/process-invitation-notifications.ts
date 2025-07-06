@@ -1,4 +1,3 @@
-import { getFirestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -6,7 +5,7 @@ import {
   InvitationNotificationEventParams,
   InvitationNotificationsEventParams,
 } from '../models/analytics-events.js';
-import { Collections, SYSTEM_USER } from '../models/constants.js';
+import { SYSTEM_USER } from '../models/constants.js';
 import { InvitationService } from '../services/invitation-service.js';
 import { NotificationService } from '../services/notification-service.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
@@ -14,56 +13,6 @@ import { getLogger } from '../utils/logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));
-
-/**
- * Process notification for a single user with no friends using service orchestration
- */
-const processUserNoFriendsNotification = async (
-  invitationService: InvitationService,
-  notificationService: NotificationService,
-  userId: string,
-  profileData: FirebaseFirestore.DocumentData,
-): Promise<InvitationNotificationEventParams> => {
-  try {
-    // Use InvitationService to prepare notification data
-    const notificationData = await invitationService.prepareNoFriendsNotifications(userId, profileData);
-
-    // If no notification should be sent, return the analytics result
-    if (!notificationData.notification) {
-      return notificationData.analyticsResult;
-    }
-
-    // Send notification using NotificationService
-    const notificationResult = await notificationService.sendNotification(
-      [notificationData.notification.userId],
-      notificationData.notification.title,
-      notificationData.notification.message,
-      notificationData.notification.data,
-    );
-
-    // Update analytics result based on notification success
-    const analyticsResult = {
-      ...notificationData.analyticsResult,
-      has_device: !notificationResult.no_device,
-    };
-
-    if (notificationResult.notification_all) {
-      logger.info(`Successfully sent no-friends notification to user ${userId}.`);
-    } else {
-      logger.warn(`Failed to send no-friends notification to user ${userId} - no device or notification failed`);
-    }
-
-    return analyticsResult;
-  } catch (error) {
-    logger.error(`Failed to process no-friends notification for user ${userId}`, error);
-    return {
-      has_friends: false,
-      has_timestamp: false,
-      profile_too_new: false,
-      has_device: false,
-    };
-  }
-};
 
 /**
  * Process no-friends notifications for all eligible users.
@@ -74,48 +23,78 @@ export const processInvitationNotifications = async (): Promise<void> => {
   logger.info('Starting no-friends notification processing');
 
   try {
-    const db = getFirestore();
-
     // Initialize services
     const invitationService = new InvitationService();
     const notificationService = new NotificationService();
 
-    // Stream all profiles
-    const profilesStream = db.collection(Collections.PROFILES).stream() as AsyncIterable<QueryDocumentSnapshot>;
+    // Get all notification data from InvitationService
+    const { notifications, analyticsResults } = await invitationService.prepareNoFriendsNotifications();
 
-    // Process all users and collect results
-    const results: InvitationNotificationEventParams[] = [];
-    for await (const profileDoc of profilesStream) {
-      const profileData = profileDoc.data();
-      let result: InvitationNotificationEventParams;
+    logger.info(`Processing ${notifications.length} notifications for ${analyticsResults.length} users`);
+
+    // Send notifications and update analytics results with device status
+    const updatedResults: InvitationNotificationEventParams[] = analyticsResults.map(({ ...result }) => ({
+      has_friends: result.has_friends,
+      has_timestamp: result.has_timestamp,
+      profile_too_new: result.profile_too_new,
+      has_device: result.has_device,
+    }));
+
+    // Send notifications for eligible users
+    for (const notification of notifications) {
       try {
-        result = await processUserNoFriendsNotification(
-          invitationService,
-          notificationService,
-          profileDoc.id,
-          profileData,
+        // Send notification using NotificationService
+        const notificationResult = await notificationService.sendNotification(
+          [notification.userId],
+          notification.title,
+          notification.message,
+          notification.data,
         );
+
+        // Find the corresponding analytics result and update device status
+        const resultIndex = analyticsResults.findIndex((result) => result.userId === notification.userId);
+        if (resultIndex !== -1) {
+          const currentResult = updatedResults[resultIndex]!;
+          updatedResults[resultIndex] = {
+            has_friends: currentResult.has_friends,
+            has_timestamp: currentResult.has_timestamp,
+            profile_too_new: currentResult.profile_too_new,
+            has_device: !notificationResult.no_device,
+          };
+        }
+
+        if (notificationResult.notification_all) {
+          logger.info(`Successfully sent no-friends notification to user ${notification.userId}`);
+        } else {
+          logger.warn(
+            `Failed to send no-friends notification to user ${notification.userId} - no device or notification failed`,
+          );
+        }
       } catch (error) {
-        logger.error(`Failed to process no-friends notification for user ${profileDoc.id}`, error);
-        result = {
-          has_friends: false,
-          has_timestamp: false,
-          profile_too_new: false,
-          has_device: false,
-        };
+        logger.error(`Failed to send notification to user ${notification.userId}`, error);
+        // Update corresponding analytics result to mark as no device
+        const resultIndex = analyticsResults.findIndex((result) => result.userId === notification.userId);
+        if (resultIndex !== -1) {
+          const currentResult = updatedResults[resultIndex]!;
+          updatedResults[resultIndex] = {
+            has_friends: currentResult.has_friends,
+            has_timestamp: currentResult.has_timestamp,
+            profile_too_new: currentResult.profile_too_new,
+            has_device: false,
+          };
+        }
       }
-      results.push(result);
     }
 
     // Aggregate analytics data
-    const totalUsers = results.length;
-    const notifiedCount = results.filter(
+    const totalUsers = updatedResults.length;
+    const notifiedCount = updatedResults.filter(
       (r) => !r.has_friends && r.has_timestamp && !r.profile_too_new && r.has_device,
     ).length;
-    const hasFriendsCount = results.filter((r) => r.has_friends).length;
-    const noTimestampCount = results.filter((r) => !r.has_timestamp).length;
-    const profileTooNewCount = results.filter((r) => r.profile_too_new).length;
-    const noDeviceCount = results.filter((r) => !r.has_device).length;
+    const hasFriendsCount = updatedResults.filter((r) => r.has_friends).length;
+    const noTimestampCount = updatedResults.filter((r) => !r.has_timestamp).length;
+    const profileTooNewCount = updatedResults.filter((r) => r.profile_too_new).length;
+    const noDeviceCount = updatedResults.filter((r) => !r.has_device).length;
 
     // Create aggregate event
     const noFriendsNotifications: InvitationNotificationsEventParams = {
@@ -133,7 +112,7 @@ export const processInvitationNotifications = async (): Promise<void> => {
         eventName: EventName.INVITATION_NOTIFICATIONS_SENT,
         params: noFriendsNotifications,
       },
-      ...results.map((result) => ({
+      ...updatedResults.map((result) => ({
         eventName: EventName.INVITATION_NOTIFICATION_SENT,
         params: result,
       })),
@@ -142,7 +121,9 @@ export const processInvitationNotifications = async (): Promise<void> => {
     await trackApiEvents(events, SYSTEM_USER);
     logger.info(`Tracked ${events.length} analytics events`);
 
-    logger.info('Completed no-friends notification processing');
+    logger.info(
+      `Completed no-friends notification processing: ${notifications.length} notifications sent to eligible users out of ${totalUsers} total users`,
+    );
   } catch (error) {
     logger.error('Error in processInvitationNotifications:', error);
     throw error;

@@ -25,7 +25,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param requestData The join request data with denormalized profiles
    * @returns The created request document with ID
    */
-  async create(invitationId: string, requestData: Omit<JoinRequestDoc, 'request_id'>): Promise<JoinRequestDoc> {
+  async create(invitationId: string, requestData: JoinRequestDoc): Promise<JoinRequestDoc & { request_id: string }> {
     const requestRef = this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -38,7 +38,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
       ...requestData,
       created_at: now,
       updated_at: now,
-    } as JoinRequestDoc;
+    } as JoinRequestDoc & { request_id: string };
 
     await requestRef.set(fullRequestData);
     return {
@@ -56,7 +56,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
   async getByInvitation(
     invitationId: string,
     pagination?: { limit?: number; afterCursor?: string },
-  ): Promise<{ requests: JoinRequestDoc[]; nextCursor: string | null }> {
+  ): Promise<{ requests: (JoinRequestDoc & { request_id: string })[]; nextCursor: string | null }> {
     const limit = pagination?.limit || 20;
 
     let query: Query = this.db
@@ -100,7 +100,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
   async getByUser(
     userId: string,
     pagination?: { limit?: number; afterCursor?: string },
-  ): Promise<{ requests: JoinRequestDoc[]; nextCursor: string | null }> {
+  ): Promise<{ requests: (JoinRequestDoc & { request_id: string })[]; nextCursor: string | null }> {
     const limit = pagination?.limit || 20;
 
     // This requires a collection group query
@@ -144,7 +144,10 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param requestId The join request ID
    * @returns The join request document, or null if not found
    */
-  async getByInvitationAndRequest(invitationId: string, requestId: string): Promise<JoinRequestDoc | null> {
+  async getByInvitationAndRequest(
+    invitationId: string,
+    requestId: string,
+  ): Promise<(JoinRequestDoc & { request_id: string }) | null> {
     const requestRef = this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -167,7 +170,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
       ...data,
       request_id: requestDoc.id,
       invitation_id: invitationId,
-    } as JoinRequestDoc;
+    } as JoinRequestDoc & { request_id: string };
   }
 
   /**
@@ -177,7 +180,11 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param status The new status
    * @returns The updated join request document
    */
-  async updateStatus(invitationId: string, requestId: string, status: string): Promise<JoinRequestDoc> {
+  async updateStatus(
+    invitationId: string,
+    requestId: string,
+    status: string,
+  ): Promise<JoinRequestDoc & { request_id: string }> {
     const requestRef = this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -201,7 +208,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
       throw new Error('Join request data is undefined');
     }
 
-    return { ...data, request_id: updatedDoc.id } as JoinRequestDoc; // Return simple ID
+    return { ...data, request_id: updatedDoc.id } as JoinRequestDoc & { request_id: string };
   }
 
   /**
@@ -247,7 +254,11 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param status Optional status filter
    * @returns The existing join request or null
    */
-  async get(invitationId: string, requesterId: string, status?: string | string[]): Promise<JoinRequestDoc | null> {
+  async get(
+    invitationId: string,
+    requesterId: string,
+    status?: string | string[],
+  ): Promise<(JoinRequestDoc & { request_id: string }) | null> {
     let query: Query = this.db
       .collection(this.collection)
       .doc(invitationId)
@@ -280,7 +291,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
       ...data,
       request_id: doc.id,
       invitation_id: invitationId,
-    } as JoinRequestDoc;
+    } as JoinRequestDoc & { request_id: string };
   }
 
   /**
@@ -360,9 +371,11 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    * @param userId The user ID who made the join requests
    * @returns AsyncIterable of { doc: JoinRequestDoc, invitationRef: DocumentReference, requestRef: DocumentReference }
    */
-  async *streamJoinRequestsByRequester(
-    userId: string,
-  ): AsyncIterable<{ doc: JoinRequestDoc; invitationRef: DocumentReference; requestRef: DocumentReference }> {
+  async *streamJoinRequestsByRequester(userId: string): AsyncIterable<{
+    doc: JoinRequestDoc & { request_id: string };
+    invitationRef: DocumentReference;
+    requestRef: DocumentReference;
+  }> {
     logger.info(`Streaming join requests by requester: ${userId}`);
 
     try {
@@ -404,7 +417,7 @@ export class JoinRequestDAO extends BaseDAO<JoinRequestDoc> {
    */
   async *streamJoinRequestsByInvitation(
     invitationId: string,
-  ): AsyncIterable<{ doc: JoinRequestDoc; requestRef: DocumentReference }> {
+  ): AsyncIterable<{ doc: JoinRequestDoc & { request_id: string }; requestRef: DocumentReference }> {
     logger.info(`Streaming join requests for invitation: ${invitationId}`);
 
     try {

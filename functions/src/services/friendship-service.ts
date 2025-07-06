@@ -15,15 +15,9 @@ import {
   FriendshipAcceptanceEventParams,
   FriendSummaryEventParams,
 } from '../models/analytics-events.js';
+import { Friend, FriendsResponse, NudgeResponse } from '../models/api-responses.js';
 import { NotificationTypes } from '../models/constants.js';
-import {
-  Friend,
-  FriendsResponse,
-  NudgeResponse,
-  ProfileData,
-  SummaryContext,
-  SummaryResult,
-} from '../models/data-models.js';
+import { ProfileData, SummaryContext, SummaryResult } from '../models/data-models.js';
 import { ProfileDoc, SimpleProfile, uf, UpdateDoc, UserProfile } from '../models/firestore/index.js';
 import { trackApiEvents } from '../utils/analytics-utils.js';
 import { commitBatch, commitFinal } from '../utils/batch-utils.js';

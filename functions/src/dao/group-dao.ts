@@ -1,6 +1,6 @@
 import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
+import { BaseGroup } from '../models/api-responses.js';
 import { Collections, QueryOperators } from '../models/constants.js';
-import { BaseGroup } from '../models/data-models.js';
 import { GroupDoc, SimpleProfile, gf, groupConverter } from '../models/firestore/index.js';
 import { BaseDAO } from './base-dao.js';
 

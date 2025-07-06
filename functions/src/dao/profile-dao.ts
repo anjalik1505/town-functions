@@ -187,6 +187,48 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
   }
 
   /**
+   * Adds a group ID to multiple user profiles
+   * @param userIds Array of user IDs to update
+   * @param groupId The group ID to add
+   * @param batch Optional batch to add operations to
+   */
+  async addGroupIds(userIds: string[], groupId: string, batch?: FirebaseFirestore.WriteBatch): Promise<void> {
+    const shouldCommitBatch = !batch;
+    const workingBatch = batch || this.db.batch();
+
+    for (const userId of userIds) {
+      const docRef = this.getRef(userId);
+      workingBatch.update(docRef, {
+        group_ids: FieldValue.arrayUnion(groupId),
+        updated_at: Timestamp.now(),
+      });
+    }
+
+    if (shouldCommitBatch) {
+      await workingBatch.commit();
+    }
+  }
+
+  /**
+   * Streams all profiles in the collection
+   * @returns AsyncIterable of profile document snapshots with data
+   */
+  async *streamAll(): AsyncIterable<{ id: string; data: ProfileDoc }> {
+    const query = this.db.collection(this.collection).withConverter(this.converter);
+    const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<ProfileDoc>>;
+
+    for await (const docSnapshot of stream) {
+      const data = docSnapshot.data();
+      if (data) {
+        yield {
+          id: docSnapshot.id,
+          data: data,
+        };
+      }
+    }
+  }
+
+  /**
    * Extracts analytics data from a profile for tracking purposes
    */
   extractAnalyticsData(profile: ProfileDoc): Record<string, string | number | boolean> {

@@ -3,10 +3,9 @@ import { Timestamp } from 'firebase-admin/firestore';
 export interface FeedDoc {
   update_id: string;
   created_at: Timestamp;
-  direct_visible: boolean;
+  created_by: string;
   friend_id: string;
   group_ids: string[];
-  created_by: string;
 }
 
 export const feedConverter: FirebaseFirestore.FirestoreDataConverter<FeedDoc> = {

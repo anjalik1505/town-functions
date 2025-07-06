@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
+import { NotificationResponse } from '../models/api-responses.js';
 import { Collections } from '../models/constants.js';
-import { NotificationResponse, TestNotificationPayload } from '../models/data-models.js';
 import { DeviceDoc } from '../models/firestore/index.js';
 import { NotFoundError } from '../utils/errors.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { TestNotificationPayload } from '../models/api-payloads.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const logger = getLogger(path.basename(__filename));

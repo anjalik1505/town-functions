@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { FeedbackDAO } from '../dao/feedback-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
-import { Feedback } from '../models/data-models.js';
+import { Feedback } from '../models/api-responses.js';
 import { FeedbackDoc } from '../models/firestore/index.js';
 import { getLogger } from '../utils/logging-utils.js';
 import { formatTimestamp } from '../utils/timestamp-utils.js';

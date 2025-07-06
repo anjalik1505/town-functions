@@ -51,7 +51,6 @@ export class FeedDAO extends BaseDAO<FeedDoc> {
       const feedData: FeedDoc = {
         update_id: item.updateId,
         created_at: item.createdAt,
-        direct_visible: item.directVisible,
         friend_id: item.friendId || '',
         group_ids: item.groupIds,
         created_by: item.createdBy,

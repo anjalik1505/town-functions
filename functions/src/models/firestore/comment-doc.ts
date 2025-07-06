@@ -7,7 +7,6 @@ export interface CommentDoc {
   content: string;
   created_at: Timestamp;
   updated_at: Timestamp;
-  parent_id: string | null;
   commenter_profile: SimpleProfile;
 }
 

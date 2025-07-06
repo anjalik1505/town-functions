@@ -21,7 +21,7 @@ import {
   TranscribeAudioPayload,
   UpdateCommentPayload,
   UpdateProfilePayload,
-} from './models/data-models.js';
+} from './models/api-payloads.js';
 import {
   analyzeSentimentSchema,
   createCommentSchema,

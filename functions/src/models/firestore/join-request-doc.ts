@@ -9,7 +9,6 @@ export const JoinRequestStatus = {
 export type JoinRequestStatusType = (typeof JoinRequestStatus)[keyof typeof JoinRequestStatus];
 
 export interface JoinRequestDoc {
-  request_id: string;
   invitation_id: string;
   requester_id: string;
   receiver_id: string;
