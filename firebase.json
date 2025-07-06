@@ -4,6 +4,7 @@
       "source": "functions",
       "runtime": "nodejs22",
       "codebase": "default",
+      "region": "europe-west1",
       "ignore": [
         "node_modules",
         ".git",
@@ -25,7 +26,10 @@
     "rewrites": [
       {
         "source": "/test/prompt",
-        "function": "app"
+        "function": {
+          "functionId": "app",
+          "region": "europe-west1"
+        }
       },
       {
         "source": "**",
