@@ -98,6 +98,7 @@ export interface ProfileDoc {
   phone_number: string;
   friends_to_cleanup: string[];
   friend_count: number;
+  update_count: number;
 }
 
 export const profileConverter: FirebaseFirestore.FirestoreDataConverter<ProfileDoc> = {

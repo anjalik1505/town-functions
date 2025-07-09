@@ -331,3 +331,8 @@ export const phoneLookupSchema = z.object({
     .min(1, 'At least one phone number is required')
     .max(500, 'Maximum 500 phone numbers allowed'),
 });
+
+// Phone join schema
+export const phoneJoinSchema = z.object({
+  phone_number: phoneSchema,
+});

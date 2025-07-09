@@ -186,6 +186,9 @@ export class UpdateService {
     // Create feed fanout within the same batch
     await this.createFeedFanout(updateId, userId, createdAt, friendIds, groupIds, true, batch);
 
+    // Increment update count for the creator
+    this.profileDAO.incrementUpdateCount(userId, batch);
+
     // Commit the batch
     await batch.commit();
 

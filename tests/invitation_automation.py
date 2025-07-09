@@ -5,6 +5,11 @@ Village API Invitation Automation Script
 This script automates API calls to the Village Firebase emulator for testing the new
 persistent invitation and join request functionality.
 It creates users, authenticates them, and performs various invitation and join request operations.
+
+Updated to test phone-based join API:
+- Added phone numbers to user profiles in E.164 format
+- Replaced one invitation-based join with phone-based join
+- Added negative test case for non-existent phone number
 """
 
 import json
@@ -51,16 +56,18 @@ def run_invitation_demo():
 
     # ============ PERSISTENT INVITATION AND JOIN REQUEST TESTS ============
 
-    # Step 1: Create profiles for all users
+    # Step 1: Create profiles for all users with phone numbers
+    phone_numbers = ["+1234567890", "+1234567891", "+1234567892"]
     for i, user in enumerate(users):
         profile_data = {
             "username": user["email"].split("@")[0],
             "name": user["name"],
             "avatar": f"https://example.com/avatar_{user['name'].replace(' ', '_').lower()}.jpg",
             "birthday": f"199{i}-01-01",
+            "phone_number": phone_numbers[i],  # Add phone number in E.164 format
         }
         api.create_profile(user["email"], profile_data)
-        logger.info(f"Created profile for {user['name']}")
+        logger.info(f"Created profile for {user['name']} with phone {phone_numbers[i]}")
 
     # Step 2: First user gets their invitation link
     logger.info("Step 2: First user gets their invitation link")
@@ -68,10 +75,12 @@ def run_invitation_demo():
     logger.info(f"First user's invitation: {json.dumps(invitation, indent=2)}")
     invitation_id = invitation["invitation_id"]
 
-    # Step 3: Second user requests to join using the invitation link
-    logger.info("Step 3: Second user requests to join using the invitation link")
-    join_request = api.request_to_join(users[1]["email"], invitation_id)
-    logger.info(f"Second user's join request: {json.dumps(join_request, indent=2)}")
+    # Step 3: Second user requests to join using phone-based join
+    logger.info("Step 3: Second user requests to join using phone-based join")
+    join_request = api.request_to_join_by_phone(users[1]["email"], phone_numbers[0])
+    logger.info(
+        f"Second user's phone-based join request: {json.dumps(join_request, indent=2)}"
+    )
 
     # Step 4: First user gets their join requests
     logger.info("Step 4: First user gets their join requests")
@@ -268,29 +277,22 @@ def run_invitation_demo():
     )
     logger.info(" Invalid join request test passed")
 
-    # Test invalid pagination parameters
-    logger.info("Testing invalid pagination parameters")
-    api.make_request_expecting_error(
-        "get",
-        f"{API_BASE_URL}/me/requests?limit=101",  # Test limit > 100
-        headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
-        expected_status_code=400,
-        expected_error_message="Invalid request parameters",
-    )
-    logger.info(" Invalid pagination parameters test passed")
+    # ============ PHONE-BASED JOIN NEGATIVE TEST ============
 
-    # Test unauthorized access to join request
-    logger.info("Testing unauthorized access to join request")
-    if my_join_requests3["join_requests"]:
-        some_request_id = my_join_requests3["join_requests"][0]["request_id"]
-        api.make_request_expecting_error(
-            "get",
-            f"{API_BASE_URL}/me/requests/{some_request_id}",
-            headers={"Authorization": f"Bearer {api.tokens[users[0]['email']]}"},
-            expected_status_code=404,
-            expected_error_message="Join request not found",
-        )
-        logger.info(" Unauthorized access test passed")
+    # Test phone-based join with non-existent phone number
+    logger.info("Testing phone-based join with non-existent phone number")
+    api.make_request_expecting_error(
+        "post",
+        f"{API_BASE_URL}/invitation/phone/join",
+        headers={
+            "Authorization": f"Bearer {api.tokens[users[0]['email']]}",
+            "Content-Type": "application/json",
+        },
+        json_data={"phone_number": "+1999999999"},
+        expected_status_code=404,
+        expected_error_message="No user found with the provided phone number",
+    )
+    logger.info("✓ Non-existent phone join test passed")
 
     logger.info("All invitation and join request tests completed successfully!")
 

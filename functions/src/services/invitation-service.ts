@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { FriendshipDAO } from '../dao/friendship-dao.js';
 import { InvitationDAO } from '../dao/invitation-dao.js';
 import { JoinRequestDAO } from '../dao/join-request-dao.js';
+import { PhoneDAO } from '../dao/phone-dao.js';
 import { ProfileDAO } from '../dao/profile-dao.js';
 import { ApiResponse, EventName, InvitationNotificationEventParams } from '../models/analytics-events.js';
 import { Friend, Invitation, JoinRequest, JoinRequestResponse } from '../models/api-responses.js';
@@ -18,11 +19,12 @@ const logger = getLogger(path.basename(__filename));
 
 /**
  * Service layer for Invitation-related operations
- * Coordinates between InvitationDAO, JoinRequestDAO, ProfileDAO, and FriendshipDAO
+ * Coordinates between InvitationDAO, JoinRequestDAO, PhoneDAO, ProfileDAO, and FriendshipDAO
  */
 export class InvitationService {
   private invitationDAO: InvitationDAO;
   private joinRequestDAO: JoinRequestDAO;
+  private phoneDAO: PhoneDAO;
   private profileDAO: ProfileDAO;
   private friendshipDAO: FriendshipDAO;
   private db: FirebaseFirestore.Firestore;
@@ -30,6 +32,7 @@ export class InvitationService {
   constructor() {
     this.invitationDAO = new InvitationDAO();
     this.joinRequestDAO = new JoinRequestDAO();
+    this.phoneDAO = new PhoneDAO();
     this.profileDAO = new ProfileDAO();
     this.friendshipDAO = new FriendshipDAO();
     this.db = getFirestore();
@@ -155,6 +158,49 @@ export class InvitationService {
 
     const receiverId = invitation.sender_id;
 
+    // Use the common join request creation logic
+    return await this.createJoinRequestInternal(userId, receiverId, invitationId);
+  }
+
+  /**
+   * Requests to join via a phone number
+   */
+  async requestToJoinByPhone(userId: string, phoneNumber: string): Promise<ApiResponse<JoinRequest>> {
+    logger.info(`User ${userId} requesting to join via phone number ${phoneNumber}`);
+
+    // Get user data for the phone number
+    const phoneData = await this.phoneDAO.get(phoneNumber);
+    if (!phoneData) {
+      throw new NotFoundError('Phone number not found');
+    }
+
+    const receiverId = phoneData.user_id;
+
+    // Validate not self-invitation
+    if (userId === receiverId) {
+      throw new BadRequestError('You cannot send a join request to yourself');
+    }
+
+    // Get or create invitation for the phone number owner
+    const invitation = await this.invitationDAO.createOrGet(receiverId, {
+      username: phoneData.username,
+      name: phoneData.name,
+      avatar: phoneData.avatar,
+    });
+
+    // Use the common join request creation logic
+    return await this.createJoinRequestInternal(userId, receiverId, invitation.id);
+  }
+
+  /**
+   * Common logic for creating join requests with validation
+   * @private
+   */
+  private async createJoinRequestInternal(
+    userId: string,
+    receiverId: string,
+    invitationId: string,
+  ): Promise<ApiResponse<JoinRequest>> {
     // Validate not self-invitation
     if (userId === receiverId) {
       throw new BadRequestError('You cannot send a join request to yourself');

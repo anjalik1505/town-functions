@@ -23,7 +23,7 @@ setGlobalOptions({
   memory: '256MiB',
   timeoutSeconds: 60,
   maxInstances: 20,
-  minInstances: 0
+  minInstances: 0,
 });
 
 // Define secrets

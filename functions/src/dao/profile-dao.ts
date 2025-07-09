@@ -187,6 +187,19 @@ export class ProfileDAO extends BaseDAO<ProfileDoc, InsightsDoc> {
   }
 
   /**
+   * Increments the update count for a profile by 1
+   * @param userId The user ID of the profile to update
+   * @param batch The batch to add the update operation to
+   */
+  incrementUpdateCount(userId: string, batch: FirebaseFirestore.WriteBatch): void {
+    const docRef = this.getRef(userId);
+    batch.update(docRef, {
+      update_count: FieldValue.increment(1),
+      updated_at: Timestamp.now(),
+    });
+  }
+
+  /**
    * Adds a group ID to multiple user profiles
    * @param userIds Array of user IDs to update
    * @param groupId The group ID to add

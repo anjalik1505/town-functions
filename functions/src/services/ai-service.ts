@@ -239,6 +239,7 @@ export class AiService {
         gender: profileData.gender,
         location: profileData.location,
         age: calculateAge(profileData.birthday || ''),
+        tone: profileData.tone,
       });
 
       logger.info(`Successfully generated question for user ${userId}`);

@@ -106,6 +106,7 @@ export class ProfileService {
       timezone: '',
       friends_to_cleanup: [],
       friend_count: 0,
+      update_count: 0,
     };
 
     // Create profile with insights in transaction and get the created profile

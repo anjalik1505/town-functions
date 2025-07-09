@@ -13,6 +13,7 @@ import {
   locationSchema,
   ownProfileSchema,
   paginationSchema,
+  phoneJoinSchema,
   phoneLookupSchema,
   reactionSchema,
   shareUpdateSchema,
@@ -47,3 +48,4 @@ export type TimezonePayload = z.infer<typeof timezoneSchema>;
 export type LocationPayload = z.infer<typeof locationSchema>;
 export type ShareUpdatePayload = z.infer<typeof shareUpdateSchema>;
 export type PhoneLookupPayload = z.infer<typeof phoneLookupSchema>;
+export type PhoneJoinPayload = z.infer<typeof phoneJoinSchema>;
