@@ -1600,6 +1600,66 @@ _Note: type is required and should match the reaction type you want to remove._
 - 409: Your previous join request was rejected. You cannot request to join again.
 - 500: Internal server error
 
+#### POST /invitation/phone/join
+
+**Purpose**: Create a join request for an invitation using the invitation owner's phone number. The user must not have reached the combined limit of friends and active invitations (5).
+
+**Analytics Events**:
+
+- JOIN_REQUESTED: When a user requests to join via a phone number invitation
+
+  **Event Body:**
+
+  ```json
+  {
+    "friend_count": 0
+  }
+  ```
+
+**Input**:
+
+```json
+{
+  "phone_number": "+1234567890"
+}
+```
+
+_Note: phone_number must be in E.164 format and must belong to a registered user with an active invitation._
+
+**Output**:
+
+```json
+{
+  "request_id": "req123",
+  "invitation_id": "abc123",
+  "requester_id": "user456",
+  "receiver_id": "user123",
+  "status": "pending",
+  "created_at": "2025-01-01T00:00:00.000+00:00",
+  "updated_at": "2025-01-01T00:00:00.000+00:00",
+  "requester_name": "Jane Doe",
+  "requester_username": "janedoe",
+  "requester_avatar": "https://example.com/avatar2.jpg",
+  "receiver_name": "John Doe",
+  "receiver_username": "johndoe",
+  "receiver_avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Errors**:
+
+- 400: Invalid request parameters
+- 400: You cannot join your own invitation
+- 400: User has reached the maximum number of friends and active invitations (5)
+- 400: Sender has reached the maximum number of friends and active invitations (5)
+- 404: No user found with the provided phone number
+- 404: No active invitation found for the user with this phone number
+- 404: User profile not found
+- 404: Sender profile not found
+- 409: You are already friends with this user
+- 409: Your previous join request was rejected. You cannot request to join again.
+- 500: Internal server error
+
 #### POST /invitation/:request_id/accept
 
 **Purpose**: Accept a join request and create a friendship between the users.

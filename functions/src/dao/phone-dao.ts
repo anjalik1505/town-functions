@@ -18,6 +18,21 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
   }
 
   /**
+   * Gets a phone document by phone number
+   * @returns The phone document or null if not found
+   */
+  async get(phone: string): Promise<PhoneDoc | null> {
+    const phoneRef = this.getRef(phone);
+    const phoneDoc = await phoneRef.get();
+
+    if (!phoneDoc.exists) {
+      return null;
+    }
+
+    return phoneDoc.data() as PhoneDoc;
+  }
+
+  /**
    * Creates a phone-to-user mapping
    * @returns The created phone document
    */

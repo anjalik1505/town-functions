@@ -219,6 +219,7 @@ export const generateFriendProfileFlow = async (params: {
   userLocation: string;
   userAge: string;
   imageAnalysis?: string;
+  totalUpdatesShared: number;
 }) => {
   const originalParams = { ...params };
 
@@ -241,6 +242,7 @@ export const generateFriendProfileFlow = async (params: {
   const promptParams = {
     ...aiParams,
     imageAnalysis: params.imageAnalysis || '',
+    totalUpdatesShared: params.totalUpdatesShared.toString(),
   };
 
   const aiResult = await executeAIFlow<{
@@ -277,6 +279,7 @@ export const generateQuestionFlow = async (params: {
   gender: string;
   location: string;
   age: string;
+  tone: string;
 }) => {
   const aiParams = { ...params };
   if (aiParams.existingSummary === Placeholders.SUMMARY) {

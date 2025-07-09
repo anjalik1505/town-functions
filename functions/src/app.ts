@@ -15,6 +15,7 @@ import {
   DevicePayload,
   LocationPayload,
   PaginationPayload,
+  PhoneJoinPayload,
   PhoneLookupPayload,
   ShareUpdatePayload,
   TimezonePayload,
@@ -31,6 +32,7 @@ import {
   deviceSchema,
   locationSchema,
   paginationSchema,
+  phoneJoinSchema,
   phoneLookupSchema,
   reactionSchema,
   shareUpdateSchema,
@@ -265,6 +267,12 @@ app.get('/invitation', async (req, res) => {
 
 app.post('/invitation/reset', async (req, res) => {
   const result = await invitationService.resetInvitation(req.userId);
+  sendResponse(res, result);
+});
+
+app.post('/invitation/phone/join', validateRequest(phoneJoinSchema), async (req, res) => {
+  const { phone_number } = req.validated_params as PhoneJoinPayload;
+  const result = await invitationService.requestToJoinByPhone(req.userId, phone_number);
   sendResponse(res, result);
 });
 

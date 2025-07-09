@@ -211,8 +211,8 @@ export class FriendshipService {
     logger.info(`Processing friend summaries for update from ${creatorId} to ${friendIds.length} friends`);
 
     // Get creator profile
-    const SimpleProfile = await this.profileDAO.get(creatorId);
-    if (!SimpleProfile) {
+    const creatorProfile = await this.profileDAO.get(creatorId);
+    if (!creatorProfile) {
       logger.warn(`Creator profile not found: ${creatorId}`);
       return [];
     }
@@ -233,10 +233,15 @@ export class FriendshipService {
         }
 
         // Get summary context
-        const summaryContext = await this.getSummaryContext(creatorId, friendId, SimpleProfile, friendProfile);
+        const summaryContext = await this.getSummaryContext(creatorId, friendId, creatorProfile, friendProfile);
 
         // Generate friend summary
-        const summaryResult = await this.generateFriendSummary(summaryContext, updateData, imageAnalysis);
+        const summaryResult = await this.generateFriendSummary(
+          summaryContext,
+          updateData,
+          imageAnalysis,
+          creatorProfile,
+        );
 
         // Write the summary to database using batch
         await this.userSummaryDAO.createOrUpdateSummary(
@@ -441,7 +446,7 @@ export class FriendshipService {
       const imageAnalysis = updateData.image_analysis || '';
 
       // Generate the summary
-      const summaryResult = await this.generateFriendSummary(summaryContext, updateData, imageAnalysis);
+      const summaryResult = await this.generateFriendSummary(summaryContext, updateData, imageAnalysis, sourceProfile);
 
       summaryContext.existingSummary = summaryResult.summary;
       summaryContext.existingSuggestions = summaryResult.suggestions;
@@ -541,6 +546,7 @@ export class FriendshipService {
     context: SummaryContext,
     updateData: UpdateDoc,
     imageAnalysis: string,
+    creatorProfileData: ProfileDoc,
   ): Promise<SummaryResult> {
     // Extract update content and sentiment
     const updateContent = updateData.content || '';
@@ -562,6 +568,7 @@ export class FriendshipService {
       userLocation: context.creatorProfile.location,
       userAge: context.creatorProfile.age,
       imageAnalysis: imageAnalysis,
+      totalUpdatesShared: creatorProfileData.update_count || 0,
     });
 
     // Return the result with analytics data

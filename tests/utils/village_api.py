@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 FIREBASE_AUTH_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key"
-API_BASE_URL = "http://localhost:5001/village-staging-9178d/us-central1/api"
+API_BASE_URL = "http://localhost:5001/village-staging-9178d/europe-west1/api"
 FIREBASE_CREATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key"
 FIREBASE_UPDATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=fake-api-key"
 STORAGE_EMULATOR_URL = "http://localhost:9199"
@@ -479,6 +479,29 @@ class VillageAPI:
         )
         return response.json()
 
+    def request_to_join_by_phone(self, email: str, phone_number: str) -> Dict[str, Any]:
+        """Create a join request for a user found via phone lookup"""
+        logger.info(f"User {email} requesting to join user with phone: {phone_number}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"phone_number": phone_number}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/phone/join", headers=headers, json=payload
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create phone-based join request: {response.text}")
+            response.raise_for_status()
+
+        logger.info(
+            f"Successfully created phone-based join request for phone: {phone_number}"
+        )
+        return response.json()
+
     def accept_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
         """Accept a join request"""
         logger.info(f"User {email} accepting join request with ID: {request_id}")
@@ -771,7 +794,9 @@ class VillageAPI:
         logger.info(f"Successfully added reaction to update {update_id}")
         return data
 
-    def remove_reaction(self, email: str, update_id: str, reaction_type: str) -> Dict[str, Any]:
+    def remove_reaction(
+        self, email: str, update_id: str, reaction_type: str
+    ) -> Dict[str, Any]:
         """Remove a reaction from an update"""
         logger.info(f"Removing reaction from update {update_id}")
 
