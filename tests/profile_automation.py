@@ -41,11 +41,13 @@ def run_profile_tests():
             "email": "profile_test1@example.com",
             "password": "password123",
             "name": "Profile Test One",
+            "phone_number": "0987654321",
         },
         {
             "email": "profile_test2@example.com",
             "password": "password123",
             "name": "Profile Test Two",
+            "phone_number": "0987654321"
         },
     ]
 
@@ -63,6 +65,7 @@ def run_profile_tests():
         "avatar": f"https://example.com/avatar_{users[0]['name'].replace(' ', '_').lower()}.jpg",
         "location": "New York",  # making sure it is ignored
         "birthday": "1990-01-01",
+        "phone_number": users[0]["phone_number"],
         "notification_settings": ["all"],
         "gender": "male",
         "goal": "stay_connected",
@@ -111,6 +114,7 @@ def run_profile_tests():
         "notification_settings": ["urgent"],
         "gender": "female",
         "birthday": "1995-12-25",  # Valid date in yyyy-mm-dd format
+        "phone_number": users[0]["phone_number"],
         "goal": "improve_relationships",
         "connect_to": "family",
         "personality": "share_big",
