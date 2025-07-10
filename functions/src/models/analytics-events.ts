@@ -90,6 +90,7 @@ export interface ProfileEventParams extends BaseEventParams {
   has_avatar: boolean;
   has_location: boolean;
   has_birthday: boolean;
+  has_phone_number: boolean;
   has_notification_settings: boolean;
   nudging_occurrence: string;
   has_gender: boolean;
@@ -259,6 +260,7 @@ export interface SummaryEventParams extends BaseEventParams {
   has_avatar: boolean;
   has_location: boolean;
   has_birthday: boolean;
+  has_phone_number: boolean;
   has_gender: boolean;
   nudging_occurrence: string;
   goal: string;
