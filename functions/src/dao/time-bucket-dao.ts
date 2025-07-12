@@ -192,13 +192,8 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
    * Updates the last_update_at timestamp for a user across all their time buckets
    * @param userId The user whose last update time to update
    * @param updateTime The timestamp of the update
-   * @param batch Optional batch to add operations to (won't be committed if provided)
    */
-  async updateUserLastUpdateTime(
-    userId: string,
-    updateTime: Timestamp,
-    batch?: FirebaseFirestore.WriteBatch,
-  ): Promise<void> {
+  async updateUserLastUpdateTime(userId: string, updateTime: Timestamp): Promise<void> {
     // Find all time buckets containing this user
     const existingBucketsQuery = await this.db
       .collectionGroup(this.subcollection!)
@@ -206,12 +201,12 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
       .where(tbuf('user_id'), QueryOperators.EQUALS, userId)
       .get();
 
-    if (existingBucketsQuery.docs.length === 0) {
+    if (existingBucketsQuery.empty) {
       logger.info(`No time buckets found for user ${userId}`);
       return;
     }
 
-    const batchToUse = batch || this.db.batch();
+    const batchToUse = this.db.batch();
 
     // Update last_update_at for each bucket the user is in
     existingBucketsQuery.docs.forEach((doc) => {
@@ -221,9 +216,6 @@ export class TimeBucketDAO extends BaseDAO<TimeBucketDoc, TimeBucketUserDoc> {
       logger.info(`Updating last_update_at for user ${userId} in bucket ${doc.ref.parent.parent?.id}`);
     });
 
-    // Only commit if we created our own batch
-    if (!batch && existingBucketsQuery.docs.length > 0) {
-      await batchToUse.commit();
-    }
+    await batchToUse.commit();
   }
 }
