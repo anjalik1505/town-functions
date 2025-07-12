@@ -55,6 +55,9 @@ def run_phone_lookup_tests():
     logger.info("Lookup result after create: %s", json.dumps(lookup, indent=2))
     assert len(lookup["matches"]) == 1, "Phone should be found"
     match = lookup["matches"][0]
+    # Verify phone_number attribute exists and is correct
+    assert "phone_number" in match, "phone_number attribute missing"
+    assert match["phone_number"] == phone1, "Incorrect phone_number returned"
     assert match["username"] == profile_data["username"]
     assert match["name"] == profile_data["name"]
     assert match["avatar"] == profile_data["avatar"]
@@ -79,6 +82,7 @@ def run_phone_lookup_tests():
     assert match2["username"] == updated_info["username"]
     assert match2["name"] == updated_info["name"]
     assert match2["avatar"] == updated_info["avatar"]
+    assert match2["phone_number"] == phone1, "phone_number should remain unchanged after profile update"
 
     # Change phone number to phone2
     api.update_profile(user["email"], {"phone_number": phone2})
@@ -90,6 +94,7 @@ def run_phone_lookup_tests():
     # Lookup new phone – expect match
     lookup_new = api.lookup_phones(user["email"], [phone2])
     assert len(lookup_new["matches"]) == 1, "New phone should return match"
+    assert lookup_new["matches"][0]["phone_number"] == phone2, "Returned phone_number should match new phone"
 
     logger.info("Phone lookup tests passed")
 

@@ -2,7 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PhoneDAO } from '../dao/phone-dao.js';
 import { ApiResponse, EventName } from '../models/analytics-events.js';
-import { BaseUser, PhoneLookupResponse } from '../models/api-responses.js';
+import { PhoneLookupResponse, PhoneUser } from '../models/api-responses.js';
 import { getLogger } from '../utils/logging-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,24 +44,25 @@ export class ContactService {
 
     const matches = await this.phoneDAO.getAll(phones);
 
-    const baseUsers: BaseUser[] = matches.map((match) => ({
+    const users: PhoneUser[] = matches.map((match) => ({
       user_id: match.user_id,
       username: match.username,
       name: match.name,
       avatar: match.avatar,
+      phone_number: match.id,
     }));
 
-    logger.info(`Phone lookup completed`, { requested: phones.length, found: baseUsers.length });
+    logger.info(`Phone lookup completed`, { requested: phones.length, found: users.length });
 
     return {
-      data: { matches: baseUsers } as PhoneLookupResponse,
+      data: { matches: users } as PhoneLookupResponse,
       status: 200,
       analytics: {
         event: EventName.PHONES_LOOKED_UP,
         userId: userId,
         params: {
           requested_count: phones.length,
-          match_count: baseUsers.length,
+          match_count: users.length,
         },
       },
     };

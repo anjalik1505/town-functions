@@ -55,13 +55,14 @@ export class PhoneDAO extends BaseDAO<PhoneDoc> {
   /**
    * Looks up multiple phone numbers in batch
    */
-  async getAll(phones: string[]): Promise<PhoneDoc[]> {
+  async getAll(phones: string[]): Promise<(PhoneDoc & { id: string })[]> {
     if (phones.length === 0) return [];
 
     const docRefs = phones.map((phone) => this.getRef(phone));
     const docs = await this.db.getAll(...docRefs);
 
-    return docs.filter((doc) => doc.exists).map((doc) => doc.data()! as PhoneDoc);
+    // Return phone documents along with their document IDs (phone numbers)
+    return docs.filter((doc) => doc.exists).map((doc) => ({ id: doc.id, ...(doc.data() as PhoneDoc) }));
   }
 
   /**

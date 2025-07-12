@@ -214,6 +214,10 @@ export interface TranscriptionResponse {
   emoji: string;
 }
 
+export interface PhoneUser extends BaseUser {
+  phone_number: string;
+}
+
 export interface PhoneLookupResponse {
-  matches: BaseUser[];
+  matches: PhoneUser[];
 }
