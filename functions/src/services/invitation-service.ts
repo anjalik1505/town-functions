@@ -608,9 +608,8 @@ export class InvitationService {
     analyticsResults: Array<InvitationNotificationEventParams & { userId: string }>;
   }> {
     const MIN_PROFILE_AGE_DAYS = 1;
-    const NOTIFICATION_TITLE = 'Your Village wants to hear from you!';
-    const NOTIFICATION_BODY =
-      'Invite your friends to your Village so they can get your private daily updates and stay connected effortlessly!';
+    const NOTIFICATION_TITLE = 'Let them hear from you!';
+    const NOTIFICATION_BODY = 'Share private updates with the people who matter most.';
 
     logger.info('Starting no-friends notification preparation for all users');
 
