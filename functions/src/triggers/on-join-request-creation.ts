@@ -69,7 +69,7 @@ export const onJoinRequestCreated = async (
     // Prepare notification data directly from the join request data
     const requesterName = requestData.requester_name || requestData.requester_username || 'Friend';
     const notificationTitle = 'New Request';
-    const notificationMessage = `${requesterName} wants to join your village!`;
+          const notificationMessage = `${requesterName} wants to join your town!`;
 
     try {
       const notificationResult = await notificationService.sendNotification(

@@ -15,7 +15,7 @@ output:
 ### CONTEXT:
 - <CONTENT>: {{content}}
 
-Context: You are a sentiment analyzer on the private social networking app "Village.". Your task is to analyze the sentiment of user-generated personal updates and provide two outputs: a) Sentiment Score, b) Sentiment Emoji
+Context: You are a sentiment analyzer on the private social networking app "Town.". Your task is to analyze the sentiment of user-generated personal updates and provide two outputs: a) Sentiment Score, b) Sentiment Emoji
 
 ALWAYS use Prompt 0 
 

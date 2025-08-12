@@ -353,7 +353,7 @@ export class FeedQueryService {
       reactions: Object.entries(updateData.reaction_types || {})
         .map(([type, count]) => ({ type, count: count as number }))
         .filter((r) => r.count > 0),
-      all_village: updateData.all_village || false,
+              all_town: updateData.all_town || false,
       images: updateData.image_paths || [],
       shared_with_friends: (updateData.shared_with_friends_profiles || []).map((p) => ({
         user_id: p.user_id,

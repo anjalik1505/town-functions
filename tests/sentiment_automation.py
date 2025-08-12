@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Sentiment Analysis Automation Script
+Town API Sentiment Analysis Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing the sentiment analysis functionality.
+This script automates API calls to the Town Firebase emulator for testing the sentiment analysis functionality.
 It creates a user, authenticates them, and tests the sentiment analysis endpoint:
 - Create a user
 - Analyze sentiment for a text
@@ -12,7 +12,7 @@ It creates a user, authenticates them, and tests the sentiment analysis endpoint
 import json
 import logging
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 def run_sentiment_tests():
-    """Run tests for the Village API sentiment analysis functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API sentiment analysis functionality"""
+    api = TownAPI()
 
     # Create a test user
     user = {

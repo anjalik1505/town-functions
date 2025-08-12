@@ -106,7 +106,7 @@ export interface UpdateEventParams extends BaseEventParams {
   score: number;
   friend_count: number;
   group_count: number;
-  all_village: boolean;
+  all_town: boolean;
   image_count: number;
 }
 

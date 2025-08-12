@@ -329,7 +329,7 @@ export class FriendshipService {
   }
 
   /**
-   * Syncs all_village updates from one user to another's feed
+   * Syncs all_town updates from one user to another's feed
    * and generates friend summaries
    */
   private async syncFriendshipUpdates(
@@ -345,7 +345,7 @@ export class FriendshipService {
     let latestInfo: { emoji?: string; updatedAt?: Timestamp } | undefined;
 
     try {
-      // Stream all_village updates from source user
+      // Stream all_town updates from source user
       for await (const update of this.updateDAO.streamUpdates(sourceUserId)) {
         // Capture first (latest) update info
         if (!latestInfo) {
@@ -394,7 +394,7 @@ export class FriendshipService {
       }
 
       if (lastUpdates.length === 0) {
-        logger.info(`No all_village updates found for sender ${sourceUserId}`);
+        logger.info(`No all_town updates found for sender ${sourceUserId}`);
         return latestInfo;
       }
 

@@ -1,0 +1,972 @@
+#!/usr/bin/env python3
+"""
+Town API Utility Class
+
+This module provides a common interface for interacting with the Town API
+for testing purposes. It includes methods for user management, authentication,
+profile operations, friend connections, and various API endpoints.
+"""
+
+import json
+import logging
+import os
+from typing import Any, Dict, Optional
+
+import requests
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# Constants
+FIREBASE_AUTH_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key"
+API_BASE_URL = "http://localhost:5001/town-staging-9178d/europe-west1/api"
+FIREBASE_CREATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key"
+FIREBASE_UPDATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=fake-api-key"
+STORAGE_EMULATOR_URL = "http://localhost:9199"
+
+
+class TownAPI:
+    """Class to interact with the Town API"""
+
+    def __init__(self):
+        self.tokens = {}  # Store tokens for each user
+        self.user_ids = {}  # Store user IDs for each user
+        self.invitation_ids = {}  # Store invitation IDs for invitation tests
+        self.friendship_ids = {}  # Store friendship IDs for friend tests
+
+    # User Management Methods
+    def create_user(
+        self, email: str, password: str, display_name: str
+    ) -> Dict[str, Any]:
+        """Create a new user in Firebase Auth"""
+        logger.info(f"Creating user with email: {email}")
+
+        # Step 1: Create the user
+        payload = {
+            "email": email,
+            "password": password,
+            "displayName": display_name,
+            "returnSecureToken": True,
+        }
+
+        response = requests.post(FIREBASE_CREATE_USER_URL, json=payload)
+        response_data = response.json() if response.text else {}
+
+        # Check for EMAIL_EXISTS error
+        if (
+            response.status_code == 400
+            and response_data.get("error", {}).get("message") == "EMAIL_EXISTS"
+        ):
+            logger.warning(f"User {email} already exists, authenticating instead")
+            return self.authenticate_user(email, password)
+
+        # For other errors, raise the exception
+        if response.status_code != 200:
+            logger.error(f"Failed to create user: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.debug(f"User creation response: {json.dumps(data, indent=2)}")
+
+        # Store user ID if available
+        if "localId" in data:
+            user_id = data["localId"]
+            self.user_ids[email] = user_id
+
+        # Now authenticate to get a token for subsequent API calls
+        self.authenticate_user(email, password)
+
+        logger.info(f"User created with ID: {self.user_ids.get(email, 'unknown')}")
+        return data
+
+    def authenticate_user(self, email: str, password: str) -> Dict[str, Any]:
+        """Authenticate a user and get a JWT token"""
+        logger.info(f"Authenticating user: {email}")
+
+        payload = {"email": email, "password": password, "returnSecureToken": True}
+
+        response = requests.post(FIREBASE_AUTH_URL, json=payload)
+        if response.status_code != 200:
+            logger.error(f"Authentication failed: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        self.tokens[email] = data["idToken"]
+        self.user_ids[email] = data["localId"]
+
+        logger.info(f"User authenticated with ID: {self.user_ids[email]}")
+        return data
+
+    # Profile Methods
+    def create_profile(
+        self, email: str, profile_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create a user profile"""
+        logger.info(f"Creating profile for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.post(
+            f"{API_BASE_URL}/me/profile", headers=headers, json=profile_data
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create profile: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Profile created for user: {email}")
+        return response.json()
+
+    def get_profile(self, email: str) -> Dict[str, Any]:
+        """Get the user's profile"""
+        logger.info(f"Getting profile for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(f"{API_BASE_URL}/me/profile", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get profile: {response.text}")
+            response.raise_for_status()
+
+        return response.json()
+
+    def update_profile(
+        self, email: str, profile_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a user profile"""
+        logger.info(f"Updating profile for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.put(
+            f"{API_BASE_URL}/me/profile", headers=headers, json=profile_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update profile: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Profile updated for user: {email}")
+        return response.json()
+
+    def delete_profile(self, email: str) -> None:
+        """Delete a user's profile"""
+        logger.info(f"Deleting profile for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(f"{API_BASE_URL}/me/profile", headers=headers)
+        if response.status_code != 204:
+            logger.error(f"Failed to delete profile: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully deleted profile for user: {email}")
+
+    # Friend Methods
+    def get_friends(
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get user's friends"""
+        logger.info(f"Getting friends for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/me/friends?limit={limit}"
+        if after_cursor:
+            # Ensure timestamp is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get friends: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved friends for user: {email}")
+        return response.json()
+
+    def remove_friend(self, email: str, friend_user_id: str) -> None:
+        """Remove a friend"""
+        logger.info(f"User {email} removing friend with ID: {friend_user_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(
+            f"{API_BASE_URL}/me/friends/{friend_user_id}", headers=headers
+        )
+        if response.status_code != 204:
+            logger.error(f"Failed to remove friend: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully removed friend {friend_user_id} for user: {email}")
+
+    # Feed and Update Methods
+    def get_my_feed(
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get the user's feed (updates from friends and groups)"""
+        logger.info(f"Getting feeds for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/me/feed?limit={limit}"
+        if after_cursor:
+            # Ensure timestamp is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get feeds: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved feeds for user: {email}")
+        return response.json()
+
+    def get_my_updates(
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get updates created by the current user"""
+        logger.info(f"Getting updates for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/me/updates?limit={limit}"
+        if after_cursor:
+            # Ensure timestamp is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get updates: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved updates for user: {email}")
+        return response.json()
+
+    def create_update(self, email: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new update"""
+        logger.info(f"Creating update for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.post(
+            f"{API_BASE_URL}/updates", headers=headers, json=update_data
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create update: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully created update for user: {email}")
+        return response.json()
+
+    def share_update(
+        self,
+        email: str,
+        update_id: str,
+        friend_ids: Optional[list] = None,
+        group_ids: Optional[list] = None,
+    ) -> Dict[str, Any]:
+        """Share an existing update with additional friends or groups"""
+        logger.info(f"Sharing update {update_id} for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {}
+        if friend_ids:
+            payload["friend_ids"] = friend_ids
+        if group_ids:
+            payload["group_ids"] = group_ids
+
+        response = requests.put(
+            f"{API_BASE_URL}/updates/{update_id}/share", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to share update: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully shared update {update_id} for user: {email}")
+        return response.json()
+
+    def get_user_profile(self, email: str, target_user_id: str) -> Dict[str, Any]:
+        """Get another user's profile"""
+        logger.info(f"User {email} getting profile for user ID: {target_user_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(
+            f"{API_BASE_URL}/users/{target_user_id}/profile", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to get user profile: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved profile for user ID: {target_user_id}")
+        return response.json()
+
+    def get_user_updates(
+        self,
+        email: str,
+        target_user_id: str,
+        limit: int = 10,
+        after_cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get updates created by another user"""
+        logger.info(f"User {email} getting updates for user ID: {target_user_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/users/{target_user_id}/updates?limit={limit}"
+        if after_cursor:
+            # Ensure timestamp is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get user updates: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved updates for user ID: {target_user_id}")
+        return response.json()
+
+    # Device Methods
+    def update_device(self, email: str, device_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a user's device"""
+        logger.info(f"Updating device for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.put(
+            f"{API_BASE_URL}/device", headers=headers, json=device_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update device: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Device updated for user: {email}")
+        return response.json()
+
+    def update_timezone(
+        self, email: str, timezone_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a user's timezone"""
+        logger.info(f"Updating timezone for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.put(
+            f"{API_BASE_URL}/me/timezone", headers=headers, json=timezone_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update timezone: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Timezone updated for user: {email}")
+        return response.json()
+
+    def update_location(
+        self, email: str, location_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a user's location"""
+        logger.info(f"Updating location for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        response = requests.put(
+            f"{API_BASE_URL}/me/location", headers=headers, json=location_data
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update location: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Location updated for user: {email}")
+        return response.json()
+
+    def get_device(self, email: str) -> Dict[str, Any]:
+        """Get the user's device"""
+        logger.info(f"Getting device for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(f"{API_BASE_URL}/device", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get device: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved device for user: {email}")
+        return response.json()
+
+    # Invitation Methods
+    def get_invitation(self, email: str) -> Dict[str, Any]:
+        """Get the user's invitation link"""
+        logger.info(f"Getting invitation link for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(f"{API_BASE_URL}/invitation", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get invitation link: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        # Store the invitation ID for later use
+        if "invitation_id" in data:
+            self.invitation_ids[email] = data["invitation_id"]
+            logger.info(f"Retrieved invitation with ID: {self.invitation_ids[email]}")
+
+        return data
+
+    def reset_invitation(self, email: str) -> Dict[str, Any]:
+        """Reset the user's invitation link"""
+        logger.info(f"Resetting invitation link for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(f"{API_BASE_URL}/invitation/reset", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to reset invitation link: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        # Update the invitation ID for later use
+        if "invitation_id" in data:
+            self.invitation_ids[email] = data["invitation_id"]
+            logger.info(f"Reset invitation with new ID: {self.invitation_ids[email]}")
+
+        return data
+
+    def request_to_join(self, email: str, invitation_id: str) -> Dict[str, Any]:
+        """Create a join request for an invitation"""
+        logger.info(
+            f"User {email} requesting to join invitation with ID: {invitation_id}"
+        )
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/{invitation_id}/join", headers=headers
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create join request: {response.text}")
+            response.raise_for_status()
+
+        logger.info(
+            f"Successfully created join request for invitation: {invitation_id}"
+        )
+        return response.json()
+
+    def request_to_join_by_phone(self, email: str, phone_number: str) -> Dict[str, Any]:
+        """Create a join request for a user found via phone lookup"""
+        logger.info(f"User {email} requesting to join user with phone: {phone_number}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"phone_number": phone_number}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/phone/join", headers=headers, json=payload
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create phone-based join request: {response.text}")
+            response.raise_for_status()
+
+        logger.info(
+            f"Successfully created phone-based join request for phone: {phone_number}"
+        )
+        return response.json()
+
+    def accept_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
+        """Accept a join request"""
+        logger.info(f"User {email} accepting join request with ID: {request_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/{request_id}/accept", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to accept join request: {response.text}")
+            response.raise_for_status()
+
+        return response.json()
+
+    def reject_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
+        """Reject a join request"""
+        logger.info(f"User {email} rejecting join request with ID: {request_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/invitation/{request_id}/reject", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to reject join request: {response.text}")
+            response.raise_for_status()
+
+        return response.json()
+
+    def get_join_requests(
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get all join requests made by the current user"""
+        logger.info(f"Getting join requests for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/invitation/requests?limit={limit}"
+        if after_cursor:
+            # Ensure cursor is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get join requests: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved join requests for user: {email}")
+        return response.json()
+
+    def get_my_join_requests(
+        self, email: str, limit: int = 10, after_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get all join requests for the user's invitation"""
+        logger.info(f"Getting join requests for user's invitation: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/me/requests?limit={limit}"
+        if after_cursor:
+            # Ensure cursor is properly URL encoded
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get join requests for invitation: {response.text}")
+            response.raise_for_status()
+
+        logger.info(
+            f"Successfully retrieved join requests for user's invitation: {email}"
+        )
+        return response.json()
+
+    def get_join_request(self, email: str, request_id: str) -> Dict[str, Any]:
+        """Get a single join request by ID"""
+        logger.info(f"Getting join request {request_id} for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(
+            f"{API_BASE_URL}/me/requests/{request_id}", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to get join request: {response.text}")
+            response.raise_for_status()
+
+        logger.info(
+            f"Successfully retrieved join request {request_id} for user: {email}"
+        )
+        return response.json()
+
+    def get_question(self, email: str) -> Dict[str, Any]:
+        """Get a personalized question for the user"""
+        logger.info(f"Getting personalized question for user: {email}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.get(f"{API_BASE_URL}/me/question", headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get question: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved question for user: {email}")
+        return response.json()
+
+    def analyze_sentiment(self, email: str, content: str) -> Dict[str, Any]:
+        """Analyze the sentiment of a text"""
+        logger.info(f"Analyzing sentiment for text: {content[:50]}...")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+
+        response = requests.post(
+            f"{API_BASE_URL}/updates/sentiment", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to analyze sentiment: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully analyzed sentiment")
+        return response.json()
+
+    def transcribe_audio(self, email: str, audio_data: str) -> Dict[str, Any]:
+        """Transcribe audio data"""
+        logger.info(f"Transcribing audio...")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"audio_data": audio_data}
+
+        response = requests.post(
+            f"{API_BASE_URL}/updates/transcribe", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to transcribe audio: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully transcribed audio")
+        return response.json()
+
+    # Update Methods
+    def get_update(
+        self,
+        email: str,
+        update_id: str,
+        limit: int = 10,
+        after_cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get a single update with its comments"""
+        logger.info(f"Getting update {update_id} with comments")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/updates/{update_id}?limit={limit}"
+        if after_cursor:
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get update: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved update {update_id} with comments")
+        return response.json()
+
+    # Comment Methods
+    def get_comments(
+        self,
+        email: str,
+        update_id: str,
+        limit: int = 10,
+        after_cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get comments for an update"""
+        logger.info(f"Getting comments for update {update_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        url = f"{API_BASE_URL}/updates/{update_id}/comments?limit={limit}"
+        if after_cursor:
+            url += f"&after_cursor={after_cursor}"
+
+        logger.info(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Failed to get comments: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully retrieved comments for update {update_id}")
+        return response.json()
+
+    def create_comment(
+        self, email: str, update_id: str, content: str
+    ) -> Dict[str, Any]:
+        """Create a new comment on an update"""
+        logger.info(f"Creating comment on update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+        response = requests.post(
+            f"{API_BASE_URL}/updates/{update_id}/comments",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to create comment: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully created comment on update {update_id}")
+        return data
+
+    def update_comment(
+        self, email: str, update_id: str, comment_id: str, content: str
+    ) -> Dict[str, Any]:
+        """Update an existing comment"""
+        logger.info(f"Updating comment {comment_id} on update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+        response = requests.put(
+            f"{API_BASE_URL}/updates/{update_id}/comments/{comment_id}",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to update comment: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully updated comment {comment_id}")
+        return response.json()
+
+    def delete_comment(self, email: str, update_id: str, comment_id: str) -> None:
+        """Delete a comment"""
+        logger.info(f"Deleting comment {comment_id} from update {update_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.delete(
+            f"{API_BASE_URL}/updates/{update_id}/comments/{comment_id}", headers=headers
+        )
+        if response.status_code != 204:
+            logger.error(f"Failed to delete comment: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully deleted comment {comment_id}")
+
+    # Reaction Methods
+    def add_reaction(
+        self, email: str, update_id: str, reaction_type: str
+    ) -> Dict[str, Any]:
+        """Add a new reaction to an update"""
+        logger.info(f"Adding reaction to update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"type": reaction_type}
+        response = requests.post(
+            f"{API_BASE_URL}/updates/{update_id}/reactions/add",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 201:
+            logger.error(f"Failed to add reaction: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully added reaction to update {update_id}")
+        return data
+
+    def remove_reaction(
+        self, email: str, update_id: str, reaction_type: str
+    ) -> Dict[str, Any]:
+        """Remove a reaction from an update"""
+        logger.info(f"Removing reaction from update {update_id}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"type": reaction_type}
+        response = requests.post(
+            f"{API_BASE_URL}/updates/{update_id}/reactions/remove",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to remove reaction: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully removed reaction from update {update_id}")
+        return data
+
+    # Feedback Methods
+    def create_feedback(self, email: str, content: str) -> Dict[str, Any]:
+        """Create a new feedback entry"""
+        logger.info(f"Creating feedback for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"content": content}
+        response = requests.post(
+            f"{API_BASE_URL}/feedback",
+            headers=headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to create feedback: {response.text}")
+            response.raise_for_status()
+
+        data = response.json()
+        logger.info(f"Successfully created feedback for user: {email}")
+        return data
+
+    def nudge_user(self, email: str, target_user_id: str) -> Dict[str, Any]:
+        """Nudge a user to send an update"""
+        logger.info(f"User {email} nudging user ID: {target_user_id}")
+
+        headers = {"Authorization": f"Bearer {self.tokens[email]}"}
+
+        response = requests.post(
+            f"{API_BASE_URL}/users/{target_user_id}/nudge", headers=headers
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to nudge user: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully nudged user ID: {target_user_id}")
+        return response.json()
+
+    def make_request_expecting_error(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        json_data: Optional[Dict[str, Any]] = None,
+        expected_status_code: int = None,
+        expected_error_message: str = None,
+    ) -> Dict[str, Any]:
+        """Make a request expecting a specific error response"""
+        logger.info(
+            f"Making {method} request to {url} expecting error status {expected_status_code}"
+        )
+
+        try:
+            if method.lower() == "get":
+                response = requests.get(url, headers=headers)
+            elif method.lower() == "post":
+                response = requests.post(url, headers=headers, json=json_data)
+            elif method.lower() == "put":
+                response = requests.put(url, headers=headers, json=json_data)
+            elif method.lower() == "delete":
+                response = requests.delete(url, headers=headers)
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+
+            # Log the full response data
+            logger.info(f"Full response data: {response.text}")
+
+            response_data = response.json() if response.text else {}
+            result = {"status_code": response.status_code, "response": response_data}
+
+            # Verify status code if expected
+            if expected_status_code:
+                assert (
+                    response.status_code == expected_status_code
+                ), f"Expected status code {expected_status_code}, got {response.status_code}"
+                logger.info(
+                    f"✓ Status code verification passed: {response.status_code}"
+                )
+
+            # Verify error message if expected
+            if expected_error_message and response_data.get("error"):
+                error_message = response_data.get("error", {}).get("message", "")
+                assert (
+                    expected_error_message in error_message
+                ), f"Expected error message containing '{expected_error_message}', got '{error_message}'"
+                logger.info(f"✓ Error message verification passed: '{error_message}'")
+
+            return result
+
+        except AssertionError as e:
+            logger.error(f"Assertion failed: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            raise
+
+    def upload_image_to_staging(self, email: str, image_path: str) -> str:
+        """Upload an image to the staging bucket and return the staging path"""
+        logger.info(f"Uploading image {image_path} to staging for user: {email}")
+
+        # Read the image file
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+
+        # Get the filename
+        filename = os.path.basename(image_path)
+        user_id = self.user_ids[email]
+        staging_path = f"pending_uploads/{user_id}/{filename}"
+
+        # Upload to Firebase Storage emulator using REST API
+        url = f"{STORAGE_EMULATOR_URL}/v0/b/town-staging-9178d.firebasestorage.app/o"
+
+        # Firebase Storage REST API expects the object name as a query parameter
+        upload_url = f"{url}?name={staging_path}"
+
+        headers = {
+            "Authorization": f"Bearer {self.tokens[email]}",
+            "Content-Type": "application/octet-stream",
+        }
+
+        response = requests.post(upload_url, headers=headers, data=image_data)
+        if response.status_code not in [200, 201]:
+            logger.error(f"Failed to upload image: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully uploaded image to staging path: {staging_path}")
+        return staging_path
+
+    # Phone lookup
+    def lookup_phones(self, email: str, phones: list[str]) -> Dict[str, Any]:
+        """Lookup users by phone numbers"""
+        logger.info(f"Looking up {len(phones)} phone(s) for user: {email}")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.tokens[email]}",
+        }
+
+        payload = {"phones": phones}
+
+        response = requests.post(
+            f"{API_BASE_URL}/phones/lookup", headers=headers, json=payload
+        )
+        if response.status_code != 200:
+            logger.error(f"Phone lookup failed: {response.text}")
+            response.raise_for_status()
+
+        logger.info("Phone lookup successful")
+        return response.json()

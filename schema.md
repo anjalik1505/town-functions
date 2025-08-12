@@ -1,6 +1,6 @@
 # Firestore Schema
 
-This document describes the complete NoSQL database schema for Village Functions, validated against the actual implementation in the codebase.
+This document describes the complete NoSQL database schema for Town Functions, validated against the actual implementation in the codebase.
 
 ## 1. profiles (collection)
 **Path:** `/profiles/{userId}`  
@@ -113,7 +113,7 @@ This document describes the complete NoSQL database schema for Village Functions
 - `group_ids` (array<string>) - IDs of groups shared with
 - `friend_ids` (array<string>) - IDs of friends shared with
 - `visible_to` (array<string>) - INTERNAL: Combined visibility identifiers for efficient querying
-- `all_village` (boolean) - Whether shared with all friends and groups
+- `all_town` (boolean) - Whether shared with all friends and groups
 - `image_paths` (array<string>) - URLs to attached images
 - `comment_count` (number) - Number of comments on this update
 - `reaction_count` (number) - Number of reactions on this update

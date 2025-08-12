@@ -1,6 +1,6 @@
-# Village Functions - GenKit Integration Guide
+# Town Functions - GenKit Integration Guide
 
-This guide explains how to integrate and deploy the Village application's AI flows using Firebase and GenKit.
+This guide explains how to integrate and deploy the Town application's AI flows using Firebase and GenKit.
 
 ## Setup Steps
 
@@ -42,7 +42,7 @@ firebase deploy --only functions
 The GenKit flows are integrated with the existing Firestore triggers following these principles:
 
 1. **Atomic Database Operations**: All related Firestore operations are grouped in a single batch for atomicity,
-   following the Village application's best practices.
+   following the Town application's best practices.
 
 2. **Validation Before Writes**: All validations are performed before starting any database write operations.
 

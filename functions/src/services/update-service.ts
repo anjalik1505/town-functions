@@ -74,7 +74,7 @@ export class UpdateService {
     const sentiment = data.sentiment || '';
     const score = data.score || 3;
     const emoji = data.emoji || '😊';
-    const allVillage = data.all_village || false;
+    const allTown = data.all_town || false;
     let groupIds = data.group_ids || [];
     let friendIds = data.friend_ids || [];
     const images = data.images || [];
@@ -82,7 +82,7 @@ export class UpdateService {
     logger.info(
       `Update details - content length: ${content.length}, ` +
         `sentiment: ${sentiment}, score: ${score}, emoji: ${emoji}, ` +
-        `all_village: ${allVillage}, ` +
+        `all_town: ${allTown}, ` +
         `shared with ${friendIds.length} friends and ${groupIds.length} groups, ` +
         `${images.length} images`,
     );
@@ -93,9 +93,9 @@ export class UpdateService {
       throw new NotFoundError('Creator profile not found');
     }
 
-    // If allVillage is true, get all friends and groups of the user
-    if (allVillage) {
-      logger.info(`All village mode enabled, fetching all friends and groups for user: ${userId}`);
+    // If allTown is true, get all friends and groups of the user
+    if (allTown) {
+      logger.info(`All town mode enabled, fetching all friends and groups for user: ${userId}`);
 
       // Get all friends using FriendshipDAO
       const tmpFriendIds = await this.friendshipDAO.getFriendIds(userId);
@@ -104,7 +104,7 @@ export class UpdateService {
       const userGroups = await this.groupDAO.getForUser(userId);
       const tmpGroupIds = userGroups.map((group) => group.group_id);
 
-      logger.info(`All village mode: found ${tmpFriendIds.length} friends and ${tmpGroupIds.length} groups`);
+      logger.info(`All town mode: found ${tmpFriendIds.length} friends and ${tmpGroupIds.length} groups`);
 
       // Deduplicate IDs
       friendIds = [...new Set([...friendIds, ...tmpFriendIds])];
@@ -160,7 +160,7 @@ export class UpdateService {
       group_ids: groupIds,
       friend_ids: friendIds,
       visible_to: [], // Will be set by DAO
-      all_village: allVillage,
+      all_town: allTown,
       image_paths: finalImagePaths,
       comment_count: 0,
       reaction_count: 0,
@@ -205,7 +205,7 @@ export class UpdateService {
           score,
           friend_count: friendIds.length,
           group_count: groupIds.length,
-          all_village: allVillage,
+          all_town: allTown,
           image_count: finalImagePaths.length,
         },
       },

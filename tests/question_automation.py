@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Question Automation Script
+Town API Question Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing the question generation functionality.
+This script automates API calls to the Town Firebase emulator for testing the question generation functionality.
 It creates a user, authenticates them, creates a profile, and tests the question generation endpoint:
 - Create a user
 - Create a profile
@@ -14,7 +14,7 @@ import json
 import logging
 import time
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def run_question_tests():
-    """Run tests for the Village API question generation functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API question generation functionality"""
+    api = TownAPI()
 
     # Create a test user
     user = {

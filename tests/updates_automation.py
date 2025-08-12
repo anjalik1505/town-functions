@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Updates Automation Script
+Town API Updates Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing updates functionality.
+This script automates API calls to the Town Firebase emulator for testing updates functionality.
 It creates users, authenticates them, and performs various update operations:
 - Create updates with different sentiments
 - Get user's own updates
@@ -18,7 +18,7 @@ import os
 import random
 import time
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -60,8 +60,8 @@ TEST_IMAGE_PATH = os.path.join(os.path.dirname(__file__), "resources", "test.png
 
 
 def run_updates_tests():
-    """Run tests for the Village API updates functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API updates functionality"""
+    api = TownAPI()
 
     # Create two users
     users = [
@@ -108,7 +108,7 @@ def run_updates_tests():
             "emoji": emoji_data["emoji"],
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
-            "all_village": True,
+            "all_town": True,
         }
         created_update = api.create_update(users[0]["email"], update_data)
         user1_updates.append(created_update)
@@ -129,12 +129,12 @@ def run_updates_tests():
         assert (
             created_update["emoji"] in EMOJIS
         ), f"Invalid emoji value: {created_update['emoji']}"
-        assert "all_village" in created_update, "Update missing all_village field"
-        assert created_update["all_village"] is True, "all_village should be True"
+        assert "all_town" in created_update, "Update missing all_town field"
+        assert created_update["all_town"] is True, "all_town should be True"
         assert isinstance(created_update["images"], list), "Images should be a list"
-        logger.info("✓ all_village field is present and set to True in the response")
+        logger.info("✓ all_town field is present and set to True in the response")
 
-        # Verify shared_with fields are empty arrays for all_village updates with no specific sharing
+        # Verify shared_with fields are empty arrays for all_town updates with no specific sharing
         assert (
             "shared_with_friends" in created_update
         ), "Update missing shared_with_friends field"
@@ -143,11 +143,11 @@ def run_updates_tests():
         ), "Update missing shared_with_groups field"
         assert (
             len(created_update["shared_with_friends"]) == 0
-        ), "all_village update should have empty shared_with_friends"
+        ), "all_town update should have empty shared_with_friends"
         assert (
             len(created_update["shared_with_groups"]) == 0
-        ), "all_village update should have empty shared_with_groups"
-        logger.info("✓ all_village update has empty shared_with arrays")
+        ), "all_town update should have empty shared_with_groups"
+        logger.info("✓ all_town update has empty shared_with arrays")
         time.sleep(1)
 
     # Wait for create update triggers to process user 1's updates
@@ -209,7 +209,7 @@ def run_updates_tests():
             "emoji": emoji_data["emoji"],
             "friend_ids": [],  # No friends yet
             "group_ids": [],  # No groups yet
-            "all_village": True,
+            "all_town": True,
         }
         created_update = api.create_update(users[1]["email"], update_data)
         user2_updates.append(created_update)
@@ -219,11 +219,11 @@ def run_updates_tests():
         )
 
         # Verify all_village field is present and has the correct value
-        assert "all_village" in created_update, "Update missing all_village field"
+        assert "all_town" in created_update, "Update missing all_town field"
         assert "images" in created_update, "Update missing images field"
-        assert created_update["all_village"] is True, "all_village should be True"
+        assert created_update["all_town"] is True, "all_town should be True"
         assert isinstance(created_update["images"], list), "Images should be a list"
-        logger.info("✓ all_village and images fields are present in the response")
+        logger.info("✓ all_town and images fields are present in the response")
 
         # Verify shared_with fields are empty arrays
         assert (
@@ -234,11 +234,11 @@ def run_updates_tests():
         ), "Update missing shared_with_groups field"
         assert (
             len(created_update["shared_with_friends"]) == 0
-        ), "all_village update should have empty shared_with_friends"
+        ), "all_town update should have empty shared_with_friends"
         assert (
             len(created_update["shared_with_groups"]) == 0
-        ), "all_village update should have empty shared_with_groups"
-        logger.info("✓ User 2 all_village update has empty shared_with arrays")
+        ), "all_town update should have empty shared_with_groups"
+        logger.info("✓ User 2 all_town update has empty shared_with arrays")
         time.sleep(1)
 
     # Wait for create update triggers to process user 2's updates

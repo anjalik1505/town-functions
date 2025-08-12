@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Device Automation Script
+Town API Device Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing device functionality.
+This script automates API calls to the Town Firebase emulator for testing device functionality.
 It creates users, authenticates them, and performs various device operations:
 - Create a user
 - Update a device (create if not exists)
@@ -15,7 +15,7 @@ It creates users, authenticates them, and performs various device operations:
 import json
 import logging
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(

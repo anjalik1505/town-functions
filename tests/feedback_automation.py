@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Feedback Automation Script
+Town API Feedback Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing feedback functionality.
+This script automates API calls to the Town Firebase emulator for testing feedback functionality.
 It creates a user, authenticates them, and performs feedback operations:
 - Create feedback
 - Test validation
@@ -12,7 +12,7 @@ It creates a user, authenticates them, and performs feedback operations:
 import json
 import logging
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -27,8 +27,8 @@ TEST_CONFIG = {
 
 
 def run_feedback_tests():
-    """Run tests for the Village API feedback functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API feedback functionality"""
+    api = TownAPI()
 
     # Create a test user
     user = {

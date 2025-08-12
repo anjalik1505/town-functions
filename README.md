@@ -148,9 +148,9 @@ You will be prompted to enter the value securely. These secrets are used by your
 3. Set up (dummy) service account JSON if needed
 4. Run tests from the `tests` directory
 
-# Village Functions
+# Town Functions
 
-This repository contains the backend functions for the Village application.
+This repository contains the backend functions for the Town application.
 
 ## API Documentation
 
