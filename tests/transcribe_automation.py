@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Transcription Automation Script
+Town API Transcription Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing the audio transcription functionality.
+This script automates API calls to the Town Firebase emulator for testing the audio transcription functionality.
 It creates a user, authenticates them, and tests the transcription endpoint:
 - Create a user
 - Transcribe audio from a file
@@ -14,7 +14,7 @@ import gzip
 import logging
 import os
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -44,8 +44,8 @@ def main():
     4. Validates the response format and content
     5. Tests error handling for invalid inputs
     """
-    # Initialize the Village API client
-    api = VillageAPI()
+    # Initialize the Town API client
+api = TownAPI()
 
     # ============ SETUP ============
     logger.info("========== SETUP ==========")

@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 def run_device_tests():
-    """Run tests for the Village API device functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API device functionality"""
+    api = TownAPI()
 
     # Create a test user
     user = {
