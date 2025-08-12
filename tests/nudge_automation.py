@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Nudge Automation Script
+Town API Nudge Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing the user nudge functionality.
+This script automates API calls to the Town Firebase emulator for testing the user nudge functionality.
 It creates two users, makes them friends, and tests the nudge functionality:
 - Create two users
 - Create profiles for both users
@@ -14,7 +14,7 @@ It creates two users, makes them friends, and tests the nudge functionality:
 import json
 import logging
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def run_nudge_tests():
-    """Run tests for the Village API nudge functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API nudge functionality"""
+    api = TownAPI()
 
     # Create test users
     user1 = {

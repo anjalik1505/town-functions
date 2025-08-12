@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Invitation Automation Script
+Town API Invitation Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing the new
+This script automates API calls to the Town Firebase emulator for testing the new
 persistent invitation and join request functionality.
 It creates users, authenticates them, and performs various invitation and join request operations.
 
@@ -16,7 +16,7 @@ import json
 import logging
 import os
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -28,8 +28,8 @@ os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8080"
 
 
 def run_invitation_demo():
-    """Run a demonstration of the Village API invitation and join request functionality"""
-    api = VillageAPI()
+    """Run a demonstration of the Town API invitation and join request functionality"""
+    api = TownAPI()
 
     # Create three users
     users = [

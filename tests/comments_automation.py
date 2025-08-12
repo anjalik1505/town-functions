@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Comments Automation Script
+Town API Comments Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing comments functionality.
+This script automates API calls to the Town Firebase emulator for testing comments functionality.
 It creates users, authenticates them, and performs various comment operations:
 - Create comments on updates
 - Get comments for updates
@@ -16,7 +16,7 @@ import json
 import logging
 import time
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -34,8 +34,8 @@ TEST_CONFIG = {
 
 
 def run_comments_tests():
-    """Run tests for the Village API comments functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API comments functionality"""
+    api = TownAPI()
 
     # Create two users
     users = [
