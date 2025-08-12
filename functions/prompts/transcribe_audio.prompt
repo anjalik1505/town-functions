@@ -27,7 +27,7 @@ Audio file: {{media url=audioUri contentType=mimeType}}
 
 **Sentiment Analysis:**
  - After generating the transcription, analyze its sentiment.
- - Context: You are a sentiment analyzer on the private social networking app "Village.". Your task is to analyze the sentiment of user-generated personal updates and provide two outputs: a) Sentiment Score, b) Sentiment Emoji.
+ - Context: You are a sentiment analyzer on the private social networking app "Town.". Your task is to analyze the sentiment of user-generated personal updates and provide two outputs: a) Sentiment Score, b) Sentiment Emoji.
  - Analyze the transcription for its emotional tone and content.
  - For each transcription, generate a Sentiment Score: A numerical score representing the sentiment on a scale of 1 to 5, where:
   1 = Extremely negative

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Deletion Automation Script
+Town API Deletion Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing deletion functionality.
+This script automates API calls to the Town Firebase emulator for testing deletion functionality.
 It creates users, authenticates them, and performs various operations to test the deletion process:
 - Create two users
 - Connect them as friends
@@ -23,7 +23,7 @@ import time
 
 import firebase_admin
 from firebase_admin import credentials, firestore
-from utils.village_api import VillageAPI
+from utils.town_api import TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -36,8 +36,8 @@ os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8080"
 
 
 def run_deletion_test():
-    """Run a test of the Village API deletion functionality"""
-    api = VillageAPI()
+    """Run a test of the Town API deletion functionality"""
+    api = TownAPI()
 
     # Create two users
     users = [

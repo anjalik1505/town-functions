@@ -129,7 +129,7 @@ export const ToneFields = {
 // Placeholders for empty profile fields
 export const Placeholders = {
   SUMMARY:
-    "See your recent updates' summary here! Spill more to get your insights and to share with your Village privately",
+    "See your recent updates' summary here! Spill more to get your insights and to share with your Town privately",
   SUGGESTIONS: 'Share more to get personalised suggestions',
   EMOTIONAL_OVERVIEW: 'Give us a bit more to understand your emotional state',
   RECURRING_THEMES: "Too early to identify patterns, let's see what emerges here",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Village API Location and Timezone Automation Script
+"""Town API Location and Timezone Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing location and timezone functionality.
+This script automates API calls to the Town Firebase emulator for testing location and timezone functionality.
 It creates two users, authenticates them, and performs the following tests:
 - Set location and timezone on user 1
 - Create a friendship between user 1 and user 2
@@ -12,7 +12,7 @@ It creates two users, authenticates them, and performs the following tests:
 import json
 import logging
 
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 def run_location_timezone_tests():
-    """Run tests for the Village API location and timezone functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API location and timezone functionality"""
+    api = TownAPI()
 
     # Create two test users
     users = [

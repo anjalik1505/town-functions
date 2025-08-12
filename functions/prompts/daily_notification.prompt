@@ -15,7 +15,7 @@ output:
     message: string
 ---
 ### TASK:
-Generate a push notification message for Village app users to encourage them to share a new life update.
+Generate a push notification message for Town app users to encourage them to share a new life update.
 
 ### CONTEXT:
 - <NAME>: {{name}}
@@ -24,7 +24,7 @@ Generate a push notification message for Village app users to encourage them to 
 - <AGE>: {{age}}
 
 ### INSTRUCTIONS:
-- Goal: Encourage the user to return to the Village app and share a new life update.
+- Goal: Encourage the user to return to the Town app and share a new life update.
 - Length:
     - title: Maximum 3-4 words.
     - message: Adhere to standard push notification body text limits (aim for conciseness while being engaging).

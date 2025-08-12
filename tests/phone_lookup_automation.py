@@ -14,7 +14,7 @@ import json
 import logging
 import time
 
-from utils.village_api import VillageAPI
+from utils.town_api import TownAPI
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -27,7 +27,7 @@ TEST_CONFIG = {
 }
 
 def run_phone_lookup_tests():
-    api = VillageAPI()
+    api = TownAPI()
 
     user = {
         "email": "phone_lookup@example.com",

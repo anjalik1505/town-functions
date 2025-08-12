@@ -116,7 +116,7 @@ def run_updates_tests():
             f"Created update #{i + 1} for user 1: {json.dumps(created_update, indent=2)}"
         )
 
-        # Verify all_village field is present and has the correct value
+        # Verify all_town field is present and has the correct value
         assert "score" in created_update, "Update missing score field"
         assert "emoji" in created_update, "Update missing emoji field"
         assert "images" in created_update, "Update missing images field"
@@ -218,7 +218,7 @@ def run_updates_tests():
             f"Created update #{i + 1} for user 2: {json.dumps(created_update, indent=2)}"
         )
 
-        # Verify all_village field is present and has the correct value
+        # Verify all_town field is present and has the correct value
         assert "all_town" in created_update, "Update missing all_town field"
         assert "images" in created_update, "Update missing images field"
         assert created_update["all_town"] is True, "all_town should be True"
@@ -446,7 +446,7 @@ def run_updates_tests():
         assert "avatar" in update, "Update missing avatar field"
         assert "score" in update, "Update missing score field"
         assert "emoji" in update, "Update missing emoji field"
-        assert "all_village" in update, "Update missing all_village field"
+        assert "all_town" in update, "Update missing all_town field"
         assert "images" in update, "Update missing images field"
         assert (
             update["username"] == users[0]["email"].split("@")[0]
@@ -464,8 +464,8 @@ def run_updates_tests():
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
         assert isinstance(
-            update["all_village"], bool
-        ), f"all_village should be a boolean, got {type(update['all_village'])}"
+            update["all_town"], bool
+        ), f"all_town should be a boolean, got {type(update['all_town'])}"
         assert (
             "shared_with_friends" in update
         ), "Update missing shared_with_friends field"
@@ -496,7 +496,7 @@ def run_updates_tests():
         assert "avatar" in update, "Update missing avatar field"
         assert "score" in update, "Update missing score field"
         assert "emoji" in update, "Update missing emoji field"
-        assert "all_village" in update, "Update missing all_village field"
+        assert "all_town" in update, "Update missing all_town field"
         assert "images" in update, "Update missing images field"
         assert (
             update["username"] == users[1]["email"].split("@")[0]
@@ -514,8 +514,8 @@ def run_updates_tests():
         ), f"Score should be between 1 and 5, got {update['score']}"
         assert update["emoji"] in EMOJIS, f"Invalid emoji value: {update['emoji']}"
         assert isinstance(
-            update["all_village"], bool
-        ), f"all_village should be a boolean, got {type(update['all_village'])}"
+            update["all_town"], bool
+        ), f"all_town should be a boolean, got {type(update['all_town'])}"
 
         # Check images in feed updates
         if update["content"].endswith(
@@ -541,15 +541,15 @@ def run_updates_tests():
             update["shared_with_groups"], list
         ), "shared_with_groups should be a list"
 
-    # Find the all_village update in the feed
-    all_village_updates = [
-        update for update in user2_updates_in_feed if update.get("all_village") is True
+    # Find the all_town update in the feed
+    all_town_updates = [
+        update for update in user2_updates_in_feed if update.get("all_town") is True
     ]
     assert (
-        len(all_village_updates) > 0
-    ), "No updates with all_village=True found in the feed"
+        len(all_town_updates) > 0
+    ), "No updates with all_town=True found in the feed"
     logger.info(
-        f"✓ Found {len(all_village_updates)} updates with all_village=True in the feed"
+        f"✓ Found {len(all_town_updates)} updates with all_town=True in the feed"
     )
 
     logger.info("✓ Friend's updates contain correct enriched profile data and images")
@@ -570,7 +570,7 @@ def run_updates_tests():
         "emoji": emoji_data["emoji"],
         "friend_ids": [],  # Not shared initially
         "group_ids": [],  # No groups
-        "all_village": False,  # Only visible to user 1 initially
+        "all_town": False,  # Only visible to user 1 initially
     }
     unshared_update = api.create_update(users[0]["email"], unshared_update_data)
     logger.info(f"Created unshared update: {json.dumps(unshared_update, indent=2)}")

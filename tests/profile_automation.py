@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Village API Profile Automation Script
+Town API Profile Automation Script
 
-This script automates API calls to the Village Firebase emulator for testing profile functionality.
+This script automates API calls to the Town Firebase emulator for testing profile functionality.
 It creates users, authenticates them, and performs various profile operations:
 - Create a user
 - Create a profile
@@ -17,7 +17,7 @@ import logging
 import time
 
 import requests
-from utils.village_api import API_BASE_URL, VillageAPI
+from utils.town_api import API_BASE_URL, TownAPI
 
 # Configure logging
 logging.basicConfig(
@@ -32,8 +32,8 @@ TEST_CONFIG = {
 
 
 def run_profile_tests():
-    """Run tests for the Village API profile functionality"""
-    api = VillageAPI()
+    """Run tests for the Town API profile functionality"""
+    api = TownAPI()
 
     # Create two users
     users = [

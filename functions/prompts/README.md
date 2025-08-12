@@ -1,11 +1,11 @@
-# Village AI Prompts
+# Town AI Prompts
 
-This directory contains the prompt files used by the Village application for AI-powered content generation. These
+This directory contains the prompt files used by the Town application for AI-powered content generation. These
 prompts are managed using Firebase GenKit's dotprompt format.
 
 ## Overview
 
-The Village application uses AI to analyze user updates and generate personalized summaries, suggestions, and insights.
+The Town application uses AI to analyze user updates and generate personalized summaries, suggestions, and insights.
 The prompts in this directory define the instructions and schemas for these AI generations.
 
 ## Prompt Files
@@ -25,7 +25,7 @@ The prompts in this directory define the instructions and schemas for these AI g
 You can test and refine prompts using the GenKit developer UI:
 
 ```bash
-cd d:\Village\village_functions
+cd d:\Town\town_functions
 npx genkit start -- tsx --watch functions/src/ai/flows.ts
 ```
 

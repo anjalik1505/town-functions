@@ -408,7 +408,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
   }
 
   /**
-   * Gets all_village updates for a user with streaming support
+   * Gets all_town updates for a user with streaming support
    * @param userId The creator user ID
    * @returns AsyncIterable of UpdateDoc
    */
@@ -417,7 +417,7 @@ export class UpdateDAO extends BaseDAO<UpdateDoc> {
       .collection(this.collection)
       .withConverter(this.converter)
       .where(uf('created_by'), QueryOperators.EQUALS, userId)
-      .where(uf('all_village'), QueryOperators.EQUALS, true)
+      .where(uf('all_town'), QueryOperators.EQUALS, true)
       .orderBy(uf('created_at'), QueryOperators.DESC);
 
     const stream = query.stream() as AsyncIterable<FirebaseFirestore.QueryDocumentSnapshot<UpdateDoc>>;

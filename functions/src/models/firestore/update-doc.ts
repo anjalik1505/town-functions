@@ -15,7 +15,7 @@ export interface UpdateDoc {
   comment_count: number;
   reaction_count: number;
   reaction_types: Record<string, number>;
-  all_village: boolean;
+  all_town: boolean;
   image_paths: string[];
   image_analysis?: string;
   creator_profile: SimpleProfile;

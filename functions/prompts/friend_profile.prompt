@@ -26,7 +26,7 @@ output:
 ---
 
 ### TASK:
-Generate Summary and Suggestions for a friend's profile on Village.
+Generate Summary and Suggestions for a friend's profile on Town.
 
 ### CONTEXT:
 - <SUMMARY>: {{existingSummary}}

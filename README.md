@@ -492,7 +492,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
           "count": 1
         }
       ],
-      "all_village": false,
+      "all_town": false,
       "images": ["updates/update123/image1.jpg"],
       "shared_with_friends": [
         {
@@ -600,7 +600,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
           "count": 1
         }
       ],
-      "all_village": false,
+      "all_town": false,
       "images": ["updates/update123/image1.jpg"],
       "shared_with_friends": [
         {
@@ -829,7 +829,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
     "score": 3,
     "friend_count": 0,
     "group_count": 0,
-    "all_village": false,
+    "all_town": false,
     "image_count": 0
   }
   ```
@@ -844,12 +844,12 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
   "emoji": "😊",
   "group_ids": ["group123"],
   "friend_ids": ["friend123"],
-  "all_village": false,
+  "all_town": false,
   "images": ["pending_uploads/user123/image1.jpg", "pending_uploads/user123/image2.png"]
 }
 ```
 
-_Note: group_ids, friend_ids, all_village, and images are optional. score and emoji are optional with default values of "3" and "😐" respectively. If all_village is set to true, the update will be shared with all of the user's friends and groups, ignoring the friend_ids and group_ids parameters. images should contain the paths of images previously uploaded to the staging bucket - these will be moved to the final location._
+_Note: group_ids, friend_ids, all_town, and images are optional. score and emoji are optional with default values of "3" and "😐" respectively. If all_town is set to true, the update will be shared with all of the user's friends and groups, ignoring the friend_ids and group_ids parameters. images should contain the paths of images previously uploaded to the staging bucket - these will be moved to the final location._
 
 **Output**:
 
@@ -872,7 +872,7 @@ _Note: group_ids, friend_ids, all_village, and images are optional. score and em
       "count": 1
     }
   ],
-  "all_village": false,
+  "all_town": false,
   "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
   "shared_with_friends": [
     {
@@ -1054,7 +1054,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
         "count": 1
       }
     ],
-    "all_village": false,
+    "all_town": false,
     "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
     "shared_with_friends": [
       {
@@ -1152,7 +1152,7 @@ _Note: Both friend_ids and group_ids are optional, but at least one friend ID or
       "count": 1
     }
   ],
-  "all_village": false,
+  "all_town": false,
   "images": ["updates/update123/image1.jpg", "updates/update123/image2.png"],
   "shared_with_friends": [
     {
@@ -2052,7 +2052,7 @@ _Note: Both parameters are optional. Default limit is 20 (min: 1, max: 100). aft
           "count": 1
         }
       ],
-      "all_village": false,
+      "all_town": false,
       "images": ["updates/update123/image1.jpg"],
       "shared_with_friends": [
         {

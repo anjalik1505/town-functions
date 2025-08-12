@@ -20,7 +20,7 @@ output:
     question: string
 ---
 ### TASK:
-Generate engaging, low-friction check-in questions suitable for voice interaction within the Village app. These questions aim to encourage users to share meaningful updates about their current state and daily life in an open-ended way, without explicitly using the terms "mood" or "life events." The goal is to make the user feel comfortable sharing.
+Generate engaging, low-friction check-in questions suitable for voice interaction within the Town app. These questions aim to encourage users to share meaningful updates about their current state and daily life in an open-ended way, without explicitly using the terms "mood" or "life events." The goal is to make the user feel comfortable sharing.
 
 ### USER PROFILE DATA:
 <SUMMARY>: {{existingSummary}}

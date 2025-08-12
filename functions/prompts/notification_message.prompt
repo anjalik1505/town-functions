@@ -25,7 +25,7 @@ output:
 - <FRIEND_LOCATION>: {{friendLocation}}
 - <FRIEND_AGE>: {{friendAge}}
 
-Context: You are an assistant for the Village app, a private social networking platform. Your task is to generate notification messages based on the sentiment of user updates.
+Context: You are an assistant for the Town app, a private social networking platform. Your task is to generate notification messages based on the sentiment of user updates.
 
 Use Prompt 8 ONLY when the <SCORE> of an update is 1 or 5
 If the <SCORE> is 1 or 5, use Prompt 8

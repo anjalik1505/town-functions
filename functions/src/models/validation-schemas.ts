@@ -172,7 +172,7 @@ export const createUpdateSchema = z.object({
     }, 'Must be a valid emoji'),
   group_ids: z.array(z.string()).optional(),
   friend_ids: z.array(z.string()).optional(),
-  all_village: z.boolean().optional().default(false),
+      all_town: z.boolean().optional().default(false),
   images: z.array(z.string()).optional(),
 });
 

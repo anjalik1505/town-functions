@@ -67,7 +67,7 @@ export interface Update {
   comment_count: number;
   reaction_count: number;
   reactions: ReactionGroup[];
-  all_village: boolean;
+  all_town: boolean;
   images: string[];
   shared_with_friends: BaseUser[];
   shared_with_groups: BaseGroup[];

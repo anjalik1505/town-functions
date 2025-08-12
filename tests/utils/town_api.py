@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 FIREBASE_AUTH_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key"
-API_BASE_URL = "http://localhost:5001/town-staging-9178d/europe-west1/api"
+API_BASE_URL = "http://localhost:5001/village-staging-9178d/europe-west1/api"
 FIREBASE_CREATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key"
 FIREBASE_UPDATE_USER_URL = "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=fake-api-key"
 STORAGE_EMULATOR_URL = "http://localhost:9199"
@@ -931,7 +931,7 @@ class TownAPI:
         staging_path = f"pending_uploads/{user_id}/{filename}"
 
         # Upload to Firebase Storage emulator using REST API
-        url = f"{STORAGE_EMULATOR_URL}/v0/b/town-staging-9178d.firebasestorage.app/o"
+        url = f"{STORAGE_EMULATOR_URL}/v0/b/village-staging-9178d.firebasestorage.app/o"
 
         # Firebase Storage REST API expects the object name as a query parameter
         upload_url = f"{url}?name={staging_path}"

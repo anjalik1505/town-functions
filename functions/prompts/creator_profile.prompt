@@ -28,7 +28,7 @@ output:
 ---
 
 ### TASK:
-Update the user's Village profile sections based on their latest update. Integrate the information from the `<LATEST_UPDATE>` section and its `<SENTIMENT>` into the existing profile content provided below.
+Update the user's Town profile sections based on their latest update. Integrate the information from the `<LATEST_UPDATE>` section and its `<SENTIMENT>` into the existing profile content provided below.
 
 ### EXISTING PROFILE CONTENT:
 - <SUMMARY>: {{existingSummary}}
