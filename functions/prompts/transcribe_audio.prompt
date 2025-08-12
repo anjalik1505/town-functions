@@ -1,0 +1,48 @@
+---
+model: googleai/gemini-2.0-flash-lite
+config:
+  temperature: 0.0
+  maxOutputTokens: 1000
+input:
+  schema:
+    audioUri: string
+    mimeType: string
+output:
+  schema:
+    transcription: string
+    sentiment: string
+    score: integer
+    emoji: string
+---
+### TASK:
+You must perform both transcription and sentiment analysis as described below.
+
+Audio file: {{media url=audioUri contentType=mimeType}}
+
+**Summary:**
+ - Generate a transcription from the provided audio file outputting the exact words.
+ - Remove any unnecessary filler words such as "um," "uh," "hmm," or other similar sounds.
+ - Do not add any extra text, formatting, or commentary.
+ - Return only the transcription with no modifications or explanations.
+
+**Sentiment Analysis:**
+ - After generating the transcription, analyze its sentiment.
+ - Context: You are a sentiment analyzer on the private social networking app "Town.". Your task is to analyze the sentiment of user-generated personal updates and provide two outputs: a) Sentiment Score, b) Sentiment Emoji.
+ - Analyze the transcription for its emotional tone and content.
+ - For each transcription, generate a Sentiment Score: A numerical score representing the sentiment on a scale of 1 to 5, where:
+  1 = Extremely negative
+  2 = Negative
+  3 = Neutral
+  4 = Positive
+  5 = Extremely positive
+ - For each transcription, generate a Sentiment Emoji: A single emoji that best reflects the overall sentiment.
+ - Provide your output in the following format:
+ - Example outputs:
+   - For "I'm so happy today!": sentiment="happy", score=5, emoji="😊"
+   - For "I'm feeling a bit down": sentiment="sad", score=2, emoji="😔"
+   - For "I'm really angry about this": sentiment="angry", score=1, emoji="😠"
+   - For "I'm a bit nervous about tomorrow": sentiment="anxious", score=2, emoji="😰"
+   - For "I'm so excited for the weekend!": sentiment="excited", score=4, emoji="🎉"
+   - For "I'm grateful for my friends": sentiment="grateful", score=3, emoji="🙏"
+   - For "The weather is nice today": sentiment="neutral", score=3, emoji="😊"
+   - For "": sentiment="unknown", score=3, emoji="😊"

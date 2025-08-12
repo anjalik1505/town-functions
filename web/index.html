@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Town Functions</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <!-- App Script -->
+    <script src="script.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="header-container">
+        <div class="toggle-container">
+          <label class="switch">
+            <input type="checkbox" id="own-profile-toggle" checked />
+            <span class="slider round"></span>
+            <span class="toggle-label">Own Profile</span>
+          </label>
+        </div>
+        <div id="auth-container">
+          <button id="sign-in-button">Sign in with Google</button>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <h3>Content</h3>
+        <div class="content-box">
+          <h4>Summary</h4>
+          <textarea
+            id="summary"
+            rows="3"
+            placeholder="Enter summary here..."
+          ></textarea>
+        </div>
+
+        <div class="content-box">
+          <h4>Suggestions</h4>
+          <textarea
+            id="suggestions"
+            rows="3"
+            placeholder="Enter suggestions here..."
+          ></textarea>
+        </div>
+
+        <div class="content-box insights-section visible">
+          <h4>Insights</h4>
+          <div class="insights-grid">
+            <div>
+              <h5>Emotional Overview</h5>
+              <textarea
+                id="emotional-overview"
+                rows="3"
+                placeholder="Enter emotional overview here..."
+              ></textarea>
+            </div>
+            <div>
+              <h5>Key Moments</h5>
+              <textarea
+                id="key-moments"
+                rows="3"
+                placeholder="Enter key moments here..."
+              ></textarea>
+            </div>
+            <div>
+              <h5>Recurring Themes</h5>
+              <textarea
+                id="recurring-themes"
+                rows="3"
+                placeholder="Enter recurring themes here..."
+              ></textarea>
+            </div>
+            <div>
+              <h5>Progress and Growth</h5>
+              <textarea
+                id="progress-and-growth"
+                rows="3"
+                placeholder="Enter progress and growth here..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <h3>Update</h3>
+        <div class="content-box">
+          <textarea
+            id="update"
+            placeholder="Enter your update here..."
+          ></textarea>
+        </div>
+        <h3>Update Sentiment</h3>
+        <div class="content-box">
+          <textarea
+            id="update-sentiment"
+            placeholder="Enter the sentiment of your update (positive, negative, or neutral)..."
+          ></textarea>
+        </div>
+        <h3>Gender</h3>
+        <div class="content-box">
+          <textarea
+            id="gender"
+            placeholder="Enter gender (defaults to 'they' if empty)..."
+          ></textarea>
+        </div>
+        <h3>Location</h3>
+        <div class="content-box">
+          <textarea id="location" placeholder="Enter location..."></textarea>
+        </div>
+        <h3>Temperature</h3>
+        <div class="content-box">
+          <input
+            type="number"
+            id="temperature"
+            placeholder="Enter temperature (0.0-2.0)"
+            min="0"
+            max="2"
+            step="0.1"
+          />
+        </div>
+      </div>
+
+      <div class="content-section">
+        <h3>Prompt</h3>
+        <div class="content-box">
+          <textarea
+            id="prompt"
+            placeholder="Enter your prompt here..."
+          ></textarea>
+        </div>
+      </div>
+
+      <button id="submit-button" disabled>Submit</button>
+    </div>
+  </body>
+</html>

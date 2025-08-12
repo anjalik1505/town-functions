@@ -1,0 +1,24 @@
+{
+  "flow": "generateCreatorProfileFlow",
+  "params": {
+    "existingSummary": "User has been active.",
+    "existingSuggestions": "Try sharing more about your hobbies.",
+    "existingEmotionalOverview": "Generally positive.",
+    "existingKeyMoments": "Started a new job.",
+    "existingRecurringThemes": "Work, family.",
+    "existingProgressAndGrowth": "Improved social skills.",
+    "updateContent": "I had a great week at work.",
+    "sentiment": "positive",
+    "gender": "female",
+    "location": "Berlin",
+    "age": "29"
+  },
+  "last_result": {
+    "emotional_overview": "- 😊 Feeling positive this week! Your update reflects a good mood.",
+    "key_moments": "- 🎉 You had a great week at work!",
+    "progress_and_growth": "Improved social skills.",
+    "recurring_themes": "- 🏢 Work continues to be a significant part of your life.",
+    "suggestions": "- Consider sharing your work successes with friends. 🗣️\n- Plan a fun activity to celebrate your great week! 🎉",
+    "summary": "Recently, you've had a great week at work! 😊"
+  }
+}

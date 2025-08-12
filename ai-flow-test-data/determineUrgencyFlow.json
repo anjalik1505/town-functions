@@ -1,0 +1,10 @@
+{
+  "flow": "determineUrgencyFlow",
+  "params": {
+    "updateContent": "I'm feeling overwhelmed.",
+    "sentiment": "negative",
+    "creatorName": "Taylor",
+    "creatorGender": "female",
+    "creatorLocation": "New York"
+  }
+}

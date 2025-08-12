@@ -1,0 +1,104 @@
+---
+model: googleai/gemini-2.0-flash
+config:
+  temperature: 0.0
+  maxOutputTokens: 1000
+input:
+  schema:
+    existingSummary: string
+    existingSuggestions: string
+    existingEmotionalOverview: string
+    existingKeyMoments: string
+    existingRecurringThemes: string
+    existingProgressAndGrowth: string
+    updateContent: string
+    sentiment: string
+    gender: string
+    location: string
+    age: string
+    imageAnalysis: string
+output:
+  schema:
+    summary: string
+    suggestions: string
+    emotional_overview: string
+    key_moments: string
+    recurring_themes: string
+    progress_and_growth: string
+---
+
+### TASK:
+Update the user's Town profile sections based on their latest update. Integrate the information from the `<LATEST_UPDATE>` section and its `<SENTIMENT>` into the existing profile content provided below.
+
+### EXISTING PROFILE CONTENT:
+- <SUMMARY>: {{existingSummary}}
+- <SUGGESTIONS>: {{existingSuggestions}}
+- <EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
+- <KEY_MOMENTS>: {{existingKeyMoments}}
+- <RECURRING_THEMES>: {{existingRecurringThemes}}
+- <PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
+
+### USER DEMOGRAPHICS:
+- <GENDER>: {{gender}}
+- <LOCATION>: {{location}}
+- <AGE>: {{age}}
+
+### LATEST UPDATE INFORMATION:
+- <LATEST_UPDATE>: {{updateContent}}
+- <SENTIMENT>: {{sentiment}}
+- <IMAGE_ANALYSIS>: {{imageAnalysis}}
+
+### INSTRUCTIONS FOR UPDATING PROFILE SECTIONS:
+
+**Summary:**
+- Objective: Update the text following <SUMMARY>: to incorporate the key information and feeling from the text following <LATEST_UPDATE>: and any visual content described in <IMAGE_ANALYSIS>, creating a cohesive narrative that evolves from the previous summary. Use emojis where appropriate.
+- Content:
+    -If the <LATEST_UPDATE> is very short (less than 10 words): Start with "Lately, you've..." followed by a brief reflection of the <LATEST_UPDATE> in the present perfect tense. If the existing <SUMMARY> contains more substantial information, retain a relevant portion of it before appending "Consider sharing more details for richer insights." If the existing <SUMMARY> is also minimal, just use the brief reflection and the encouraging phrase.
+    - Otherwise (longer updates): Blend the essence of the <LATEST_UPDATE> content and qualitative insights from visual information described in <IMAGE_ANALYSIS> into the beginning of the <SUMMARY> content, using phrasing like "Based on your recent update, you've also..." or similar to connect the new information. Ensure the updated summary still reflects key aspects and the overall tone of the previous <SUMMARY>. Use the <SENTIMENT> value to guide the tone of the update. Incorporate the <LOCATION> value only if it's central to the <LATEST_UPDATE> content. Interpret visual elements from <IMAGE_ANALYSIS> to enrich descriptions of activities, mood, or context, focusing on the implications and emotional resonance rather than just literal descriptions (e.g., "enjoying wholesome meals with friends" instead of "savoring Indian food like naan and curry at a restaurant").
+- Point of view: Use 2nd person point of view.
+- Tone of voice: Adapt based on the <SENTIMENT> value, aiming for consistency with the existing <SUMMARY> while reflecting significant shifts.
+- Limitation: Maximum 500 characters including spaces. Stay within this limit.
+- Format: Short paragraph.
+
+**Suggestions:**
+- Objective: Generate up to 3 distinct, actionable suggestions that build upon and complement the user's latest update (text and image) and overall profile context, rather than repeating what they've already shared or what has been previously suggested. The goal is to offer relevant support or ideas for mental well-being and processing life events.
+- Content: Suggestions should be specific and forward-looking. Analyze the <LATEST_UPDATE>, <IMAGE_ANALYSIS>, <SUMMARY>, and <SUGGESTIONS> to understand what the user has already done or mentioned. Then, generate ideas that offer next steps, related activities, or alternative approaches that extend beyond what's already known. For example, if a user mentioned visiting a "cute little lunch spot," a suggestion might be to explore a different neighborhood for similar spots, try a new cuisine at a similar spot, or journal about the experience to deepen appreciation. Consider <GENDER>, <AGE>, and <LOCATION> values for relevance (e.g., suggest local parks if <LOCATION> is known and relevant to the update). Focus on positive actions, connection (online/offline, nature), and well-being. Ensure suggestions are distinct from those already listed under <SUGGESTIONS>. Generate fewer than 3 suggestions if the <LATEST_UPDATE> and <IMAGE_ANALYSIS> provide limited context or if truly novel and distinct suggestions are scarce. Use qualitative insights from <IMAGE_ANALYSIS> to inform activity and interaction suggestions, focusing on the underlying emotional or social aspects rather than just literal visual cues.
+- Include: Ideas for deeper reflection, alternative ways to connect with others, new ways to engage with nature, varied self-care practices, or related local activities that extend beyond what's been discussed. Start each suggestion with a relevant emoji, followed by a title (up to 4 words), and then a description.
+- Exclude: Promoting consumerism, unsustainable or unethical products/experiences, and any suggestions that directly repeat an action, place, or item the user has mentioned doing/experiencing in their <LATEST_UPDATE>, <SUMMARY>, or <IMAGE_ANALYSIS>.
+- Point of view: Use 2nd person point of view.
+- Tone of voice: Warm, friendly, encouraging.
+- Limitation: Keep each suggestion title under 4 words and the description under 20 words. Generate up to 3 suggestions.
+- Format: Up to 3 bullet points. Each bullet point: 1 emoji, a title (max 4 words), and a description. Each bullet point on a new line.
+
+**Insights - Emotional Overview:**
+- Objective: Update the text following <EMOTIONAL_OVERVIEW>: to reflect the <SENTIMENT> of the <LATEST_UPDATE> and emotional context described in <IMAGE_ANALYSIS>.
+- Content: Analyze the <SENTIMENT> value and emotional cues interpreted from <IMAGE_ANALYSIS>. Adjust the existing bullet points under <EMOTIONAL_OVERVIEW> or add/replace one to represent the current emotional tone accurately, informed by the <LATEST_UPDATE> and qualitative aspects of visual content described in <IMAGE_ANALYSIS>. If the new <SENTIMENT> strongly reinforces an existing point, you might refine its wording. The goal is a concise overview reflecting the latest update, within the context of the recent past.
+- Include: 3 emojis reflecting the most prominent sentiments after considering the new update and qualitative emotional insights from visual content described in <IMAGE_ANALYSIS>.
+- Point of view: Use 2nd person point of view.
+- Tone of voice: Warm, supportive, objective.
+- Limitation: Up to 100 words total. Exactly 3 emojis.
+- Format: Exactly 3 bullet points. Each bullet point: 1 emoji and up to 30 words explanation. Each bullet point on a new line.
+
+**Insights - Key Moments:**
+- Objective: Update the text following <KEY_MOMENTS>: if the <LATEST_UPDATE> or visual content described in <IMAGE_ANALYSIS> describes a significant highlight (high, low, unique event).
+- Content: Determine if the <LATEST_UPDATE> and qualitative interpretations of visual content from <IMAGE_ANALYSIS> constitute a new key moment. If yes, add it to the list under <KEY_MOMENTS>:. If the list already has 3 moments, consider replacing the oldest or least impactful one with the new one derived from <LATEST_UPDATE> and the implications of <IMAGE_ANALYSIS>. Briefly describe the moment, incorporating qualitative visual details when relevant.
+- Point of view: Use 2nd person point of view.
+- Tone of voice: Warm, supportive, objective.
+- Limitation: Up to 200 words total. Use emojis where applicable.
+- Format: Up to 3 bullet points. Each bullet point: 1 key moment with up to 70 words explanation. Each bullet point on a new line.
+
+**Insights - Recurring Themes:**
+- Objective: Update the text following `<RECURRING_THEMES>:` based on topics mentioned in the `<LATEST_UPDATE>` and patterns described in `<IMAGE_ANALYSIS>`.
+- Content: Identify the main topic(s) in <LATEST_UPDATE> and qualitative themes from <IMAGE_ANALYSIS>. Check if these topics match or reinforce themes listed under <RECURRING_THEMES>:. If a theme's relevance increases, update its description or prominence slightly. If <LATEST_UPDATE> seems to introduce a new potential theme, consider adding it only if there's space (max 3 themes) and it seems distinct and significant. Focus on reinforcing existing themes based on the new update and qualitative insights derived from visual content described in <IMAGE_ANALYSIS>.
+- Point of view: Use 2nd person point of view.
+- Tone of voice: Warm, supportive, objective.
+- Limitation: Up to 200 words total. Use emojis where applicable.
+- Format: Up to 3 bullet points. Each bullet point: 1 recurring theme with up to 70 words explanation. Each bullet point on a new line.
+
+**Insights - Progress and Growth:**
+- Objective: Update the text following <PROGRESS_AND_GROWTH>: by reflecting on how the <LATEST_UPDATE> and visual content from <IMAGE_ANALYSIS> show change or continuity related to existing themes (from <RECURRING_THEMES>:) or goals (from <PROGRESS_AND_GROWTH>: itself).
+- Content: Evaluate <LATEST_UPDATE> and qualitative insights from visual content described in <IMAGE_ANALYSIS> for evidence of progress, learning, setbacks, or reflections related to topics under <RECURRING_THEMES> or points already under <PROGRESS_AND_GROWTH>:. Update the relevant points to incorporate this new perspective, considering qualitative cues about activities, achievements, or emotional states interpreted from <IMAGE_ANALYSIS>.
+- Point of view: Use 2nd person point of view.
+- Tone of voice: Warm, supportive, objective.
+- Limitation: Up to 200 words total. Use emojis where applicable.
+- Format: Up to 3 bullet points. Each bullet point: 1 progress/growth insight with up to 70 words explanation. Each bullet point on a new line.

@@ -1,0 +1,17 @@
+{
+  "flow": "generateFriendProfileFlow",
+  "params": {
+    "existingSummary": "Friend summary.",
+    "existingSuggestions": "Be more supportive.",
+    "updateContent": "Had a chat with my friend.",
+    "sentiment": "neutral",
+    "friendName": "Alex",
+    "friendGender": "male",
+    "friendLocation": "London",
+    "friendAge": "30",
+    "userName": "Jamie",
+    "userGender": "female",
+    "userLocation": "Berlin",
+    "userAge": "29"
+  }
+}

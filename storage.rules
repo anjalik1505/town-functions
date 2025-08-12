@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {    
+    function canSee(updateId) {
+      // One Firestore read, then reuse the result
+      let doc = firestore.get(/databases/(default)/documents/updates/$(updateId)).data.visible_to;
+
+      return request.auth.uid in doc || ('friend:' + request.auth.uid) in doc;
+    }
+    // Staging prefix rules - authenticated uploader has full CRUD access to their own files
+    match /pending_uploads/{userId}/{fileName} {
+      // Only the authenticated uploader may create, read, update, or delete
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /profile_images/{userId}/{fileName} {
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+    }
+    
+    // Updates
+    match /updates/{updateId}/{fileName} {
+      allow read: if request.auth != null && canSee(updateId);
+    }
+  }
+} 

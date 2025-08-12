@@ -1,0 +1,67 @@
+---
+model: googleai/gemini-2.0-flash-lite
+config:
+  temperature: 1.0
+  maxOutputTokens: 1000
+input:
+  schema:
+    existingSummary: string
+    existingSuggestions: string
+    existingEmotionalOverview: string
+    existingKeyMoments: string
+    existingRecurringThemes: string
+    existingProgressAndGrowth: string
+    gender: string
+    location: string
+    age: string
+    tone: string
+output:
+  schema:
+    question: string
+---
+### TASK:
+Generate engaging, low-friction check-in questions suitable for voice interaction within the Town app. These questions aim to encourage users to share meaningful updates about their current state and daily life in an open-ended way, without explicitly using the terms "mood" or "life events." The goal is to make the user feel comfortable sharing.
+
+### USER PROFILE DATA:
+<SUMMARY>: {{existingSummary}}
+<SUGGESTIONS>: {{existingSuggestions}}
+<EMOTIONAL_OVERVIEW>: {{existingEmotionalOverview}}
+<KEY_MOMENTS>: {{existingKeyMoments}}
+<RECURRING_THEMES>: {{existingRecurringThemes}}
+<PROGRESS_AND_GROWTH>: {{existingProgressAndGrowth}}
+<GENDER>: {{gender}}
+<AGE>: {{age}}
+<LOCATION>: {{location}}
+<REQUESTED_TONE>: {{tone}}
+
+### INSTRUCTIONS FOR GENERATING CHECK-IN QUESTIONS:
+
+Subsequent Interactions:
+For all check-ins (when <SUMMARY> is NOT empty), generate a new question that considers the following user data to tailor the topic and phrasing: <SUMMARY>, <SUGGESTIONS>, <EMOTIONAL_OVERVIEW>, <KEY_MOMENTS>, <RECURRING_THEMES>, <PROGRESS_AND_GROWTH>, <GENDER>, <AGE>, <LOCATION>, and <REQUESTED_TONE>.
+
+When generating these subsequent questions:
+
+1.  **Prioritize Following Up on Significant Events:** Analyze the user's recent <SUMMARY> and <KEY_MOMENTS>. Consider updates about major life changes, location changes, health issues, important family/friend situations, important work related updates or relationship milestones as significant events.
+    * If a significant event is detected, generate a question directly related to that event. Crucially, **adapt this follow-up question to align with the <REQUESTED_TONE>**.
+    * If no significant event is detected, proceed to generate a question based on the <REQUESTED_TONE> and general user context.
+
+2.  **Generate Questions Based on Tone:**
+    * If <REQUESTED_TONE> is "Light," generate a question that is generally upbeat, focuses on positive aspects, small wins, or lighter daily occurrences.
+        * Examples for "Light" tone: "Got any small wins today?", "What’s something random that made you smile today?", "What's been on your mind lately?", "What's been keeping you busy?", "Any fun plans coming up?"
+    * If <REQUESTED_TONE> is "Reflective," generate a question that encourages deeper thought, introspection, or consideration of feelings and challenges (without using "mood" or "struggle" or other negative words).
+        * Examples for "Reflective" tone: "What’s something you’ve been grateful for lately?", "How have things been feeling recently?", "What's been a recent learning for you?", "What's something you're looking forward to?", "What's been on your mind recently?"
+
+3.  **Engaging and Natural:** Ensure the questions are interesting and subtly introspective, light, prompting reflection in a natural, conversational way. Avoid sounding like a formal interrogation or making the questions too deep, complex, or heavily introspective.
+
+4.  **Variety is Key:** Generate a diverse range of questions and avoid repeating the exact same question more than once per week. Aim for a wide array of topics.
+
+5.  **Neutral Phrasing:** Ensure the questions do not contain any direct address to the user, such as names, gendered terms, age-related terms, or familiarities like "friend," "dear," "pal," etc.
+
+### Constraints:
+
+* **Open-ended:** The questions must encourage detailed responses.
+* **Indirect Probing:** Elicit information about state and daily events without using those specific terms.
+* **Variety:** Generate a diverse range of questions, avoiding frequent repetition, especially of "What brings a smile to your face?".
+* **No Direct Address:** Do not include any terms or phrasing that directly addresses the user.
+* **Voice-Oriented:** The questions should sound natural and conversational for voice interaction.
+* **Brevity:** ALWAYS keep each question under 15 words.

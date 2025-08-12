@@ -1,0 +1,159 @@
+import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
+import { BaseGroup } from '../models/api-responses.js';
+import { Collections, QueryOperators } from '../models/constants.js';
+import { GroupDoc, SimpleProfile, gf, groupConverter } from '../models/firestore/index.js';
+import { BaseDAO } from './base-dao.js';
+
+/**
+ * Data Access Object for Group documents
+ * Manages groups with member denormalization
+ */
+export class GroupDAO extends BaseDAO<GroupDoc> {
+  constructor() {
+    super(Collections.GROUPS, groupConverter);
+  }
+
+  /**
+   * Gets groups where a user is a member
+   * @param userId The user ID to find groups for
+   * @returns Array of BaseGroup objects
+   */
+  async getForUser(userId: string): Promise<BaseGroup[]> {
+    const query = this.db
+      .collection(this.collection)
+      .withConverter(this.converter)
+      .where(gf('members'), QueryOperators.ARRAY_CONTAINS, userId);
+
+    const snapshot = await query.get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        group_id: doc.id,
+        name: data.name || '',
+        icon: data.icon || '',
+      };
+    });
+  }
+
+  /**
+   * Fetches multiple groups by their IDs
+   * @param groupId Group ID to fetch
+   * @returns GroupDoc object with id property
+   */
+  async get(groupId: string): Promise<GroupDoc & { id: string }> {
+    const docRefs = this.db.collection(this.collection).withConverter(this.converter).doc(groupId);
+    const doc = await docRefs.get();
+
+    return {
+      ...(doc.data()! as GroupDoc),
+      id: doc.id,
+    };
+  }
+
+  /**
+   * Fetches multiple groups by their IDs
+   * @param groupIds Array of group IDs to fetch
+   * @returns Array of GroupDoc objects with id property
+   */
+  async getGroups(groupIds: string[]): Promise<Array<GroupDoc & { id: string }>> {
+    if (groupIds.length === 0) return [];
+
+    const docRefs = groupIds.map((id) => this.db.collection(this.collection).withConverter(this.converter).doc(id));
+    const docs = await this.db.getAll(...docRefs);
+
+    return docs
+      .filter((doc) => doc.exists)
+      .map((doc) => ({
+        ...(doc.data()! as GroupDoc),
+        id: doc.id,
+      }));
+  }
+
+  /**
+   * Creates a new group
+   * @param groupData The group data with denormalized member profiles
+   * @returns The created group with its ID
+   */
+  async create(groupData: Partial<GroupDoc>): Promise<{ id: string; data: GroupDoc }> {
+    const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc();
+    const groupId = groupRef.id;
+    const fullGroupData = { ...groupData, id: groupId } as GroupDoc;
+    await groupRef.set(fullGroupData);
+    return { id: groupId, data: fullGroupData };
+  }
+
+  /**
+   * Adds members to an existing group
+   * @param groupId The group ID to add members to
+   * @param newMembers Array of new member user IDs
+   * @param newProfiles Map of new member profiles
+   * @returns The updated group document
+   */
+  async addMembers(
+    groupId: string,
+    newMembers: string[],
+    newProfiles: Record<string, SimpleProfile>,
+  ): Promise<GroupDoc> {
+    const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc(groupId);
+
+    // Update members array
+    await groupRef.update({
+      members: FieldValue.arrayUnion(...newMembers),
+    });
+
+    // Update member_profiles separately
+    const profileUpdates: Record<string, SimpleProfile> = {};
+    Object.entries(newProfiles).forEach(([userId, profile]) => {
+      profileUpdates[`member_profiles.${userId}`] = profile;
+    });
+
+    if (Object.keys(profileUpdates).length > 0) {
+      await groupRef.update(profileUpdates);
+    }
+
+    // Fetch and return the updated document
+    const updatedDoc = await groupRef.get();
+    if (!updatedDoc.exists) {
+      throw new Error('Group not found after update');
+    }
+    return updatedDoc.data()!;
+  }
+
+  /**
+   * Removes a member from a group
+   * @param groupId The group ID to remove the member from
+   * @param userId The user ID to remove from the group
+   * @param batch Optional batch to add operations to
+   */
+  async removeMember(groupId: string, userId: string, batch?: WriteBatch): Promise<void> {
+    const groupRef = this.db.collection(this.collection).withConverter(this.converter).doc(groupId);
+    if (batch) {
+      batch.update(groupRef, {
+        members: FieldValue.arrayRemove(userId),
+        [`member_profiles.${userId}`]: FieldValue.delete(),
+      });
+    } else {
+      await groupRef.update({
+        members: FieldValue.arrayRemove(userId),
+        [`member_profiles.${userId}`]: FieldValue.delete(),
+      });
+    }
+  }
+
+  /**
+   * Updates member profiles in a group
+   * @param groupId The group ID to update
+   * @param profileUpdates Map of user IDs to updated profile data
+   */
+  async updateMemberProfiles(groupId: string, profileUpdates: Record<string, SimpleProfile>): Promise<void> {
+    const updates: Record<string, SimpleProfile> = {};
+
+    // Build field paths for nested updates
+    Object.entries(profileUpdates).forEach(([userId, profileData]) => {
+      updates[`member_profiles.${userId}`] = profileData;
+    });
+
+    await this.db.collection(this.collection).doc(groupId).withConverter(this.converter).update(updates);
+  }
+}

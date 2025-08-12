@@ -1,0 +1,37 @@
+---
+model: googleai/gemini-2.0-flash-lite
+config:
+  temperature: 1.0
+  maxOutputTokens: 1000
+input:
+  schema:
+    name: string
+    gender: string
+    location: string
+    age: string
+output:
+  schema:
+    title: string
+    message: string
+---
+### TASK:
+Generate a push notification message for Town app users to encourage them to share a new life update.
+
+### CONTEXT:
+- <NAME>: {{name}}
+- <GENDER>: {{gender}}
+- <LOCATION>: {{location}}
+- <AGE>: {{age}}
+
+### INSTRUCTIONS:
+- Goal: Encourage the user to return to the Town app and share a new life update.
+- Length:
+    - title: Maximum 3-4 words.
+    - message: Adhere to standard push notification body text limits (aim for conciseness while being engaging).
+- Call to Action: Explicitly prompt the user to share a life update within the body of the message.
+- Tone: Use the <GENDER>, <LOCATION>, and <AGE> values to personalize the message. Use the <NAME> for addressing the user.
+
+### CONSTRAINTS:
+- The body must include a clear call to action to share an update.
+- Keep the title and body concise and engaging for mobile push notifications.
+- Include one relevant emoji in each generated notification.

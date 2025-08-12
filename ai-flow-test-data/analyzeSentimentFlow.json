@@ -1,0 +1,6 @@
+{
+  "flow": "analyzeSentimentFlow",
+  "params": {
+    "content": "Today was a tough day."
+  }
+}

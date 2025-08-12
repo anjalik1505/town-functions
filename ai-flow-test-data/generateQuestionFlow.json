@@ -1,0 +1,14 @@
+{
+  "flow": "generateQuestionFlow",
+  "params": {
+    "existingSummary": "User summary.",
+    "existingSuggestions": "Ask more open questions.",
+    "existingEmotionalOverview": "Curious.",
+    "existingKeyMoments": "Went hiking.",
+    "existingRecurringThemes": "Nature, exercise.",
+    "existingProgressAndGrowth": "More active.",
+    "gender": "male",
+    "location": "Paris",
+    "age": "35"
+  }
+}
