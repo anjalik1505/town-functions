@@ -2189,7 +2189,7 @@ _Note: Minimum 1 and maximum 500 phone numbers. All numbers must be in valid E.1
 {
   "success": true,
   "message": "Notification sent successfully",
-  "messageId": "projects/village-staging-9178d/messages/1234567890"
+  "messageId": "projects/town-staging-9178d/messages/1234567890"
 }
 ```
 
